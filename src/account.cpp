@@ -1,5 +1,5 @@
 #include "db/databasemanager.h"
-#include "Account.h"
+#include "account.h"
 
 // Account Implementation
 Account::Account(int id, const QString& name, const QString& type, double balance)
