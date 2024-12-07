@@ -1,70 +1,50 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.19)
+project(Aion LANGUAGES CXX)
 
-project(aion VERSION 0.1 LANGUAGES CXX)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql)
 
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
+qt_standard_project_setup()
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Define source files for the main application
+set(SRC_DIR src)
+set(UI_DIR ui)
+file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${UI_DIR}/*.ui")
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+include_directories(${SRC_DIR})
 
-set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+qt_add_executable(Aion
+    WIN32 MACOSX_BUNDLE
+    ${SRC_FILES}
 )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(aion
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET aion APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    if(ANDROID)
-        add_library(aion SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(aion
-            ${PROJECT_SOURCES}
-        )
-    endif()
-endif()
-
-target_link_libraries(aion PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.aion)
-endif()
-set_target_properties(aion PROPERTIES
-    ${BUNDLE_ID_OPTION}
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+target_link_libraries(Aion
+    PRIVATE
+        Qt::Core
+        Qt::Widgets
+        Qt6::Sql
 )
+
+# Define the SQL migrations directory path
+set(SQL_MIGRATIONS_DIR "${CMAKE_SOURCE_DIR}/db/migrations")
+target_compile_definitions(Aion PRIVATE SQL_MIGRATIONS_DIR="${SQL_MIGRATIONS_DIR}")
+set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
+target_compile_definitions(Aion PRIVATE ASSETS_DIR="${ASSETS_DIR}")
+
+# Print the path for debugging purposes (optional)
+message(STATUS "SQL Migrations Directory: ${SQL_MIGRATIONS_DIR}")
+install(DIRECTORY ${SQL_MIGRATIONS_DIR} DESTINATION migrations)
 
 include(GNUInstallDirs)
-install(TARGETS aion
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+
+install(TARGETS Aion
+    BUNDLE  DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(aion)
-endif()
+qt_generate_deploy_app_script(
+    TARGET Aion
+    OUTPUT_SCRIPT deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+)
+install(SCRIPT ${deploy_script})
