@@ -26,16 +26,16 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     setupDatabase();
     UserSelectionDialog userSelectionDialog;
-    if (userSelectionDialog.exec() == QDialog::Accepted) {
-        int userId = userSelectionDialog.getSelectedUserId();
-        qDebug() << "User ID selected:" << userId;
 
-        // Proceed with the application logic using the selected user
-    } else {
+    if (userSelectionDialog.exec() != QDialog::Accepted) {
         qDebug() << "No user selected. Exiting.";
         return 0; // Exit the application if no user was selected
     }
-    MainWindow w;
+
+    int userId = userSelectionDialog.getSelectedUserId();
+    qDebug() << "User ID selected:" << userId;
+
+    MainWindow w(userId);
     w.show();
     return a.exec();
 }

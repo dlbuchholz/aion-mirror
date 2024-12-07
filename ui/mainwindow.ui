@@ -14,9 +14,22 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="1">
+   <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
+    <item>
+     <widget class="AccountBalanceListWidget" name="accountBalanceListWidget" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
     <item>
      <widget class="QTabWidget" name="tabWidget">
+      <property name="tabPosition">
+       <enum>QTabWidget::TabPosition::North</enum>
+      </property>
       <property name="currentIndex">
        <number>0</number>
       </property>
@@ -45,18 +58,25 @@
          </widget>
         </item>
         <item>
-         <widget class="QTableWidget" name="tableWidget_2">
-          <attribute name="verticalHeaderVisible">
-           <bool>true</bool>
-          </attribute>
-          <row>
+         <widget class="QListWidget" name="listWidget">
+          <item>
            <property name="text">
-            <string>Neue Zeile</string>
+            <string>Neues Element</string>
            </property>
-          </row>
+          </item>
+          <item>
+           <property name="text">
+            <string>Neues Element</string>
+           </property>
+          </item>
          </widget>
         </item>
        </layout>
+      </widget>
+      <widget class="QWidget" name="tab_transactions">
+       <attribute name="title">
+        <string>Transactions</string>
+       </attribute>
       </widget>
       <widget class="QWidget" name="tab_4">
        <attribute name="title">
@@ -73,12 +93,20 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>AccountBalanceListWidget</class>
+   <extends>QWidget</extends>
+   <header>accountbalancelistwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
