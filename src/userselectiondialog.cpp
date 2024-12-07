@@ -14,6 +14,16 @@ UserSelectionDialog::UserSelectionDialog(QWidget* parent)
     //setWindowTitle("Select or Create User");
     setWindowFlags(Qt::FramelessWindowHint);
 
+    widgetsList.append(ui.newUsernameInput);
+    widgetsList.append(ui.newNameInput);
+    widgetsList.append(ui.label_4);
+    widgetsList.append(ui.label_5);
+    widgetsList.append(ui.confirmNewUserButton);
+
+    for (QWidget *widget : widgetsList) {
+        widget->hide();
+    }
+
     // Load existing users into the combo box
     loadUsers();
 
@@ -62,12 +72,8 @@ void UserSelectionDialog::loadUsers() {
 void UserSelectionDialog::toggleUserCreationWidgets() {
     widgetsVisible = !widgetsVisible;
 
-    // Iterate through all items in the horizontal layout
-    for (int i = 0; i < ui.UserCreationQHBoxLayout->count(); ++i) {
-        QWidget *widget = ui.UserCreationQHBoxLayout->itemAt(i)->widget();
-        if (widget) {
-            widget->setVisible(widgetsVisible);
-        }
+    for (QWidget *widget : widgetsList) {
+        widget->setVisible(widgetsVisible);
     }
 }
 
@@ -76,7 +82,7 @@ void UserSelectionDialog::createUser() {
     QString name = ui.newNameInput->text().trimmed();
 
     if (username.isEmpty() || name.isEmpty()) {
-        QMessageBox::warning(this, "Invalid Input", "Please fill in both name and email.");
+        QMessageBox::warning(this, "Invalid Input", "Please fill in both username and name.");
         return;
     }
 
@@ -93,12 +99,25 @@ void UserSelectionDialog::createUser() {
 }
 
 void UserSelectionDialog::confirmSelection() {
+    // Get the selected user ID from the combo box
     selectedUserId = ui.userComboBox->currentData().toInt();
+
     if (selectedUserId == -1) {
-        QMessageBox::warning(this, "No User Selected", "Please select a user or create a new one.");
+        QMessageBox::warning(this, "Invalid Selection", "Please select a user from the list.");
         return;
     }
-    accept(); // Close dialog and return success
+
+    // Validate that the user exists in the database
+    UserDAO userDao;
+    User selectedUser = userDao.getUserById(selectedUserId);
+
+    if (selectedUser.getUserId() == -1) { // User not found
+        QMessageBox::critical(this, "Error", "The selected user does not exist. Please choose another user.");
+        return;
+    }
+
+    // If the user exists, accept the dialog
+    accept();
 }
 
 int UserSelectionDialog::getSelectedUserId() const {

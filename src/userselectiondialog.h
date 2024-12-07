@@ -31,6 +31,7 @@ private:
     Ui::UserSelectionDialog ui;
     int selectedUserId;
     bool mousePressed;
+    QList<QWidget *> widgetsList;
     bool widgetsVisible = false;
     QPoint lastMousePosition;
 };
