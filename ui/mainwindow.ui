@@ -46,6 +46,26 @@
        </spacer>
       </item>
       <item>
+       <widget class="QToolButton" name="toolButton_3">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset theme="QIcon::ThemeIcon::DocumentProperties"/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="toolButton_2">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset theme="QIcon::ThemeIcon::HelpFaq"/>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QToolButton" name="toolButton">
         <property name="text">
          <string>...</string>
@@ -94,7 +114,7 @@
          <enum>QTabWidget::TabPosition::North</enum>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="tab_3">
          <attribute name="title">
@@ -136,15 +156,51 @@
           </item>
          </layout>
         </widget>
+        <widget class="QWidget" name="tab_2">
+         <attribute name="title">
+          <string>Budget</string>
+         </attribute>
+        </widget>
         <widget class="QWidget" name="tab_transactions">
          <attribute name="title">
           <string>Transactions</string>
          </attribute>
         </widget>
-        <widget class="QWidget" name="tab_4">
+        <widget class="QWidget" name="tab">
          <attribute name="title">
-          <string>Tab 2</string>
+          <string>Preferences</string>
          </attribute>
+         <layout class="QVBoxLayout" name="verticalLayout_4">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <item>
+             <widget class="QGroupBox" name="groupBox">
+              <property name="title">
+               <string>Accounts</string>
+              </property>
+              <layout class="QVBoxLayout" name="verticalLayout">
+               <item>
+                <widget class="AddAccountWidget" name="widget" native="true"/>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </widget>
        </widget>
       </item>
@@ -169,6 +225,12 @@
    <class>AccountBalanceListWidget</class>
    <extends>QWidget</extends>
    <header>accountbalancelistwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>AddAccountWidget</class>
+   <extends>QWidget</extends>
+   <header>addaccountwidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
