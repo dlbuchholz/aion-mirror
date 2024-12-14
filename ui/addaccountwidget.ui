@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>256</width>
-    <height>400</height>
+    <width>260</width>
+    <height>151</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,57 +26,6 @@
    <property name="bottomMargin">
     <number>0</number>
    </property>
-   <item>
-    <widget class="QTableWidget" name="accountTableWidget">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>400</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
-     </property>
-     <attribute name="horizontalHeaderVisible">
-      <bool>false</bool>
-     </attribute>
-     <attribute name="verticalHeaderVisible">
-      <bool>true</bool>
-     </attribute>
-     <attribute name="verticalHeaderDefaultSectionSize">
-      <number>22</number>
-     </attribute>
-     <row>
-      <property name="text">
-       <string>Neue Zeile</string>
-      </property>
-     </row>
-     <row>
-      <property name="text">
-       <string>Neue Zeile</string>
-      </property>
-     </row>
-     <column>
-      <property name="text">
-       <string>Neue Spalte</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Neue Spalte</string>
-      </property>
-     </column>
-    </widget>
-   </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <property name="topMargin">
@@ -119,6 +68,9 @@
    </item>
    <item>
     <widget class="QWidget" name="accountCreationWidget" native="true">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
      <property name="minimumSize">
       <size>
        <width>0</width>
@@ -166,7 +118,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="lineEdit"/>
+           <widget class="QLineEdit" name="accountNameInput"/>
           </item>
           <item>
            <widget class="QLabel" name="label_3">
@@ -176,7 +128,11 @@
            </widget>
           </item>
           <item>
-           <widget class="QDoubleSpinBox" name="doubleSpinBox"/>
+           <widget class="QDoubleSpinBox" name="initialBalanceInput">
+            <property name="maximum">
+             <double>100000000000000000.000000000000000</double>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -193,7 +149,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QComboBox" name="comboBox"/>
+           <widget class="QComboBox" name="accountTypeComboBox"/>
           </item>
           <item>
            <widget class="QLabel" name="label_4">
@@ -203,7 +159,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton">
+           <widget class="QPushButton" name="createAccountButton">
             <property name="text">
              <string>Add account</string>
             </property>

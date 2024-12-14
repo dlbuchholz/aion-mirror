@@ -19,8 +19,6 @@ public:
     QString getType() const;
     double getBalance() const;
 
-    void updateBalance(double amount);
-
 private:
     int accountId;
     QString name;
@@ -33,11 +31,12 @@ class AccountDAO {
 public:
     AccountDAO();
 
-    bool createAccount(const Account& account);
-    Account getAccountById(int accountId);
-    QList<Account> getAllAccounts();
-    bool deleteAccount(int accountId);
+    QList<QString> getAccountTypes();
 
+    static int createAccount(int userId, const QString &name, const QString &type, double initialBalance);
+    Account getAccountById(int accountId);
+    QList<Account> getAllAccountsForUser(int userId);
+    bool deleteAccount(int accountId);
 private:
     void handleError(const QSqlQuery& query);
 };

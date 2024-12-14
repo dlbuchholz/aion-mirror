@@ -2,11 +2,15 @@
 #include "transaction.h"
 
 // Transaction Implementation
-Transaction::Transaction(int id, double amount, const QDate& date, const QString& description, const QString& category, const QString& type)
-    : transactionId(id), amount(amount), date(date), description(description), category(category), type(type) {}
+Transaction::Transaction(int id, const int accountId, double amount, const QDate& date, const QString& description, const QString& category, const QString& type)
+    : transactionId(id), accountId(accountId), amount(amount), date(date), description(description), category(category), type(type) {}
 
 int Transaction::getTransactionId() const {
     return transactionId;
+}
+
+int Transaction::getAccountId() const {
+    return accountId;
 }
 
 double Transaction::getAmount() const {
@@ -35,10 +39,10 @@ TransactionDAO::TransactionDAO() {}
 bool TransactionDAO::addTransaction(const Transaction& transaction) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
-        "INSERT INTO transactions (id, amount, date, description, category, type) "
-        "VALUES (:id, :amount, :date, :description, :category, :type)"
+        "INSERT INTO transactions (account_id, amount, date, description, category, type) "
+        "VALUES (:account_id, :amount, :date, :description, :category, :type)"
         );
-    query.bindValue(":id", transaction.getTransactionId());
+    query.bindValue(":account_id", transaction.getAccountId());
     query.bindValue(":amount", transaction.getAmount());
     query.bindValue(":date", transaction.getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
@@ -62,6 +66,7 @@ QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
         while (query.next()) {
             transactions.append(Transaction(
                 query.value("id").toInt(),
+                accountId,
                 query.value("amount").toDouble(),
                 QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
                 query.value("description").toString(),

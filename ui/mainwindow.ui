@@ -114,7 +114,7 @@
          <enum>QTabWidget::TabPosition::North</enum>
         </property>
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="tab_3">
          <attribute name="title">
@@ -174,18 +174,6 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QGroupBox" name="groupBox">
-              <property name="title">
-               <string>Accounts</string>
-              </property>
-              <layout class="QVBoxLayout" name="verticalLayout">
-               <item>
-                <widget class="AddAccountWidget" name="widget" native="true"/>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
              <spacer name="horizontalSpacer_2">
               <property name="orientation">
                <enum>Qt::Orientation::Horizontal</enum>
@@ -225,12 +213,6 @@
    <class>AccountBalanceListWidget</class>
    <extends>QWidget</extends>
    <header>accountbalancelistwidget.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>AddAccountWidget</class>
-   <extends>QWidget</extends>
-   <header>addaccountwidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -21,38 +21,92 @@ double Account::getBalance() const {
     return balance;
 }
 
-void Account::updateBalance(double amount) {
-    balance += amount;
-}
-
 // AccountDAO Implementation
 AccountDAO::AccountDAO() {}
 
-bool AccountDAO::createAccount(const Account& account) {
+QList<QString> AccountDAO::getAccountTypes() {
+    QList<QString> accountTypes;
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("INSERT INTO accounts (id, name, type, balance) VALUES (:id, :name, :type, :balance)");
-    query.bindValue(":id", account.getAccountId());
-    query.bindValue(":name", account.getName());
-    query.bindValue(":type", account.getType());
-    query.bindValue(":balance", account.getBalance());
+
+    if (query.exec("SELECT name FROM account_types")) {
+        while (query.next()) {
+            accountTypes.append(query.value(0).toString());
+        }
+    } else {
+        qDebug() << "Failed to fetch account types:" << query.lastError().text();
+    }
+    return accountTypes;
+}
+
+int AccountDAO::createAccount(int userId, const QString& name, const QString& accountTypeName, double initialBalance) {
+    QSqlDatabase db = DatabaseManager::instance().database();
+    QSqlQuery query(db);
+
+    // Start a transaction
+    if (!db.transaction()) {
+        qWarning() << "Failed to start transaction:" << db.lastError().text();
+        return -1;
+    }
+
+    // Retrieve the account type ID
+    query.prepare("SELECT id FROM account_types WHERE name = :name");
+    query.bindValue(":name", accountTypeName);
+    if (!query.exec() || !query.next()) {
+        qWarning() << "Failed to fetch account type ID for:" << accountTypeName << query.lastError().text();
+        db.rollback();
+        return -1;
+    }
+    int accountTypeId = query.value("id").toInt();
+
+    // Insert the new account
+    query.prepare("INSERT INTO accounts (user_id, name, type_id) VALUES (:user_id, :name, :type_id)");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":name", name);
+    query.bindValue(":type_id", accountTypeId);
 
     if (!query.exec()) {
-        handleError(query);
-        return false;
+        qWarning() << "Failed to insert account:" << query.lastError().text();
+        db.rollback();
+        return -1;
     }
-    return true;
+
+    // Get the inserted account ID
+    int accountId = query.lastInsertId().toInt();
+
+    // Insert an initial transaction if the balance is non-zero
+    if (initialBalance != 0.0) {
+        Transaction initialTransaction(-1, accountId, initialBalance, QDate::currentDate(), "Initial deposit", "Initial", "income");
+        TransactionDAO transactionDao;
+        if (!transactionDao.addTransaction(initialTransaction)) {
+            qWarning() << "Failed to insert initial transaction";
+            db.rollback();
+            return -1;
+        }
+    }
+
+    // Commit the transaction
+    if (!db.commit()) {
+        qWarning() << "Failed to commit transaction:" << db.lastError().text();
+        return -1;
+    }
+
+    return accountId;
 }
 
 Account AccountDAO::getAccountById(int accountId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, name, type, balance FROM accounts WHERE id = :id");
+    query.prepare(R"(
+        SELECT account_id, account_name, account_type, balance
+        FROM account_balances
+        WHERE account_id = :id
+    )");
     query.bindValue(":id", accountId);
 
     if (query.exec() && query.next()) {
         return Account(
-            query.value("id").toInt(),
-            query.value("name").toString(),
-            query.value("type").toString(),
+            query.value("account_id").toInt(),
+            query.value("account_name").toString(),
+            query.value("account_type").toString(),
             query.value("balance").toDouble()
             );
     }
@@ -61,17 +115,22 @@ Account AccountDAO::getAccountById(int accountId) {
     return Account(-1, "", "", 0.0); // Invalid account on failure
 }
 
-QList<Account> AccountDAO::getAllAccounts() {
+QList<Account> AccountDAO::getAllAccountsForUser(int userId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, name, type, balance FROM accounts");
+    query.prepare(R"(
+        SELECT account_id, account_name, account_type, balance
+        FROM account_balances
+        WHERE user_id = :user_id
+    )");
+    query.bindValue(":user_id", userId);
 
     QList<Account> accounts;
     if (query.exec()) {
         while (query.next()) {
             accounts.append(Account(
-                query.value("id").toInt(),
-                query.value("name").toString(),
-                query.value("type").toString(),
+                query.value("account_id").toInt(),
+                query.value("account_name").toString(),
+                query.value("account_type").toString(),
                 query.value("balance").toDouble()
                 ));
         }
@@ -95,6 +154,6 @@ bool AccountDAO::deleteAccount(int accountId) {
 
 void AccountDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "SQL Error:" << query.lastError().text();
+        qDebug() << "AccountDAO SQL Error:" << query.lastError().text();
     }
 }

@@ -177,8 +177,26 @@
      </column>
     </widget>
    </item>
+   <item>
+    <widget class="AddAccountWidget" name="addAccountWidget" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>20</height>
+      </size>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>AddAccountWidget</class>
+   <extends>QWidget</extends>
+   <header>addaccountwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

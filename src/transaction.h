@@ -11,9 +11,10 @@
 // Transaction Object
 class Transaction {
 public:
-    Transaction(int id, double amount, const QDate& date, const QString& description, const QString& category, const QString& type);
+    Transaction(int id, const int account_id, double amount, const QDate& date, const QString& description, const QString& category, const QString& type);
 
     int getTransactionId() const;
+    int getAccountId() const;
     double getAmount() const;
     QDate getDate() const;
     QString getDescription() const;
@@ -22,6 +23,7 @@ public:
 
 private:
     int transactionId;
+    int accountId;
     double amount;
     QDate date;
     QString description;
