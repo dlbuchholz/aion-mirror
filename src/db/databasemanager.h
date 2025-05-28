@@ -14,6 +14,8 @@ public:
     bool openDatabase(const QString& dbPath);
     void closeDatabase();
 
+    void setDatabase(const QSqlDatabase &newDatabase);
+
 private:
     DatabaseManager();
     QSqlDatabase m_database;

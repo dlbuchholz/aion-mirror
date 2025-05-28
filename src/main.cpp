@@ -5,7 +5,7 @@
 #include "userselectiondialog.h"
 #include <QApplication>
 
-void setupDatabase() {
+static void setupDatabase() {
     QString dbPath = "app_data.db";
     // Open the database
     if (!DatabaseManager::instance().openDatabase(dbPath)) {

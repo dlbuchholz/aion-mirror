@@ -11,6 +11,11 @@ DatabaseManager& DatabaseManager::instance() {
 DatabaseManager::DatabaseManager()
     : m_database(QSqlDatabase::addDatabase("QSQLITE")) {}
 
+void DatabaseManager::setDatabase(const QSqlDatabase &newDatabase)
+{
+    m_database = newDatabase;
+}
+
 DatabaseManager::~DatabaseManager() {
     if (m_database.isOpen()) {
         m_database.close();
