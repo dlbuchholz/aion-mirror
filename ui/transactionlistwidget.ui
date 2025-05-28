@@ -32,7 +32,7 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="QToolButton" name="toolButton">
+      <widget class="QToolButton" name="newTransactionToolButton">
        <property name="text">
         <string>...</string>
        </property>

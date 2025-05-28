@@ -14,6 +14,8 @@ public:
     void setUserId(int userId);
     void loadTransactions();                        // Load transactions for selected accounts
 
+private slots:
+    void addEmptyTransactionRow();
 private:
     void setAccountIds(const QSet<int>& accountIds); // Set selected account IDs
     void populateComboBox();         // Populate the combo box with accounts
