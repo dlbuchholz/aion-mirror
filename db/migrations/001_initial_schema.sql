@@ -72,7 +72,8 @@ INSERT INTO account_types (name) VALUES
 ('Checking'),
 ('Savings'),
 ('Investment'),
-('Retirement');
+('Retirement'),
+('Virtual');
 
 INSERT INTO categories (name, type) VALUES
 ('Initial balance', 'income'),

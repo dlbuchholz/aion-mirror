@@ -9,6 +9,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     ui->setupUi(this);
     Theme::applyTheme(Theme::Type::Dark);
     ui->accountBalanceListWidget->setUserId(userId);
+    ui->transactionListWidget->setUserId(userId);
 }
 
 MainWindow::~MainWindow()
