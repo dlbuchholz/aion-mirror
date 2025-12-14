@@ -10,7 +10,7 @@
 #include <QVBoxLayout>
 #include <QMessageBox>
 
-#include "../ui/ui_addaccountwidget.h"
+#include "../../ui/ui_addaccountwidget.h"
 
 class AddAccountWidget : public QWidget {
     Q_OBJECT

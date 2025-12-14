@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include <QSet>
-#include "../ui/ui_transactionlistwidget.h"
+#include "../../ui/ui_transactionlistwidget.h"
 
 class TransactionListWidget : public QWidget {
     Q_OBJECT
