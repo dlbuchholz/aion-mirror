@@ -1,5 +1,6 @@
 #include "preferenceswidget.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -52,59 +53,91 @@ void PreferencesWidget::setupTables() {
 }
 
 void PreferencesWidget::loadAccountTypes() {
-    // Temporarily block the cellChanged signal
+    // Temporarily block signals
     ui->accountTypesTable->blockSignals(true);
 
-    QList<QPair<QString, QString>> accountTypes = accountDao.getAllAccountTypes();
+    ui->accountTypesTable->setRowCount(0);  // Clear previous rows
+    ui->accountTypesTable->setColumnCount(2);  // Additional column for the checkbox
+    ui->accountTypesTable->setHorizontalHeaderLabels({"Name", ""});  // Blank header for the checkbox column
 
-    ui->accountTypesTable->setRowCount(0);  // Clear existing rows
+    QList<QPair<QString, QString>> accountTypes = accountDao.getAllAccountTypes();
     for (const auto &accountType : accountTypes) {
         int row = ui->accountTypesTable->rowCount();
         ui->accountTypesTable->insertRow(row);
 
-        // Set the ID as the vertical header
+        // Set the ID in the vertical header (read-only)
         QTableWidgetItem *idHeaderItem = new QTableWidgetItem(accountType.first);
+        idHeaderItem->setFlags(idHeaderItem->flags() & ~Qt::ItemIsEditable);  // ID column is read-only
         ui->accountTypesTable->setVerticalHeaderItem(row, idHeaderItem);
 
-        // Add Name field
+        // Add Name column (editable)
         QTableWidgetItem *nameItem = new QTableWidgetItem(accountType.second);
+        nameItem->setFlags(Qt::ItemIsEditable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
         ui->accountTypesTable->setItem(row, 0, nameItem);
+
+        // Add a checkbox in the first column (selection column)
+            QCheckBox *checkBox = new QCheckBox();
+        connect(checkBox, &QCheckBox::clicked, [=]() {
+            handleAccountTypeCheckboxStateChange(row, checkBox->isChecked());
+        });
+
+        QWidget *checkBoxWidget = new QWidget();
+        QHBoxLayout *layout = new QHBoxLayout(checkBoxWidget);
+        layout->addWidget(checkBox);
+        layout->setAlignment(Qt::AlignCenter);
+        layout->setContentsMargins(0, 0, 0, 0);
+        ui->accountTypesTable->setCellWidget(row, 1, checkBoxWidget);
     }
 
-    // Reconnect the cellChanged signal
+    // Reconnect signals
     ui->accountTypesTable->blockSignals(false);
 }
 
 void PreferencesWidget::loadCategories() {
-    // Temporarily block the cellChanged signal
+    // Temporarily block signals
     ui->categoriesTable->blockSignals(true);
 
-    QList<Category> categories = categoryDao.getAllCategories();
+    ui->categoriesTable->setRowCount(0);  // Clear previous rows
+    ui->categoriesTable->setColumnCount(3);  // Add a column for the checkbox
+    ui->categoriesTable->setHorizontalHeaderLabels({"Name", "Type", ""});  // Blank header for the checkbox column
 
-    ui->categoriesTable->setRowCount(0);  // Clear existing rows
+    QList<Category> categories = categoryDao.getAllCategories();
     for (const Category &category : categories) {
         int row = ui->categoriesTable->rowCount();
         ui->categoriesTable->insertRow(row);
 
-        // Set the ID as the vertical header
+        // Set the ID in the vertical header (read-only)
         QTableWidgetItem *idHeaderItem = new QTableWidgetItem(QString::number(category.getCategoryId()));
+        idHeaderItem->setFlags(idHeaderItem->flags() & ~Qt::ItemIsEditable);  // ID column is read-only
         ui->categoriesTable->setVerticalHeaderItem(row, idHeaderItem);
 
-        // Add Name field
+        // Add Name column (editable)
         QTableWidgetItem *nameItem = new QTableWidgetItem(category.getName());
         ui->categoriesTable->setItem(row, 0, nameItem);
 
-        // Add Type dropdown as a cell widget
+        // Add Type dropdown
         QComboBox *typeCombo = new QComboBox();
         typeCombo->addItems({"income", "expense"});
         typeCombo->setCurrentText(category.getType());
         connect(typeCombo, &QComboBox::currentTextChanged, [=]() {
-            stageCategoryChange(row);  // Stage edits when Type is changed
+            stageCategoryChange(row);
         });
         ui->categoriesTable->setCellWidget(row, 1, typeCombo);
+
+        // Add a checkbox in the last column
+        QCheckBox *checkBox = new QCheckBox();
+        connect(checkBox, &QCheckBox::clicked, [=]() {
+            handleCategoryCheckboxStateChange(row, checkBox->isChecked());
+        });
+        QWidget *checkBoxWidget = new QWidget();
+        QHBoxLayout *layout = new QHBoxLayout(checkBoxWidget);
+        layout->addWidget(checkBox);
+        layout->setAlignment(Qt::AlignCenter);
+        layout->setContentsMargins(0, 0, 0, 0);
+        ui->categoriesTable->setCellWidget(row, 2, checkBoxWidget);
     }
 
-    // Reconnect the cellChanged signal
+    // Reconnect signals
     ui->categoriesTable->blockSignals(false);
 }
 
@@ -227,6 +260,42 @@ void PreferencesWidget::deleteCategory() {
 
     // Temporarily block the cellChanged signal
     ui->categoriesTable->blockSignals(false);
+}
+
+void PreferencesWidget::handleAccountTypeCheckboxStateChange(int row, bool checked) {
+    QString id = ui->accountTypesTable->verticalHeaderItem(row)->text();
+    int accountId = id.toInt();
+
+    if (checked) {
+        // Add to staged deletions
+        if (accountId != -1) {
+            stagedAccountDeletions.insert(accountId);
+        }
+    } else {
+        // Remove from staged deletions
+        stagedAccountDeletions.remove(accountId);
+    }
+
+    // Update Save/Discard button visibility
+    updateButtonStates();
+}
+
+void PreferencesWidget::handleCategoryCheckboxStateChange(int row, bool checked) {
+    QString id = ui->categoriesTable->verticalHeaderItem(row)->text();
+    int categoryId = id.toInt();
+
+    if (checked) {
+        // Add to staged deletions
+        if (categoryId != -1) {
+            stagedCategoryDeletions.insert(categoryId);
+        }
+    } else {
+        // Remove from staged deletions
+        stagedCategoryDeletions.remove(categoryId);
+    }
+
+    // Update Save/Discard button visibility
+    updateButtonStates();
 }
 
 void PreferencesWidget::stageAccountTypeChange(int row) {

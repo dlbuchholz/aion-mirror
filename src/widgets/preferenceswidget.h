@@ -38,6 +38,9 @@ private:
     void stageAccountTypeChange(int row);  // Stage changes for Account Types
     void stageCategoryChange(int row);     // Stage changes for Categories
 
+    void handleAccountTypeCheckboxStateChange(int row, bool checked);  // Track account deletions
+    void handleCategoryCheckboxStateChange(int row, bool checked);     // Track category deletions
+
     void updateButtonStates();   // Dynamically show/hide Save and Discard buttons
 
     QMap<int, QString> stagedAccounts;                     // Staged Account Type changes (ID -> Name)
