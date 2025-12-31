@@ -38,6 +38,62 @@ QList<QString> AccountDAO::getAccountTypes() {
     return accountTypes;
 }
 
+QList<QPair<QString, QString>> AccountDAO::getAllAccountTypes() {
+    QList<QPair<QString, QString>> accountTypes;
+    QSqlQuery query(DatabaseManager::instance().database());
+
+    if (query.exec("SELECT id, name FROM account_types")) {
+        while (query.next()) {
+            QString id = query.value(0).toString();
+            QString name = query.value(1).toString();
+            accountTypes.append(qMakePair(id, name));
+        }
+    } else {
+        qDebug() << "Failed to fetch account types:" << query.lastError().text();
+    }
+    return accountTypes;
+}
+
+int AccountDAO::addAccountType(const QString& name) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("INSERT INTO account_types (name) VALUES (:name)");
+    query.bindValue(":name", name);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add account type:" << query.lastError().text();
+        return -1;
+    }
+
+    return query.lastInsertId().toInt();
+}
+
+bool AccountDAO::editAccountType(int id, const QString& newName) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("UPDATE account_types SET name = :name WHERE id = :id");
+    query.bindValue(":name", newName);
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to edit account type:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+bool AccountDAO::deleteAccountType(int id) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("DELETE FROM account_types WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to delete account type:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
 int AccountDAO::createAccount(int userId, const QString& name, const QString& accountTypeName, double initialBalance) {
     QSqlDatabase db = DatabaseManager::instance().database();
     QSqlQuery query(db);
@@ -75,7 +131,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
 
     // Insert an initial transaction if the balance is non-zero
     if (initialBalance != 0.0) {
-        Transaction initialTransaction(-1, accountId, initialBalance, QDate::currentDate(), "Initial deposit", "Initial", "income");
+        Transaction initialTransaction(-1, accountId, "", initialBalance, QDate::currentDate(), "Initial deposit", 0, "income");
         TransactionDAO transactionDao;
         if (!transactionDao.addTransaction(initialTransaction)) {
             qWarning() << "Failed to insert initial transaction";

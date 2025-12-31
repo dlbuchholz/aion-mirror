@@ -28,7 +28,10 @@ public:
     CategoryDAO();
 
     bool createCategory(const Category& category);
+    int addCategory(const Category &category);
     QList<Category> getAllCategories();
+    Category getCategoryById(int categoryId);
+    bool editCategory(int id, const QString &newName, const QString &newType);
     bool deleteCategory(int categoryId);
 
 private:

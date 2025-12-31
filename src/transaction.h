@@ -8,26 +8,43 @@
 #include <QSqlError>
 #include <QDebug>
 
-// Transaction Object
 class Transaction {
 public:
-    Transaction(int id, const int account_id, double amount, const QDate& date, const QString& description, const QString& category, const QString& type);
+    // Default constructor
+    Transaction();
 
+    // Parameterized constructor
+    Transaction(int id, int accountId, const QString& payee, double amount, const QDate& date,
+                const QString& description, int categoryId, const QString& type);
+
+    // Getters
     int getTransactionId() const;
     int getAccountId() const;
+    int getCategoryId() const;
     double getAmount() const;
     QDate getDate() const;
     QString getDescription() const;
-    QString getCategory() const;
+    QString getPayee() const;
     QString getType() const;
+
+    // Setters
+    void setTransactionId(int id);
+    void setAccountId(int id);
+    void setCategoryId(int id);
+    void setDate(const QDate& date);
+    void setDescription(const QString& desc);
+    void setPayee(const QString& payee);
+    void setAmount(double amt);
+    void setType(const QString& transactionType);
 
 private:
     int transactionId;
     int accountId;
+    int categoryId;
     double amount;
     QDate date;
     QString description;
-    QString category;
+    QString payee;
     QString type;
 };
 
@@ -36,8 +53,11 @@ class TransactionDAO {
 public:
     TransactionDAO();
 
-    bool addTransaction(const Transaction& transaction);
+    int addTransaction(const Transaction& transaction);
+    bool updateTransaction(const Transaction& transaction);
+    bool deleteTransaction(int transactionId);
     QList<Transaction> getTransactionsForAccount(int accountId);
+    Transaction getTransactionById(int transactionId);
 
 private:
     void handleError(const QSqlQuery& query);

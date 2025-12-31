@@ -4,9 +4,16 @@
 #include "db/migrationmanager.h"
 #include "userselectiondialog.h"
 #include <QApplication>
+#include <QDir>
+#include <QStandardPaths>
 
 static void setupDatabase() {
-    QString dbPath = "app_data.db";
+    QString basePath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    QDir().mkpath(basePath);
+
+    QString dbPath = basePath + "/app_data.db";
     // Open the database
     if (!DatabaseManager::instance().openDatabase(dbPath)) {
         qCritical() << "Database initialization failed!";

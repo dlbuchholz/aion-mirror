@@ -21,10 +21,11 @@ CREATE TABLE account_types (
 CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY,
     account_id INTEGER NOT NULL,
+    payee TEXT,
     amount REAL NOT NULL,
     date TEXT NOT NULL,
     description TEXT,
-    category TEXT,
+    category_id INTEGER,
     type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
     FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
 	FOREIGN KEY (category) REFERENCES categories (name)

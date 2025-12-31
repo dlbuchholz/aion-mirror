@@ -1,4 +1,4 @@
-#include "accountbalancelistwidget.h"
+#include "widgets/accountbalancelistwidget.h"
 #include "mainwindow.h"
 #include "theme.h"
 #include "../ui/ui_mainwindow.h"
