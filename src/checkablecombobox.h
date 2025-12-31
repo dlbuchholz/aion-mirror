@@ -15,6 +15,10 @@ public:
     void addItemWithId(const QString& label, int id);    // Add a labeled item with an associated ID
     void clearItems();                                   // Clear all items from the combo box
 
+    void setItemChecked(int index, bool checked);
+    void checkAllItems();
+    void uncheckAllItems();
+
 signals:
     void selectionChanged();
 

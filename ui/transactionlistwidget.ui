@@ -101,9 +101,12 @@
       <number>0</number>
      </property>
      <item>
+      <widget class="CheckableComboBox" name="checkableComboBox"/>
+     </item>
+     <item>
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>20 visible transactions</string>
+        <string>20 visible</string>
        </property>
       </widget>
      </item>
@@ -117,7 +120,7 @@
      <item>
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>10 transactions selected</string>
+        <string>10 selected</string>
        </property>
       </widget>
      </item>
@@ -135,7 +138,31 @@
       </spacer>
      </item>
      <item>
-      <widget class="CheckableComboBox" name="checkableComboBox"/>
+      <layout class="QHBoxLayout" name="buttonLayout">
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="saveButton">
+         <property name="text">
+          <string>Save Changes</string>
+         </property>
+         <property name="icon">
+          <iconset theme="QIcon::ThemeIcon::SyncSynchronizing"/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="discardButton">
+         <property name="text">
+          <string>Discard Changes</string>
+         </property>
+         <property name="icon">
+          <iconset theme="QIcon::ThemeIcon::EditUndo"/>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

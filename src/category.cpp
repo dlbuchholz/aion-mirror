@@ -67,6 +67,23 @@ QList<Category> CategoryDAO::getAllCategories() {
     return categories;
 }
 
+Category CategoryDAO::getCategoryById(int categoryId) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT id, name, type FROM categories WHERE id = :id");
+    query.bindValue(":id", categoryId);
+
+    if (query.exec() && query.next()) {
+        return Category(
+            query.value("id").toInt(),
+            query.value("name").toString(),
+            query. value("type").toString()
+            );
+    } else {
+        handleError(query);
+        return Category(-1, "", "");  // Return empty category on error
+    }
+}
+
 bool CategoryDAO::editCategory(int id, const QString& newName, const QString& newType) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare("UPDATE categories SET name = :name, type = :type WHERE id = :id");

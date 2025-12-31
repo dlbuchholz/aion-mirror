@@ -131,7 +131,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
 
     // Insert an initial transaction if the balance is non-zero
     if (initialBalance != 0.0) {
-        Transaction initialTransaction(-1, accountId, initialBalance, QDate::currentDate(), "Initial deposit", "Initial", "income");
+        Transaction initialTransaction(-1, accountId, "", initialBalance, QDate::currentDate(), "Initial deposit", 0, "income");
         TransactionDAO transactionDao;
         if (!transactionDao.addTransaction(initialTransaction)) {
             qWarning() << "Failed to insert initial transaction";
