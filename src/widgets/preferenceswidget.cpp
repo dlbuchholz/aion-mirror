@@ -25,26 +25,34 @@ PreferencesWidget::~PreferencesWidget() {
     delete ui;
 }
 
+
 void PreferencesWidget::setupTables() {
     // Account Types Table
-    ui->accountTypesTable->setColumnCount(1);  // Only one column for "Name"
-    ui->accountTypesTable->setHorizontalHeaderLabels({"Name"});
-    ui->accountTypesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    ui->accountTypesTable->verticalHeader()->setVisible(true);  // Show the vertical header (to display IDs)
+    ui->accountTypesTable->setColumnCount(2);  // Name + Checkbox
+    ui->accountTypesTable->setHorizontalHeaderLabels({"Name", "Select"});
 
-    // Connect signal for staging changes
+    // Set column resize modes
+    ui->accountTypesTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);  // Name column stretches
+    ui->accountTypesTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);  // Checkbox column fits content
+    ui->accountTypesTable->setColumnWidth(1, 30);  // Set a fixed small width for checkbox column
+
+    ui->accountTypesTable->verticalHeader()->setVisible(true);
     connect(ui->accountTypesTable, &QTableWidget::cellChanged, this, &PreferencesWidget::stageAccountTypeChange);
     connect(ui->addAccountTypeButton, &QPushButton::clicked, this, &PreferencesWidget::addAccountType);
     connect(ui->deleteAccountTypeButton, &QPushButton::clicked, this, &PreferencesWidget::deleteAccountType);
 
     // Categories Table
-    ui->categoriesTable->setColumnCount(2);  // Two columns: "Name", "Type"
-    ui->categoriesTable->setHorizontalHeaderLabels({"Name", "Type"});
-    ui->categoriesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    ui->categoriesTable->verticalHeader()->setVisible(true);  // Show the vertical header (to display IDs)
+    ui->categoriesTable->setColumnCount(3);  // Name + Type + Checkbox
+    ui->categoriesTable->setHorizontalHeaderLabels({"Name", "Type", "Select"});
 
-    // Connect for staging changes in the "Name" column immediately after edits
-    connect(ui->categoriesTable, &QTableWidget::cellChanged, this, &PreferencesWidget::stageCategoryChange);
+    // Set column resize modes
+    ui->categoriesTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);  // Name column stretches
+    ui->categoriesTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView:: Stretch);  // Type column stretches
+    ui->categoriesTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);  // Checkbox column fits content
+    ui->categoriesTable->setColumnWidth(2, 30);  // Set a fixed small width for checkbox column
+
+    ui->categoriesTable->verticalHeader()->setVisible(true);
+    connect(ui->categoriesTable, &QTableWidget:: cellChanged, this, &PreferencesWidget::stageCategoryChange);
     connect(ui->addCategoryButton, &QPushButton::clicked, this, &PreferencesWidget::addCategory);
     connect(ui->deleteCategoryButton, &QPushButton::clicked, this, &PreferencesWidget::deleteCategory);
 
@@ -55,10 +63,7 @@ void PreferencesWidget::setupTables() {
 void PreferencesWidget::loadAccountTypes() {
     // Temporarily block signals
     ui->accountTypesTable->blockSignals(true);
-
     ui->accountTypesTable->setRowCount(0);  // Clear previous rows
-    ui->accountTypesTable->setColumnCount(2);  // Additional column for the checkbox
-    ui->accountTypesTable->setHorizontalHeaderLabels({"Name", ""});  // Blank header for the checkbox column
 
     QList<QPair<QString, QString>> accountTypes = accountDao.getAllAccountTypes();
     for (const auto &accountType : accountTypes) {
@@ -96,10 +101,7 @@ void PreferencesWidget::loadAccountTypes() {
 void PreferencesWidget::loadCategories() {
     // Temporarily block signals
     ui->categoriesTable->blockSignals(true);
-
     ui->categoriesTable->setRowCount(0);  // Clear previous rows
-    ui->categoriesTable->setColumnCount(3);  // Add a column for the checkbox
-    ui->categoriesTable->setHorizontalHeaderLabels({"Name", "Type", ""});  // Blank header for the checkbox column
 
     QList<Category> categories = categoryDao.getAllCategories();
     for (const Category &category : categories) {
@@ -157,6 +159,18 @@ void PreferencesWidget::addAccountType() {
     nameItem->setFlags(Qt::ItemIsEditable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);  // Editable flag
     ui->accountTypesTable->setItem(row, 0, nameItem);
 
+    // Add checkbox
+    QCheckBox *checkBox = new QCheckBox();
+    connect(checkBox, &QCheckBox::clicked, [=]() {
+        handleAccountTypeCheckboxStateChange(row, checkBox->isChecked());
+    });
+    QWidget *checkBoxWidget = new QWidget();
+    QHBoxLayout *layout = new QHBoxLayout(checkBoxWidget);
+    layout->addWidget(checkBox);
+    layout->setAlignment(Qt::AlignCenter);
+    layout->setContentsMargins(0, 0, 0, 0);
+    ui->accountTypesTable->setCellWidget(row, 1, checkBoxWidget);
+
     // Immediately stage the new row with default values
     stagedAccounts[-1] = "";  // Staged as (TempID -> Empty Name)
     updateButtonStates();     // Enable buttons
@@ -169,33 +183,59 @@ void PreferencesWidget::deleteAccountType() {
     // Temporarily block the cellChanged signal
     ui->accountTypesTable->blockSignals(true);
 
-    int row = ui->accountTypesTable->currentRow();
-    if (row == -1) {
-        QMessageBox::warning(this, "No Selection", "Please select a row to delete.");
-        return;
+    // Check all rows for checked checkboxes and stage them for deletion
+    for (int row = ui->accountTypesTable->rowCount() - 1; row >= 0; --row) {
+        QWidget *widget = ui->accountTypesTable->cellWidget(row, 1);
+        if (widget) {
+            QCheckBox *checkBox = widget->findChild<QCheckBox *>();
+            if (checkBox && checkBox->isChecked()) {
+                QString id = ui->accountTypesTable->verticalHeaderItem(row)->text();
+                int accountId = id.toInt();
+
+                if (accountId != -1) {
+                    stagedAccountDeletions.insert(accountId);
+                }
+                stagedAccounts.remove(accountId);
+
+                // Remove the row from the UI
+                ui->accountTypesTable->removeRow(row);
+            }
+        }
     }
-
-    // Fetch the ID from the vertical header
-    QString id = ui->accountTypesTable->verticalHeaderItem(row)->text();
-    int accountId = id.toInt();
-
-    // If the ID is not -1 (i.e., it's not a new row), stage it for deletion
-    if (accountId != -1) {
-        stagedAccountDeletions.insert(accountId);
-        stagedAccounts.remove(accountId);  // Remove from staging, since it's being deleted
-    } else {
-        // If it's a new row that hasn't been saved, just remove it from staging
-        stagedAccounts.remove(accountId);
-    }
-
-    // Remove the row from the UI
-    ui->accountTypesTable->removeRow(row);
 
     // Update Save/Discard button visibility
     updateButtonStates();
 
-    // Temporarily block the cellChanged signal
+    // Re-enable signals
     ui->accountTypesTable->blockSignals(false);
+}
+
+bool PreferencesWidget:: isAccountTypeNameDuplicate(const QString& name, int excludeId) {
+    // Check in the table
+    for (int row = 0; row < ui->accountTypesTable->rowCount(); ++row) {
+        QString id = ui->accountTypesTable->verticalHeaderItem(row)->text();
+        if (id.toInt() == excludeId) continue;  // Skip the row we're currently editing
+
+        QString existingName = ui->accountTypesTable->item(row, 0)->text();
+        if (existingName. toLower() == name.toLower()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+QString PreferencesWidget::generateUniqueAccountTypeName(const QString& baseName) {
+    QString uniqueName = baseName;
+    int counter = 2;
+
+    while (isAccountTypeNameDuplicate(uniqueName)) {
+        uniqueName = baseName + " " + QString::number(counter);
+        counter++;
+    }
+
+    return uniqueName;
 }
 
 void PreferencesWidget::addCategory() {
@@ -222,6 +262,18 @@ void PreferencesWidget::addCategory() {
     });
     ui->categoriesTable->setCellWidget(row, 1, typeCombo);
 
+    // Add checkbox
+    QCheckBox *checkBox = new QCheckBox();
+    connect(checkBox, &QCheckBox::clicked, [=]() {
+        handleCategoryCheckboxStateChange(row, checkBox->isChecked());
+    });
+    QWidget *checkBoxWidget = new QWidget();
+    QHBoxLayout *layout = new QHBoxLayout(checkBoxWidget);
+    layout->addWidget(checkBox);
+    layout->setAlignment(Qt::AlignCenter);
+    layout->setContentsMargins(0, 0, 0, 0);
+    ui->categoriesTable->setCellWidget(row, 2, checkBoxWidget);
+
     stagedCategories[-1] = qMakePair("", "income");  // Default staged entry (TempID -> <Empty, income>)
     updateButtonStates();  // Enable buttons
 
@@ -233,33 +285,57 @@ void PreferencesWidget::deleteCategory() {
     // Temporarily block the cellChanged signal
     ui->categoriesTable->blockSignals(true);
 
-    int row = ui->categoriesTable->currentRow();
-    if (row == -1) {
-        QMessageBox::warning(this, "No Selection", "Please select a row to delete.");
-        return;
+    // Check all rows for checked checkboxes and stage them for deletion
+    for (int row = ui->categoriesTable->rowCount() - 1; row >= 0; --row) {
+        QWidget *widget = ui->categoriesTable->cellWidget(row, 2);
+        if (widget) {
+            QCheckBox *checkBox = widget->findChild<QCheckBox *>();
+            if (checkBox && checkBox->isChecked()) {
+                QString id = ui->categoriesTable->verticalHeaderItem(row)->text();
+                int categoryId = id.toInt();
+
+                if (categoryId != -1) {
+                    stagedCategoryDeletions.insert(categoryId);
+                }
+                stagedCategories. remove(categoryId);
+
+                // Remove the row from the UI
+                ui->categoriesTable->removeRow(row);
+            }
+        }
     }
-
-    // Fetch the ID from the vertical header
-    QString id = ui->categoriesTable->verticalHeaderItem(row)->text();
-    int categoryId = id.toInt();
-
-    // If the ID is not -1 (i.e., it's not a new row), stage it for deletion
-    if (categoryId != -1) {
-        stagedCategoryDeletions.insert(categoryId);
-        stagedCategories.remove(categoryId);  // Remove from staging, since it's being deleted
-    } else {
-        // If it's a new row that hasn't been saved, just remove it from staging
-        stagedCategories.remove(categoryId);
-    }
-
-    // Remove the row from the UI
-    ui->categoriesTable->removeRow(row);
 
     // Update Save/Discard button visibility
     updateButtonStates();
 
-    // Temporarily block the cellChanged signal
+    // Re-enable signals
     ui->categoriesTable->blockSignals(false);
+}
+
+bool PreferencesWidget::isCategoryNameDuplicate(const QString& name, int excludeId) {
+    // Check in the table
+    for (int row = 0; row < ui->categoriesTable->rowCount(); ++row) {
+        QString id = ui->categoriesTable->verticalHeaderItem(row)->text();
+        if (id.toInt() == excludeId) continue;  // Skip the row we're currently editing
+
+        QString existingName = ui->categoriesTable->item(row, 0)->text();
+        if (existingName.toLower() == name.toLower()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QString PreferencesWidget::generateUniqueCategoryName(const QString& baseName) {
+    QString uniqueName = baseName;
+    int counter = 2;
+
+    while (isCategoryNameDuplicate(uniqueName)) {
+        uniqueName = baseName + " " + QString::number(counter);
+        counter++;
+    }
+
+    return uniqueName;
 }
 
 void PreferencesWidget::handleAccountTypeCheckboxStateChange(int row, bool checked) {
@@ -277,7 +353,7 @@ void PreferencesWidget::handleAccountTypeCheckboxStateChange(int row, bool check
     }
 
     // Update Save/Discard button visibility
-    updateButtonStates();
+    //updateButtonStates();
 }
 
 void PreferencesWidget::handleCategoryCheckboxStateChange(int row, bool checked) {
@@ -295,12 +371,33 @@ void PreferencesWidget::handleCategoryCheckboxStateChange(int row, bool checked)
     }
 
     // Update Save/Discard button visibility
-    updateButtonStates();
+    //updateButtonStates();
 }
 
 void PreferencesWidget::stageAccountTypeChange(int row) {
     QString id = ui->accountTypesTable->verticalHeaderItem(row)->text();  // ID from vertical header
     QString name = ui->accountTypesTable->item(row, 0)->text();           // Name from column 0
+
+    // Check for duplicate names
+    if (isAccountTypeNameDuplicate(name, id.toInt())) {
+        // Temporarily block signals to avoid recursive calls
+        ui->accountTypesTable->blockSignals(true);
+
+        // Generate a unique name
+        QString uniqueName = generateUniqueAccountTypeName(name);
+        ui->accountTypesTable->item(row, 0)->setText(uniqueName);
+
+        // Show a warning to the user
+        QMessageBox:: warning(this, "Duplicate Name",
+                             QString("An account type with the name '%1' already exists. The name has been changed to '%2'.")
+                                 .arg(name).arg(uniqueName));
+
+        name = uniqueName;
+
+        // Re-enable signals
+        ui->accountTypesTable->blockSignals(false);
+    }
+
     stagedAccounts[id.toInt()] = name;  // Staged as (ID -> Name)
     updateButtonStates();  // Enable buttons since a change was made
 }
@@ -312,6 +409,27 @@ void PreferencesWidget::stageCategoryChange(int row) {
     if (QComboBox *typeCombo = qobject_cast<QComboBox *>(ui->categoriesTable->cellWidget(row, 1))) {
         type = typeCombo->currentText();
     }
+
+    // Check for duplicate names
+    if (isCategoryNameDuplicate(name, id.toInt())) {
+        // Temporarily block signals to avoid recursive calls
+        ui->categoriesTable->blockSignals(true);
+
+        // Generate a unique name
+        QString uniqueName = generateUniqueCategoryName(name);
+        ui->categoriesTable->item(row, 0)->setText(uniqueName);
+
+        // Show a warning to the user
+        QMessageBox::warning(this, "Duplicate Name",
+                             QString("A category with the name '%1' already exists. The name has been changed to '%2'.")
+                                 .arg(name).arg(uniqueName));
+
+        name = uniqueName;
+
+        // Re-enable signals
+        ui->categoriesTable->blockSignals(false);
+    }
+
     stagedCategories[id.toInt()] = qMakePair(name, type);  // Staged as (ID -> <Name, Type>)
     updateButtonStates();  // Enable buttons since a change was made
 }
@@ -393,12 +511,13 @@ void PreferencesWidget::saveChanges() {
 
 void PreferencesWidget::discardChanges() {
     stagedAccounts.clear();
-    stagedCategories.clear();
+    stagedCategories. clear();
+    stagedAccountDeletions.clear();
+    stagedCategoryDeletions.clear();
     loadAccountTypes();
     loadCategories();
-    updateButtonStates();  // Disable buttons now that changes are discarded
+    updateButtonStates();
 }
-
 void PreferencesWidget::updateButtonStates() {
     // Check if there are any changes: added, edited, or deleted
     bool hasChanges = !(stagedAccounts.isEmpty() && stagedCategories.isEmpty() &&

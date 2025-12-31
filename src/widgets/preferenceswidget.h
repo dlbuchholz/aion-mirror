@@ -41,6 +41,12 @@ private:
     void handleAccountTypeCheckboxStateChange(int row, bool checked);  // Track account deletions
     void handleCategoryCheckboxStateChange(int row, bool checked);     // Track category deletions
 
+    QString generateUniqueAccountTypeName(const QString& baseName);  // Generate unique account type name
+    QString generateUniqueCategoryName(const QString& baseName);     // Generate unique category name
+
+    bool isAccountTypeNameDuplicate(const QString& name, int excludeId = -1);  // Check for duplicate account type
+    bool isCategoryNameDuplicate(const QString& name, int excludeId = -1);     // Check for duplicate category
+
     void updateButtonStates();   // Dynamically show/hide Save and Discard buttons
 
     QMap<int, QString> stagedAccounts;                     // Staged Account Type changes (ID -> Name)

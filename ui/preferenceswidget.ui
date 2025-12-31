@@ -30,22 +30,12 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QToolButton" name="addAccountTypeButton">
+          <widget class="QPushButton" name="addAccountTypeButton">
            <property name="text">
-            <string>New</string>
+            <string>Add account</string>
            </property>
            <property name="icon">
             <iconset theme="QIcon::ThemeIcon::ListAdd"/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="deleteAccountTypeButton">
-           <property name="text">
-            <string>Delete</string>
-           </property>
-           <property name="icon">
-            <iconset theme="QIcon::ThemeIcon::ListRemove"/>
            </property>
           </widget>
          </item>
@@ -61,6 +51,16 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item>
+          <widget class="QToolButton" name="deleteAccountTypeButton">
+           <property name="text">
+            <string>Delete</string>
+           </property>
+           <property name="icon">
+            <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
@@ -98,22 +98,12 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QToolButton" name="addCategoryButton">
+          <widget class="QPushButton" name="addCategoryButton">
            <property name="text">
-            <string>New</string>
+            <string>Add category</string>
            </property>
            <property name="icon">
             <iconset theme="QIcon::ThemeIcon::ListAdd"/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="deleteCategoryButton">
-           <property name="text">
-            <string>Delete</string>
-           </property>
-           <property name="icon">
-            <iconset theme="QIcon::ThemeIcon::ListRemove"/>
            </property>
           </widget>
          </item>
@@ -129,6 +119,16 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item>
+          <widget class="QToolButton" name="deleteCategoryButton">
+           <property name="text">
+            <string>Delete</string>
+           </property>
+           <property name="icon">
+            <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
