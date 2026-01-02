@@ -63,7 +63,15 @@ SELECT
     accounts.name AS account_name,
     account_types.name AS account_type,
     accounts.user_id AS user_id,
-    COALESCE(SUM(transactions.amount), 0) AS balance
+    COALESCE(
+        SUM(
+            CASE 
+                WHEN transactions.type = 'income' THEN transactions.amount
+                WHEN transactions.type = 'expense' THEN -transactions.amount
+                ELSE 0
+            END
+        ), 0
+    ) AS balance
 FROM accounts
 LEFT JOIN account_types ON accounts.type_id = account_types.id
 LEFT JOIN transactions ON accounts.id = transactions.account_id
