@@ -15,6 +15,10 @@ public:
 
     void setUserId(int userId);
     void loadTransactions();                        // Load transactions for selected accounts
+    void updateWidget();                             // General function that calls all other update UI functions
+
+signals:
+    void transactionsChanged();                     // Emit a signal when transactions were changed permanently
 
 private slots:
     void addEmptyTransactionRow();
@@ -32,7 +36,6 @@ private:
     void updateButtonStates();                       // Show/hide Save and Discard buttons
     void updateRowVisualState();                     // Update visual state of rows based on staged changes
     void updateCountLabels();                        // Update "visible" and "selected" labels for transactions
-    void updateWidget();                             // General function that calls all other update UI functions
 
     Ui::TransactionListWidget ui;
     int userId;

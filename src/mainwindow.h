@@ -17,6 +17,9 @@ public:
     MainWindow(int userId, QWidget *parent = nullptr);
     ~MainWindow();
 
+private slots:
+    void onSettingsClicked();
+
 private:
     Ui::MainWindow *ui;
     int userId;

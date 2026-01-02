@@ -55,11 +55,9 @@ TransactionListWidget::TransactionListWidget(QWidget* parent)
 }
 
 void TransactionListWidget::setUserId(int newUserId) {
-    if (userId != newUserId) {
-        userId = newUserId;
-        populateComboBox();
-        loadTransactions();
-    }
+    userId = newUserId;
+    populateComboBox();
+    loadTransactions();
 }
 
 void TransactionListWidget::populateComboBox() {
@@ -580,6 +578,8 @@ void TransactionListWidget::loadTransactions() {
 void TransactionListWidget::saveChanges() {
     TransactionDAO transactionDao;
 
+    bool hasChanges = false;
+
     // Save staged transaction changes
     for (auto it = stagedTransactions.begin(); it != stagedTransactions. end(); ++it) {
         Transaction transaction = it.value();
@@ -598,13 +598,17 @@ void TransactionListWidget::saveChanges() {
             int newId = transactionDao.addTransaction(transaction);
             if (newId > 0) {
                 qDebug() << "Added new Transaction to DB with ID:" << newId;
+                hasChanges = true;
             } else {
                 qWarning() << "Failed to add new Transaction to DB";
             }
         } else {
             // Existing transaction
-            if (! transactionDao.updateTransaction(transaction)) {
+            if (!transactionDao.updateTransaction(transaction)) {
                 qWarning() << "Failed to update Transaction with ID:" << transaction.getTransactionId();
+            } else {
+                qDebug() << "Deleted Transaction with ID:" << transaction.getTransactionId();
+                hasChanges = true;
             }
         }
     }
@@ -615,6 +619,7 @@ void TransactionListWidget::saveChanges() {
             qWarning() << "Failed to delete Transaction with ID:" << transactionId;
         } else {
             qDebug() << "Deleted Transaction with ID:" << transactionId;
+            hasChanges = true;
         }
     }
 
@@ -631,6 +636,12 @@ void TransactionListWidget::saveChanges() {
 
     loadTransactions();
     updateWidget();
+
+    // Emit signal if changes were saved
+    if (hasChanges) {
+        qDebug() << "Emitting transactionsChanged signal";
+        emit transactionsChanged();
+    }
 }
 
 void TransactionListWidget::discardChanges() {

@@ -16,8 +16,14 @@ public:
 
     void loadAccounts();
     void setUserId(int userId);
+    void updateWidget();                             // General function that calls all other update UI functions
+
+signals:
+    void accountsChanged();
 
 private:
+    void updateTotalBalance();
+
     Ui::AccountBalanceListWidget ui;
     int userId;
 };
