@@ -23,12 +23,16 @@ private slots:
     void discardChanges();                          // Discard staged changes
 
 private:
+    static constexpr int SHADOWED_TRANSACTIONS_ID = -999; // Special constant for shadowed (hidden) transactions
+
     void setAccountIds(const QSet<int>& accountIds); // Set selected account IDs
     void populateComboBox();                         // Populate the combo box with accounts
     void stageTransactionChange(int row);            // Stage changes for a transaction
     void handleTransactionCheckboxStateChange(int row, bool checked);  // Track transaction deletions
     void updateButtonStates();                       // Show/hide Save and Discard buttons
     void updateRowVisualState();                     // Update visual state of rows based on staged changes
+    void updateCountLabels();                        // Update "visible" and "selected" labels for transactions
+    void updateWidget();                             // General function that calls all other update UI functions
 
     Ui::TransactionListWidget ui;
     int userId;
@@ -38,6 +42,8 @@ private:
     // Staging containers
     QMap<int, Transaction> stagedTransactions;       // Staged transaction changes (ID -> Transaction)
     QSet<int> stagedTransactionDeletions;            // Staged transaction IDs for deletion
+
+    int nextTempId; // Counter for temporary (staged) IDs
 };
 
 #endif // TRANSACTIONLISTWIDGET_H

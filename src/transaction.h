@@ -57,6 +57,8 @@ public:
     bool updateTransaction(const Transaction& transaction);
     bool deleteTransaction(int transactionId);
     QList<Transaction> getTransactionsForAccount(int accountId);
+    QList<Transaction> getShadowedTransactions();
+    bool hasShadowedTransactions();
     Transaction getTransactionById(int transactionId);
 
 private:

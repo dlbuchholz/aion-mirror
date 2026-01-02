@@ -169,7 +169,7 @@ QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
     QList<Transaction> transactions;
     if (query.exec()) {
         while (query.next()) {
-            int categoryId = query.value("category_id").isNull() ? -1 : query.value("category_id").toInt();
+            int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
 
             transactions.append(Transaction(
                 query.value("id").toInt(),
@@ -188,13 +188,66 @@ QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
     return transactions;
 }
 
+QList<Transaction> TransactionDAO:: getShadowedTransactions() {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT id, account_id, amount, date, description, payee, category_id, type FROM transactions WHERE account_id <= 0 OR account_id IS NULL");
+
+    qDebug() << "=== getShadowedTransactions called ===";
+
+    QList<Transaction> transactions;
+    if (query.exec()) {
+        int count = 0;
+        while (query. next()) {
+            count++;
+            int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
+            int accountId = query.value("account_id").isNull() ? 0 : query.value("account_id").toInt();
+
+            qDebug() << "  Found shadowed transaction ID:" << query.value("id").toInt()
+                     << "with account_id:" << accountId;
+
+            transactions.append(Transaction(
+                query.value("id").toInt(),
+                accountId,
+                query.value("payee").toString(),
+                query.value("amount").toDouble(),
+                QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
+                query.value("description").toString(),
+                categoryId,
+                query.value("type").toString()
+                ));
+        }
+        qDebug() << "  Total shadowed transactions found:" << count;
+    } else {
+        qDebug() << "  Query execution failed! ";
+        qDebug() << "  SQL Error:" << query.lastError().text();
+        handleError(query);
+    }
+
+    return transactions;
+}
+
+bool TransactionDAO::hasShadowedTransactions() {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT COUNT(*) as count FROM transactions WHERE account_id <= 0 OR account_id IS NULL");
+
+    if (query.exec() && query.next()) {
+        int count = query.value("count").toInt();
+        qDebug() << "hasShadowedTransactions:  Found" << count << "shadowed transactions";
+        return count > 0;
+    } else {
+        qDebug() << "hasShadowedTransactions: Query failed";
+        handleError(query);
+        return false;
+    }
+}
+
 Transaction TransactionDAO::getTransactionById(int transactionId) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare("SELECT id, account_id, amount, date, description, payee, category_id, type FROM transactions WHERE id = :id");
     query.bindValue(":id", transactionId);
 
     if (query.exec() && query.next()) {
-        int categoryId = query.value("category_id").isNull() ? -1 : query.value("category_id").toInt();
+        int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
 
         return Transaction(
             query.value("id").toInt(),

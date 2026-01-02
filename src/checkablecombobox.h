@@ -18,6 +18,10 @@ public:
     void setItemChecked(int index, bool checked);
     void checkAllItems();
     void uncheckAllItems();
+    int itemCount() const;
+
+    void setDisplayText(const QString& text);
+    void updateWidth(); // dynamically calculate inteded width based on display text
 
 signals:
     void selectionChanged();
@@ -25,8 +29,12 @@ signals:
 private slots:
     void onItemChanged(QStandardItem* item);
 
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
 private:
     QStandardItemModel* model; // Custom model for managing checkable items
+    QString displayText;
 };
 
 #endif // CHECKABLECOMBOBOX_H
