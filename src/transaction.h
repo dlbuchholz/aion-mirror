@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QDate>
+#include <QCryptographicHash>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
@@ -37,6 +38,8 @@ public:
     void setAmount(double amt);
     void setType(const QString& transactionType);
 
+    QString calculateHash() const;
+
 private:
     int transactionId;
     int accountId;
@@ -60,6 +63,9 @@ public:
     QList<Transaction> getShadowedTransactions();
     bool hasShadowedTransactions();
     Transaction getTransactionById(int transactionId);
+
+    bool transactionExistsByHash(const QString& hash);
+    QList<QString> getExistingHashes(const QList<QString>& hashes);
 
 private:
     void handleError(const QSqlQuery& query);

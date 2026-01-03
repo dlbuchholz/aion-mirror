@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ImportManagerDialog</class>
+ <widget class="QDialog" name="ImportManagerDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Import Transactions</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="fileGroupBox">
+     <property name="title">
+      <string>File Selection</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QLineEdit" name="filePathLineEdit">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>Select a file to import... </string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="selectFileButton">
+        <property name="text">
+         <string>Browse...</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="formatGroupBox">
+     <property name="title">
+      <string>Format Options</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="delimiterLabel">
+        <property name="text">
+         <string>CSV Delimiter:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="delimiterComboBox">
+        <item>
+         <property name="text">
+          <string>Comma (,)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Semicolon (;)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Tab</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Pipe (|)</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="decimalSeparatorLabel">
+        <property name="text">
+         <string>Decimal Separator: </string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QComboBox" name="decimalSeparatorComboBox">
+        <item>
+         <property name="text">
+          <string>Point (. )</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Comma (,)</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QCheckBox" name="allowDuplicatesCheckBox">
+        <property name="toolTip">
+         <string>Import transactions even if they appear to be duplicates</string>
+        </property>
+        <property name="text">
+         <string>Allow duplicate transactions</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="2">
+	 <widget class="QCheckBox" name="allowPartialImportCheckBox">
+	  <property name="text">
+	   <string>Allow partial import (continue on errors)</string>
+	  </property>
+	  <property name="toolTip">
+	   <string>If checked, successfully validated transactions will be imported even if some fail. If unchecked, all transactions must be valid or none will be imported.</string>
+	  </property>
+	  <property name="checked">
+	   <bool>false</bool>
+	  </property>
+	 </widget>
+	</item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="amountInterpretationLabel">
+        <property name="text">
+         <string>Amount Interpretation:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="amountInterpretationComboBox">
+        <item>
+         <property name="text">
+          <string>Sign Based (- = Expense, + = Income)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Sign Based Inverted (- = Income, + = Expense)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>All Income</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>All Expense</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Column Based</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="accountLabel">
+        <property name="text">
+         <string>Import to Account:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="accountComboBox"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="mappingGroupBox">
+     <property name="title">
+      <string>Column Mapping</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QTableWidget" name="columnMappingTable">
+        <property name="columnCount">
+         <number>2</number>
+        </property>
+        <attribute name="horizontalHeaderVisible">
+         <bool>true</bool>
+        </attribute>
+        <column>
+         <property name="text">
+          <string>Transaction Field</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>CSV Column</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="previewGroupBox">
+     <property name="title">
+      <string>Preview (First 10 rows)</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QTableWidget" name="previewTable">
+        <property name="editTriggers">
+         <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+        </property>
+        <property name="alternatingRowColors">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="refreshPreviewButton">
+        <property name="text">
+         <string>Refresh Preview</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_buttons">
+     <item>
+      <widget class="QDialogButtonBox" name="buttonBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="standardButtons">
+        <set>QDialogButtonBox::StandardButton::Cancel</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="dryRunButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="toolTip">
+        <string>Validate transactions without importing to database</string>
+       </property>
+       <property name="text">
+        <string>Dry Run (Validate)</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="importButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Import Transactions</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

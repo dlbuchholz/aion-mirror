@@ -48,6 +48,16 @@ public:
     bool isCurrencySymbolPrefix() const;  // true = $100, false = 100$
     void setCurrencySymbolPrefix(bool isPrefix);
 
+    // Import settings
+    bool isAutoDetectCsvDelimiter() const;
+    void setAutoDetectCsvDelimiter(bool autoDetect);
+
+    bool isAutoDetectDecimalSeparator() const;
+    void setAutoDetectDecimalSeparator(bool autoDetect);
+
+    QChar getDefaultCsvDelimiter() const;
+    void setDefaultCsvDelimiter(QChar delimiter);
+
     // Formatting methods
     QString formatCurrency(double amount, bool showSign = false) const;
     QString formatNumber(double number, int decimals = 2) const;

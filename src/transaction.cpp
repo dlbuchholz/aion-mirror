@@ -78,20 +78,58 @@ void Transaction::setType(const QString& transactionType) {
     type = transactionType;
 }
 
+QString Transaction::calculateHash() const
+{
+    // Create a unique string from key fields
+    // Using:  account_id + date + amount + type + payee + description (normalized)
+    QString hashSource = QString("%1|%2|%3|%4|%5|%6")
+                             .arg(accountId)
+                             .arg(date.toString(Qt::ISODate))
+                             .arg(amount, 0, 'f', 2)  // Fixed precision to avoid floating point issues
+                             .arg(type. toLower().trimmed())
+                             .arg(payee.toLower().trimmed())  // Normalized payee
+                             .arg(description.toLower().trimmed()); // Normalized description
+
+    // Calculate SHA-256 hash
+    QByteArray hashBytes = QCryptographicHash::hash(
+        hashSource.toUtf8(),
+        QCryptographicHash::Sha256
+        );
+
+    // Convert to hex string
+    QString hash = QString(hashBytes.toHex());
+
+    qDebug() << "Calculated hash for transaction:" << hashSource << "-> " << hash. left(16) << "...";
+
+    return hash;
+}
+
 // TransactionDAO Implementation
 TransactionDAO::TransactionDAO() {}
 
 int TransactionDAO::addTransaction(const Transaction& transaction) {
     QSqlQuery query(DatabaseManager::instance().database());
+
+    // Calculate hash
+    QString hash = transaction.calculateHash();
+
+    // Check for duplicate
+    /*if (transactionExistsByHash(hash)) {
+        qWarning() << "Duplicate transaction detected (hash already exists):" << hash;
+        return -1;  // Indicate duplicate
+    }*/
+
     query.prepare(
-        "INSERT INTO transactions (account_id, amount, date, description, payee, category_id, type) "
-        "VALUES (:account_id, :amount, :date, :description, :payee, :category_id, :type)"
+        "INSERT INTO transactions (account_id, amount, date, description, payee, category_id, type, hash) "
+        "VALUES (:account_id, :amount, :date, :description, :payee, :category_id, :type, :hash)"
         );
+
     query.bindValue(":account_id", transaction.getAccountId());
     query.bindValue(":amount", transaction.getAmount());
     query.bindValue(":date", transaction. getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
     query.bindValue(":payee", transaction.getPayee());
+    query.bindValue(":hash", hash);
 
     // Handle NULL category_id
     if (transaction.getCategoryId() <= 0) {
@@ -102,17 +140,14 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
 
     query. bindValue(":type", transaction. getType());
 
-    if (!query.exec()) {
-        qDebug() << "SQL Error:" << query.lastError().text();
-        qDebug() << "Last query:" << query.lastQuery();
-        qDebug() << "Bound values:" << query. boundValues();
+    if (query.exec()) {
+        int newId = query.lastInsertId().toInt();
+        qDebug() << "Transaction added with ID:" << newId << "Hash:" << hash.left(16) << "...";
+        return newId;
+    } else {
         handleError(query);
         return -1;
     }
-
-    int newId = query.lastInsertId().toInt();
-    qDebug() << "Successfully added transaction with ID:" << newId;
-    return newId;
 }
 
 bool TransactionDAO::updateTransaction(const Transaction& transaction) {
@@ -263,6 +298,57 @@ Transaction TransactionDAO::getTransactionById(int transactionId) {
         handleError(query);
         return Transaction();  // Return empty transaction on error
     }
+}
+
+bool TransactionDAO::transactionExistsByHash(const QString& hash)
+{
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT COUNT(*) as count FROM transactions WHERE hash = :hash");
+    query.bindValue(":hash", hash);
+
+    if (query.exec() && query.next()) {
+        int count = query.value("count").toInt();
+        return count > 0;
+    }
+
+    handleError(query);
+    return false;
+}
+
+QList<QString> TransactionDAO::getExistingHashes(const QList<QString>& hashes)
+{
+    if (hashes.isEmpty()) {
+        return QList<QString>();
+    }
+
+    // Build IN clause with placeholders
+    QStringList placeholders;
+    for (int i = 0; i < hashes.size(); ++i) {
+        placeholders << "?";
+    }
+
+    QString sql = QString("SELECT DISTINCT hash FROM transactions WHERE hash IN (%1)")
+                      .arg(placeholders.join(", "));
+
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(sql);
+
+    // Bind values
+    for (const QString& hash : hashes) {
+        query.addBindValue(hash);
+    }
+
+    QList<QString> existingHashes;
+
+    if (query.exec()) {
+        while (query.next()) {
+            existingHashes. append(query.value("hash").toString());
+        }
+    } else {
+        handleError(query);
+    }
+
+    return existingHashes;
 }
 
 void TransactionDAO::handleError(const QSqlQuery& query) {

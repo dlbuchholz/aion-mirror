@@ -10,6 +10,8 @@
 #include <QMessageBox>
 #include <algorithm>
 
+#include <dialog/importmanagerdialog.h>
+
 TransactionListWidget::TransactionListWidget(QWidget* parent)
     : QWidget(parent), userId(-1), nextTempId(-1) {
     ui.setupUi(this);
@@ -31,9 +33,11 @@ TransactionListWidget::TransactionListWidget(QWidget* parent)
     connect(ui.saveButton, &QPushButton::clicked, this, &TransactionListWidget::saveChanges);
     connect(ui.discardButton, &QPushButton::clicked, this, &TransactionListWidget::discardChanges);
 
+    connect(ui.importButton, &QAbstractButton::clicked, this, &TransactionListWidget::onImportTransactionsClicked);
+
     // Configure the table widget
     ui.transactionTableWidget->setColumnCount(8); // Added checkbox column
-    ui.transactionTableWidget->setHorizontalHeaderLabels({"Date", "Account", "Payee", "Description", "Category", "Amount", "Type", "Select"});
+    ui.transactionTableWidget->setHorizontalHeaderLabels({"Date", "Account", "Payer/Payee", "Description", "Category", "Amount", "Type", "Select"});
 
     // Set column resize modes
     ui.transactionTableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents); // Date
@@ -725,4 +729,55 @@ void TransactionListWidget::updateWidget() {
     updateButtonStates();
     updateRowVisualState();
     updateCountLabels();
+}
+
+void TransactionListWidget::onImportTransactionsClicked()
+{
+    // Check if there are pending changes
+    if (! stagedTransactions.isEmpty() || !stagedTransactionDeletions.isEmpty()) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this,
+            "Pending Changes",
+            QString("You have %1 pending change(s) that need to be saved or discarded.\n\n"
+                    "Do you want to save them now before importing?")
+                .arg(stagedTransactions.size() + stagedTransactionDeletions.size()),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save
+            );
+
+        if (reply == QMessageBox::Save) {
+            // Save changes first
+            saveChanges();
+
+            // Check if save was successful (user might have cancelled due to validation errors)
+            if (!stagedTransactions.isEmpty() || !stagedTransactionDeletions. isEmpty()) {
+                // Still have pending changes - save must have failed
+                QMessageBox::warning(this, "Cannot Import",
+                                     "Please fix validation errors before importing.");
+                return;
+            }
+        } else if (reply == QMessageBox::Discard) {
+            // Discard changes
+            discardChanges();
+        } else {
+            // Cancel - don't open import dialog
+            return;
+        }
+    }
+
+    // No pending changes - proceed with import
+    ImportManagerDialog dialog(userId, this);
+
+    connect(&dialog, &ImportManagerDialog::transactionsImported, [this](int count) {
+        qDebug() << "Imported" << count << "transactions";
+
+        if (count > 0) {
+            // Refresh UI
+            loadTransactions();
+            updateWidget();
+            emit transactionsChanged();
+        }
+    });
+
+    dialog.exec();
 }

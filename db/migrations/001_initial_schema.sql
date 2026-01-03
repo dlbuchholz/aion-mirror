@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     description TEXT,
     category_id INTEGER,
     type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    hash TEXT,
     FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
 	FOREIGN KEY (category) REFERENCES categories (name)
 );
@@ -56,6 +57,9 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
 );
 
 CREATE INDEX idx_transactions_account_id ON transactions(account_id);
+--Create index for fast duplicate lookups, and unique constraint to prevent duplicates at DB level
+--CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique_hash ON transactions(hash);
+CREATE INDEX IF NOT EXISTS idx_transactions_hash ON transactions(hash);
 
 CREATE VIEW account_balances AS
 SELECT 

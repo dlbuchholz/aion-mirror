@@ -25,6 +25,7 @@ private slots:
     void deleteTransaction();                       // Delete selected transactions
     void saveChanges();                             // Save staged changes
     void discardChanges();                          // Discard staged changes
+    void onImportTransactionsClicked();             // Open ImportDialog
 
 private:
     static constexpr int SHADOWED_TRANSACTIONS_ID = -999; // Special constant for shadowed (hidden) transactions

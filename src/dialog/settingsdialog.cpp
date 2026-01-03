@@ -46,6 +46,7 @@ void SettingsDialog::setupCategories()
 {
     addCategory("Currency Settings", "currency");
     addCategory("Application", "app");
+    addCategory("Import Settings", "import");
     // ...
 }
 

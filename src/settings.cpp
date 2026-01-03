@@ -20,6 +20,17 @@ Settings:: Settings()
     if (!settings.contains("currency/symbolPrefix")) {
         setCurrencySymbolPrefix(true);
     }
+
+    // Import defaults
+    if (!settings.contains("import/autoDetectCsvDelimiter")) {
+        setAutoDetectCsvDelimiter(true);  // Auto-detect by default
+    }
+    if (!settings.contains("import/autoDetectDecimalSeparator")) {
+        setAutoDetectDecimalSeparator(true);  // Auto-detect by default
+    }
+    if (!settings.contains("import/defaultCsvDelimiter")) {
+        setDefaultCsvDelimiter(',');  // Comma by default
+    }
 }
 
 Settings& Settings::instance() {
@@ -120,6 +131,35 @@ bool Settings::isCurrencySymbolPrefix() const {
 
 void Settings::setCurrencySymbolPrefix(bool isPrefix) {
     settings.setValue("currency/symbolPrefix", isPrefix);
+}
+
+// Auto-detect CSV delimiter setting
+bool Settings::isAutoDetectCsvDelimiter() const {
+    return settings.value("import/autoDetectCsvDelimiter", true).toBool();
+}
+
+void Settings::setAutoDetectCsvDelimiter(bool autoDetect) {
+    settings.setValue("import/autoDetectCsvDelimiter", autoDetect);
+}
+
+// Auto-detect decimal separator setting
+bool Settings::isAutoDetectDecimalSeparator() const {
+    return settings.value("import/autoDetectDecimalSeparator", true).toBool();
+}
+
+void Settings::setAutoDetectDecimalSeparator(bool autoDetect) {
+    settings.setValue("import/autoDetectDecimalSeparator", autoDetect);
+}
+
+// Default CSV delimiter
+QChar Settings::getDefaultCsvDelimiter() const {
+    QString delimiterStr = settings.value("import/defaultCsvDelimiter", ",").toString();
+    if (delimiterStr. isEmpty()) return ',';
+    return delimiterStr[0];
+}
+
+void Settings:: setDefaultCsvDelimiter(QChar delimiter) {
+    settings.setValue("import/defaultCsvDelimiter", QString(delimiter));
 }
 
 // Format Currency
