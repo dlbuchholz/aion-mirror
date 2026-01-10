@@ -58,6 +58,13 @@ public:
     QChar getDefaultCsvDelimiter() const;
     void setDefaultCsvDelimiter(QChar delimiter);
 
+    // Transaction settings
+    bool isLazyLoadingEnabled() const;
+    void setLazyLoadingEnabled(bool enabled);
+
+    bool isDetailEditEnabled() const;
+    void setDetailEditEnabled(bool enabled);
+
     // Formatting methods
     QString formatCurrency(double amount, bool showSign = false) const;
     QString formatNumber(double number, int decimals = 2) const;

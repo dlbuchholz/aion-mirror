@@ -32,7 +32,7 @@ qt_add_executable(Aion
 
 target_link_libraries(Aion PRIVATE AionLib)
 
-# Print the path for debugging purposes (optional)
+# Print the path for debugging purposes
 message(STATUS "SQL Migrations Directory: ${SQL_MIGRATIONS_DIR}")
 install(DIRECTORY ${SQL_MIGRATIONS_DIR} DESTINATION migrations)
 

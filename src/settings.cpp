@@ -31,6 +31,15 @@ Settings:: Settings()
     if (!settings.contains("import/defaultCsvDelimiter")) {
         setDefaultCsvDelimiter(',');  // Comma by default
     }
+
+    // Lazy loading default
+    if (! settings.contains("transactions/lazyLoadingEnabled")) {
+        setLazyLoadingEnabled(true);  // Enabled by default
+    }
+    if (!settings.contains("transactions/detailEditEnabled")) {
+        setDetailEditEnabled(true);  // Enabled by default
+    }
+
 }
 
 Settings& Settings::instance() {
@@ -160,6 +169,23 @@ QChar Settings::getDefaultCsvDelimiter() const {
 
 void Settings:: setDefaultCsvDelimiter(QChar delimiter) {
     settings.setValue("import/defaultCsvDelimiter", QString(delimiter));
+}
+
+bool Settings::isLazyLoadingEnabled() const {
+    return settings.value("transactions/lazyLoadingEnabled", true).toBool();
+}
+
+void Settings::setLazyLoadingEnabled(bool enabled) {
+    settings.setValue("transactions/lazyLoadingEnabled", enabled);
+}
+
+// Detail edit setting
+bool Settings::isDetailEditEnabled() const {
+    return settings.value("transactions/detailEditEnabled", true).toBool();
+}
+
+void Settings::setDetailEditEnabled(bool enabled) {
+    settings.setValue("transactions/detailEditEnabled", enabled);
 }
 
 // Format Currency

@@ -34,9 +34,9 @@ void MainWindow::onSettingsClicked() {
     // Connect to refresh UI when settings change
     connect(&dialog, &SettingsDialog::settingsChanged, [this]() {
         qDebug() << "Settings changed, refreshing UI";
-        // Refresh your widgets
+        // Refresh widgets
         ui->accountBalanceListWidget->updateWidget();
-        ui->transactionListWidget->updateWidget();
+        ui->transactionListWidget->reinitialize();
     });
 
     dialog.exec();
