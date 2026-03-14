@@ -1,5 +1,5 @@
-#include "MigrationManager.h"
-#include "DatabaseManager.h"
+#include "migrationmanager.h"
+#include "databasemanager.h"
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDir>

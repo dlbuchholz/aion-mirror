@@ -1,4 +1,4 @@
-#include "CheckableComboBox.h"
+#include "checkablecombobox.h"
 #include <QStandardItem>
 #include <QDebug>
 #include <QStylePainter>
