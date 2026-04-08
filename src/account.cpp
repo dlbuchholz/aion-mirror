@@ -210,6 +210,8 @@ bool AccountDAO::deleteAccount(int accountId) {
 
 void AccountDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "AccountDAO SQL Error:" << query.lastError().text();
+        qDebug() << "AccountDAO / Failed query:" << query.lastQuery();
+        qDebug() << "AccountDAO / Bound values:" << query.boundValues();
+        qDebug() << "AccountDAO / SQL Error:" << query.lastError().text();
     }
 }

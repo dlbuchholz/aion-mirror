@@ -1,31 +1,45 @@
 #include <QtTest>
+#include <QTemporaryDir>
+#include <QDir>
 #include "account.h"
 #include "transaction.h"
 #include "db/databasemanager.h"
- 
+#include "db/migrationmanager.h"
+#include "tests/test_db_utils.h"
+
 class TestAccountDAO : public QObject {
     Q_OBJECT
- 
+
+private:
+    std::unique_ptr<QTemporaryDir> tempDir;
+
 private slots:
     void initTestCase() {
-        QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-        db.setDatabaseName(":memory:");
-        db.open();
-        DatabaseManager::instance().setDatabase(db);
- 
-        QSqlQuery query(db);
-        query.exec("CREATE TABLE account_types (id INTEGER PRIMARY KEY, name TEXT)");
-        query.exec("CREATE TABLE accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT, type_id INTEGER)");
-        query.exec("CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER, amount REAL, date TEXT, description TEXT, category TEXT, type TEXT)");
-        query.exec("INSERT INTO account_types (id, name) VALUES (1, 'Checking')");
+        tempDir = std::make_unique<QTemporaryDir>();
+        QVERIFY2(tempDir->isValid(), "Failed to create temporary directory for test database");
+
+        const QString dbPath = QDir(tempDir->path()).filePath("test.db");
+
+        // Open DB (like our client)
+        QVERIFY2(DatabaseManager::instance().openDatabase(dbPath),
+                 "Failed to open test database");
+
+        // Apply migrations (like our client)
+        MigrationManager migrationManager(SQL_MIGRATIONS_DIR);
+        QVERIFY2(migrationManager.applyMigrations(),
+                 "Failed to apply migrations to test database");
+
+        // Minimal seed data the test depends on
+        QSqlQuery q(DatabaseManager::instance().database());
+        execOrFail(q, "INSERT INTO users (id, username, name) VALUES (1, 'testuser', 'Test User')");
     }
- 
+
     void testAccountCreation() {
         AccountDAO dao;
-        int accountId = dao.createAccount(1, "Test", "Checking", 100.0);
-        QVERIFY(accountId > 0);
- 
-        Account acc = dao.getAccountById(accountId);
+        const int accountId = dao.createAccount(1, "Test", "Checking", 100.0);
+        QVERIFY2(accountId > 0, "createAccount returned invalid account id");
+
+        const Account acc = dao.getAccountById(accountId);
         QCOMPARE(acc.getName(), QString("Test"));
     }
 };

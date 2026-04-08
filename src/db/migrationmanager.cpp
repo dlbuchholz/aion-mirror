@@ -8,6 +8,20 @@
 #include <QDebug>
 #include <QSqlRecord>
 
+static QString stripLeadingSqlComments(QString s) {
+    QString out = s;
+    while (true) {
+        QString t = out.trimmed();
+        if (t.startsWith("--")) {
+            int nl = out.indexOf('\n');
+            if (nl == -1) return QString(); // whole chunk is a comment
+            out = out.mid(nl + 1);
+            continue;
+        }
+        return t;
+    }
+}
+
 MigrationManager::MigrationManager(const QString& migrationDir)
     : m_migrationDir(migrationDir) {}
 
@@ -72,17 +86,17 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
     QSqlQuery query(database);
 
     for (const QString& queryTxt : scriptQueries) {
-        QString trimmedQuery = queryTxt.trimmed();
-        if (trimmedQuery.isEmpty()) {
-            continue; // Skip empty queries
+        QString stmt = stripLeadingSqlComments(queryTxt);
+        if (stmt.isEmpty()) {
+            continue;
         }
 
-        if (!query.exec(trimmedQuery)) {
-            qCritical() << "Failed to execute query from migration file:"
-                        << migrationFile << query.lastError().text();
+        if (!query.exec(stmt)) {
+            qCritical() << "Failed to execute query from migration file:" << migrationFile << query.lastError().text();
+            qCritical() << "Failed SQL:" << stmt;
             return false;
         }
-        query.finish(); // Ensure the query is finished before proceeding
+        query.finish();// Ensure the query is finished before proceeding
     }
 
     // Insert the migration version into the schema_migrations table

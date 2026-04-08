@@ -353,6 +353,8 @@ QList<QString> TransactionDAO::getExistingHashes(const QList<QString>& hashes)
 
 void TransactionDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "SQL Error:" << query.lastError().text();
+        qDebug() << "TransactionDAO / Failed query:" << query.lastQuery();
+        qDebug() << "TransactionDAO / Bound values:" << query.boundValues();
+        qDebug() << "TransactionDAO / SQL Error:" << query.lastError().text();
     }
 }

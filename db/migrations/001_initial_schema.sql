@@ -4,6 +4,11 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL UNIQUE
 );
 
+CREATE TABLE IF NOT EXISTS account_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
@@ -13,9 +18,10 @@ CREATE TABLE IF NOT EXISTS accounts (
 	FOREIGN KEY (type_id) REFERENCES account_types (id) ON DELETE RESTRICT
 );
 
-CREATE TABLE account_types (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense'))
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -29,13 +35,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
     hash TEXT,
     FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
-	FOREIGN KEY (category) REFERENCES categories (name)
-);
-
-CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL CHECK (type IN ('income', 'expense'))
+	FOREIGN KEY (category_id) REFERENCES categories (id)
 );
 
 CREATE TABLE IF NOT EXISTS budgets (

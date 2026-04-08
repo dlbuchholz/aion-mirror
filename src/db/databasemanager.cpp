@@ -8,8 +8,11 @@ DatabaseManager& DatabaseManager::instance() {
     return instance;
 }
 
+// the app should call openDatabase(), tests can inject a database via setDatabase().
+// Creating the default connection in the constructor causes duplicate default connection
+// warnings when tests also call addDatabase().
 DatabaseManager::DatabaseManager()
-    : m_database(QSqlDatabase::addDatabase("QSQLITE")) {}
+    : m_database() {}
 
 void DatabaseManager::setDatabase(const QSqlDatabase &newDatabase)
 {
@@ -27,6 +30,11 @@ QSqlDatabase& DatabaseManager::database() {
 }
 
 bool DatabaseManager::openDatabase(const QString& dbPath) {
+    // If no driver/connection has been set up yet, create one now.
+    if (!m_database.isValid()) {
+        m_database = QSqlDatabase::addDatabase("QSQLITE");
+    }
+
     if (m_database.isOpen()) {
         // Enable foreign key constraints
         QSqlQuery query(m_database);
@@ -37,6 +45,7 @@ bool DatabaseManager::openDatabase(const QString& dbPath) {
         qDebug() << "Foreign key support enabled in SQLite.";
         return true;
     }
+
     m_database.setDatabaseName(dbPath);
     if (!m_database.open()) {
         qCritical() << "Failed to open database:" << m_database.lastError().text();
