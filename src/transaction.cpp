@@ -138,7 +138,7 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
         query.bindValue(":category_id", transaction.getCategoryId());
     }
 
-    query. bindValue(":type", transaction. getType());
+    query. bindValue(":type", transaction.getType());
 
     if (query.exec()) {
         int newId = query.lastInsertId().toInt();

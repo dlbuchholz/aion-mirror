@@ -78,7 +78,7 @@ bool AccountDAO::editAccountType(int id, const QString& newName) {
         return false;
     }
 
-    return true;
+    return query.numRowsAffected() > 0;
 }
 
 bool AccountDAO::deleteAccountType(int id) {
@@ -95,6 +95,22 @@ bool AccountDAO::deleteAccountType(int id) {
 }
 
 int AccountDAO::createAccount(int userId, const QString& name, const QString& accountTypeName, double initialBalance) {
+    const QString trimmedName = name.trimmed();
+    const QString trimmedType = accountTypeName.trimmed();
+
+    if (userId <= 0) {
+        qWarning() << "Invalid userId:" << userId;
+        return -1;
+    }
+    if (trimmedName.isEmpty()) {
+        qWarning() << "Account name is empty";
+        return -1;
+    }
+    if (trimmedType.isEmpty()) {
+        qWarning() << "Account type is empty";
+        return -1;
+    }
+
     QSqlDatabase db = DatabaseManager::instance().database();
     QSqlQuery query(db);
 
@@ -106,9 +122,9 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
 
     // Retrieve the account type ID
     query.prepare("SELECT id FROM account_types WHERE name = :name");
-    query.bindValue(":name", accountTypeName);
+    query.bindValue(":name", trimmedType);
     if (!query.exec() || !query.next()) {
-        qWarning() << "Failed to fetch account type ID for:" << accountTypeName << query.lastError().text();
+        qWarning() << "Failed to fetch account type ID for:" << trimmedType << query.lastError().text();
         db.rollback();
         return -1;
     }
@@ -117,7 +133,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
     // Insert the new account
     query.prepare("INSERT INTO accounts (user_id, name, type_id) VALUES (:user_id, :name, :type_id)");
     query.bindValue(":user_id", userId);
-    query.bindValue(":name", name);
+    query.bindValue(":name", trimmedName);
     query.bindValue(":type_id", accountTypeId);
 
     if (!query.exec()) {
@@ -205,7 +221,7 @@ bool AccountDAO::deleteAccount(int accountId) {
         handleError(query);
         return false;
     }
-    return true;
+    return query.numRowsAffected() > 0;
 }
 
 void AccountDAO::handleError(const QSqlQuery& query) {
