@@ -7,6 +7,7 @@ set(TEST_TARGETS
     test_transactionlistwidget
     test_budget
     test_user_category
+    test_settings
 )
 
 foreach(test_name IN LISTS TEST_TARGETS)
