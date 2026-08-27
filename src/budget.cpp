@@ -82,7 +82,7 @@ bool BudgetDAO::deleteBudget(int budgetId) {
         handleError(query);
         return false;
     }
-    return true;
+    return query.numRowsAffected() == 1;
 }
 
 void BudgetDAO::handleError(const QSqlQuery& query) {

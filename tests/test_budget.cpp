@@ -19,6 +19,8 @@ private slots:
         QCOMPARE(budgets.first().getUserId(), 1);
         QCOMPARE(budgets.first().getCategory(), QString("Groceries"));
         QCOMPARE(budgets.first().getAmount(), 250.0);
+        QVERIFY(dao.deleteBudget(1));
+        QVERIFY(!dao.deleteBudget(1));
     }
 
     void filtersByUserAndRejectsInvalidForeignKey() {

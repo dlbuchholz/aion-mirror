@@ -399,6 +399,11 @@ private slots:
         TransactionDAO dao;
         QVERIFY(!dao.updateTransaction(transaction));
     }
+
+    void testDeleteTransaction_unknownIdReturnsFalse() {
+        TransactionDAO dao;
+        QVERIFY(!dao.deleteTransaction(999999));
+    }
 };
 
 QTEST_MAIN(TestAccountDAO)

@@ -36,6 +36,7 @@ private slots:
         QVERIFY(!dao.editCategory(id, "Trips", "invalid"));
         QVERIFY(dao.deleteCategory(id));
         QCOMPARE(dao.getCategoryById(id).getCategoryId(), -1);
+        QVERIFY(!dao.deleteCategory(id));
     }
 };
 

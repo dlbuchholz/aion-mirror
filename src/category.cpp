@@ -108,7 +108,7 @@ bool CategoryDAO::deleteCategory(int categoryId) {
         handleError(query);
         return false;
     }
-    return true;
+    return query.numRowsAffected() == 1;
 }
 
 void CategoryDAO::handleError(const QSqlQuery& query) {

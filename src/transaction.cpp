@@ -206,8 +206,11 @@ bool TransactionDAO::deleteTransaction(int transactionId) {
         return false;
     }
 
-    qDebug() << "Successfully deleted transaction with ID:" << transactionId;
-    return true;
+    const bool deleted = query.numRowsAffected() == 1;
+    if (deleted) {
+        qDebug() << "Successfully deleted transaction with ID:" << transactionId;
+    }
+    return deleted;
 }
 
 QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
