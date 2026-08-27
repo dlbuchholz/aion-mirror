@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <algorithm>
 #include "settings.h"
 
@@ -168,12 +169,13 @@ void TransactionListWidget::populateComboBox() {
     comboBox->updateWidth();
 
     // Check all regular accounts by default (but NOT the shadowed option)
-    comboBox->blockSignals(true);
-    int startIndex = hasShadowed ? 1 :  0;
-    for (int i = startIndex; i < comboBox->itemCount(); ++i) {
-        comboBox->setItemChecked(i, true);
+    {
+        const QSignalBlocker blocker(comboBox);
+        int startIndex = hasShadowed ? 1 :  0;
+        for (int i = startIndex; i < comboBox->itemCount(); ++i) {
+            comboBox->setItemChecked(i, true);
+        }
     }
-    comboBox->blockSignals(false);
 
     // Manually trigger the selection changed signal after setup
     emit comboBox->selectionChanged();
@@ -183,7 +185,7 @@ void TransactionListWidget::populateComboBox() {
 }
 
 void TransactionListWidget::addEmptyTransactionRow() {
-    ui.transactionTableWidget->blockSignals(true);
+    QSignalBlocker tableSignals(ui.transactionTableWidget);
 
     int newRow = ui.transactionTableWidget->rowCount();
     ui.transactionTableWidget->insertRow(newRow);
@@ -294,7 +296,7 @@ void TransactionListWidget::addEmptyTransactionRow() {
 
     updateWidget();
 
-    ui.transactionTableWidget->blockSignals(false);
+    tableSignals.unblock();
 
     // Call stageTransactionChange at least once to properly initialize the staged transaction
     // with all the default widget values
@@ -307,7 +309,7 @@ void TransactionListWidget::deleteTransaction() {
         return;
     }
 
-    ui.transactionTableWidget->blockSignals(true);
+    QSignalBlocker tableSignals(ui.transactionTableWidget);
 
     // Process rows from highest to lowest to avoid index shifting issues
     QList<int> sortedRows;
@@ -336,7 +338,7 @@ void TransactionListWidget::deleteTransaction() {
 
     updateWidget();
 
-    ui.transactionTableWidget->blockSignals(false);
+    tableSignals.unblock();
 
     updatePinnedTransactions();
 }
@@ -442,9 +444,10 @@ void TransactionListWidget::loadTransactions() {
 
     if (selectedAccountIds.isEmpty()) {
         qDebug() << "No accounts selected, clearing table";
-        ui.transactionTableWidget->blockSignals(true);
-        ui.transactionTableWidget->setRowCount(0);
-        ui.transactionTableWidget->blockSignals(false);
+        {
+            const QSignalBlocker blocker(ui.transactionTableWidget);
+            ui.transactionTableWidget->setRowCount(0);
+        }
 
         if (lazyLoader) {
             lazyLoader->clear();
@@ -482,9 +485,10 @@ void TransactionListWidget::loadTransactions() {
     qDebug() << "Total transactions loaded from DB:" << allTransactions.size();
 
     // Clear table
-    ui.transactionTableWidget->blockSignals(true);
-    ui.transactionTableWidget->setRowCount(0);
-    ui.transactionTableWidget->blockSignals(false);
+    {
+        const QSignalBlocker blocker(ui.transactionTableWidget);
+        ui.transactionTableWidget->setRowCount(0);
+    }
     checkedTransactionIds.clear();
 
     if (useLazyLoading && lazyLoader) {
@@ -943,9 +947,10 @@ void TransactionListWidget::syncDetailEditToTable() {
     case DetailEditField::Payee:
     case DetailEditField::Description:
         if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(currentDetailEditWidget)) {
-            lineEdit->blockSignals(true);
-            lineEdit->setText(newText);
-            lineEdit->blockSignals(false);
+            {
+                const QSignalBlocker blocker(lineEdit);
+                lineEdit->setText(newText);
+            }
             stageTransactionChange(currentRow);
         }
         break;
@@ -954,9 +959,10 @@ void TransactionListWidget::syncDetailEditToTable() {
             bool ok;
             double value = newText.toDouble(&ok);
             if (ok) {
-                spinBox->blockSignals(true);
-                spinBox->setValue(value);
-                spinBox->blockSignals(false);
+                {
+                    const QSignalBlocker blocker(spinBox);
+                    spinBox->setValue(value);
+                }
                 stageTransactionChange(currentRow);
             }
         }
@@ -1165,9 +1171,10 @@ void TransactionListWidget::openDetailEdit(int row, DetailEditField field) {
     ui.detailEditLabel->setText(QString("Editing: %1 (ID: %2)").arg(fieldName, transactionId));
 
     // Set text in detail edit area
-    ui.detailTextEdit->blockSignals(true);
-    ui.detailTextEdit->setPlainText(currentText);
-    ui.detailTextEdit->blockSignals(false);
+    {
+        const QSignalBlocker blocker(ui.detailTextEdit);
+        ui.detailTextEdit->setPlainText(currentText);
+    }
 
     // Show the frame
     ui.detailEditFrame->setVisible(true);

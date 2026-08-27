@@ -2,6 +2,7 @@
 #include <QStandardItem>
 #include <QDebug>
 #include <QStylePainter>
+#include <QSignalBlocker>
 
 CheckableComboBox::CheckableComboBox(QWidget* parent)
     : QComboBox(parent), model(new QStandardItemModel(this)) {
@@ -85,31 +86,29 @@ void CheckableComboBox:: setItemChecked(int index, bool checked) {
 void CheckableComboBox::checkAllItems() {
     qDebug() << "CheckableComboBox:  Checking all items";
     // Block signals temporarily to avoid multiple selectionChanged emissions
-    model->blockSignals(true);
-
-    for (int i = 0; i < model->rowCount(); ++i) {
-        QStandardItem* item = model->item(i);
-        if (item) {
-            item->setCheckState(Qt::Checked);
+    {
+        const QSignalBlocker blocker(model);
+        for (int i = 0; i < model->rowCount(); ++i) {
+            QStandardItem* item = model->item(i);
+            if (item) {
+                item->setCheckState(Qt::Checked);
+            }
         }
     }
-
-    model->blockSignals(false);
     emit selectionChanged();  // Emit once after all items are checked
 }
 
 void CheckableComboBox::uncheckAllItems() {
     qDebug() << "CheckableComboBox: Unchecking all items";
-    model->blockSignals(true);
-
-    for (int i = 0; i < model->rowCount(); ++i) {
-        QStandardItem* item = model->item(i);
-        if (item) {
-            item->setCheckState(Qt::Unchecked);
+    {
+        const QSignalBlocker blocker(model);
+        for (int i = 0; i < model->rowCount(); ++i) {
+            QStandardItem* item = model->item(i);
+            if (item) {
+                item->setCheckState(Qt::Unchecked);
+            }
         }
     }
-
-    model->blockSignals(false);
     emit selectionChanged();
 }
 
