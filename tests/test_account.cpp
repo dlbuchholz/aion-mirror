@@ -360,6 +360,30 @@ private slots:
             QCOMPARE(acc.getType(), QString(""));
             QCOMPARE(acc.getBalance(), 0.0);
         }
+
+
+    void testUpdateTransaction_refreshesHash() {
+        AccountDAO accountDao;
+        TransactionDAO transactionDao;
+        const int accountId = accountDao.createAccount(1, "HashTest", "Checking", 0.0);
+        QVERIFY(accountId > 0);
+
+        Transaction transaction(-1, accountId, "Before", 10.0, QDate(2026, 1, 1), "Old", 0, "expense");
+        const int transactionId = transactionDao.addTransaction(transaction);
+        QVERIFY(transactionId > 0);
+
+        transaction.setTransactionId(transactionId);
+        transaction.setPayee("After");
+        transaction.setDescription("New");
+        QVERIFY(transactionDao.updateTransaction(transaction));
+
+        QSqlQuery query(DatabaseManager::instance().database());
+        query.prepare("SELECT hash FROM transactions WHERE id = :id");
+        query.bindValue(":id", transactionId);
+        QVERIFY(query.exec());
+        QVERIFY(query.next());
+        QCOMPARE(query.value(0).toString(), transaction.calculateHash());
+    }
 };
 
 QTEST_MAIN(TestAccountDAO)
