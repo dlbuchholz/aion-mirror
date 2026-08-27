@@ -8,7 +8,9 @@
 #include <QHeaderView>
 #include <QDate>
 #include <QRegularExpression>
+#include <QSignalBlocker>
 #include "settings.h"
+#include "csvparser.h"
 #include <db/databasemanager.h>
 
 ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
@@ -18,6 +20,7 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     , currentFormat(FileFormat::CSV)
     , csvDelimiter(',')
     , amountInterpretation(AmountInterpretation::SignBased)
+    , autoDetectDelimiterOnNextParse(true)
 {
     ui->setupUi(this);
     setupUI();
@@ -124,6 +127,7 @@ void ImportManagerDialog::onSelectFileClicked()
     }
 
     currentFilePath = filePath;
+    autoDetectDelimiterOnNextParse = true;
     ui->filePathLineEdit->setText(filePath);
 
     // Determine format based on extension
@@ -147,9 +151,8 @@ void ImportManagerDialog::loadFile(const QString &filePath)
 
 void ImportManagerDialog::parseCSV(const QString &filePath)
 {
-    // AUTO-DETECT DELIMITER if enabled in settings
-    static bool isFirstLoad = true;
-    if (isFirstLoad) {
+    if (autoDetectDelimiterOnNextParse) {
+        autoDetectDelimiterOnNextParse = false;
         if (Settings::instance().isAutoDetectCsvDelimiter()) {
             csvDelimiter = detectCsvDelimiter(filePath);
             qDebug() << "Auto-detection enabled:   detected delimiter:" << csvDelimiter;
@@ -158,7 +161,7 @@ void ImportManagerDialog::parseCSV(const QString &filePath)
             qDebug() << "Auto-detection disabled:  using default delimiter:" << csvDelimiter;
         }
 
-        // Update UI to reflect delimiter
+        const QSignalBlocker blocker(ui->delimiterComboBox);
         if (csvDelimiter == ',') {
             ui->delimiterComboBox->setCurrentIndex(0);  // Comma
         } else if (csvDelimiter == ';') {
@@ -169,7 +172,6 @@ void ImportManagerDialog::parseCSV(const QString &filePath)
             ui->delimiterComboBox->setCurrentIndex(3);  // Pipe
         }
 
-        isFirstLoad = false;
     }
 
     QFile file(filePath);
@@ -182,34 +184,27 @@ void ImportManagerDialog::parseCSV(const QString &filePath)
     csvHeaders.clear();
 
     QTextStream in(&file);
-    bool isFirstRow = true;
-    QStringList rawDataForDetection;
+    QString parseError;
+    const QList<QStringList> records = CsvParser::parse(in.readAll(), csvDelimiter, &parseError);
+    file.close();
 
-    while (!in.atEnd()) {
-        QString line = in.readLine();
-        QStringList columns = line.split(csvDelimiter);
-
-        if (isFirstRow) {
-            csvHeaders = columns;
-            isFirstRow = false;
-
-            // Update mapping combo boxes with CSV columns
-            for (auto it = mappingComboBoxes.begin(); it != mappingComboBoxes.end(); ++it) {
-                QComboBox *combo = it.value();
-                combo->clear();
-                combo->addItem("(Not Mapped)", -1);
-
-                for (int i = 0; i < csvHeaders.size(); ++i) {
-                    combo->addItem(csvHeaders[i], i);
-                }
-            }
-        } else {
-            csvData.append(columns);
-            rawDataForDetection.append(line);
+    if (!parseError.isEmpty()) {
+        QMessageBox::critical(this, "CSV Error", parseError);
+        return;
+    }
+    if (!records.isEmpty()) {
+        csvHeaders = records.first();
+        for (qsizetype i = 1; i < records.size(); ++i) {
+            csvData.append(records[i]);
         }
     }
 
-    file.close();
+    for (auto it = mappingComboBoxes.begin(); it != mappingComboBoxes.end(); ++it) {
+        QComboBox *combo = it.value();
+        combo->clear();
+        combo->addItem("(Not Mapped)", -1);
+        for (int i = 0; i < csvHeaders.size(); ++i) combo->addItem(csvHeaders[i], i);
+    }
 
     qDebug() << "Parsed CSV:" << csvData.size() << "rows," << csvHeaders.size() << "columns";
 
@@ -224,7 +219,7 @@ void ImportManagerDialog::parseCSV(const QString &filePath)
     }
 
     if (Settings::instance().isAutoDetectDecimalSeparator()) {
-        decimalSeparator = detectDecimalSeparator(rawDataForDetection, amountColumnIndex);
+        decimalSeparator = detectDecimalSeparator(csvData, amountColumnIndex);
         qDebug() << "Auto-detection enabled:  detected decimal separator:" << decimalSeparator;
     } else {
         // Use the app's currency decimal separator setting
@@ -347,49 +342,29 @@ QChar ImportManagerDialog:: detectCsvDelimiter(const QString &filePath)
     }
 
     QTextStream in(&file);
-
-    // Read first few lines to analyze
-    QStringList sampleLines;
-    int linesToCheck = qMin(5, 100);  // Check up to 5 lines or 100 if file is small
-
-    while (!in.atEnd() && sampleLines.size() < linesToCheck) {
-        sampleLines.append(in.readLine());
-    }
-
+    const QString sample = in.readAll();
     file.close();
 
-    if (sampleLines.isEmpty()) {
+    if (sample.isEmpty()) {
         return ',';
     }
 
-    // Count occurrences of common delimiters
     QMap<QChar, int> delimiterCounts;
     QList<QChar> possibleDelimiters = {',', ';', '\t', '|'};
 
-    // Count delimiters in each line and check consistency
-    for (const QChar &delimiter : possibleDelimiters) {
-        QList<int> countsPerLine;
-
-        for (const QString &line : sampleLines) {
-            int count = line.count(delimiter);
-            countsPerLine.append(count);
-        }
-
-        // Check if counts are consistent across lines (good delimiter should split consistently)
-        bool isConsistent = true;
-        int firstCount = countsPerLine. first();
-
-        for (int count : countsPerLine) {
-            if (count != firstCount || count == 0) {
-                isConsistent = false;
+    for (QChar delimiter : possibleDelimiters) {
+        QString error;
+        const QList<QStringList> records = CsvParser::parse(sample, delimiter, &error);
+        if (!error.isEmpty() || records.isEmpty() || records.first().size() <= 1) continue;
+        const int columnCount = records.first().size();
+        bool consistent = true;
+        for (const QStringList& record : records) {
+            if (record.size() != columnCount) {
+                consistent = false;
                 break;
             }
         }
-
-        // Store average count if consistent
-        if (isConsistent && firstCount > 0) {
-            delimiterCounts[delimiter] = firstCount;
-        }
+        if (consistent) delimiterCounts[delimiter] = columnCount - 1;
     }
 
     // Find delimiter with highest consistent count
@@ -414,7 +389,7 @@ QChar ImportManagerDialog:: detectCsvDelimiter(const QString &filePath)
     return bestDelimiter;
 }
 
-QChar ImportManagerDialog::detectDecimalSeparator(const QStringList &sampleData, int amountColumnIndex)
+QChar ImportManagerDialog::detectDecimalSeparator(const QList<QStringList>& sampleData, int amountColumnIndex)
 {
     // Count occurrences of comma and point in numeric-looking values
     int commaCount = 0;
@@ -425,15 +400,13 @@ QChar ImportManagerDialog::detectDecimalSeparator(const QStringList &sampleData,
     // If we know the amount column, focus on that
     QStringList dataToCheck;
     if (amountColumnIndex >= 0 && ! sampleData.isEmpty()) {
-        for (const QString &row : sampleData) {
-            QStringList columns = row.split(csvDelimiter);
-            if (amountColumnIndex < columns.size()) {
-                dataToCheck.append(columns[amountColumnIndex]);
+        for (const QStringList& row : sampleData) {
+            if (amountColumnIndex < row.size()) {
+                dataToCheck.append(row[amountColumnIndex]);
             }
         }
     } else {
-        // Check all data
-        dataToCheck = sampleData;
+        for (const QStringList& row : sampleData) dataToCheck.append(row);
     }
 
     for (const QString &value : dataToCheck) {
@@ -473,6 +446,7 @@ QChar ImportManagerDialog::detectDecimalSeparator(const QStringList &sampleData,
 
 void ImportManagerDialog::onDelimiterChanged(const QString &delimiter)
 {
+    autoDetectDelimiterOnNextParse = false;
     if (delimiter. contains("Comma")) {
         csvDelimiter = ',';
     } else if (delimiter.contains("Semicolon")) {

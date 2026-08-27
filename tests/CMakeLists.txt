@@ -3,6 +3,7 @@ set(TEST_TARGETS
     test_integration
     test_migrationmanager
     test_lazytableloader
+    test_csvparser
 )
 
 foreach(test_name IN LISTS TEST_TARGETS)

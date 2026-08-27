@@ -65,7 +65,7 @@ private:
 
     // Data processing
     QChar detectCsvDelimiter(const QString &filePath);
-    QChar detectDecimalSeparator(const QStringList &sampleData, int amountColumnIndex = -1);
+    QChar detectDecimalSeparator(const QList<QStringList>& sampleData, int amountColumnIndex = -1);
     QList<Transaction> parseTransactionsFromPreview();
     QString determineTransactionType(double amount, const QString &typeColumn);
     QDate parseDate(const QString &dateStr);
@@ -82,6 +82,7 @@ private:
     QChar csvDelimiter;
     QChar decimalSeparator;
     AmountInterpretation amountInterpretation;
+    bool autoDetectDelimiterOnNextParse;
 
     // CSV data storage
     QList<QStringList> csvData;  // Raw CSV data
