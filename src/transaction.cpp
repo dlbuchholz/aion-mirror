@@ -151,6 +151,12 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
 }
 
 bool TransactionDAO::updateTransaction(const Transaction& transaction) {
+    if (transaction.getTransactionId() <= 0) {
+        qWarning() << "Cannot update transaction with invalid ID:"
+                   << transaction.getTransactionId();
+        return false;
+    }
+
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
         "UPDATE transactions SET account_id = :account_id, amount = :amount, date = :date, "
@@ -177,6 +183,12 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     if (!query.exec()) {
         qDebug() << "SQL Error:" << query.lastError().text();
         handleError(query);
+        return false;
+    }
+
+    if (query.numRowsAffected() != 1) {
+        qWarning() << "No transaction found for update:"
+                   << transaction.getTransactionId();
         return false;
     }
 

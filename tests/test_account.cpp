@@ -384,6 +384,21 @@ private slots:
         QVERIFY(query.next());
         QCOMPARE(query.value(0).toString(), transaction.calculateHash());
     }
+
+    void testUpdateTransaction_rejectsTemporaryId() {
+        Transaction transaction;
+        transaction.setTransactionId(-1);
+        TransactionDAO dao;
+        QVERIFY(!dao.updateTransaction(transaction));
+    }
+
+    void testUpdateTransaction_rejectsUnknownId() {
+        Transaction transaction;
+        transaction.setTransactionId(999999);
+        transaction.setAccountId(1);
+        TransactionDAO dao;
+        QVERIFY(!dao.updateTransaction(transaction));
+    }
 };
 
 QTEST_MAIN(TestAccountDAO)
