@@ -49,6 +49,17 @@ QSet<int> CheckableComboBox::checkedItemIds() const {
     return checkedIds;
 }
 
+QList<int> CheckableComboBox::checkedItemIdsInOrder() const {
+    QList<int> checkedIds;
+    for (int i = 0; i < model->rowCount(); ++i) {
+        const QStandardItem* item = model->item(i);
+        if (item && item->checkState() == Qt::Checked) {
+            checkedIds.append(item->data(Qt::UserRole).toInt());
+        }
+    }
+    return checkedIds;
+}
+
 void CheckableComboBox::addItemWithId(const QString& label, int id) {
     QStandardItem* item = new QStandardItem(label);
     item->setCheckable(true);

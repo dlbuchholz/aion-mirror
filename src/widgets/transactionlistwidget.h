@@ -6,7 +6,7 @@
 #include <QMap>
 #include "lazytableloader.h"
 #include "transaction.h"
-#include "../../ui/ui_transactionlistwidget.h"
+#include "ui_transactionlistwidget.h"
 
 class TransactionListWidget : public QWidget {
     Q_OBJECT

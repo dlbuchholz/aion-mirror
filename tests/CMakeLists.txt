@@ -4,12 +4,16 @@ set(TEST_TARGETS
     test_migrationmanager
     test_lazytableloader
     test_csvparser
+    test_transactionlistwidget
 )
 
 foreach(test_name IN LISTS TEST_TARGETS)
 	add_executable(${test_name} ${test_name}.cpp
 		test_db_fixture.h
 	)
+	if(test_name STREQUAL "test_transactionlistwidget")
+		target_sources(${test_name} PRIVATE ../ui/transactionlistwidget.ui)
+	endif()
 	target_include_directories(${test_name} PRIVATE ../src)
 	target_link_libraries(${test_name}
 		PRIVATE

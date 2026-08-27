@@ -12,6 +12,7 @@ public:
     explicit CheckableComboBox(QWidget* parent = nullptr);
 
     QSet<int> checkedItemIds() const;                    // Return the set of checked item IDs
+    QList<int> checkedItemIdsInOrder() const;
     void addItemWithId(const QString& label, int id);    // Add a labeled item with an associated ID
     void clearItems();                                   // Clear all items from the combo box
 

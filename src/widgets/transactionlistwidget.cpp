@@ -212,6 +212,14 @@ void TransactionListWidget::addEmptyTransactionRow() {
     for (const Account& acc : accounts) {
         accountCombo->addItem(acc.getName(), acc.getAccountId());
     }
+    for (int accountId : ui.checkableComboBox->checkedItemIdsInOrder()) {
+        if (accountId == SHADOWED_TRANSACTIONS_ID) continue;
+        const int index = accountCombo->findData(accountId);
+        if (index >= 0) {
+            accountCombo->setCurrentIndex(index);
+            break;
+        }
+    }
     connect(accountCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, accountCombo]() {
         const int row = rowForWidget(accountCombo);
         if (row >= 0) stageTransactionChange(row);

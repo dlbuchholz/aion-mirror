@@ -10,6 +10,7 @@ qt_standard_project_setup()
 # Define source files for the main application
 set(SRC_DIR src)
 set(UI_DIR ui)
+set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_DIR}")
 file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${UI_DIR}/*.ui")
 include_directories(${SRC_DIR})
 
