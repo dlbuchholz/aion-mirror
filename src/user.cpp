@@ -22,8 +22,12 @@ UserDAO::UserDAO() {}
 
 bool UserDAO::createUser(const User& user) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("INSERT INTO users (id, username, name) VALUES (:id, :username, :name)");
-    query.bindValue(":id", user.getUserId());
+    if (user.getUserId() > 0) {
+        query.prepare("INSERT INTO users (id, username, name) VALUES (:id, :username, :name)");
+        query.bindValue(":id", user.getUserId());
+    } else {
+        query.prepare("INSERT INTO users (username, name) VALUES (:username, :name)");
+    }
     query.bindValue(":username", user.getUsername());
     query.bindValue(":name", user.getName());
 

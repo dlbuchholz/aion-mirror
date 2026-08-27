@@ -6,6 +6,7 @@ set(TEST_TARGETS
     test_csvparser
     test_transactionlistwidget
     test_budget
+    test_user_category
 )
 
 foreach(test_name IN LISTS TEST_TARGETS)
