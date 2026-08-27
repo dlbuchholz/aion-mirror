@@ -19,7 +19,8 @@ TransactionListWidget::TransactionListWidget(QWidget* parent)
     nextTempId(-1),
     useLazyLoading(Settings::instance().isLazyLoadingEnabled()),
     useDetailEdit(Settings::instance().isDetailEditEnabled()),
-    currentDetailEditRow(-1),
+    isTableLocked(false),
+    currentDetailTransactionId(0),
     currentDetailEditField(DetailEditField::None),
     currentDetailEditWidget(nullptr)
 {
@@ -198,8 +199,9 @@ void TransactionListWidget::addEmptyTransactionRow() {
     QDateEdit* dateEdit = new QDateEdit(QDate::currentDate());
     dateEdit->setDisplayFormat("yyyy-MM-dd");
     dateEdit->setCalendarPopup(true);
-    connect(dateEdit, &QDateEdit::dateChanged, [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(dateEdit, &QDateEdit::dateChanged, this, [this, dateEdit]() {
+        const int row = rowForWidget(dateEdit);
+        if (row >= 0) stageTransactionChange(row);
     });
     ui.transactionTableWidget->setCellWidget(newRow, 0, dateEdit);
 
@@ -210,25 +212,28 @@ void TransactionListWidget::addEmptyTransactionRow() {
     for (const Account& acc : accounts) {
         accountCombo->addItem(acc.getName(), acc.getAccountId());
     }
-    connect(accountCombo, QOverload<int>:: of(&QComboBox::currentIndexChanged), [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(accountCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, accountCombo]() {
+        const int row = rowForWidget(accountCombo);
+        if (row >= 0) stageTransactionChange(row);
     });
     ui.transactionTableWidget->setCellWidget(newRow, 1, accountCombo);
 
     // === Payee (plain text) ===
     QLineEdit* payeeEdit = new QLineEdit();
-    connect(payeeEdit, &QLineEdit::textChanged, [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(payeeEdit, &QLineEdit::textChanged, this, [this, payeeEdit]() {
+        const int row = rowForWidget(payeeEdit);
+        if (row >= 0) stageTransactionChange(row);
     });
-    setupDetailEditConnections(payeeEdit, newRow, DetailEditField:: Payee);
+    setupDetailEditConnections(payeeEdit, tempId, DetailEditField::Payee);
     ui.transactionTableWidget->setCellWidget(newRow, 2, payeeEdit);
 
     // === Description (plain text) ===
     QLineEdit* descEdit = new QLineEdit();
-    connect(descEdit, &QLineEdit::textChanged, [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(descEdit, &QLineEdit::textChanged, this, [this, descEdit]() {
+        const int row = rowForWidget(descEdit);
+        if (row >= 0) stageTransactionChange(row);
     });
-    setupDetailEditConnections(descEdit, newRow, DetailEditField::Description);
+    setupDetailEditConnections(descEdit, tempId, DetailEditField::Description);
     ui. transactionTableWidget->setCellWidget(newRow, 3, descEdit);
 
     // === Category ComboBox ===
@@ -239,8 +244,9 @@ void TransactionListWidget::addEmptyTransactionRow() {
     for (const Category& cat : categories) {
         categoryCombo->addItem(cat.getName(), cat.getCategoryId());
     }
-    connect(categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, categoryCombo]() {
+        const int row = rowForWidget(categoryCombo);
+        if (row >= 0) stageTransactionChange(row);
     });
     ui.transactionTableWidget->setCellWidget(newRow, 4, categoryCombo);
 
@@ -250,24 +256,26 @@ void TransactionListWidget::addEmptyTransactionRow() {
     amountSpin->setMaximum(1'000'000);
     amountSpin->setDecimals(2);
     amountSpin->setValue(0.00);
-    connect(amountSpin, QOverload<double>:: of(&QDoubleSpinBox::valueChanged), [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(amountSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this, amountSpin]() {
+        const int row = rowForWidget(amountSpin);
+        if (row >= 0) stageTransactionChange(row);
     });
-    setupDetailEditConnections(amountSpin, newRow, DetailEditField::Amount);
+    setupDetailEditConnections(amountSpin, tempId, DetailEditField::Amount);
     ui.transactionTableWidget->setCellWidget(newRow, 5, amountSpin);
 
     // === Type ComboBox ===
     QComboBox* typeCombo = new QComboBox();
     typeCombo->addItems({"expense", "income"});
-    connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, newRow]() {
-        stageTransactionChange(newRow);
+    connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, typeCombo]() {
+        const int row = rowForWidget(typeCombo);
+        if (row >= 0) stageTransactionChange(row);
     });
     ui.transactionTableWidget->setCellWidget(newRow, 6, typeCombo);
 
     // === Checkbox ===
     QCheckBox *checkBox = new QCheckBox();
-    connect(checkBox, &QCheckBox::clicked, [=]() {
-        handleTransactionCheckboxStateChange(newRow, checkBox->isChecked());
+    connect(checkBox, &QCheckBox::clicked, this, [this, checkBox, tempId]() {
+        handleTransactionCheckboxStateChange(tempId, checkBox->isChecked());
     });
     QWidget *checkBoxWidget = new QWidget();
     QHBoxLayout *layout = new QHBoxLayout(checkBoxWidget);
@@ -286,7 +294,7 @@ void TransactionListWidget::addEmptyTransactionRow() {
 }
 
 void TransactionListWidget::deleteTransaction() {
-    if (checkedRows.isEmpty()) {
+    if (checkedTransactionIds.isEmpty()) {
         QMessageBox::warning(this, "No Selection", "Please select transactions to delete by checking their checkboxes.");
         return;
     }
@@ -294,7 +302,11 @@ void TransactionListWidget::deleteTransaction() {
     ui.transactionTableWidget->blockSignals(true);
 
     // Process rows from highest to lowest to avoid index shifting issues
-    QList<int> sortedRows = checkedRows.values();
+    QList<int> sortedRows;
+    for (int transactionId : checkedTransactionIds) {
+        const int row = rowForTransactionId(transactionId);
+        if (row >= 0) sortedRows.append(row);
+    }
     std::sort(sortedRows.begin(), sortedRows.end(), std::greater<int>());
 
     for (int row : sortedRows) {
@@ -312,7 +324,7 @@ void TransactionListWidget::deleteTransaction() {
     }
 
     // Clear the checked rows set after deletion
-    checkedRows.clear();
+    checkedTransactionIds.clear();
 
     updateWidget();
 
@@ -321,11 +333,11 @@ void TransactionListWidget::deleteTransaction() {
     updatePinnedTransactions();
 }
 
-void TransactionListWidget::handleTransactionCheckboxStateChange(int row, bool checked) {
+void TransactionListWidget::handleTransactionCheckboxStateChange(int transactionId, bool checked) {
     if (checked) {
-        checkedRows.insert(row);
+        checkedTransactionIds.insert(transactionId);
     } else {
-        checkedRows.remove(row);
+        checkedTransactionIds.remove(transactionId);
     }
 
     // Update UI states when checkbox selection changes
@@ -384,6 +396,25 @@ void TransactionListWidget::stageTransactionChange(int row) {
     updatePinnedTransactions();
 }
 
+int TransactionListWidget::transactionIdForRow(int row) const {
+    if (row < 0 || row >= ui.transactionTableWidget->rowCount()) return 0;
+    const QTableWidgetItem* header = ui.transactionTableWidget->verticalHeaderItem(row);
+    return header ? header->text().toInt() : 0;
+}
+
+int TransactionListWidget::rowForTransactionId(int transactionId) const {
+    for (int row = 0; row < ui.transactionTableWidget->rowCount(); ++row) {
+        if (transactionIdForRow(row) == transactionId) return row;
+    }
+    return -1;
+}
+
+int TransactionListWidget::rowForWidget(const QWidget* widget) const {
+    if (!widget) return -1;
+    const QPoint viewportPoint = widget->mapTo(ui.transactionTableWidget->viewport(), QPoint(1, 1));
+    return ui.transactionTableWidget->indexAt(viewportPoint).row();
+}
+
 void TransactionListWidget::setAccountIds(const QSet<int>& accountIds) {
     selectedAccountIds = accountIds;
     loadTransactions();
@@ -393,10 +424,10 @@ void TransactionListWidget::loadTransactions() {
     qDebug() << "loadTransactions called with selectedAccountIds:" << selectedAccountIds;
 
     // Close detail edit when loading new transactions (with safety check)
-    if (currentDetailEditRow >= 0) {
+    if (currentDetailTransactionId != 0) {
         qDebug() << "Closing detail edit before loading transactions";
         ui.detailEditFrame->setVisible(false);
-        currentDetailEditRow = -1;
+        currentDetailTransactionId = 0;
         currentDetailEditField = DetailEditField::None;
         currentDetailEditWidget = nullptr;
     }
@@ -411,7 +442,7 @@ void TransactionListWidget::loadTransactions() {
             lazyLoader->clear();
         }
 
-        checkedRows.clear();
+        checkedTransactionIds.clear();
         updateCountLabels();
         return;
     }
@@ -446,7 +477,7 @@ void TransactionListWidget::loadTransactions() {
     ui.transactionTableWidget->blockSignals(true);
     ui.transactionTableWidget->setRowCount(0);
     ui.transactionTableWidget->blockSignals(false);
-    checkedRows.clear();
+    checkedTransactionIds.clear();
 
     if (useLazyLoading && lazyLoader) {
         // Use lazy loading
@@ -469,14 +500,14 @@ void TransactionListWidget::loadTransactions() {
 void TransactionListWidget::saveChanges() {
 
     // Close detail edit before saving
-    if (currentDetailEditRow >= 0) {
+    if (currentDetailTransactionId != 0) {
         qDebug() << "Closing detail edit before saving changes";
         // Sync one last time before closing
-        if (currentDetailEditRow < ui.transactionTableWidget->rowCount() && currentDetailEditWidget) {
+        if (rowForTransactionId(currentDetailTransactionId) >= 0 && currentDetailEditWidget) {
             syncDetailEditToTable();
         }
         ui.detailEditFrame->setVisible(false);
-        currentDetailEditRow = -1;
+        currentDetailTransactionId = 0;
         currentDetailEditField = DetailEditField:: None;
         currentDetailEditWidget = nullptr;
     }
@@ -531,7 +562,7 @@ void TransactionListWidget::saveChanges() {
     // Clear staging
     stagedTransactions.clear();
     stagedTransactionDeletions.clear();
-    checkedRows.clear();
+    checkedTransactionIds.clear();
 
     // Reset the temp ID counter for next batch of new transactions
     nextTempId = -1;
@@ -551,17 +582,17 @@ void TransactionListWidget::saveChanges() {
 
 void TransactionListWidget::discardChanges() {
     // Close detail edit before discarding
-    if (currentDetailEditRow >= 0) {
+    if (currentDetailTransactionId != 0) {
         qDebug() << "Closing detail edit before discarding changes";
         ui.detailEditFrame->setVisible(false);
-        currentDetailEditRow = -1;
+        currentDetailTransactionId = 0;
         currentDetailEditField = DetailEditField::None;
         currentDetailEditWidget = nullptr;
     }
 
     stagedTransactions.clear();
     stagedTransactionDeletions.clear();
-    checkedRows.clear();
+    checkedTransactionIds.clear();
 
     // Reset the temp ID counter
     nextTempId = -1;
@@ -577,7 +608,7 @@ void TransactionListWidget::updateButtonStates() {
     ui.saveButton->setVisible(hasChanges);
     ui.discardButton->setVisible(hasChanges);
 
-    bool hasCheckedRows = !checkedRows. isEmpty();
+    bool hasCheckedRows = !checkedTransactionIds.isEmpty();
 
     // Disable delete when locked
     ui.deleteButton->setVisible(hasCheckedRows);
@@ -633,7 +664,7 @@ void TransactionListWidget::updateCountLabels() {
         visibleCount = totalCount;
     }
 
-    int selectedCount = checkedRows.size();
+    int selectedCount = checkedTransactionIds.size();
 
     // Update visible count label
     if (totalCount > 0) {
@@ -675,8 +706,9 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
     dateEdit->setReadOnly(isTableLocked);
     dateEdit->setEnabled(!isTableLocked);
     if (! isTableLocked) {
-        connect(dateEdit, &QDateEdit::dateChanged, [this, row]() {
-            stageTransactionChange(row);
+        connect(dateEdit, &QDateEdit::dateChanged, this, [this, dateEdit]() {
+            const int currentRow = rowForWidget(dateEdit);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
     }
     ui.transactionTableWidget->setCellWidget(row, 0, dateEdit);
@@ -707,8 +739,9 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
 
     accountCombo->setEnabled(!isTableLocked);
     if (!isTableLocked) {
-        connect(accountCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, row]() {
-            stageTransactionChange(row);
+        connect(accountCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, accountCombo]() {
+            const int currentRow = rowForWidget(accountCombo);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
     }
     ui.transactionTableWidget->setCellWidget(row, 1, accountCombo);
@@ -717,10 +750,11 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
     QLineEdit* payeeEdit = new QLineEdit(transaction.getPayee());
     payeeEdit->setReadOnly(isTableLocked);
     if (!isTableLocked) {
-        connect(payeeEdit, &QLineEdit::textChanged, [this, row]() {
-            stageTransactionChange(row);
+        connect(payeeEdit, &QLineEdit::textChanged, this, [this, payeeEdit]() {
+            const int currentRow = rowForWidget(payeeEdit);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
-        setupDetailEditConnections(payeeEdit, row, DetailEditField:: Payee);
+        setupDetailEditConnections(payeeEdit, transaction.getTransactionId(), DetailEditField::Payee);
     }
     ui.transactionTableWidget->setCellWidget(row, 2, payeeEdit);
 
@@ -728,10 +762,11 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
     QLineEdit* descEdit = new QLineEdit(transaction. getDescription());
     descEdit->setReadOnly(isTableLocked);
     if (!isTableLocked) {
-        connect(descEdit, &QLineEdit::textChanged, [this, row]() {
-            stageTransactionChange(row);
+        connect(descEdit, &QLineEdit::textChanged, this, [this, descEdit]() {
+            const int currentRow = rowForWidget(descEdit);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
-        setupDetailEditConnections(descEdit, row, DetailEditField::Description);
+        setupDetailEditConnections(descEdit, transaction.getTransactionId(), DetailEditField::Description);
     }
     ui.transactionTableWidget->setCellWidget(row, 3, descEdit);
 
@@ -757,8 +792,9 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
 
     categoryCombo->setEnabled(! isTableLocked);
     if (!isTableLocked) {
-        connect(categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, row]() {
-            stageTransactionChange(row);
+        connect(categoryCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, categoryCombo]() {
+            const int currentRow = rowForWidget(categoryCombo);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
     }
     ui.transactionTableWidget->setCellWidget(row, 4, categoryCombo);
@@ -771,10 +807,11 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
     amountSpin->setReadOnly(isTableLocked);
     amountSpin->setEnabled(!isTableLocked);
     if (!isTableLocked) {
-        connect(amountSpin, QOverload<double>:: of(&QDoubleSpinBox::valueChanged), [this, row]() {
-            stageTransactionChange(row);
+        connect(amountSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this, amountSpin]() {
+            const int currentRow = rowForWidget(amountSpin);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
-        setupDetailEditConnections(amountSpin, row, DetailEditField::Amount);
+        setupDetailEditConnections(amountSpin, transaction.getTransactionId(), DetailEditField::Amount);
     }
     ui.transactionTableWidget->setCellWidget(row, 5, amountSpin);
 
@@ -784,16 +821,18 @@ void TransactionListWidget::insertTransactionRow(int row, const Transaction& tra
     typeCombo->setCurrentText(transaction.getType());
     typeCombo->setEnabled(!isTableLocked);
     if (!isTableLocked) {
-        connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, row]() {
-            stageTransactionChange(row);
+        connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, typeCombo]() {
+            const int currentRow = rowForWidget(typeCombo);
+            if (currentRow >= 0) stageTransactionChange(currentRow);
         });
     }
     ui.transactionTableWidget->setCellWidget(row, 6, typeCombo);
 
     // === Checkbox (always enabled) ===
     QCheckBox *checkBox = new QCheckBox();
-    connect(checkBox, &QCheckBox::clicked, [=]() {
-        handleTransactionCheckboxStateChange(row, checkBox->isChecked());
+    const int transactionId = transaction.getTransactionId();
+    connect(checkBox, &QCheckBox::clicked, this, [this, checkBox, transactionId]() {
+        handleTransactionCheckboxStateChange(transactionId, checkBox->isChecked());
     });
     QWidget *checkBoxWidget = new QWidget();
     QHBoxLayout *layout = new QHBoxLayout(checkBoxWidget);
@@ -817,17 +856,12 @@ void TransactionListWidget::updatePinnedTransactions() {
     pinnedIds.unite(stagedTransactionDeletions);
 
     // Pin checked rows
-    for (int row :  checkedRows) {
-        if (row >= 0 && row < ui.transactionTableWidget->rowCount()) {
-            QString id = ui.transactionTableWidget->verticalHeaderItem(row)->text();
-            pinnedIds.insert(id.toInt());
-        }
-    }
+    pinnedIds.unite(checkedTransactionIds);
 
     lazyLoader->setPinnedTransactionIds(pinnedIds);
 }
 
-void TransactionListWidget::setupDetailEditConnections(QWidget* widget, int row, DetailEditField field) {
+void TransactionListWidget::setupDetailEditConnections(QWidget* widget, int transactionId, DetailEditField field) {
     if (!useDetailEdit) {
         // If detail edit is disabled, make fields read-only
         if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(widget)) {
@@ -842,7 +876,7 @@ void TransactionListWidget::setupDetailEditConnections(QWidget* widget, int row,
     if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(widget)) {
         lineEdit->setReadOnly(true);  // Make read-only when detail edit is enabled
         lineEdit->installEventFilter(this);
-        lineEdit->setProperty("detailEditRow", row);
+        lineEdit->setProperty("detailEditTransactionId", transactionId);
         lineEdit->setProperty("detailEditField", static_cast<int>(field));
 
         // Change cursor to indicate it's clickable
@@ -850,7 +884,7 @@ void TransactionListWidget::setupDetailEditConnections(QWidget* widget, int row,
     } else if (QDoubleSpinBox* spinBox = qobject_cast<QDoubleSpinBox*>(widget)) {
         spinBox->setReadOnly(true);  // Make read-only when detail edit is enabled
         spinBox->installEventFilter(this);
-        spinBox->setProperty("detailEditRow", row);
+        spinBox->setProperty("detailEditTransactionId", transactionId);
         spinBox->setProperty("detailEditField", static_cast<int>(field));
 
         // Change cursor to indicate it's clickable
@@ -865,8 +899,8 @@ bool TransactionListWidget::eventFilter(QObject* obj, QEvent* event) {
 
     if (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress) {  // ADD MouseButtonPress
         QWidget* widget = qobject_cast<QWidget*>(obj);
-        if (widget && widget->property("detailEditRow").isValid()) {
-            int row = widget->property("detailEditRow").toInt();
+        if (widget && widget->property("detailEditTransactionId").isValid()) {
+            int row = rowForTransactionId(widget->property("detailEditTransactionId").toInt());
             int fieldInt = widget->property("detailEditField").toInt();
             DetailEditField field = static_cast<DetailEditField>(fieldInt);
 
@@ -884,9 +918,10 @@ void TransactionListWidget::syncDetailEditToTable() {
     }
 
     //Safety check: verify the row still exists
-    if (currentDetailEditRow < 0 || currentDetailEditRow >= ui.transactionTableWidget->rowCount()) {
-        qDebug() << "syncDetailEditToTable: Row" << currentDetailEditRow << "no longer exists, closing detail edit";
-        currentDetailEditRow = -1;
+    const int currentRow = rowForTransactionId(currentDetailTransactionId);
+    if (currentRow < 0) {
+        qDebug() << "syncDetailEditToTable: Transaction no longer exists, closing detail edit";
+        currentDetailTransactionId = 0;
         currentDetailEditField = DetailEditField::None;
         currentDetailEditWidget = nullptr;
         ui.detailEditFrame->setVisible(false);
@@ -903,7 +938,7 @@ void TransactionListWidget::syncDetailEditToTable() {
             lineEdit->blockSignals(true);
             lineEdit->setText(newText);
             lineEdit->blockSignals(false);
-            stageTransactionChange(currentDetailEditRow);
+            stageTransactionChange(currentRow);
         }
         break;
     case DetailEditField::Amount:
@@ -914,7 +949,7 @@ void TransactionListWidget::syncDetailEditToTable() {
                 spinBox->blockSignals(true);
                 spinBox->setValue(value);
                 spinBox->blockSignals(false);
-                stageTransactionChange(currentDetailEditRow);
+                stageTransactionChange(currentRow);
             }
         }
         break;
@@ -947,7 +982,7 @@ void TransactionListWidget::updateEditableStates() {
                 lineEdit->setCursor(Qt::ArrowCursor);
                 lineEdit->removeEventFilter(this);
             } else {
-                setupDetailEditConnections(lineEdit, row, DetailEditField:: Payee);
+                setupDetailEditConnections(lineEdit, transactionIdForRow(row), DetailEditField::Payee);
             }
         }
 
@@ -959,7 +994,7 @@ void TransactionListWidget::updateEditableStates() {
                 lineEdit->setCursor(Qt::ArrowCursor);
                 lineEdit->removeEventFilter(this);
             } else {
-                setupDetailEditConnections(lineEdit, row, DetailEditField::Description);
+                setupDetailEditConnections(lineEdit, transactionIdForRow(row), DetailEditField::Description);
             }
         }
 
@@ -978,7 +1013,7 @@ void TransactionListWidget::updateEditableStates() {
                 spinBox->setCursor(Qt:: ArrowCursor);
                 spinBox->removeEventFilter(this);
             } else {
-                setupDetailEditConnections(spinBox, row, DetailEditField:: Amount);
+                setupDetailEditConnections(spinBox, transactionIdForRow(row), DetailEditField::Amount);
             }
         }
 
@@ -1051,13 +1086,13 @@ void TransactionListWidget::onImportTransactionsClicked()
 }
 
 void TransactionListWidget::onDetailEditTextChanged() {
-    if (currentDetailEditRow < 0 || ! currentDetailEditWidget) {
+    if (currentDetailTransactionId == 0 || !currentDetailEditWidget) {
         return;
     }
 
     // Safety check: verify the row still exists
-    if (currentDetailEditRow >= ui.transactionTableWidget->rowCount()) {
-        qDebug() << "onDetailEditTextChanged: Row" << currentDetailEditRow << "no longer exists, closing detail edit";
+    if (rowForTransactionId(currentDetailTransactionId) < 0) {
+        qDebug() << "onDetailEditTextChanged: Transaction no longer exists, closing detail edit";
         closeDetailEdit();
         return;
     }
@@ -1113,7 +1148,7 @@ void TransactionListWidget::openDetailEdit(int row, DetailEditField field) {
     }
 
     // Store current editing context
-    currentDetailEditRow = row;
+    currentDetailTransactionId = transactionIdForRow(row);
     currentDetailEditField = field;
     currentDetailEditWidget = widget;
 
@@ -1137,14 +1172,14 @@ void TransactionListWidget::openDetailEdit(int row, DetailEditField field) {
 
 void TransactionListWidget::closeDetailEdit() {
     // Safety check: verify the row still exists before syncing
-    if (currentDetailEditWidget && currentDetailEditRow >= 0 && currentDetailEditRow < ui.transactionTableWidget->rowCount()) {
+    if (currentDetailEditWidget && rowForTransactionId(currentDetailTransactionId) >= 0) {
         syncDetailEditToTable();
-    } else if (currentDetailEditRow >= 0) {
-        qDebug() << "closeDetailEdit: Row" << currentDetailEditRow << "no longer exists, skipping sync";
+    } else if (currentDetailTransactionId != 0) {
+        qDebug() << "closeDetailEdit: Transaction no longer exists, skipping sync";
     }
 
     ui.detailEditFrame->setVisible(false);
-    currentDetailEditRow = -1;
+    currentDetailTransactionId = 0;
     currentDetailEditField = DetailEditField:: None;
     currentDetailEditWidget = nullptr;
 }
@@ -1158,7 +1193,7 @@ void TransactionListWidget::onDetailEditCheckboxToggled(bool checked) {
     // No need to update local state (useDetailEdit = checked), since that's done in TLW:reinitizalize
 
     // Close detail edit if it's being disabled
-    if (!useDetailEdit && currentDetailEditRow >= 0) {
+    if (!useDetailEdit && currentDetailTransactionId != 0) {
         closeDetailEdit();
     }
 
@@ -1174,7 +1209,7 @@ void TransactionListWidget::onLockTableCheckboxToggled(bool checked) {
     isTableLocked = checked;
 
     // Close detail edit if locking
-    if (isTableLocked && currentDetailEditRow >= 0) {
+    if (isTableLocked && currentDetailTransactionId != 0) {
         closeDetailEdit();
     }
 

@@ -7,7 +7,6 @@
 LazyTableLoader::LazyTableLoader(QTableWidget* tableWidget, QObject* parent)
     : QObject(parent),
     tableWidget(tableWidget),
-    loadedTransactionCount(0),
     batchSize(50),
     visibleWindowSize(200),
     isLoadingMore(false),
@@ -34,7 +33,7 @@ void LazyTableLoader::setScrollDistanceThreshold(int threshold) {
 
 void LazyTableLoader::setAllData(const QList<Transaction>& transactions) {
     allTransactions = transactions;
-    loadedTransactionCount = 0;
+    loadedTransactionIds.clear();
 }
 
 const QList<Transaction>& LazyTableLoader::getAllData() const {
@@ -102,17 +101,11 @@ void LazyTableLoader::disconnectScrollBar() {
 void LazyTableLoader::loadInitialBatch() {
     if (!enabled || ! tableWidget) return;
 
-    loadedTransactionCount = 0;
     loadMoreTransactions();
 }
 
 void LazyTableLoader::loadMoreTransactions() {
     if (!enabled || !tableWidget || isLoadingMore) return;
-
-    if (loadedTransactionCount >= allTransactions.size()) {
-        qDebug() << "All transactions already loaded";
-        return;
-    }
 
     isLoadingMore = true;
     emit loadingStateChanged(true);
@@ -120,9 +113,33 @@ void LazyTableLoader::loadMoreTransactions() {
     QScrollBar* scrollBar = tableWidget->verticalScrollBar();
     int oldScrollValue = scrollBar ?  scrollBar->value() : 0;
 
-    int startIndex = loadedTransactionCount;
-    int remainingCount = allTransactions.size() - startIndex;
-    int countToLoad = qMin(batchSize, remainingCount);
+    int startIndex = 0;
+    if (tableWidget->rowCount() > 0) {
+        const QTableWidgetItem* lastHeader = tableWidget->verticalHeaderItem(tableWidget->rowCount() - 1);
+        const int lastId = lastHeader ? lastHeader->text().toInt() : -1;
+        for (int i = 0; i < allTransactions.size(); ++i) {
+            if (allTransactions[i].getTransactionId() == lastId) {
+                startIndex = i + 1;
+                break;
+            }
+        }
+    }
+    while (startIndex < allTransactions.size()
+           && loadedTransactionIds.contains(allTransactions[startIndex].getTransactionId())) {
+        ++startIndex;
+    }
+    if (startIndex >= allTransactions.size()) {
+        emit loadingStateChanged(false);
+        isLoadingMore = false;
+        return;
+    }
+    QVector<int> indicesToLoad;
+    for (int i = startIndex; i < allTransactions.size() && indicesToLoad.size() < batchSize; ++i) {
+        if (!loadedTransactionIds.contains(allTransactions[i].getTransactionId())) {
+            indicesToLoad.append(i);
+        }
+    }
+    int countToLoad = indicesToLoad.size();
 
     qDebug() << "Loading batch:" << startIndex << "to" << (startIndex + countToLoad - 1)
              << "of" << allTransactions.size() << "total transactions";
@@ -130,8 +147,7 @@ void LazyTableLoader::loadMoreTransactions() {
     tableWidget->blockSignals(true);
 
     for (int i = 0; i < countToLoad; ++i) {
-        int transactionIndex = startIndex + i;
-        if (transactionIndex >= allTransactions.size()) break;
+        int transactionIndex = indicesToLoad[i];
 
         const Transaction& transaction = allTransactions[transactionIndex];
         bool isShadowed = (transaction.getAccountId() <= 0);
@@ -139,12 +155,11 @@ void LazyTableLoader::loadMoreTransactions() {
 
         if (rowInsertCallback) {
             rowInsertCallback(row, transaction, isShadowed);
+            loadedTransactionIds.insert(transaction.getTransactionId());
         }
     }
 
     tableWidget->blockSignals(false);
-
-    loadedTransactionCount += countToLoad;
 
     if (scrollBar) {
         scrollBar->setValue(oldScrollValue);
@@ -180,20 +195,31 @@ void LazyTableLoader::loadEarlierTransactions() {
     int firstVisibleRow = tableWidget->rowAt(0);
     if (firstVisibleRow < 0) firstVisibleRow = 0;
 
-    int countToLoad = qMin(batchSize, firstIndex);
-    int startIndex = firstIndex - countToLoad;
+    QVector<int> indicesToLoad;
+    for (int i = firstIndex - 1; i >= 0 && indicesToLoad.size() < batchSize; --i) {
+        if (!loadedTransactionIds.contains(allTransactions[i].getTransactionId())) {
+            indicesToLoad.prepend(i);
+        }
+    }
+    int countToLoad = indicesToLoad.size();
+    if (countToLoad == 0) {
+        emit loadingStateChanged(false);
+        isLoadingMore = false;
+        return;
+    }
 
-    qDebug() << "Loading earlier batch:" << startIndex << "to" << (firstIndex - 1);
+    qDebug() << "Loading earlier batch:" << indicesToLoad.first() << "to" << indicesToLoad.last();
 
     tableWidget->blockSignals(true);
 
     for (int i = countToLoad - 1; i >= 0; --i) {
-        int transactionIndex = startIndex + i;
+        int transactionIndex = indicesToLoad[i];
         const Transaction& transaction = allTransactions[transactionIndex];
         bool isShadowed = (transaction.getAccountId() <= 0);
 
         if (rowInsertCallback) {
             rowInsertCallback(0, transaction, isShadowed);
+            loadedTransactionIds.insert(transaction.getTransactionId());
         }
     }
 
@@ -270,10 +296,11 @@ void LazyTableLoader::unloadDistantTransactions() {
     tableWidget->blockSignals(true);
 
     for (int row : rowsToRemove) {
-        tableWidget->removeRow(row);
-        if (row < loadedTransactionCount) {
-            loadedTransactionCount--;
+        const QTableWidgetItem* header = tableWidget->verticalHeaderItem(row);
+        if (header) {
+            loadedTransactionIds.remove(header->text().toInt());
         }
+        tableWidget->removeRow(row);
     }
 
     tableWidget->blockSignals(false);
@@ -293,7 +320,7 @@ void LazyTableLoader::unloadDistantTransactions() {
 
 void LazyTableLoader::clear() {
     allTransactions.clear();
-    loadedTransactionCount = 0;
+    loadedTransactionIds.clear();
     pinnedTransactionIds.clear();
     lastUnloadScrollPosition = 0;
 

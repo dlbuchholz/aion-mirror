@@ -2,6 +2,7 @@ set(TEST_TARGETS
     test_account
     test_integration
     test_migrationmanager
+    test_lazytableloader
 )
 
 foreach(test_name IN LISTS TEST_TARGETS)

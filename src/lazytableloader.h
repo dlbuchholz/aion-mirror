@@ -64,7 +64,7 @@ private:
     RowInsertCallback rowInsertCallback;
 
     // Lazy loading state
-    int loadedTransactionCount;
+    QSet<int> loadedTransactionIds;
     int batchSize;
     int visibleWindowSize;
     bool isLoadingMore;

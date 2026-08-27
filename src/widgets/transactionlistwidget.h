@@ -48,7 +48,7 @@ private:
     void setAccountIds(const QSet<int>& accountIds); // Set selected account IDs
     void populateComboBox();                         // Populate the combo box with accounts
     void stageTransactionChange(int row);            // Stage changes for a transaction
-    void handleTransactionCheckboxStateChange(int row, bool checked);  // Track transaction deletions
+    void handleTransactionCheckboxStateChange(int transactionId, bool checked);
     void updateButtonStates();                       // Show/hide Save and Discard buttons
     void updateRowVisualState();                     // Update visual state of rows based on staged changes
     void updateCountLabels();                        // Update "visible" and "selected" labels for transactions
@@ -56,16 +56,19 @@ private:
     void insertTransactionRow(int row, const Transaction& transaction, bool isShadowed);
     void updatePinnedTransactions();
 
-    void setupDetailEditConnections(QWidget* widget, int row, DetailEditField field);
+    void setupDetailEditConnections(QWidget* widget, int transactionId, DetailEditField field);
     void openDetailEdit(int row, DetailEditField field);
     void syncDetailEditToTable();
+    int transactionIdForRow(int row) const;
+    int rowForTransactionId(int transactionId) const;
+    int rowForWidget(const QWidget* widget) const;
 
     void updateEditableStates();                     // Update editable/read-only states based on lock
 
     Ui::TransactionListWidget ui;
     int userId;
     QSet<int> selectedAccountIds;                    // Set of selected account IDs
-    QSet<int> checkedRows;
+    QSet<int> checkedTransactionIds;
 
     // Staging containers
     QMap<int, Transaction> stagedTransactions;       // Staged transaction changes (ID -> Transaction)
@@ -78,7 +81,7 @@ private:
     bool useDetailEdit;
     bool isTableLocked;
 
-    int currentDetailEditRow;
+    int currentDetailTransactionId;
     DetailEditField currentDetailEditField;
     QWidget* currentDetailEditWidget;
 };
