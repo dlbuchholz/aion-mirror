@@ -2,12 +2,14 @@
 #include "budget.h"
 
 // Budget Implementation
-Budget::Budget(int id, const QString& category, double amount, const QDate& startDate, const QDate& endDate)
-    : budgetId(id), category(category), amount(amount), startDate(startDate), endDate(endDate) {}
+Budget::Budget(int id, int userId, const QString& category, double amount, const QDate& startDate, const QDate& endDate)
+    : budgetId(id), userId(userId), category(category), amount(amount), startDate(startDate), endDate(endDate) {}
 
 int Budget::getBudgetId() const {
     return budgetId;
 }
+
+int Budget::getUserId() const { return userId; }
 
 QString Budget::getCategory() const {
     return category;
@@ -31,9 +33,11 @@ BudgetDAO::BudgetDAO() {}
 bool BudgetDAO::createBudget(const Budget& budget) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
-        "INSERT INTO budgets (id, category, amount, start_date, end_date) VALUES (:id, :category, :amount, :start_date, :end_date)"
+        "INSERT INTO budgets (id, user_id, category, amount, start_date, end_date) "
+        "VALUES (:id, :user_id, :category, :amount, :start_date, :end_date)"
         );
     query.bindValue(":id", budget.getBudgetId());
+    query.bindValue(":user_id", budget.getUserId());
     query.bindValue(":category", budget.getCategory());
     query.bindValue(":amount", budget.getAmount());
     query.bindValue(":start_date", budget.getStartDate().toString("yyyy-MM-dd"));
@@ -46,15 +50,17 @@ bool BudgetDAO::createBudget(const Budget& budget) {
     return true;
 }
 
-QList<Budget> BudgetDAO::getAllBudgets() {
+QList<Budget> BudgetDAO::getAllBudgets(int userId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, category, amount, start_date, end_date FROM budgets");
+    query.prepare("SELECT id, user_id, category, amount, start_date, end_date FROM budgets WHERE user_id = :user_id");
+    query.bindValue(":user_id", userId);
 
     QList<Budget> budgets;
     if (query.exec()) {
         while (query.next()) {
             budgets.append(Budget(
                 query.value("id").toInt(),
+                query.value("user_id").toInt(),
                 query.value("category").toString(),
                 query.value("amount").toDouble(),
                 QDate::fromString(query.value("start_date").toString(), "yyyy-MM-dd"),

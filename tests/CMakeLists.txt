@@ -5,6 +5,7 @@ set(TEST_TARGETS
     test_lazytableloader
     test_csvparser
     test_transactionlistwidget
+    test_budget
 )
 
 foreach(test_name IN LISTS TEST_TARGETS)
