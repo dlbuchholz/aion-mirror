@@ -83,6 +83,10 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
     file.close();
 
     QSqlDatabase database = DatabaseManager::instance().database();
+    if (!database.transaction()) {
+        qCritical() << "Failed to start migration transaction:" << database.lastError().text();
+        return false;
+    }
     QSqlQuery query(database);
 
     for (const QString& queryTxt : scriptQueries) {
@@ -94,6 +98,7 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
         if (!query.exec(stmt)) {
             qCritical() << "Failed to execute query from migration file:" << migrationFile << query.lastError().text();
             qCritical() << "Failed SQL:" << stmt;
+            database.rollback();
             return false;
         }
         query.finish();// Ensure the query is finished before proceeding
@@ -105,6 +110,13 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
     insertQuery.bindValue(":version", version);
     if (!insertQuery.exec()) {
         qCritical() << "Failed to record migration:" << migrationFile << insertQuery.lastError().text();
+        database.rollback();
+        return false;
+    }
+
+    if (!database.commit()) {
+        qCritical() << "Failed to commit migration:" << migrationFile << database.lastError().text();
+        database.rollback();
         return false;
     }
 
@@ -125,5 +137,36 @@ bool MigrationManager::applyMigrations() {
         }
     }
 
+    return validateSchema();
+}
+
+bool MigrationManager::validateSchema() {
+    static const QStringList requiredObjects = {
+        "users", "account_types", "accounts", "categories", "transactions",
+        "budgets", "recurring_transactions", "schema_migrations", "account_balances"
+    };
+    QSqlDatabase database = DatabaseManager::instance().database();
+    QSqlQuery objectQuery(database);
+    objectQuery.prepare("SELECT COUNT(*) FROM sqlite_master WHERE name = :name");
+    for (const QString& name : requiredObjects) {
+        objectQuery.bindValue(":name", name);
+        if (!objectQuery.exec() || !objectQuery.next() || objectQuery.value(0).toInt() != 1) {
+            qCritical() << "Required database object is missing:" << name;
+            return false;
+        }
+        objectQuery.finish();
+    }
+
+    QSqlQuery foreignKeyCheck(database);
+    if (!foreignKeyCheck.exec("PRAGMA foreign_key_check")) {
+        qCritical() << "Could not validate database foreign keys:"
+                    << foreignKeyCheck.lastError().text();
+        return false;
+    }
+    if (foreignKeyCheck.next()) {
+        qCritical() << "Database contains a foreign-key violation in table:"
+                    << foreignKeyCheck.value(0).toString();
+        return false;
+    }
     return true;
 }

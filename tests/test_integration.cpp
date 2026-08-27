@@ -20,6 +20,15 @@ private slots:
         QCOMPARE(q.value(0).toInt(), 1);
     }
 
+    void testForeignKeysRemainEnabledAfterReopen() {
+        db.close();
+        db.yankDb("reopened.db");
+        QSqlQuery q(DatabaseManager::instance().database());
+        QVERIFY(q.exec("PRAGMA foreign_keys"));
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toInt(), 1);
+    }
+
 };
 
 QTEST_MAIN(TestIntegration)

@@ -56,12 +56,12 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     FOREIGN KEY (transaction_id) REFERENCES transactions (id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_transactions_account_id ON transactions(account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
 --Create index for fast duplicate lookups, and unique constraint to prevent duplicates at DB level
 --CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique_hash ON transactions(hash);
 CREATE INDEX IF NOT EXISTS idx_transactions_hash ON transactions(hash);
 
-CREATE VIEW account_balances AS
+CREATE VIEW IF NOT EXISTS account_balances AS
 SELECT 
     accounts.id AS account_id,
     accounts.name AS account_name,
@@ -81,14 +81,14 @@ LEFT JOIN account_types ON accounts.type_id = account_types.id
 LEFT JOIN transactions ON accounts.id = transactions.account_id
 GROUP BY accounts.id;
 
-INSERT INTO account_types (name) VALUES
+INSERT OR IGNORE INTO account_types (name) VALUES
 ('Checking'),
 ('Savings'),
 ('Investment'),
 ('Retirement'),
 ('Virtual');
 
-INSERT INTO categories (name, type) VALUES
+INSERT OR IGNORE INTO categories (name, type) VALUES
 ('Initial balance', 'income'),
 ('Salary', 'income'),
 ('Bonus', 'income'),

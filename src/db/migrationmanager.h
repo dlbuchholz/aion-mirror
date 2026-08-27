@@ -17,6 +17,7 @@ private:
     QVector<int> getAppliedMigrations();
     QVector<QString> getPendingMigrations(const QVector<int>& appliedMigrations);
     bool executeMigration(const QString& migrationFile, int version);
+    bool validateSchema();
 
 };
 

@@ -33,9 +33,6 @@ public:
 
         QVERIFY2(DatabaseManager::instance().openDatabase(templatePath), "open template db failed");
 
-        QSqlQuery pragma(DatabaseManager::instance().database());
-        execOrFail(pragma, "PRAGMA foreign_keys = ON");
-
         MigrationManager mm(SQL_MIGRATIONS_DIR);
         QVERIFY2(mm.applyMigrations(), "migrations failed");
 
@@ -51,8 +48,6 @@ public:
 
         QVERIFY2(DatabaseManager::instance().openDatabase(casePath), "open case db failed");
 
-        QSqlQuery pragma(DatabaseManager::instance().database());
-        execOrFail(pragma, "PRAGMA foreign_keys = ON");
     }
 
     void close() {

@@ -6,8 +6,10 @@
 #include <QApplication>
 #include <QDir>
 #include <QStandardPaths>
+#include <QMessageBox>
+#include <cstdlib>
 
-static void setupDatabase() {
+static bool setupDatabase() {
     QString basePath =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
@@ -17,21 +19,26 @@ static void setupDatabase() {
     // Open the database
     if (!DatabaseManager::instance().openDatabase(dbPath)) {
         qCritical() << "Database initialization failed!";
-        return;
+        return false;
     }
 
     // Apply migrations
     MigrationManager migrationManager(SQL_MIGRATIONS_DIR);
     if (!migrationManager.applyMigrations()) {
         qCritical() << "Failed to apply migrations!";
-        return;
+        return false;
     }
+    return true;
 }
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    setupDatabase();
+    if (!setupDatabase()) {
+        QMessageBox::critical(nullptr, "Database Error",
+                              "Aion could not initialize its database. See the application log for details.");
+        return EXIT_FAILURE;
+    }
     UserSelectionDialog userSelectionDialog;
 
     if (userSelectionDialog.exec() != QDialog::Accepted) {

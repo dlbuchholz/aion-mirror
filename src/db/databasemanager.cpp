@@ -35,22 +35,28 @@ bool DatabaseManager::openDatabase(const QString& dbPath) {
         m_database = QSqlDatabase::addDatabase("QSQLITE");
     }
 
-    if (m_database.isOpen()) {
-        // Enable foreign key constraints
-        QSqlQuery query(m_database);
-        if (!query.exec("PRAGMA foreign_keys = ON;")) {
-            qCritical() << "Failed to enable foreign keys:" << query.lastError().text();
+    if (!m_database.isOpen()) {
+        m_database.setDatabaseName(dbPath);
+        if (!m_database.open()) {
+            qCritical() << "Failed to open database:" << m_database.lastError().text();
             return false;
         }
-        qDebug() << "Foreign key support enabled in SQLite.";
-        return true;
     }
 
-    m_database.setDatabaseName(dbPath);
-    if (!m_database.open()) {
-        qCritical() << "Failed to open database:" << m_database.lastError().text();
+    QSqlQuery query(m_database);
+    if (!query.exec("PRAGMA foreign_keys = ON")) {
+        qCritical() << "Failed to enable foreign keys:" << query.lastError().text();
+        m_database.close();
         return false;
     }
+    if (!query.exec("PRAGMA foreign_keys") || !query.next() || query.value(0).toInt() != 1) {
+        qCritical() << "SQLite foreign-key enforcement could not be verified:"
+                    << query.lastError().text();
+        m_database.close();
+        return false;
+    }
+
+    qDebug() << "Foreign key support enabled in SQLite.";
     return true;
 }
 
