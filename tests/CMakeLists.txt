@@ -5,6 +5,9 @@ set(TEST_TARGETS
     test_csvparser
     test_transactionlistmodel
     test_transactionspage
+    test_databasesession
+    test_startwindow
+    test_systeminfo
     test_budget
     test_user_category
     test_settings

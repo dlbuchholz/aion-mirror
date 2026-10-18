@@ -30,6 +30,8 @@ public:
 
     bool createUser(const User& user);
     User getUserById(int userId);
+    QList<User> getAllUsers();                       // Sorted by name
+    int findUserIdByUsername(const QString& username); // -1 if there is none
 
 private:
     void handleError(const QSqlQuery& query);

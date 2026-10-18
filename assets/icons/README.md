@@ -27,3 +27,5 @@ see `LICENSE` in this folder):
 | `code.svg`          | `code`                  |
 | `restore.svg`       | `restore` (simplified)  |
 | `search.svg`        | `search`                |
+| `database.svg`      | `database`              |
+| `info.svg`          | `info-circle`           |

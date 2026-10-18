@@ -2,6 +2,7 @@
 #define SETTINGS_H
 
 #include <QSettings>
+#include <QStringList>
 #include <QString>
 #include <QLocale>
 
@@ -75,8 +76,15 @@ public:
     QString getTheme() const;
     void setTheme(const QString& theme);
 
-    int getDefaultUserId() const;
+    int getDefaultUserId() const;                    // User opened automatically at start, -1 for none
     void setDefaultUserId(int userId);
+
+    // Database files
+    QString getLastDatabase() const;                 // Empty: use the default database
+    void setLastDatabase(const QString& path);
+    QStringList getRecentDatabases() const;          // Most recent first
+    void addRecentDatabase(const QString& path);
+    void removeRecentDatabase(const QString& path);
 
     // Removes all user-facing settings (currency, transactions, import, theme) so their defaults apply.
     // Window state such as the sidebar layout is kept.

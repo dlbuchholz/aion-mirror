@@ -51,6 +51,30 @@ User UserDAO::getUserById(int userId) {
     return User(-1, "", ""); // Invalid user on failure
 }
 
+QList<User> UserDAO::getAllUsers() {
+    QSqlQuery query(DatabaseManager::instance().database());
+    QList<User> users;
+    if (!query.exec("SELECT id, username, name FROM users ORDER BY name COLLATE NOCASE")) {
+        handleError(query);
+        return users;
+    }
+    while (query.next()) {
+        users.append(User(query.value("id").toInt(), query.value("username").toString(), query.value("name").toString()));
+    }
+    return users;
+}
+
+int UserDAO::findUserIdByUsername(const QString& username) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT id FROM users WHERE username = :username");
+    query.bindValue(":username", username);
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt();
+    }
+    handleError(query);
+    return -1;
+}
+
 void UserDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
         qDebug() << "SQL Error:" << query.lastError().text();

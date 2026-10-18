@@ -1,44 +1,53 @@
 #include "mainwindow.h"
 
-#include "db/databasemanager.h"
-#include "db/migrationmanager.h"
-#include "userselectiondialog.h"
+#include "db/databasesession.h"
+#include "startwindow.h"
 #include "settings.h"
 #include "theme.h"
+#include "user.h"
+#include "version.h"
 #include <QApplication>
+#include <QFileInfo>
 #include <QStyleHints>
-#include <QDir>
-#include <QStandardPaths>
 #include <QMessageBox>
 #include <cstdlib>
 #include <functional>
 
-static bool setupDatabase() {
-    QString basePath =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-
-    QDir().mkpath(basePath);
-
-    QString dbPath = basePath + "/app_data.db";
-    // Open the database
-    if (!DatabaseManager::instance().openDatabase(dbPath)) {
-        qCritical() << "Database initialization failed!";
-        return false;
+// Opens the database used last time, or the default one if that fails
+static bool openStartupDatabase() {
+    const QString last = Settings::instance().getLastDatabase();
+    if (!last.isEmpty()) {
+        QString error;
+        if (DatabaseSession::open(last, &error)) {
+            return true;
+        }
+        qWarning() << "Could not open last database" << last << ":" << error;
     }
 
-    // Apply migrations
-    MigrationManager migrationManager(SQL_MIGRATIONS_DIR);
-    if (!migrationManager.applyMigrations()) {
-        qCritical() << "Failed to apply migrations!";
+    QString error;
+    if (!DatabaseSession::open(DatabaseSession::defaultDatabasePath(), &error)) {
+        qCritical() << "Database initialization failed:" << error;
         return false;
     }
     return true;
 }
 
+// The user to open without asking, if one was remembered and exists in this database
+static int rememberedUserId() {
+    const int userId = Settings::instance().getDefaultUserId();
+    if (userId <= 0) {
+        return -1;
+    }
+    UserDAO userDao;
+    return userDao.getUserById(userId).getUserId();
+}
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    if (!setupDatabase()) {
+    // Only the version: setting the application/organization name would move the AppData folder
+    QApplication::setApplicationVersion(AION_VERSION);
+    if (!openStartupDatabase()) {
         QMessageBox::critical(nullptr, "Database Error",
                               "Aion could not initialize its database. See the application log for details.");
         return EXIT_FAILURE;
@@ -51,31 +60,34 @@ int main(int argc, char *argv[])
         }
     });
 
-    // Asks for a user and opens their main window. Returns false if the selection was cancelled.
-    std::function<bool()> openMainWindow = [&openMainWindow]() {
-        UserSelectionDialog userSelectionDialog;
-        if (userSelectionDialog.exec() != QDialog::Accepted) {
-            qDebug() << "No user selected.";
-            return false;
-        }
-
-        int userId = userSelectionDialog.getSelectedUserId();
-        qDebug() << "User ID selected:" << userId;
-
+    // Opens the main window for a user. "Switch user" closes it and returns to the start window.
+    std::function<void(int)> openMainWindow = [&openMainWindow](int userId) {
         auto* window = new MainWindow(userId);
         window->setAttribute(Qt::WA_DeleteOnClose);
+        window->setWindowTitle(QString("Aion · %1").arg(QFileInfo(DatabaseSession::currentDatabasePath()).fileName()));
         QObject::connect(window, &MainWindow::switchUserRequested, window, [window, &openMainWindow]() {
-            // Keep the current window open if switching is cancelled
-            if (openMainWindow()) {
-                window->close();
+            window->hide();
+            StartWindow startWindow;
+            const bool chosen = startWindow.exec() == QDialog::Accepted;
+            if (chosen) {
+                openMainWindow(startWindow.selectedUserId());
+            }
+            window->close();
+            if (!chosen) {
+                QApplication::quit();
             }
         });
         window->show();
-        return true;
     };
 
-    if (!openMainWindow()) {
-        return 0; // Exit the application if no user was selected
+    int userId = rememberedUserId();
+    if (userId <= 0) {
+        StartWindow startWindow;
+        if (startWindow.exec() != QDialog::Accepted) {
+            return 0; // Exit the application if no user was selected
+        }
+        userId = startWindow.selectedUserId();
     }
+    openMainWindow(userId);
     return a.exec();
 }

@@ -1,5 +1,6 @@
 #include "settingspage.h"
 #include "dialog/rawsettingsdialog.h"
+#include "aboutwidget.h"
 #include "preferenceswidget.h"
 #include "icons.h"
 #include "settings.h"
@@ -109,6 +110,7 @@ SettingsPage::SettingsPage(QWidget *parent)
     buildAppearanceSection();
     buildImportSection();
     buildCategoriesSection();
+    buildAboutSection();
 
     connect(sectionList, &QListWidget::currentRowChanged, sectionStack, &QStackedWidget::setCurrentIndex);
     sectionList->setCurrentRow(0);
@@ -266,6 +268,11 @@ void SettingsPage::buildImportSection()
     autoDetectDecimalCheck = new QCheckBox("Detect the decimal separator automatically", this);
     form->addRow(autoDetectDecimalCheck);
     watch(autoDetectDecimalCheck);
+}
+
+void SettingsPage::buildAboutSection()
+{
+    addSection("About", "info", new AboutWidget(this));
 }
 
 void SettingsPage::buildCategoriesSection()

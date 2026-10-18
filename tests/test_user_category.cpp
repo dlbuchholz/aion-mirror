@@ -20,6 +20,21 @@ private slots:
         QVERIFY(q.value(0).toInt() > 0);
     }
 
+    void listsUsersByNameAndFindsByUsername() {
+        UserDAO dao;   // seedDefaultUser() added "testuser" / "Test User"
+        QVERIFY(dao.createUser(User(0, "anna", "anna Zed")));
+        QVERIFY(dao.createUser(User(0, "bob", "Bob")));
+
+        const QList<User> users = dao.getAllUsers();
+        QCOMPARE(users.size(), 3);
+        QCOMPARE(users[0].getName(), QString("anna Zed"));   // Sorted case-insensitively
+        QCOMPARE(users[1].getName(), QString("Bob"));
+        QCOMPARE(users[2].getName(), QString("Test User"));
+
+        QCOMPARE(dao.findUserIdByUsername("bob"), users[1].getUserId());
+        QCOMPARE(dao.findUserIdByUsername("nobody"), -1);
+    }
+
     void rejectsDuplicateUserFields() {
         UserDAO dao;
         QVERIFY(!dao.createUser(User(0, "testuser", "Another Name")));

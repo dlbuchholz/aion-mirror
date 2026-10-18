@@ -270,6 +270,36 @@ void Settings::setDefaultUserId(int userId) {
     settings.setValue("app/defaultUserId", userId);
 }
 
+// Database files
+QString Settings::getLastDatabase() const {
+    return settings.value("app/lastDatabase").toString();
+}
+
+void Settings::setLastDatabase(const QString& path) {
+    settings.setValue("app/lastDatabase", path);
+}
+
+QStringList Settings::getRecentDatabases() const {
+    return settings.value("app/recentDatabases").toStringList();
+}
+
+void Settings::addRecentDatabase(const QString& path) {
+    constexpr int MAX_RECENT = 8;
+    QStringList recent = getRecentDatabases();
+    recent.removeAll(path);
+    recent.prepend(path);
+    while (recent.size() > MAX_RECENT) {
+        recent.removeLast();
+    }
+    settings.setValue("app/recentDatabases", recent);
+}
+
+void Settings::removeRecentDatabase(const QString& path) {
+    QStringList recent = getRecentDatabases();
+    recent.removeAll(path);
+    settings.setValue("app/recentDatabases", recent);
+}
+
 void Settings::restoreDefaults() {
     settings.remove("currency");
     settings.remove("transactions");

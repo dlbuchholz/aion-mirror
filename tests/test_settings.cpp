@@ -156,6 +156,27 @@ private slots:
         QCOMPARE(s.isSidebarCollapsed(), true);
     }
 
+    void recentDatabasesAreDistinctNewestFirstAndLimited() {
+        auto& s = Settings::instance();
+        s.getQSettings().remove("app/recentDatabases");
+        for (int i = 1; i <= 10; ++i) {
+            s.addRecentDatabase(QString("C:/db/%1.db").arg(i));
+        }
+        s.addRecentDatabase("C:/db/5.db");           // Re-opening moves it to the top
+
+        const QStringList recent = s.getRecentDatabases();
+        QCOMPARE(recent.size(), 8);
+        QCOMPARE(recent.first(), QString("C:/db/5.db"));
+        QCOMPARE(recent.count("C:/db/5.db"), 1);
+        QCOMPARE(recent[1], QString("C:/db/10.db"));
+
+        s.removeRecentDatabase("C:/db/10.db");
+        QVERIFY(!s.getRecentDatabases().contains("C:/db/10.db"));
+
+        s.setLastDatabase("C:/db/5.db");
+        QCOMPARE(s.getLastDatabase(), QString("C:/db/5.db"));
+    }
+
     void sidebarStateDefaultsAndRoundTrip() {
         auto& s = Settings::instance();
         QSettings& raw = s.getQSettings();

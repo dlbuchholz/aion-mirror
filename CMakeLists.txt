@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(Aion LANGUAGES CXX)
+project(Aion VERSION 0.1.0 LANGUAGES CXX)
 
 include(CTest)
 
@@ -15,11 +15,32 @@ file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${UI_DIR}/*.ui"
 include_directories(${SRC_DIR})
 
 # Define paths
-set(SQL_MIGRATIONS_DIR "${CMAKE_SOURCE_DIR}/db/migrations")
-set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
+set(SQL_MIGRATIONS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/db/migrations")
+set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+
+# Git commit for the About page. Read when CMake configures, so it can lag behind
+# until the next configure (Qt Creator re-runs CMake when CMakeLists.txt changes).
+set(AION_GIT_COMMIT "unknown")
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_OUTPUT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE GIT_COMMIT_RESULT)
+    if(GIT_COMMIT_RESULT EQUAL 0 AND GIT_COMMIT_OUTPUT)
+        set(AION_GIT_COMMIT "${GIT_COMMIT_OUTPUT}")
+    endif()
+endif()
+
+# Version header (AION_VERSION etc.) generated from the project version above.
+# Only files that include version.h are rebuilt when the version changes.
+configure_file(${SRC_DIR}/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h @ONLY)
 
 add_library(AionLib STATIC ${SRC_FILES})
-target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_compile_definitions(AionLib PUBLIC SQL_MIGRATIONS_DIR="${SQL_MIGRATIONS_DIR}")
 target_compile_definitions(AionLib PUBLIC ASSETS_DIR="${ASSETS_DIR}")
 target_link_libraries(AionLib PUBLIC

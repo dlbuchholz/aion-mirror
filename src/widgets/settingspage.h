@@ -44,6 +44,7 @@ private:
     void buildAppearanceSection();
     void buildImportSection();
     void buildCategoriesSection();
+    void buildAboutSection();
 
     void watch(QComboBox *combo);
     void watch(QCheckBox *checkBox);
