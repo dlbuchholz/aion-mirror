@@ -7,6 +7,8 @@ set(TEST_TARGETS
     test_transactionlistmodel
     test_transactionspage
     test_preferenceswidget
+    test_settingspage
+    test_sidebarwidget
     test_databasesession
     test_startwindow
     test_systeminfo

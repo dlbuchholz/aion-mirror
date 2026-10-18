@@ -55,6 +55,7 @@ public:
     void setTrailingText(const QString& text, bool negative = false) {
         trailingText = text;
         trailingNegative = negative;
+        setAccessibleDescription(text);              // Painted only, so screen readers need it spelled out
         update();
     }
     void setTrailingIcon(const QString& name) { trailingIcon = name; update(); }
@@ -223,11 +224,13 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     addNavItem(root, "settings", "Settings", Page::Settings);
 
     userItem = new SidebarItem(SidebarItem::Kind::Nav, this);
+    userItem->setObjectName("userItem");
     root->addWidget(userItem);
     labelledItems.append(userItem);
     connect(userItem, &QAbstractButton::clicked, this, &SidebarWidget::showUserMenu);
 
     collapseItem = new SidebarItem(SidebarItem::Kind::Nav, this);
+    collapseItem->setObjectName("collapseItem");
     root->addWidget(collapseItem);
     labelledItems.append(collapseItem);
     connect(collapseItem, &QAbstractButton::clicked, this, [this]() {
@@ -265,6 +268,7 @@ SidebarWidget::Section SidebarWidget::createSection(QVBoxLayout* layout, const Q
     Section section;
     section.key = key;
     section.header = new SidebarItem(SidebarItem::Kind::SectionHeader);
+    section.header->setObjectName(key + "Header");
     section.header->setText(title);
     section.body = new QWidget();
     section.bodyLayout = new QVBoxLayout(section.body);

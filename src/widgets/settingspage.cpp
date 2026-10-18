@@ -135,11 +135,14 @@ SettingsPage::SettingsPage(QWidget *parent)
     buttonBar->addStretch();
 
     unsavedLabel = new QLabel("Unsaved changes", this);
+    unsavedLabel->setObjectName("unsavedLabel");
     buttonBar->addWidget(unsavedLabel);
     revertButton = new QPushButton("Revert", this);
+    revertButton->setObjectName("revertButton");
     connect(revertButton, &QPushButton::clicked, this, &SettingsPage::revert);
     buttonBar->addWidget(revertButton);
     applyButton = new QPushButton("Apply", this);
+    applyButton->setObjectName("applyButton");
     applyButton->setDefault(true);
     connect(applyButton, &QPushButton::clicked, this, &SettingsPage::apply);
     buttonBar->addWidget(applyButton);
@@ -184,6 +187,7 @@ void SettingsPage::buildCurrencySection()
     QFormLayout *form = addFormSection("Currency", "currency");
 
     currencyCombo = new QComboBox(this);
+    currencyCombo->setObjectName("currencyCombo");
     currencyCombo->addItem("US dollar ($)", static_cast<int>(Settings::CurrencySymbol::USD));
     currencyCombo->addItem("Euro (€)", static_cast<int>(Settings::CurrencySymbol::EUR));
     currencyCombo->addItem("Pound sterling (£)", static_cast<int>(Settings::CurrencySymbol::GBP));
@@ -194,6 +198,7 @@ void SettingsPage::buildCurrencySection()
     watch(currencyCombo);
 
     customSymbolEdit = new QLineEdit(this);
+    customSymbolEdit->setObjectName("customSymbolEdit");
     customSymbolEdit->setMaxLength(5);
     form->addRow("Custom symbol", customSymbolEdit);
     watch(customSymbolEdit);
@@ -202,18 +207,21 @@ void SettingsPage::buildCurrencySection()
     });
 
     symbolPositionCombo = new QComboBox(this);
+    symbolPositionCombo->setObjectName("symbolPositionCombo");
     symbolPositionCombo->addItem("Before the amount ($100)", true);
     symbolPositionCombo->addItem("After the amount (100 $)", false);
     form->addRow("Symbol position", symbolPositionCombo);
     watch(symbolPositionCombo);
 
     decimalSeparatorCombo = new QComboBox(this);
+    decimalSeparatorCombo->setObjectName("decimalSeparatorCombo");
     decimalSeparatorCombo->addItem("Point (1234.56)", static_cast<int>(Settings::DecimalSeparator::Point));
     decimalSeparatorCombo->addItem("Comma (1234,56)", static_cast<int>(Settings::DecimalSeparator::Comma));
     form->addRow("Decimal separator", decimalSeparatorCombo);
     watch(decimalSeparatorCombo);
 
     thousandsSeparatorCombo = new QComboBox(this);
+    thousandsSeparatorCombo->setObjectName("thousandsSeparatorCombo");
     thousandsSeparatorCombo->addItem("None (1234)", static_cast<int>(Settings::ThousandsSeparator::None));
     thousandsSeparatorCombo->addItem("Comma (1,234)", static_cast<int>(Settings::ThousandsSeparator::Comma));
     thousandsSeparatorCombo->addItem("Point (1.234)", static_cast<int>(Settings::ThousandsSeparator::Point));
@@ -227,11 +235,13 @@ void SettingsPage::buildTransactionsSection()
     QFormLayout *form = addFormSection("Transactions", "transactions");
 
     fastEntryCheck = new QCheckBox("Fast entry: after saving a new transaction, start the next one", this);
+    fastEntryCheck->setObjectName("fastEntryCheck");
     fastEntryCheck->setToolTip("Keeps the editor open with the same date and account, so you can type many transactions in a row");
     form->addRow(fastEntryCheck);
     watch(fastEntryCheck);
 
     selectionCheckboxesCheck = new QCheckBox("Show checkboxes for selecting several transactions", this);
+    selectionCheckboxesCheck->setObjectName("selectionCheckboxesCheck");
     selectionCheckboxesCheck->setToolTip("Without checkboxes, select several transactions with Ctrl+click or Shift+click");
     form->addRow(selectionCheckboxesCheck);
     watch(selectionCheckboxesCheck);
@@ -242,6 +252,7 @@ void SettingsPage::buildAppearanceSection()
     QFormLayout *form = addFormSection("Appearance", "appearance");
 
     themeCombo = new QComboBox(this);
+    themeCombo->setObjectName("themeCombo");
     themeCombo->addItem("Dark", "Dark");
     themeCombo->addItem("Light", "Light");
     themeCombo->addItem("Match system", "System");
@@ -254,10 +265,12 @@ void SettingsPage::buildImportSection()
     QFormLayout *form = addFormSection("Import", "import");
 
     autoDetectDelimiterCheck = new QCheckBox("Detect the CSV delimiter automatically", this);
+    autoDetectDelimiterCheck->setObjectName("autoDetectDelimiterCheck");
     form->addRow(autoDetectDelimiterCheck);
     watch(autoDetectDelimiterCheck);
 
     defaultDelimiterCombo = new QComboBox(this);
+    defaultDelimiterCombo->setObjectName("defaultDelimiterCombo");
     defaultDelimiterCombo->addItem("Comma ( , )", QString(","));
     defaultDelimiterCombo->addItem("Semicolon ( ; )", QString(";"));
     defaultDelimiterCombo->addItem("Tab", QString("\t"));
@@ -266,6 +279,7 @@ void SettingsPage::buildImportSection()
     watch(defaultDelimiterCombo);
 
     autoDetectDecimalCheck = new QCheckBox("Detect the decimal separator automatically", this);
+    autoDetectDecimalCheck->setObjectName("autoDetectDecimalCheck");
     form->addRow(autoDetectDecimalCheck);
     watch(autoDetectDecimalCheck);
 }
