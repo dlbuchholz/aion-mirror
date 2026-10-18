@@ -16,6 +16,7 @@ see `LICENSE` in this folder):
 | `reports.svg`       | `chart-bar` (simplified)|
 | `settings.svg`      | `adjustments-horizontal`|
 | `chevron-down.svg`  | `chevron-down`          |
+| `chevron-left.svg`  | `chevron-left`          |
 | `chevron-right.svg` | `chevron-right`         |
 | `chevrons-left.svg` | `chevrons-left`         |
 | `chevrons-right.svg`| `chevrons-right`        |

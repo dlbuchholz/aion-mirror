@@ -1,4 +1,5 @@
 #include "widgets/addaccountwidget.h"
+#include "widgets/budgetpage.h"
 #include "widgets/settingspage.h"
 #include "widgets/transactionspage.h"
 #include "mainwindow.h"
@@ -15,6 +16,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     ui->setupUi(this);
     ui->sidebar->setUserId(userId);
     ui->transactionsPage->setUserId(userId);
+    ui->budgetPage->setUserId(userId);
 
     connect(ui->sidebar, &SidebarWidget::pageRequested, this, &MainWindow::showPage);
     connect(ui->sidebar, &SidebarWidget::accountRequested, this, &MainWindow::onAccountRequested);
@@ -25,6 +27,9 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     // Balances and budget usage depend on the saved transactions
     connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
             ui->sidebar, &SidebarWidget::refresh);
+    connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
+            ui->budgetPage, &BudgetPage::reload);
+    connect(ui->budgetPage, &BudgetPage::budgetsChanged, ui->sidebar, &SidebarWidget::refresh);
 
     showPage(SidebarWidget::Page::Transactions);
 }
@@ -65,6 +70,7 @@ void MainWindow::onAddAccountClicked() {
 void MainWindow::reloadAccounts() {
     ui->sidebar->refresh();
     ui->transactionsPage->reload();
+    ui->budgetPage->reload();
 }
 
 void MainWindow::onSettingsChanged() {
@@ -73,6 +79,7 @@ void MainWindow::onSettingsChanged() {
 
     // Number formats and categories may have changed
     ui->transactionsPage->applySettings();
+    ui->budgetPage->applySettings();
     ui->transactionsPage->reload();
     ui->sidebar->refresh();
 }

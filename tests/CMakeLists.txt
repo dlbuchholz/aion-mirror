@@ -14,6 +14,7 @@ set(TEST_TARGETS
     test_startwindow
     test_systeminfo
     test_budget
+    test_budgetpage
     test_user_category
     test_settings
 )

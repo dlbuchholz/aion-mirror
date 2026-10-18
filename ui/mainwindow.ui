@@ -81,51 +81,7 @@
        </layout>
       </widget>
       <widget class="TransactionsPage" name="transactionsPage"/>
-      <widget class="QWidget" name="budgetPage">
-       <layout class="QVBoxLayout" name="budgetLayout">
-        <property name="leftMargin">
-         <number>24</number>
-        </property>
-        <property name="topMargin">
-         <number>20</number>
-        </property>
-        <property name="rightMargin">
-         <number>24</number>
-        </property>
-        <property name="bottomMargin">
-         <number>20</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="budgetTitle">
-          <property name="font">
-           <font>
-            <pointsize>16</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>Budget</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="budgetHint">
-          <property name="text">
-           <string>Budgets per category and their progress will live here.</string>
-          </property>
-          <property name="wordWrap">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="budgetSpacer">
-          <property name="orientation">
-           <enum>Qt::Orientation::Vertical</enum>
-          </property>
-         </spacer>
-        </item>
-       </layout>
-      </widget>
+      <widget class="BudgetPage" name="budgetPage"/>
       <widget class="QWidget" name="reportsPage">
        <layout class="QVBoxLayout" name="reportsLayout">
         <property name="leftMargin">
@@ -194,6 +150,12 @@
    <class>TransactionsPage</class>
    <extends>QWidget</extends>
    <header>widgets/transactionspage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>BudgetPage</class>
+   <extends>QWidget</extends>
+   <header>widgets/budgetpage.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
