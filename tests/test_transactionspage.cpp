@@ -18,6 +18,7 @@ class TestTransactionsPage : public QObject {
 
     TestDbFixture db;
     bool originalFastEntry = false;
+    bool originalCheckboxes = false;
     int firstId = -1;
     int secondId = -1;
 
@@ -25,8 +26,12 @@ private slots:
     void initTestCase() {
         db.init();
         originalFastEntry = Settings::instance().isFastEntryEnabled();
+        originalCheckboxes = Settings::instance().isSelectionCheckboxesEnabled();
     }
-    void cleanupTestCase() { Settings::instance().setFastEntryEnabled(originalFastEntry); }
+    void cleanupTestCase() {
+        Settings::instance().setFastEntryEnabled(originalFastEntry);
+        Settings::instance().setSelectionCheckboxesEnabled(originalCheckboxes);
+    }
 
     void init() {
         db.yankDb();
@@ -95,8 +100,52 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(&page, "openEditor", Q_ARG(QModelIndex, index)));
         QVERIFY(!editor->isHidden());
         QVERIFY(page.findChild<QFrame*>("bulkBar")->isHidden());
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
         QCOMPARE(editor->editedTransactionId(), transactionId);
         QCOMPARE(editor->findChild<QLineEdit*>("payeeEdit")->text(), QString("Bakery"));
+    }
+
+    void plainClicksOpenButOnlyCtrlSelects() {
+        Settings::instance().setSelectionCheckboxesEnabled(false);
+        TransactionDAO dao;
+        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 1.0, QDate::currentDate(), "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 2.0, QDate::currentDate(), "", 0, "expense"));
+
+        TransactionsPage page;
+        page.resize(1000, 700);
+        page.setUserId(1);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        auto* editor = page.findChild<TransactionEditor*>();
+        const QPoint pointA = list->visualRect(model->indexForTransaction(a)).center();
+        const QPoint pointB = list->visualRect(model->indexForTransaction(b)).center();
+
+        // Plain click: opens the editor, selects nothing
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, pointA);
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
+        QVERIFY(!editor->isHidden());
+        QCOMPARE(editor->editedTransactionId(), a);
+
+        // Plain drag across rows: still no selection
+        QTest::mousePress(list->viewport(), Qt::LeftButton, Qt::NoModifier, pointA);
+        QMouseEvent move(QEvent::MouseMove, pointB, list->viewport()->mapToGlobal(pointB),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(list->viewport(), &move);
+        QTest::mouseRelease(list->viewport(), Qt::LeftButton, Qt::NoModifier, pointB);
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
+
+        // Ctrl+click: selects (and closes the editor for bulk actions)
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::ControlModifier, pointA);
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::ControlModifier, pointB);
+        QCOMPARE(list->selectionModel()->selectedIndexes().size(), 2);
+        QVERIFY(editor->isHidden());
+
+        // A plain click again clears the selection and opens just that row
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, pointB);
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
+        QCOMPARE(editor->editedTransactionId(), b);
     }
 
     void selectingMultipleShowsBulkBarAndClosesEditor() {

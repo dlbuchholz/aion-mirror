@@ -37,6 +37,7 @@ public:
 
     bool showAccountColumn = true;
     bool showCheckboxes = false;
+    int openTransactionId = -1;                      // Row shown in the editor (highlighted, but not selected)
 
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
         Q_UNUSED(option);
@@ -58,10 +59,11 @@ public:
         const QRect row = rowRect(option.rect);
         const bool selected = option.state & QStyle::State_Selected;
         const bool hovered = option.state & QStyle::State_MouseOver;
-        if (selected || hovered) {
+        const bool open = index.data(TransactionListModel::TransactionIdRole).toInt() == openTransactionId;
+        if (selected || open || hovered) {
             QPainterPath path;
             path.addRoundedRect(QRectF(row), 6, 6);
-            painter->fillPath(path, selected ? colors.itemSelected : colors.itemHover);
+            painter->fillPath(path, (selected || open) ? colors.itemSelected : colors.itemHover);
         }
 
         // Selection checkbox (optional, see Settings → Transactions)
@@ -208,6 +210,21 @@ public:
     bool checkboxesEnabled = false;
 
 protected:
+    // Only Ctrl/Shift change the selection. A plain click opens the row (and clears an existing
+    // selection); plain dragging and arrow keys never select.
+    QItemSelectionModel::SelectionFlags selectionCommand(const QModelIndex& index, const QEvent* event) const override {
+        Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
+        if (event && (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove
+                      || event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::KeyPress)) {
+            modifiers = static_cast<const QInputEvent*>(event)->modifiers();
+        }
+        if (!(modifiers & (Qt::ControlModifier | Qt::ShiftModifier))) {
+            return (event && event->type() == QEvent::MouseButtonPress) ? QItemSelectionModel::Clear
+                                                                        : QItemSelectionModel::NoUpdate;
+        }
+        return QListView::selectionCommand(index, event);
+    }
+
     bool isOnCheckbox(const QModelIndex& index, const QPoint& pos) const {
         return checkboxesEnabled && TransactionDelegate::checkboxRect(visualRect(index)).contains(pos);
     }
@@ -670,25 +687,20 @@ QList<int> TransactionsPage::selectedTransactionIds() const {
 }
 
 void TransactionsPage::updateBulkBar() {
-    // Bulk actions whenever something is ticked that isn't just the row open in the editor
+    // Bulk actions whenever something is selected (opening a row in the editor doesn't select it)
     const int count = selectedTransactionIds().size();
     QString text = QString("%1 %2 selected").arg(count).arg(count == 1 ? "transaction" : "transactions");
     if (count == 1 && !delegate->showCheckboxes) {
         text += "  ·  Ctrl+click or Shift+click to select more";
     }
     bulkLabel->setText(text);
-    bulkBar->setVisible(count > 1 || (count == 1 && editor->isHidden()));
+    bulkBar->setVisible(count > 0);
 }
 
 void TransactionsPage::onSelectionChanged() {
-    // The editor only stays open while its own transaction is the single selected one
-    const QList<int> ids = selectedTransactionIds();
-    if (!editor->isHidden() && !editor->isEditingNew()
-        && (ids.size() != 1 || ids.first() != editor->editedTransactionId())) {
-        editor->hide();
-    }
-    if (!ids.isEmpty() && editor->isEditingNew()) {
-        editor->hide();
+    // Selecting transactions switches from editing one to acting on several
+    if (!selectedTransactionIds().isEmpty() && !editor->isHidden()) {
+        closeEditor();
     }
     updateBulkBar();
 }
@@ -740,7 +752,10 @@ void TransactionsPage::openEditor(const QModelIndex& index) {
     if (!transaction) {
         return;
     }
-    listView->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect);
+    listView->clearSelection();
+    listView->selectionModel()->setCurrentIndex(index, QItemSelectionModel::NoUpdate);
+    delegate->openTransactionId = transactionId;
+    listView->viewport()->update();
     editor->editTransaction(*transaction);
     editor->show();
     updateBulkBar();
@@ -751,6 +766,8 @@ void TransactionsPage::addTransaction() {
         const QSignalBlocker blocker(listView->selectionModel());
         listView->clearSelection();
     }
+    delegate->openTransactionId = -1;
+    listView->viewport()->update();
     updateBulkBar();
     editor->newTransaction(QDate::currentDate(), defaultAccountForNew());
     editor->show();
@@ -848,10 +865,7 @@ void TransactionsPage::setCategoryForSelection(int categoryId) {
 
 void TransactionsPage::closeEditor() {
     editor->hide();
-    if (!editor->isEditingNew()) {
-        const QSignalBlocker blocker(listView->selectionModel());
-        listView->clearSelection();
-        listView->viewport()->update();
-    }
+    delegate->openTransactionId = -1;
+    listView->viewport()->update();
     updateBulkBar();
 }
