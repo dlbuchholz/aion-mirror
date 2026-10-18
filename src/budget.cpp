@@ -85,6 +85,27 @@ bool BudgetDAO::deleteBudget(int budgetId) {
     return query.numRowsAffected() == 1;
 }
 
+double BudgetDAO::getSpentAmount(const Budget& budget) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t "
+        "JOIN accounts a ON a.id = t.account_id "
+        "JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND c.name = :category AND t.type = 'expense' "
+        "AND t.date BETWEEN :start_date AND :end_date"
+        );
+    query.bindValue(":user_id", budget.getUserId());
+    query.bindValue(":category", budget.getCategory());
+    query.bindValue(":start_date", budget.getStartDate().toString("yyyy-MM-dd"));
+    query.bindValue(":end_date", budget.getEndDate().toString("yyyy-MM-dd"));
+
+    if (!query.exec() || !query.next()) {
+        handleError(query);
+        return 0.0;
+    }
+    return query.value(0).toDouble();
+}
+
 void BudgetDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
         qDebug() << "SQL Error:" << query.lastError().text();

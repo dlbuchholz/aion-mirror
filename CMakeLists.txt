@@ -3,7 +3,7 @@ project(Aion LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Svg Test)
 
 qt_standard_project_setup()
 
@@ -22,10 +22,19 @@ add_library(AionLib STATIC ${SRC_FILES})
 target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(AionLib PUBLIC SQL_MIGRATIONS_DIR="${SQL_MIGRATIONS_DIR}")
 target_compile_definitions(AionLib PUBLIC ASSETS_DIR="${ASSETS_DIR}")
-target_link_libraries(AionLib
+target_link_libraries(AionLib PUBLIC
     Qt::Core
     Qt::Widgets
     Qt::Sql
+    Qt::Svg
+)
+
+# Bundle the monochrome UI icons into the library as Qt resources (:/icons/<name>.svg)
+file(GLOB ICON_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
+qt_add_resources(AionLib "icons"
+    PREFIX "/"
+    BASE "assets"
+    FILES ${ICON_FILES}
 )
 
 qt_add_executable(Aion

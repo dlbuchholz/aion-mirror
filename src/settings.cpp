@@ -69,6 +69,20 @@ QString Settings::getCurrencySymbol() const {
     return "$";  // Default
 }
 
+Settings::CurrencySymbol Settings::getCurrencySymbolType() const {
+    const QString symbolType = settings.value("currency/symbol", "USD").toString();
+    if (symbolType == "EUR") return CurrencySymbol::EUR;
+    if (symbolType == "GBP") return CurrencySymbol::GBP;
+    if (symbolType == "JPY") return CurrencySymbol::JPY;
+    if (symbolType == "CHF") return CurrencySymbol::CHF;
+    if (symbolType == "Custom") return CurrencySymbol::Custom;
+    return CurrencySymbol::USD;  // Default
+}
+
+QString Settings::getCustomCurrencySymbol() const {
+    return settings.value("currency/customSymbol", "$").toString();
+}
+
 void Settings:: setCurrencySymbol(CurrencySymbol symbol) {
     QString symbolStr;
     switch (symbol) {
@@ -262,4 +276,29 @@ int Settings::getDefaultUserId() const {
 
 void Settings::setDefaultUserId(int userId) {
     settings.setValue("app/defaultUserId", userId);
+}
+
+void Settings::restoreDefaults() {
+    settings.remove("currency");
+    settings.remove("transactions");
+    settings.remove("import");
+    settings.remove("app/theme");
+    settings.sync();
+}
+
+// Sidebar state
+bool Settings::isSidebarCollapsed() const {
+    return settings.value("ui/sidebarCollapsed", false).toBool();
+}
+
+void Settings::setSidebarCollapsed(bool collapsed) {
+    settings.setValue("ui/sidebarCollapsed", collapsed);
+}
+
+bool Settings::isSidebarSectionExpanded(const QString& section) const {
+    return settings.value(QString("ui/sidebarSection/%1").arg(section), true).toBool();
+}
+
+void Settings::setSidebarSectionExpanded(const QString& section, bool expanded) {
+    settings.setValue(QString("ui/sidebarSection/%1").arg(section), expanded);
 }

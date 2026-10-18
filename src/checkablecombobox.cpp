@@ -116,6 +116,11 @@ int CheckableComboBox::itemCount() const {
     return model->rowCount();
 }
 
+int CheckableComboBox::itemId(int index) const {
+    const QStandardItem* item = model->item(index);
+    return item ? item->data(Qt::UserRole).toInt() : -1;
+}
+
 void CheckableComboBox::setDisplayText(const QString& text) {
     displayText = text;
     updateWidth();

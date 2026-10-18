@@ -37,6 +37,7 @@ public:
     bool createBudget(const Budget& budget);
     QList<Budget> getAllBudgets(int userId);
     bool deleteBudget(int budgetId);
+    double getSpentAmount(const Budget& budget);   // Sum of the user's expenses in the budget's category and period
 
 private:
     void handleError(const QSqlQuery& query);

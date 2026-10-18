@@ -1,6 +1,5 @@
 #include "db/databasemanager.h"
 #include "userselectiondialog.h"
-#include "theme.h"
 
 #include <QMouseEvent>
 #include <QToolButton>
@@ -8,8 +7,6 @@
 UserSelectionDialog::UserSelectionDialog(QWidget* parent)
     : QDialog(parent), selectedUserId(-1) {
     ui.setupUi(this);
-
-    Theme::applyTheme(Theme::Type::Dark);
 
     //setWindowTitle("Select or Create User");
     setWindowFlags(Qt::FramelessWindowHint);

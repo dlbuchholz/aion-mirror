@@ -22,12 +22,9 @@ public:
     explicit AddAccountWidget(QWidget* parent = nullptr);
     void setUserId(int newUserId);
 private slots:
-    void toggleWidgets();
     void onCreateAccountClicked();
 
 private:
-    QList<QWidget *> widgetsList;
-    bool widgetsVisible = false;
     Ui::AddAccountWidget ui;
     int userId = -1;
 };

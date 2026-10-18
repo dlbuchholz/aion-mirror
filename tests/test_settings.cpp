@@ -22,8 +22,11 @@ private slots:
         auto& s = Settings::instance();
         s.setCurrencySymbol(Settings::CurrencySymbol::EUR);
         QCOMPARE(s.getCurrencySymbol(), QString("€"));
+        QCOMPARE(s.getCurrencySymbolType(), Settings::CurrencySymbol::EUR);
         s.setCustomCurrencySymbol("¤");
         QCOMPARE(s.getCurrencySymbol(), QString("¤"));
+        QCOMPARE(s.getCurrencySymbolType(), Settings::CurrencySymbol::Custom);
+        QCOMPARE(s.getCustomCurrencySymbol(), QString("¤"));
     }
 
     void separatorsAndFormatting() {
@@ -132,6 +135,39 @@ private slots:
         QCOMPARE(s.isDetailEditEnabled(), true);
         QCOMPARE(s.getTheme(), QString("Dark"));
         QCOMPARE(s.getDefaultUserId(), -1);
+    }
+
+    void restoreDefaultsKeepsWindowState() {
+        auto& s = Settings::instance();
+        s.setCurrencySymbol(Settings::CurrencySymbol::EUR);
+        s.setDecimalSeparator(Settings::DecimalSeparator::Comma);
+        s.setLazyLoadingEnabled(false);
+        s.setDefaultCsvDelimiter(';');
+        s.setTheme("Light");
+        s.setSidebarCollapsed(true);
+
+        s.restoreDefaults();
+
+        QCOMPARE(s.getCurrencySymbolType(), Settings::CurrencySymbol::USD);
+        QCOMPARE(s.getDecimalSeparator(), Settings::DecimalSeparator::Point);
+        QCOMPARE(s.isLazyLoadingEnabled(), true);
+        QCOMPARE(s.getDefaultCsvDelimiter(), QChar(','));
+        QCOMPARE(s.getTheme(), QString("Dark"));
+        QCOMPARE(s.isSidebarCollapsed(), true);
+    }
+
+    void sidebarStateDefaultsAndRoundTrip() {
+        auto& s = Settings::instance();
+        QSettings& raw = s.getQSettings();
+        raw.remove("ui");
+        QCOMPARE(s.isSidebarCollapsed(), false);
+        QCOMPARE(s.isSidebarSectionExpanded("accounts"), true);
+
+        s.setSidebarCollapsed(true);
+        s.setSidebarSectionExpanded("accounts", false);
+        QCOMPARE(s.isSidebarCollapsed(), true);
+        QCOMPARE(s.isSidebarSectionExpanded("accounts"), false);
+        QCOMPARE(s.isSidebarSectionExpanded("budget"), true);
     }
 };
 

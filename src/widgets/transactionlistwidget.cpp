@@ -72,7 +72,7 @@ TransactionListWidget::TransactionListWidget(QWidget* parent)
     connect(ui.importButton, &QAbstractButton::clicked, this, &TransactionListWidget::onImportTransactionsClicked);
 
     // Configure the table widget
-    ui.transactionTableWidget->setColumnCount(8); // Added checkbox column
+    ui.transactionTableWidget->setColumnCount(8);
     ui.transactionTableWidget->setHorizontalHeaderLabels({"Date", "Account", "Payer/Payee", "Description", "Category", "Amount", "Type", "Select"});
 
     // Set column resize modes
@@ -182,6 +182,19 @@ void TransactionListWidget::populateComboBox() {
 
     // Check all items by default
     //comboBox->checkAllItems();
+}
+
+void TransactionListWidget::showAccounts(const QSet<int>& accountIds) {
+    CheckableComboBox* comboBox = ui.checkableComboBox;
+    {
+        const QSignalBlocker blocker(comboBox);
+        for (int i = 0; i < comboBox->itemCount(); ++i) {
+            const int id = comboBox->itemId(i);
+            const bool checked = accountIds.isEmpty() ? id != SHADOWED_TRANSACTIONS_ID : accountIds.contains(id);
+            comboBox->setItemChecked(i, checked);
+        }
+    }
+    emit comboBox->selectionChanged();
 }
 
 void TransactionListWidget::addEmptyTransactionRow() {

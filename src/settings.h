@@ -36,6 +36,8 @@ public:
 
     // Currency settings
     QString getCurrencySymbol() const;
+    CurrencySymbol getCurrencySymbolType() const;
+    QString getCustomCurrencySymbol() const;
     void setCurrencySymbol(CurrencySymbol symbol);
     void setCustomCurrencySymbol(const QString& symbol);
 
@@ -75,6 +77,17 @@ public:
 
     int getDefaultUserId() const;
     void setDefaultUserId(int userId);
+
+    // Removes all user-facing settings (currency, transactions, import, theme) so their defaults apply.
+    // Window state such as the sidebar layout is kept.
+    void restoreDefaults();
+
+    // Sidebar state (persisted between sessions)
+    bool isSidebarCollapsed() const;
+    void setSidebarCollapsed(bool collapsed);
+
+    bool isSidebarSectionExpanded(const QString& section) const;
+    void setSidebarSectionExpanded(const QString& section, bool expanded);
 
 private:
     Settings();  // Private constructor for singleton

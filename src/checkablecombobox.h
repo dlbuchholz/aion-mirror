@@ -20,6 +20,7 @@ public:
     void checkAllItems();
     void uncheckAllItems();
     int itemCount() const;
+    int itemId(int index) const;                         // ID stored for the item at index, or -1
 
     void setDisplayText(const QString& text);
     void updateWidth(); // dynamically calculate inteded width based on display text

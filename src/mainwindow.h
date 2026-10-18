@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "widgets/sidebarwidget.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -17,10 +18,18 @@ public:
     MainWindow(int userId, QWidget *parent = nullptr);
     ~MainWindow();
 
+signals:
+    void switchUserRequested();
+
 private slots:
-    void onSettingsClicked();
+    void onSettingsChanged();
+    void onAddAccountClicked();
+    void onAccountRequested(int accountId);
 
 private:
+    void showPage(SidebarWidget::Page page);
+    void reloadAccounts();                           // Refresh everything that lists accounts
+
     Ui::MainWindow *ui;
     int userId;
 };

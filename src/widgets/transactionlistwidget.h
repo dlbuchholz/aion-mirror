@@ -16,6 +16,7 @@ public:
     void reinitialize();
     void setUserId(int userId);
     void loadTransactions();                        // Load transactions for selected accounts
+    void showAccounts(const QSet<int>& accountIds); // Check only these accounts in the selection (empty = all accounts)
     void updateWidget();                             // General function that calls all other update UI functions
 
 signals:

@@ -16,11 +16,17 @@ public:
     explicit PreferencesWidget(QWidget *parent = nullptr);
     ~PreferencesWidget();
 
-private slots:
+    bool hasPendingChanges() const;
+
+public slots:
     void saveChanges();          // Save staged changes to the database
     void discardChanges();       // Discard all staged changes
 
-    void addAccountType();       // Add a new Account Type
+signals:
+    void pendingChangesChanged(bool hasChanges);
+
+private slots:
+    void addAccountType();      // Add a new Account Type
     void deleteAccountType();    // Delete an Account Type
 
     void addCategory();          // Add a new Category
@@ -47,7 +53,7 @@ private:
     bool isAccountTypeNameDuplicate(const QString& name, int excludeId = -1);  // Check for duplicate account type
     bool isCategoryNameDuplicate(const QString& name, int excludeId = -1);     // Check for duplicate category
 
-    void updateButtonStates();   // Dynamically show/hide Save and Discard buttons
+    void updateButtonStates();   // Notify the settings page whether changes are staged
 
     QMap<int, QString> stagedAccounts;                     // Staged Account Type changes (ID -> Name)
     QMap<int, QPair<QString, QString>> stagedCategories;   // Staged Category changes (ID -> <Name, Type>)

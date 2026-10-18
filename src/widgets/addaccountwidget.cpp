@@ -8,7 +8,11 @@
 AddAccountWidget::AddAccountWidget(QWidget* parent)
     : QWidget(parent) {
     ui.setupUi(this);
-    ui.accountCreationWidget->setVisible(false);
+
+    // The form is shown inside the "Add account" dialog, so the inline toggle buttons are not needed
+    ui.addAccountButton->setVisible(false);
+    ui.toolButton_2->setVisible(false);
+    ui.line->setVisible(false);
 
     // Populate account types
     AccountDAO accountDao;
@@ -17,14 +21,7 @@ AddAccountWidget::AddAccountWidget(QWidget* parent)
         ui.accountTypeComboBox->addItem(type);
     }
 
-    connect(ui.addAccountButton, &QToolButton::clicked, this, &AddAccountWidget::toggleWidgets);
     connect(ui.createAccountButton, &QAbstractButton::clicked, this, &AddAccountWidget::onCreateAccountClicked);
-}
-
-void AddAccountWidget::toggleWidgets() {
-    widgetsVisible = !widgetsVisible;
-
-    ui.accountCreationWidget->setVisible(widgetsVisible);
 }
 
 void AddAccountWidget::onCreateAccountClicked() {
@@ -57,14 +54,10 @@ void AddAccountWidget::onCreateAccountClicked() {
         return;
     }
 
-    // Notify the user of success
-    QMessageBox::information(this, "Success", "Account created successfully!");
-
     // Clear input fields
     ui.accountNameInput->clear();
     ui.accountTypeComboBox->setCurrentIndex(0);
     ui.initialBalanceInput->setValue(0);
-    ui.accountCreationWidget->setVisible(false);
 
     // Emit a signal to notify other components
     emit accountCreated();

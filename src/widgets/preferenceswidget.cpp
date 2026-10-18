@@ -11,9 +11,7 @@ PreferencesWidget::PreferencesWidget(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Setup Save/Discard Buttons
-    connect(ui->saveButton, &QPushButton::clicked, this, &PreferencesWidget::saveChanges);
-    connect(ui->discardButton, &QPushButton::clicked, this, &PreferencesWidget::discardChanges);
+    // Saving and discarding is driven by the settings page (see hasPendingChanges())
 
     // Setup tables and load data
     setupTables();
@@ -36,7 +34,7 @@ void PreferencesWidget::setupTables() {
     ui->accountTypesTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);  // Checkbox column fits content
     ui->accountTypesTable->setColumnWidth(1, 30);  // Set a fixed small width for checkbox column
 
-    ui->accountTypesTable->verticalHeader()->setVisible(true);
+    ui->accountTypesTable->verticalHeader()->setVisible(false);  // Holds the IDs, not meant for display
     connect(ui->accountTypesTable, &QTableWidget::cellChanged, this, &PreferencesWidget::stageAccountTypeChange);
     connect(ui->addAccountTypeButton, &QPushButton::clicked, this, &PreferencesWidget::addAccountType);
     connect(ui->deleteAccountTypeButton, &QPushButton::clicked, this, &PreferencesWidget::deleteAccountType);
@@ -51,7 +49,7 @@ void PreferencesWidget::setupTables() {
     ui->categoriesTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);  // Checkbox column fits content
     ui->categoriesTable->setColumnWidth(2, 30);  // Set a fixed small width for checkbox column
 
-    ui->categoriesTable->verticalHeader()->setVisible(true);
+    ui->categoriesTable->verticalHeader()->setVisible(false);  // Holds the IDs, not meant for display
     connect(ui->categoriesTable, &QTableWidget:: cellChanged, this, &PreferencesWidget::stageCategoryChange);
     connect(ui->addCategoryButton, &QPushButton::clicked, this, &PreferencesWidget::addCategory);
     connect(ui->deleteCategoryButton, &QPushButton::clicked, this, &PreferencesWidget::deleteCategory);
@@ -518,12 +516,12 @@ void PreferencesWidget::discardChanges() {
     loadCategories();
     updateButtonStates();
 }
-void PreferencesWidget::updateButtonStates() {
-    // Check if there are any changes: added, edited, or deleted
-    bool hasChanges = !(stagedAccounts.isEmpty() && stagedCategories.isEmpty() &&
-                        stagedAccountDeletions.isEmpty() && stagedCategoryDeletions.isEmpty());
+bool PreferencesWidget::hasPendingChanges() const {
+    // Any staged change: added, edited, or deleted
+    return !(stagedAccounts.isEmpty() && stagedCategories.isEmpty() &&
+             stagedAccountDeletions.isEmpty() && stagedCategoryDeletions.isEmpty());
+}
 
-    // Show or hide the Save and Discard buttons based on changes
-    ui->saveButton->setVisible(hasChanges);
-    ui->discardButton->setVisible(hasChanges);
+void PreferencesWidget::updateButtonStates() {
+    emit pendingChangesChanged(hasPendingChanges());
 }

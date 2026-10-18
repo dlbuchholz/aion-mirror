@@ -6,198 +6,162 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>400</height>
+    <width>760</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Preferences</string>
+   <string>Categories and account types</string>
   </property>
-  <layout class="QVBoxLayout" name="mainLayout">
+  <layout class="QHBoxLayout" name="mainLayout" stretch="3,2">
+   <property name="spacing">
+    <number>24</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
-    <widget class="QTabWidget" name="preferencesTabWidget">
-     <property name="currentIndex">
-      <number>0</number>
-     </property>
-     <widget class="QWidget" name="accountTypesTab">
-      <attribute name="title">
-       <string>Account Types</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="accountTypesLayout">
+    <layout class="QVBoxLayout" name="categoriesLayout">
+     <item>
+      <widget class="QLabel" name="categoriesTitle">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Categories</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="categoriesHint">
+       <property name="text">
+        <string>Used to group transactions and to set budgets. Double-click a name to rename it.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTableWidget" name="categoriesTable">
+       <property name="editTriggers">
+        <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed|QAbstractItemView::EditTrigger::SelectedClicked</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="categoriesButtonLayout">
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <property name="bottomMargin">
-          <number>0</number>
+        <widget class="QPushButton" name="addCategoryButton">
+         <property name="text">
+          <string>Add category</string>
          </property>
-         <item>
-          <widget class="QPushButton" name="addAccountTypeButton">
-           <property name="text">
-            <string>Add account</string>
-           </property>
-           <property name="icon">
-            <iconset theme="QIcon::ThemeIcon::ListAdd"/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QToolButton" name="deleteAccountTypeButton">
-           <property name="text">
-            <string>Delete</string>
-           </property>
-           <property name="icon">
-            <iconset theme="QIcon::ThemeIcon::ListRemove"/>
-           </property>
-          </widget>
-         </item>
-        </layout>
+        </widget>
        </item>
        <item>
-        <widget class="QTableWidget" name="accountTypesTable">
-         <property name="editTriggers">
-          <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed|QAbstractItemView::EditTrigger::SelectedClicked</set>
+        <spacer name="categoriesButtonSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
          </property>
-         <property name="rowCount">
-          <number>0</number>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
          </property>
-         <property name="columnCount">
-          <number>1</number>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="deleteCategoryButton">
+         <property name="text">
+          <string>Delete selected</string>
          </property>
-         <attribute name="verticalHeaderVisible">
-          <bool>true</bool>
-         </attribute>
-         <column>
-          <property name="text">
-           <string>Name</string>
-          </property>
-         </column>
         </widget>
        </item>
       </layout>
-     </widget>
-     <widget class="QWidget" name="categoriesTab">
-      <attribute name="title">
-       <string>Categories</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="categoriesLayout">
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QPushButton" name="addCategoryButton">
-           <property name="text">
-            <string>Add category</string>
-           </property>
-           <property name="icon">
-            <iconset theme="QIcon::ThemeIcon::ListAdd"/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_3">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QToolButton" name="deleteCategoryButton">
-           <property name="text">
-            <string>Delete</string>
-           </property>
-           <property name="icon">
-            <iconset theme="QIcon::ThemeIcon::ListRemove"/>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QTableWidget" name="categoriesTable">
-         <property name="editTriggers">
-          <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed|QAbstractItemView::EditTrigger::SelectedClicked</set>
-         </property>
-         <property name="rowCount">
-          <number>0</number>
-         </property>
-         <property name="columnCount">
-          <number>2</number>
-         </property>
-         <column>
-          <property name="text">
-           <string>Name</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Type</string>
-          </property>
-         </column>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tab">
-      <attribute name="title">
-       <string>Rules</string>
-      </attribute>
-     </widget>
-    </widget>
+     </item>
+    </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="buttonLayout">
+    <layout class="QVBoxLayout" name="accountTypesLayout">
      <item>
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
+      <widget class="QLabel" name="accountTypesTitle">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <bold>true</bold>
+        </font>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="saveButton">
        <property name="text">
-        <string>Save Changes</string>
-       </property>
-       <property name="icon">
-        <iconset theme="QIcon::ThemeIcon::SyncSynchronizing"/>
+        <string>Account types</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="discardButton">
+      <widget class="QLabel" name="accountTypesHint">
        <property name="text">
-        <string>Discard Changes</string>
+        <string>Offered when you add an account.</string>
        </property>
-       <property name="icon">
-        <iconset theme="QIcon::ThemeIcon::EditUndo"/>
+       <property name="wordWrap">
+        <bool>true</bool>
        </property>
       </widget>
+     </item>
+     <item>
+      <widget class="QTableWidget" name="accountTypesTable">
+       <property name="editTriggers">
+        <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed|QAbstractItemView::EditTrigger::SelectedClicked</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="accountTypesButtonLayout">
+       <item>
+        <widget class="QPushButton" name="addAccountTypeButton">
+         <property name="text">
+          <string>Add account type</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="accountTypesButtonSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="deleteAccountTypeButton">
+         <property name="text">
+          <string>Delete selected</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

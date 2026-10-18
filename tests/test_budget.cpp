@@ -33,6 +33,23 @@ private slots:
         QCOMPARE(dao.getAllBudgets(2).size(), 1);
         QVERIFY(!dao.createBudget(Budget(3, 99, "Rent", 1.0, QDate(2026,1,1), QDate(2026,1,31))));
     }
+
+    void spentAmountCountsOnlyMatchingExpensesInPeriod() {
+        QSqlQuery q(DatabaseManager::instance().database());
+        QVERIFY(q.exec("INSERT INTO users (id, username, name) VALUES (2, 'other', 'Other')"));
+        QVERIFY(q.exec("INSERT INTO accounts (id, user_id, name, type_id) VALUES (10, 1, 'Mine', 1), (20, 2, 'Theirs', 1)"));
+        QVERIFY(q.exec("INSERT INTO transactions (account_id, amount, date, category_id, type) VALUES "
+                       "(10, 40.0, '2026-01-05', (SELECT id FROM categories WHERE name = 'Groceries'), 'expense'),"
+                       "(10, 10.5, '2026-01-31', (SELECT id FROM categories WHERE name = 'Groceries'), 'expense'),"
+                       "(10, 99.0, '2026-02-01', (SELECT id FROM categories WHERE name = 'Groceries'), 'expense'),"
+                       "(10, 77.0, '2026-01-10', (SELECT id FROM categories WHERE name = 'Rent'), 'expense'),"
+                       "(10, 55.0, '2026-01-10', (SELECT id FROM categories WHERE name = 'Groceries'), 'income'),"
+                       "(20, 33.0, '2026-01-10', (SELECT id FROM categories WHERE name = 'Groceries'), 'expense')"));
+
+        BudgetDAO dao;
+        QCOMPARE(dao.getSpentAmount(Budget(1, 1, "Groceries", 100.0, QDate(2026,1,1), QDate(2026,1,31))), 50.5);
+        QCOMPARE(dao.getSpentAmount(Budget(2, 1, "Utilities", 100.0, QDate(2026,1,1), QDate(2026,1,31))), 0.0);
+    }
 };
 
 QTEST_MAIN(TestBudgetDAO)
