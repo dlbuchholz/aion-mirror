@@ -35,6 +35,17 @@ private slots:
         QCOMPARE(SystemInfo::maskHomePath("C:/elsewhere/app.db"), QString("C:/elsewhere/app.db"));
     }
 
+    void versionTextShowsTheCommitInDebugBuilds() {
+        const QString text = SystemInfo::versionText();
+        QVERIFY(text.startsWith(AION_VERSION));
+#ifdef QT_NO_DEBUG
+        QCOMPARE(text, QString(AION_VERSION));
+#else
+        QVERIFY(text.contains("(debug"));
+        if (QString(AION_GIT_COMMIT) != "unknown") QVERIFY(text.contains(AION_GIT_COMMIT));
+#endif
+    }
+
     void reportListsBuildAndDatabaseDetails() {
         // Database inside the home folder, so the report must mask its path
         QTemporaryDir dir(QDir::homePath() + "/aion-systeminfo-XXXXXX");

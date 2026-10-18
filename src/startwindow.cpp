@@ -5,6 +5,7 @@
 #include "theme.h"
 #include "updatecheck.h"
 #include "user.h"
+#include "systeminfo.h"
 #include "version.h"
 
 #include <QAbstractButton>
@@ -209,7 +210,7 @@ StartWindow::StartWindow(QWidget* parent)
     root->addWidget(rememberCheck);
 
     auto* footer = new QHBoxLayout();
-    auto* versionLabel = new QLabel(QString("Version %1").arg(AION_VERSION), this);
+    auto* versionLabel = new QLabel(QString("Version %1").arg(SystemInfo::versionText()), this);
     versionLabel->setObjectName("versionLabel");
     QPalette versionPalette = versionLabel->palette();
     versionPalette.setColor(QPalette::WindowText, Theme::colors().textMuted);

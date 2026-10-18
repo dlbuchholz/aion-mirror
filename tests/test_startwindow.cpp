@@ -11,6 +11,7 @@
 #include "db/databasesession.h"
 #include "settings.h"
 #include "startwindow.h"
+#include "systeminfo.h"
 #include "user.h"
 #include "version.h"
 
@@ -55,7 +56,7 @@ private slots:
 
     void showsTheBuildVersion() {
         StartWindow window;
-        QCOMPARE(window.findChild<QLabel*>("versionLabel")->text(), QString("Version %1").arg(AION_VERSION));
+        QCOMPARE(window.findChild<QLabel*>("versionLabel")->text(), QString("Version %1").arg(SystemInfo::versionText()));
         QVERIFY(QString(AION_VERSION).count('.') == 2);    // Major.minor.patch from CMake
     }
 

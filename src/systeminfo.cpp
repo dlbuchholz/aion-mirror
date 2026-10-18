@@ -45,6 +45,16 @@ QString displayDescription() {
 
 namespace SystemInfo {
 
+QString versionText() {
+#ifdef QT_NO_DEBUG
+    return AION_VERSION;
+#else
+    const QString commit = AION_GIT_COMMIT;
+    return commit == "unknown" ? QString("%1 (debug)").arg(AION_VERSION)
+                               : QString("%1 (debug %2)").arg(AION_VERSION, commit);
+#endif
+}
+
 QList<Entry> entries() {
     const QString databasePath = DatabaseSession::currentDatabasePath();
     const QFileInfo database(databasePath);

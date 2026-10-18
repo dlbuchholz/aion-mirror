@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "theme.h"
 #include "user.h"
+#include "systeminfo.h"
 #include "version.h"
 #include <QApplication>
 #include <QFileInfo>
@@ -64,7 +65,8 @@ int main(int argc, char *argv[])
     std::function<void(int)> openMainWindow = [&openMainWindow](int userId) {
         auto* window = new MainWindow(userId);
         window->setAttribute(Qt::WA_DeleteOnClose);
-        window->setWindowTitle(QString("Aion · %1").arg(QFileInfo(DatabaseSession::currentDatabasePath()).fileName()));
+        window->setWindowTitle(QString("Aion %1 · %2").arg(SystemInfo::versionText(),
+                                                         QFileInfo(DatabaseSession::currentDatabasePath()).fileName()));
         QObject::connect(window, &MainWindow::switchUserRequested, window, [window, &openMainWindow]() {
             window->hide();
             StartWindow startWindow;

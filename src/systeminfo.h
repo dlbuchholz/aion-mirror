@@ -15,6 +15,9 @@ struct Entry {
 
 QList<Entry> entries();
 
+// "0.1.0", or "0.1.0 (debug 450f44e)" in debug builds so testers can tell builds apart
+QString versionText();
+
 // Plain-text report for the clipboard. The home folder is replaced with "~" so pasted
 // reports don't reveal the user name.
 QString report();
