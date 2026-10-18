@@ -1,0 +1,267 @@
+#include <QtTest>
+#include <QSqlQuery>
+
+#include "account.h"
+#include "csvimport.h"
+#include "tests/test_db_fixture.h"
+
+using namespace CsvImport;
+
+class TestCsvImport : public QObject {
+    Q_OBJECT
+
+    TestDbFixture db;
+    int accountId = -1;
+
+    static Mapping basicMapping() {
+        return {{FieldDate, 0}, {FieldAmount, 1}, {FieldPayee, 2}, {FieldDescription, 3}};
+    }
+
+    Options basicOptions() const {
+        Options options;
+        options.accountId = accountId;
+        options.decimalSeparator = ',';
+        return options;
+    }
+
+    static int transactionCount(int account) {
+        QSqlQuery query(DatabaseManager::instance().database());
+        query.prepare("SELECT COUNT(*) FROM transactions WHERE account_id = :id");
+        query.bindValue(":id", account);
+        return query.exec() && query.next() ? query.value(0).toInt() : -1;
+    }
+
+private slots:
+    void initTestCase() { db.init(); }
+    void init() {
+        db.yankDb();
+        db.seedDefaultUser();
+        accountId = AccountDAO::createAccount(1, "Girokonto", "Checking", 0.0);
+        QVERIFY(accountId > 0);
+    }
+    void cleanup() { db.close(); }
+
+    // --- Detecting the file's conventions ---
+
+    void detectsDelimiter_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QChar>("expected");
+        QTest::newRow("comma") << "Date,Amount,Payee\n2026-01-01,12.50,Shop\n" << QChar(',');
+        QTest::newRow("semicolon with decimal commas") << "Datum;Betrag;Name\n01.01.2026;12,50;Shop\n02.01.2026;-3,10;Bakery\n" << QChar(';');
+        QTest::newRow("tab") << "Date\tAmount\n2026-01-01\t12.50\n" << QChar('\t');
+        QTest::newRow("pipe") << "Date|Amount|Payee\n2026-01-01|12.50|Shop\n" << QChar('|');
+        QTest::newRow("quoted semicolons in a comma file") << "Date,Payee\n2026-01-01,\"A; B; C\"\n" << QChar(',');
+        QTest::newRow("empty") << "" << QChar(',');
+    }
+    void detectsDelimiter() {
+        QFETCH(QString, text);
+        QFETCH(QChar, expected);
+        QCOMPARE(detectDelimiter(text), expected);
+    }
+
+    void detectsDecimalSeparator() {
+        QCOMPARE(detectDecimalSeparator({{"1.234,56"}, {"12,50"}}, 0, '.'), QChar(','));
+        QCOMPARE(detectDecimalSeparator({{"12.50"}, {"-3.10"}}, 0, ','), QChar('.'));
+        // US thousands separator must not count as a decimal comma (used to be detected as ',')
+        QCOMPARE(detectDecimalSeparator({{"1,234.56"}, {"2,000.00"}}, 0, ','), QChar('.'));
+        // Only "1,234"-style values: ambiguous, so the fallback decides
+        QCOMPARE(detectDecimalSeparator({{"1,234"}}, 0, '.'), QChar('.'));
+        QCOMPARE(detectDecimalSeparator({{"1,234"}}, 0, ','), QChar(','));
+        // With an amount column, other columns (here a German date) don't vote
+        QCOMPARE(detectDecimalSeparator({{"01.02.2026", "12,50"}, {"03.02.2026", "1,00"}}, 1, '.'), QChar(','));
+    }
+
+    void autoMapsEnglishAndGermanHeaders() {
+        const Mapping english = autoMapColumns({"Date", "Amount", "Payee", "Memo", "Category"});
+        QCOMPARE(english.value(FieldDate), 0);
+        QCOMPARE(english.value(FieldAmount), 1);
+        QCOMPARE(english.value(FieldPayee), 2);
+        QCOMPARE(english.value(FieldDescription), 3);
+        QCOMPARE(english.value(FieldCategory), 4);
+
+        const Mapping german = autoMapColumns({" Buchungstag ", "Name Zahlungsbeteiligter", "Verwendungszweck", "BETRAG"});
+        QCOMPARE(german.value(FieldDate), 0);
+        QCOMPARE(german.value(FieldPayee), 1);
+        QCOMPARE(german.value(FieldDescription), 2);
+        QCOMPARE(german.value(FieldAmount), 3);
+
+        // Used to have a double space typo
+        QCOMPARE(autoMapColumns({"Trans. Date"}).value(FieldDate, -1), 0);
+    }
+
+    void autoMapUsesEachColumnOnce() {
+        // "Type" used to be mapped to both Type and Category
+        const Mapping mapping = autoMapColumns({"Date", "Amount", "Type"});
+        QCOMPARE(mapping.value(FieldType, -1), 2);
+        QVERIFY(!mapping.contains(FieldCategory));
+    }
+
+    // --- Reading single values ---
+
+    void parsesDates_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QDate>("expected");
+        QTest::newRow("iso") << "2026-01-15" << QDate(2026, 1, 15);
+        QTest::newRow("german") << "15.01.2026" << QDate(2026, 1, 15);
+        QTest::newRow("german short") << "5.1.2026" << QDate(2026, 1, 5);   // Format had a typo before
+        QTest::newRow("day first wins") << "03/04/2026" << QDate(2026, 4, 3);
+        QTest::newRow("us when day-first is impossible") << "01/15/2026" << QDate(2026, 1, 15);
+        QTest::newRow("compact") << "20260115" << QDate(2026, 1, 15);
+        QTest::newRow("month name") << "15 Jan 2026" << QDate(2026, 1, 15);
+        QTest::newRow("us month name") << "Jan 15, 2026" << QDate(2026, 1, 15);
+        QTest::newRow("surrounding spaces") << "  2026-01-15 " << QDate(2026, 1, 15);
+        QTest::newRow("empty") << "" << QDate();
+        QTest::newRow("garbage") << "not a date" << QDate();
+    }
+    void parsesDates() {
+        QFETCH(QString, text);
+        QFETCH(QDate, expected);
+        QCOMPARE(parseDate(text), expected);
+    }
+
+    void parsesAmounts_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QChar>("separator");
+        QTest::addColumn<bool>("ok");
+        QTest::addColumn<double>("expected");
+        QTest::newRow("german thousands") << "1.234,56" << QChar(',') << true << 1234.56;
+        QTest::newRow("us thousands") << "1,234.56" << QChar('.') << true << 1234.56;
+        QTest::newRow("currency and sign") << "-12,50 €" << QChar(',') << true << -12.5;
+        QTest::newRow("accounting negative") << "(12.50)" << QChar('.') << true << -12.5;
+        QTest::newRow("trailing minus") << "12,50-" << QChar(',') << true << -12.5;
+        QTest::newRow("explicit plus") << "+7.00" << QChar('.') << true << 7.0;
+        QTest::newRow("dollar") << "$ 1,000" << QChar('.') << true << 1000.0;
+        QTest::newRow("text") << "abc" << QChar('.') << false << 0.0;
+        QTest::newRow("empty") << "  " << QChar('.') << false << 0.0;
+    }
+    void parsesAmounts() {
+        QFETCH(QString, text);
+        QFETCH(QChar, separator);
+        QFETCH(bool, ok);
+        QFETCH(double, expected);
+        bool parsed = true;
+        QCOMPARE(parseAmount(text, separator, &parsed), expected);
+        QCOMPARE(parsed, ok);
+    }
+
+    void decidesTransactionType() {
+        QCOMPARE(transactionType(-5, "", AmountInterpretation::SignBased), QString("expense"));
+        QCOMPARE(transactionType(5, "", AmountInterpretation::SignBased), QString("income"));
+        QCOMPARE(transactionType(-5, "", AmountInterpretation::SignBasedInverted), QString("income"));
+        QCOMPARE(transactionType(-5, "", AmountInterpretation::AllIncome), QString("income"));
+        QCOMPARE(transactionType(5, "", AmountInterpretation::AllExpense), QString("expense"));
+        QCOMPARE(transactionType(5, "DEBIT", AmountInterpretation::ColumnBased), QString("expense"));
+        QCOMPARE(transactionType(-5, "Credit", AmountInterpretation::ColumnBased), QString("income"));
+        // Unknown text falls back to the sign
+        QCOMPARE(transactionType(-5, "S", AmountInterpretation::ColumnBased), QString("expense"));
+    }
+
+    void buildsTransactionsAndExplainsFailures() {
+        Options options = basicOptions();
+        options.categoryIds.insert("groceries", 4);
+        Mapping mapping = basicMapping();
+        mapping.insert(FieldCategory, 4);
+
+        const RowResult good = buildTransaction({"02.01.2026", "-12,50", "Rewe", "Weekly shop", "GROCERIES"}, 2, mapping, options);
+        QVERIFY2(good.ok, qPrintable(good.error));
+        QCOMPARE(good.transaction.getAmount(), 12.5);         // Stored positive, sign goes into the type
+        QCOMPARE(good.transaction.getType(), QString("expense"));
+        QCOMPARE(good.transaction.getAccountId(), accountId);
+        QCOMPARE(good.transaction.getPayee(), QString("Rewe"));
+        QCOMPARE(good.transaction.getCategoryId(), 4);        // Matched case-insensitively (used to be ignored)
+
+        const RowResult unknownCategory = buildTransaction({"02.01.2026", "1,00", "", "", "Travel"}, 2, mapping, options);
+        QCOMPARE(unknownCategory.transaction.getCategoryId(), 0);
+
+        QCOMPARE(buildTransaction({"02.01.2026"}, 7, mapping, options).error,
+                 QString("Row 7: Amount column not mapped or out of range"));
+        QCOMPARE(buildTransaction({"yesterday", "1,00"}, 3, mapping, options).error,
+                 QString("Row 3: Invalid date 'yesterday'"));
+        // An empty amount used to be imported as 0
+        QCOMPARE(buildTransaction({"02.01.2026", ""}, 4, mapping, options).error, QString("Row 4: Amount is missing"));
+        QCOMPARE(buildTransaction({"02.01.2026", "0,00"}, 5, mapping, options).error, QString("Row 5: Amount is zero"));
+        QCOMPARE(buildTransaction({"02.01.2026", "n/a"}, 6, mapping, options).error,
+                 QString("Row 6: Failed to parse amount 'n/a'"));
+    }
+
+    // --- Writing to the database ---
+
+    void importsAndSkipsDuplicates() {
+        const QList<QStringList> rows = {
+            {"02.01.2026", "-12,50", "Rewe", "Weekly shop"},
+            {"03.01.2026", "2.850,00", "ACME", "Salary"},
+        };
+        Result first = run(rows, basicMapping(), basicOptions(), {});
+        QCOMPARE(first.imported, 2);
+        QCOMPARE(first.failed, 0);
+        QCOMPARE(transactionCount(accountId), 2);
+
+        // Same file again: everything is a duplicate
+        Result second = run(rows, basicMapping(), basicOptions(), {});
+        QCOMPARE(second.imported, 0);
+        QCOMPARE(second.duplicates, 2);
+        QCOMPARE(transactionCount(accountId), 2);
+
+        // Unless duplicates are allowed
+        RunOptions allowDuplicates;
+        allowDuplicates.allowDuplicates = true;
+        QCOMPARE(run(rows, basicMapping(), basicOptions(), allowDuplicates).imported, 2);
+        QCOMPARE(transactionCount(accountId), 4);
+    }
+
+    void dryRunWritesNothing() {
+        RunOptions dryRun;
+        dryRun.dryRun = true;
+        const Result result = run({{"02.01.2026", "-1,00", "A", ""}}, basicMapping(), basicOptions(), dryRun);
+        QCOMPARE(result.imported, 1);
+        QCOMPARE(transactionCount(accountId), 0);
+    }
+
+    void unreadableRowsAbortUnlessPartialImport() {
+        const QList<QStringList> rows = {
+            {"02.01.2026", "-1,00", "Good", ""},
+            {"not a date", "-2,00", "Bad", ""},
+            {"04.01.2026", "-3,00", "Also good", ""},
+        };
+
+        // Partial import off: one bad row stops everything (used to import the good rows anyway)
+        const Result strict = run(rows, basicMapping(), basicOptions(), {});
+        QCOMPARE(strict.imported, 0);
+        QCOMPARE(strict.failed, 3);
+        QVERIFY(strict.errors.first().startsWith("Import aborted"));
+        QCOMPARE(transactionCount(accountId), 0);
+
+        RunOptions partial;
+        partial.allowPartialImport = true;
+        const Result lenient = run(rows, basicMapping(), basicOptions(), partial);
+        QCOMPARE(lenient.imported, 2);
+        QCOMPARE(lenient.failed, 1);
+        QCOMPARE(lenient.errors, QStringList({"Row 3: Invalid date 'not a date'"}));
+        QCOMPARE(transactionCount(accountId), 2);
+    }
+
+    void databaseErrorsRollBack() {
+        // An account that doesn't exist makes every insert fail (foreign key)
+        Options options = basicOptions();
+        options.accountId = 9999;
+        const QList<QStringList> rows = {{"02.01.2026", "-1,00", "A", ""}, {"03.01.2026", "-2,00", "B", ""}};
+
+        const Result strict = run(rows, basicMapping(), options, {});
+        QCOMPARE(strict.imported, 0);
+        QCOMPARE(strict.failed, 2);
+        QVERIFY(strict.errors.first().startsWith("Import aborted"));
+
+        RunOptions partial;
+        partial.allowPartialImport = true;
+        const Result lenient = run(rows, basicMapping(), options, partial);
+        QCOMPARE(lenient.imported, 0);
+        QCOMPARE(lenient.failed, 2);
+        QCOMPARE(transactionCount(9999), 0);
+
+        // The database is still usable afterwards
+        QCOMPARE(run(rows, basicMapping(), basicOptions(), {}).imported, 2);
+    }
+};
+
+QTEST_MAIN(TestCsvImport)
+#include "test_csvimport.moc"

@@ -3,6 +3,7 @@ set(TEST_TARGETS
     test_integration
     test_migrationmanager
     test_csvparser
+    test_csvimport
     test_transactionlistmodel
     test_transactionspage
     test_databasesession
