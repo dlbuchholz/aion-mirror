@@ -15,6 +15,8 @@ set(TEST_TARGETS
     test_systeminfo
     test_budget
     test_budgetpage
+    test_dashboard
+    test_dashboardpage
     test_user_category
     test_settings
 )

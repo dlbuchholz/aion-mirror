@@ -241,6 +241,49 @@ private slots:
         QCOMPARE(editor->findChild<QComboBox*>("accountCombo")->currentData().toInt(), secondId);
         QCOMPARE(TransactionDAO().getTransactionsForAccount(secondId).size(), 1);
     }
+
+    void openTransactionClearsFiltersAndUnfoldsItsDay() {
+        const QDate lastYear = QDate::currentDate().addYears(-1);
+        const int transactionId = TransactionDAO().addTransaction(Transaction(-1, secondId, "Old shop", 990, lastYear, "", 0, "expense"));
+        QVERIFY(transactionId > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(firstId);                                // Hides it
+        page.findChild<QLineEdit*>("searchEdit")->setText("something else");  // So does the search
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        model->toggleDay(lastYear);
+
+        page.openTransaction(transactionId);
+        auto* editor = page.findChild<TransactionEditor*>();
+        QVERIFY(!editor->isHidden());
+        QCOMPARE(editor->editedTransactionId(), transactionId);
+        QVERIFY(!model->isDayCollapsed(lastYear));
+        QVERIFY(page.findChild<QLineEdit*>("searchEdit")->text().isEmpty());
+    }
+
+    void showCategoryThisMonthFiltersTheList() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Rewe", 1000, today, "", groceries, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, secondId, "Aldi", 2000, today, "", groceries, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Kiosk", 300, today, "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Rewe", 500, today.addMonths(-1), "", groceries, "expense")) > 0);
+
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(firstId);
+        auto* model = static_cast<TransactionListModel*>(page.findChild<QListView*>("transactionList")->model());
+
+        page.showCategoryThisMonth(groceries);
+        QCOMPARE(model->totals().count, 2);                       // Both accounts, this month only
+        QCOMPARE(page.findChild<QComboBox*>("categoryFilter")->currentData().toInt(), groceries);
+        page.showCategoryThisMonth(TransactionFilter::NO_CATEGORY);
+        QCOMPARE(model->totals().count, 1);
+    }
 };
 
 QTEST_MAIN(TestTransactionsPage)

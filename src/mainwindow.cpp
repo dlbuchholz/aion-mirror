@@ -1,5 +1,6 @@
 #include "widgets/addaccountwidget.h"
 #include "widgets/budgetpage.h"
+#include "widgets/dashboardpage.h"
 #include "widgets/settingspage.h"
 #include "widgets/transactionspage.h"
 #include "mainwindow.h"
@@ -17,6 +18,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     ui->sidebar->setUserId(userId);
     ui->transactionsPage->setUserId(userId);
     ui->budgetPage->setUserId(userId);
+    ui->dashboardPage->setUserId(userId);
 
     connect(ui->sidebar, &SidebarWidget::pageRequested, this, &MainWindow::showPage);
     connect(ui->sidebar, &SidebarWidget::accountRequested, this, &MainWindow::onAccountRequested);
@@ -30,8 +32,32 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
             ui->budgetPage, &BudgetPage::reload);
     connect(ui->budgetPage, &BudgetPage::budgetsChanged, ui->sidebar, &SidebarWidget::refresh);
+    connect(ui->budgetPage, &BudgetPage::budgetsChanged, ui->dashboardPage, &DashboardPage::reload);
+    connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
+            ui->dashboardPage, &DashboardPage::reload);
 
-    showPage(SidebarWidget::Page::Transactions);
+    // Dashboard shortcuts into the other pages
+    DashboardPage* dashboard = ui->dashboardPage;
+    TransactionsPage* transactions = ui->transactionsPage;
+    connect(dashboard, &DashboardPage::addTransactionRequested, this, [this, transactions]() {
+        showPage(SidebarWidget::Page::Transactions);
+        transactions->addTransaction();
+    });
+    connect(dashboard, &DashboardPage::importRequested, transactions, &TransactionsPage::importTransactions);
+    connect(dashboard, &DashboardPage::transactionsRequested, this, [this]() {
+        onAccountRequested(SidebarWidget::ALL_ACCOUNTS_ID);
+    });
+    connect(dashboard, &DashboardPage::transactionRequested, this, [this, transactions](int transactionId) {
+        showPage(SidebarWidget::Page::Transactions);
+        transactions->openTransaction(transactionId);
+    });
+    connect(dashboard, &DashboardPage::categoryRequested, this, [this, transactions](int categoryId) {
+        showPage(SidebarWidget::Page::Transactions);
+        transactions->showCategoryThisMonth(categoryId);
+    });
+    connect(dashboard, &DashboardPage::budgetRequested, this, [this]() { showPage(SidebarWidget::Page::Budget); });
+
+    showPage(SidebarWidget::Page::Dashboard);
 }
 
 MainWindow::~MainWindow()
@@ -40,6 +66,9 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::showPage(SidebarWidget::Page page) {
+    if (page == SidebarWidget::Page::Dashboard) {
+        ui->dashboardPage->reload();               // Greeting and "days left" follow the clock
+    }
     ui->pageStack->setCurrentIndex(static_cast<int>(page));
     ui->sidebar->setCurrentPage(page);
 }
@@ -71,6 +100,7 @@ void MainWindow::reloadAccounts() {
     ui->sidebar->refresh();
     ui->transactionsPage->reload();
     ui->budgetPage->reload();
+    ui->dashboardPage->reload();
 }
 
 void MainWindow::onSettingsChanged() {
@@ -80,6 +110,7 @@ void MainWindow::onSettingsChanged() {
     // Number formats and categories may have changed
     ui->transactionsPage->applySettings();
     ui->budgetPage->applySettings();
+    ui->dashboardPage->applySettings();
     ui->transactionsPage->reload();
     ui->sidebar->refresh();
 }

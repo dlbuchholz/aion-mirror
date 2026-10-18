@@ -33,6 +33,12 @@ public:
     void showAccount(int accountId);                 // ALL_ACCOUNTS for every account of the user
     void reload();                                   // Re-read accounts, categories and transactions
     void applySettings();                            // Number formats changed
+    void showCategoryThisMonth(int categoryId);      // One category's transactions this month (0 = no category)
+    void openTransaction(int transactionId);         // Shows all transactions and opens this one in the editor
+
+public slots:
+    void addTransaction();
+    void importTransactions();
 
 signals:
     void transactionsChanged();
@@ -45,8 +51,6 @@ private slots:
     void openEditor(const QModelIndex& index);
     void selectDay(const QModelIndex& header, bool extendRange);  // Ctrl/Shift-click on a day header
     void onSaveRequested(const Transaction& transaction);
-    void addTransaction();
-    void importTransactions();
     void deleteSelected();
     void deleteTransactions(const QList<int>& transactionIds);
     void closeEditor();

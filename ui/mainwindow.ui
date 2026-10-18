@@ -35,51 +35,7 @@
     </item>
     <item>
      <widget class="QStackedWidget" name="pageStack">
-      <widget class="QWidget" name="dashboardPage">
-       <layout class="QVBoxLayout" name="dashboardLayout">
-        <property name="leftMargin">
-         <number>24</number>
-        </property>
-        <property name="topMargin">
-         <number>20</number>
-        </property>
-        <property name="rightMargin">
-         <number>24</number>
-        </property>
-        <property name="bottomMargin">
-         <number>20</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="dashboardTitle">
-          <property name="font">
-           <font>
-            <pointsize>16</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>Dashboard</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="dashboardHint">
-          <property name="text">
-           <string>Overview cards for balances, spending and budgets will live here.</string>
-          </property>
-          <property name="wordWrap">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="dashboardSpacer">
-          <property name="orientation">
-           <enum>Qt::Orientation::Vertical</enum>
-          </property>
-         </spacer>
-        </item>
-       </layout>
-      </widget>
+      <widget class="DashboardPage" name="dashboardPage"/>
       <widget class="TransactionsPage" name="transactionsPage"/>
       <widget class="BudgetPage" name="budgetPage"/>
       <widget class="QWidget" name="reportsPage">
@@ -156,6 +112,12 @@
    <class>BudgetPage</class>
    <extends>QWidget</extends>
    <header>widgets/budgetpage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>DashboardPage</class>
+   <extends>QWidget</extends>
+   <header>widgets/dashboardpage.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

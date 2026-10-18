@@ -318,6 +318,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     auto* filters = new QHBoxLayout();
     filters->setSpacing(6);
     searchEdit = new QLineEdit(this);
+    searchEdit->setObjectName("searchEdit");
     searchEdit->setPlaceholderText("Search payee, description, category or account  (Ctrl+F)");
     searchEdit->setClearButtonEnabled(true);
     searchAction = searchEdit->addAction(QIcon(), QLineEdit::LeadingPosition);
@@ -339,6 +340,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     connect(periodGroup, &QButtonGroup::idClicked, this, &TransactionsPage::applyFilter);
 
     categoryFilter = new QComboBox(this);
+    categoryFilter->setObjectName("categoryFilter");
     categoryFilter->setMinimumWidth(150);
     connect(categoryFilter, &QComboBox::currentIndexChanged, this, &TransactionsPage::applyFilter);
     filters->addWidget(categoryFilter);
@@ -759,6 +761,42 @@ void TransactionsPage::openEditor(const QModelIndex& index) {
     editor->editTransaction(*transaction);
     editor->show();
     updateBulkBar();
+}
+
+void TransactionsPage::showCategoryThisMonth(int categoryId) {
+    showAccount(ALL_ACCOUNTS);
+    {
+        const QSignalBlocker searchBlocker(searchEdit);
+        const QSignalBlocker categoryBlocker(categoryFilter);
+        searchEdit->clear();
+        const int index = categoryFilter->findData(categoryId);
+        categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
+    }
+    periodGroup->button(static_cast<int>(Period::ThisMonth))->setChecked(true);
+    applyFilter();
+}
+
+void TransactionsPage::openTransaction(int transactionId) {
+    // Clear filters that could hide it, and unfold its day
+    showAccount(ALL_ACCOUNTS);
+    {
+        const QSignalBlocker searchBlocker(searchEdit);
+        const QSignalBlocker categoryBlocker(categoryFilter);
+        searchEdit->clear();
+        categoryFilter->setCurrentIndex(0);
+    }
+    periodGroup->button(static_cast<int>(Period::AllTime))->setChecked(true);
+    applyFilter();
+    if (const auto transaction = model->transaction(transactionId)) {
+        if (model->isDayCollapsed(transaction->getDate())) {
+            model->toggleDay(transaction->getDate());
+        }
+    }
+    const QModelIndex index = model->indexForTransaction(transactionId);
+    if (index.isValid()) {
+        listView->scrollTo(index, QAbstractItemView::PositionAtCenter);
+        openEditor(index);
+    }
 }
 
 void TransactionsPage::addTransaction() {
