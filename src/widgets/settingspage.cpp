@@ -379,8 +379,9 @@ void SettingsPage::apply()
         saveSettings();
         formChanged = false;
     }
-    if (categoriesWidget->hasPendingChanges()) {
-        categoriesWidget->saveChanges();
+    if (categoriesWidget->hasPendingChanges() && !categoriesWidget->saveChanges()) {
+        QMessageBox::warning(this, "Some changes weren't saved",
+                             categoriesWidget->lastErrors().join("\n"));
     }
     updateChangeState();
     emit settingsChanged();
