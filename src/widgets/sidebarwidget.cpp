@@ -159,7 +159,7 @@ protected:
             painter.drawRoundedRect(track, 2, 2);
             QRectF fill = track;
             fill.setWidth(track.width() * qBound(0.0, progress, 1.0));
-            painter.setBrush(progress > 1.0 ? colors.danger : colors.accent);
+            painter.setBrush(progress > 1.0 ? colors.danger : progress == 1.0 ? colors.textMuted : colors.accent);   // Over / used up
             painter.drawRoundedRect(fill, 2, 2);
         }
     }
@@ -407,18 +407,14 @@ void SidebarWidget::loadBudgets() {
     Cents totalSpent = 0;
     Cents totalLimit = 0;
 
-    for (const Budget& budget : budgetDao.getAllBudgets(userId)) {
-        if (today < budget.getStartDate() || today > budget.getEndDate()) {
-            continue;
-        }
-        const Cents spent = budgetDao.getSpentCents(budget);
-        totalSpent += spent;
-        totalLimit += budget.getAmountCents();
+    for (const MonthBudget& budget : budgetDao.budgetsForMonth(userId, today)) {
+        totalSpent += budget.spentCents;
+        totalLimit += budget.limitCents;
 
         auto* item = new SidebarItem(SidebarItem::Kind::Row);
-        item->setText(budget.getCategory());
-        item->setTrailingText(QString("%1 / %2").arg(settings.formatNumber(spent, 0), settings.formatNumber(budget.getAmountCents(), 0)));
-        item->setProgress(budget.getAmountCents() > 0 ? double(spent) / double(budget.getAmountCents()) : 0.0);
+        item->setText(budget.categoryName);
+        item->setTrailingText(QString("%1 / %2").arg(settings.formatNumber(budget.spentCents, 0), settings.formatNumber(budget.limitCents, 0)));
+        item->setProgress(double(budget.spentCents) / double(budget.limitCents));   // Limits are positive
         budgetSection.bodyLayout->addWidget(item);
         connect(item, &QAbstractButton::clicked, this, [this]() {
             setCurrentPage(Page::Budget);

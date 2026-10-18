@@ -26,6 +26,13 @@ class TestSidebarWidget : public QObject {
         QAbstractButton* button = item(sidebar, text);
         return button ? button->accessibleDescription() : QString("<missing %1>").arg(text);
     }
+    static int categoryId(const char* name) {
+        QSqlQuery query(DatabaseManager::instance().database());
+        query.prepare("SELECT id FROM categories WHERE name = :name");
+        query.bindValue(":name", name);
+        return query.exec() && query.next() ? query.value(0).toInt() : 0;
+    }
+
     static QString budgetHeaderTitle() {
         return QString("Budget · %1").arg(QDate::currentDate().toString("MMMM"));
     }
@@ -106,12 +113,9 @@ private slots:
         const QDate today = QDate::currentDate();
         const QDate monthStart(today.year(), today.month(), 1);
         BudgetDAO budgets;
-        QVERIFY(budgets.createBudget(Budget(1, 1, "Groceries", 40000, monthStart, monthStart.addMonths(1).addDays(-1))));
-        QVERIFY(budgets.createBudget(Budget(2, 1, "Rent", 90000, monthStart.addMonths(-1), monthStart.addDays(-1))));  // Last month
-        Transaction shopping(-1, giroId, "Rewe", 31200, today, "", 0, "expense");
-        QSqlQuery query(DatabaseManager::instance().database());
-        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
-        shopping.setCategoryId(query.value(0).toInt());
+        QVERIFY(budgets.setMonthlyLimit(1, categoryId("Groceries"), monthStart, 40000));
+        QVERIFY(budgets.setLimitForMonth(1, categoryId("Rent"), monthStart.addMonths(-1), 90000));  // Last month
+        Transaction shopping(-1, giroId, "Rewe", 31200, today, "", categoryId("Groceries"), "expense");
         QVERIFY(TransactionDAO().addTransaction(shopping) > 0);
 
         SidebarWidget sidebar;
@@ -130,11 +134,8 @@ private slots:
     void foldedSectionsShowASummaryAndAreRemembered() {
         const QDate today = QDate::currentDate();
         const QDate monthStart(today.year(), today.month(), 1);
-        QVERIFY(BudgetDAO().createBudget(Budget(1, 1, "Rent", 100000, monthStart, monthStart.addMonths(1).addDays(-1))));
-        Transaction rent(-1, giroId, "Landlord", 25000, today, "", 0, "expense");
-        QSqlQuery query(DatabaseManager::instance().database());
-        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Rent'") && query.next());
-        rent.setCategoryId(query.value(0).toInt());
+        QVERIFY(BudgetDAO().setLimitForMonth(1, categoryId("Rent"), monthStart, 100000));
+        Transaction rent(-1, giroId, "Landlord", 25000, today, "", categoryId("Rent"), "expense");
         QVERIFY(TransactionDAO().addTransaction(rent) > 0);
 
         {

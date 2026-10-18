@@ -38,16 +38,21 @@ CREATE TABLE IF NOT EXISTS transactions (
 	FOREIGN KEY (category_id) REFERENCES categories (id)
 );
 
+-- Monthly spending limits per category. A repeating row applies to every month from
+-- start_month until end_month (NULL = open-ended). A non-repeating row applies to
+-- start_month only and takes precedence over a repeating one in that month.
 CREATE TABLE IF NOT EXISTS budgets (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
-    category TEXT NOT NULL,
-    amount INTEGER NOT NULL,             -- In cents
-    start_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
+    category_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,             -- Limit in cents
+    start_month TEXT NOT NULL,           -- 'YYYY-MM'
+    end_month TEXT,                      -- 'YYYY-MM', inclusive, NULL = no end
+    repeats INTEGER NOT NULL DEFAULT 1 CHECK (repeats IN (0, 1)),
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    FOREIGN KEY (category) REFERENCES categories (name)
+    FOREIGN KEY (category_id) REFERENCES categories (id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_unique ON budgets(user_id, category_id, start_month, repeats);
 
 CREATE TABLE IF NOT EXISTS recurring_transactions (
     id INTEGER PRIMARY KEY,
