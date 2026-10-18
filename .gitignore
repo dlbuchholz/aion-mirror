@@ -17,11 +17,13 @@
 *.qm
 .#*
 *.*#
+build/
 core
 !core/
 tags
 .DS_Store
 .directory
+.idea/
 *.debug
 Makefile*
 *.prl
