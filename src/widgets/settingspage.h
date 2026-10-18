@@ -72,8 +72,8 @@ private:
     QComboBox *thousandsSeparatorCombo = nullptr;
 
     // Transactions
-    QCheckBox *lazyLoadingCheck = nullptr;
-    QCheckBox *detailEditCheck = nullptr;
+    QCheckBox *fastEntryCheck = nullptr;
+    QCheckBox *selectionCheckboxesCheck = nullptr;
 
     // Appearance
     QComboBox *themeCombo = nullptr;

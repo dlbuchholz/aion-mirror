@@ -31,15 +31,6 @@ Settings:: Settings()
     if (!settings.contains("import/defaultCsvDelimiter")) {
         setDefaultCsvDelimiter(',');  // Comma by default
     }
-
-    // Lazy loading default
-    if (! settings.contains("transactions/lazyLoadingEnabled")) {
-        setLazyLoadingEnabled(true);  // Enabled by default
-    }
-    if (!settings.contains("transactions/detailEditEnabled")) {
-        setDetailEditEnabled(true);  // Enabled by default
-    }
-
 }
 
 Settings& Settings::instance() {
@@ -185,21 +176,22 @@ void Settings:: setDefaultCsvDelimiter(QChar delimiter) {
     settings.setValue("import/defaultCsvDelimiter", QString(delimiter));
 }
 
-bool Settings::isLazyLoadingEnabled() const {
-    return settings.value("transactions/lazyLoadingEnabled", true).toBool();
+// Fast entry: keep the editor open for the next new transaction after saving one
+bool Settings::isFastEntryEnabled() const {
+    return settings.value("transactions/fastEntryEnabled", false).toBool();
 }
 
-void Settings::setLazyLoadingEnabled(bool enabled) {
-    settings.setValue("transactions/lazyLoadingEnabled", enabled);
+void Settings::setFastEntryEnabled(bool enabled) {
+    settings.setValue("transactions/fastEntryEnabled", enabled);
 }
 
-// Detail edit setting
-bool Settings::isDetailEditEnabled() const {
-    return settings.value("transactions/detailEditEnabled", true).toBool();
+// Selection checkboxes in the transaction list (Ctrl/Shift-click works either way)
+bool Settings::isSelectionCheckboxesEnabled() const {
+    return settings.value("transactions/selectionCheckboxes", false).toBool();
 }
 
-void Settings::setDetailEditEnabled(bool enabled) {
-    settings.setValue("transactions/detailEditEnabled", enabled);
+void Settings::setSelectionCheckboxesEnabled(bool enabled) {
+    settings.setValue("transactions/selectionCheckboxes", enabled);
 }
 
 // Format Currency

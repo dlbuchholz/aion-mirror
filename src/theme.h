@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QColor>
+#include <QAbstractButton>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QStyleHints>
@@ -29,6 +30,7 @@ public:
         QColor accent;
         QColor onAccent;
         QColor danger;
+        QColor positive;                             // Income amounts
         QColor track;
     };
 
@@ -55,6 +57,22 @@ public:
         }
     }
 
+    // Gives a checkable button the accent colour while it is checked (Fusion's pressed look is too subtle)
+    static void highlightWhenChecked(QAbstractButton* button) {
+        auto update = [button](bool checked) {
+            if (checked) {
+                QPalette palette = button->palette();
+                palette.setColor(QPalette::Button, colors().accent);
+                palette.setColor(QPalette::ButtonText, colors().onAccent);
+                button->setPalette(palette);
+            } else {
+                button->setPalette(QPalette());      // Back to the inherited application palette
+            }
+        };
+        QObject::connect(button, &QAbstractButton::toggled, button, update);
+        update(button->isChecked());
+    }
+
     static bool isDark() {
         return darkActive;
     }
@@ -62,17 +80,18 @@ public:
     static Colors colors() {
         if (darkActive) {
             return {
-                QColor(48, 48, 48),          // sidebarBackground
-                QColor(255, 255, 255, 20),   // sidebarBorder
-                QColor(255, 255, 255, 18),   // itemHover
-                QColor(255, 255, 255, 34),   // itemSelected
-                QColor(240, 240, 240),       // textPrimary
-                QColor(196, 196, 196),       // textSecondary
-                QColor(140, 140, 140),       // textMuted
+                QColor(30, 30, 34),          // sidebarBackground
+                QColor(255, 255, 255, 22),   // sidebarBorder
+                QColor(255, 255, 255, 16),   // itemHover
+                QColor(255, 255, 255, 30),   // itemSelected
+                QColor(236, 236, 238),       // textPrimary
+                QColor(205, 205, 210),       // textSecondary
+                QColor(160, 160, 166),       // textMuted
                 QColor(42, 130, 218),        // accent
                 Qt::white,                   // onAccent
                 QColor(229, 83, 75),         // danger
-                QColor(255, 255, 255, 30)    // track
+                QColor(87, 196, 125),        // positive
+                QColor(255, 255, 255, 38)    // track
             };
         }
         return {
@@ -82,10 +101,11 @@ public:
             QColor(0, 0, 0, 24),             // itemSelected
             QColor(30, 30, 30),              // textPrimary
             QColor(74, 74, 74),              // textSecondary
-            QColor(128, 128, 128),           // textMuted
+            QColor(110, 110, 114),           // textMuted
             QColor(42, 130, 218),            // accent
             Qt::white,                       // onAccent
             QColor(201, 55, 44),             // danger
+            QColor(30, 135, 70),             // positive
             QColor(0, 0, 0, 26)              // track
         };
     }
@@ -96,19 +116,23 @@ private:
     static void applyDarkTheme() {
         darkActive = true;
         QApplication::setStyle(QStyleFactory::create("Fusion"));
-        QPalette darkPalette;
-        darkPalette.setColor(QPalette::AlternateBase, QColor(60, 60, 60));
-        darkPalette.setColor(QPalette::BrightText, QColor(100, 100, 100));
-        darkPalette.setColor(QPalette::Base, QColor(70, 70, 70));
-        darkPalette.setColor(QPalette::Button, QColor(60, 60, 60));
-        darkPalette.setColor(QPalette::ButtonText, Qt::white);
+        // Built from button and window colours so Qt derives matching bevel shades
+        QPalette darkPalette(QColor(56, 56, 62), QColor(38, 38, 42));
+        darkPalette.setColor(QPalette::Base, QColor(46, 46, 51));
+        darkPalette.setColor(QPalette::AlternateBase, QColor(52, 52, 58));
+        darkPalette.setColor(QPalette::Text, QColor(236, 236, 238));
+        darkPalette.setColor(QPalette::WindowText, QColor(236, 236, 238));
+        darkPalette.setColor(QPalette::ButtonText, QColor(236, 236, 238));
+        darkPalette.setColor(QPalette::BrightText, Qt::white);
+        darkPalette.setColor(QPalette::PlaceholderText, QColor(150, 150, 156));
         darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
         darkPalette.setColor(QPalette::HighlightedText, Qt::white);
-        darkPalette.setColor(QPalette::Light, QColor(60, 60, 60));
-        darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
-        darkPalette.setColor(QPalette::Text, Qt::white);
-        darkPalette.setColor(QPalette::Window, QColor(60, 60, 60));
-        darkPalette.setColor(QPalette::WindowText, Qt::white);
+        darkPalette.setColor(QPalette::Link, QColor(90, 160, 235));
+        darkPalette.setColor(QPalette::ToolTipBase, QColor(56, 56, 62));
+        darkPalette.setColor(QPalette::ToolTipText, QColor(236, 236, 238));
+        for (QPalette::ColorRole role : {QPalette::Text, QPalette::WindowText, QPalette::ButtonText}) {
+            darkPalette.setColor(QPalette::Disabled, role, QColor(125, 125, 130));
+        }
 
         qApp->setPalette(darkPalette);
     }

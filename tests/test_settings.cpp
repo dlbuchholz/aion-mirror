@@ -43,10 +43,12 @@ private slots:
         auto& s = Settings::instance();
         s.setAutoDetectCsvDelimiter(false);
         s.setDefaultCsvDelimiter(';');
-        s.setLazyLoadingEnabled(false);
+        s.setFastEntryEnabled(true);
         QCOMPARE(s.isAutoDetectCsvDelimiter(), false);
         QCOMPARE(s.getDefaultCsvDelimiter(), QChar(';'));
-        QCOMPARE(s.isLazyLoadingEnabled(), false);
+        QCOMPARE(s.isFastEntryEnabled(), true);
+        s.setSelectionCheckboxesEnabled(true);
+        QCOMPARE(s.isSelectionCheckboxesEnabled(), true);
         s.getQSettings().setValue("import/defaultCsvDelimiter", QString());
         QCOMPARE(s.getDefaultCsvDelimiter(), QChar(','));
     }
@@ -70,10 +72,8 @@ private slots:
         QCOMPARE(s.getThousandsSeparator(), Settings::ThousandsSeparator::Space);
 
         s.setAutoDetectDecimalSeparator(false);
-        s.setDetailEditEnabled(false);
         s.setCurrencySymbolPrefix(false);
         QCOMPARE(s.isAutoDetectDecimalSeparator(), false);
-        QCOMPARE(s.isDetailEditEnabled(), false);
         QCOMPARE(s.isCurrencySymbolPrefix(), false);
     }
 
@@ -120,7 +120,7 @@ private slots:
             "currency/symbol", "currency/decimalSeparator", "currency/thousandsSeparator",
             "currency/symbolPrefix", "import/autoDetectCsvDelimiter",
             "import/autoDetectDecimalSeparator", "import/defaultCsvDelimiter",
-            "transactions/lazyLoadingEnabled", "transactions/detailEditEnabled",
+            "transactions/fastEntryEnabled", "transactions/selectionCheckboxes",
             "app/theme", "app/defaultUserId"
         };
         for (const QString& key : keys) raw.remove(key);
@@ -131,8 +131,8 @@ private slots:
         QCOMPARE(s.isAutoDetectCsvDelimiter(), true);
         QCOMPARE(s.isAutoDetectDecimalSeparator(), true);
         QCOMPARE(s.getDefaultCsvDelimiter(), QChar(','));
-        QCOMPARE(s.isLazyLoadingEnabled(), true);
-        QCOMPARE(s.isDetailEditEnabled(), true);
+        QCOMPARE(s.isFastEntryEnabled(), false);
+        QCOMPARE(s.isSelectionCheckboxesEnabled(), false);
         QCOMPARE(s.getTheme(), QString("Dark"));
         QCOMPARE(s.getDefaultUserId(), -1);
     }
@@ -141,7 +141,7 @@ private slots:
         auto& s = Settings::instance();
         s.setCurrencySymbol(Settings::CurrencySymbol::EUR);
         s.setDecimalSeparator(Settings::DecimalSeparator::Comma);
-        s.setLazyLoadingEnabled(false);
+        s.setFastEntryEnabled(true);
         s.setDefaultCsvDelimiter(';');
         s.setTheme("Light");
         s.setSidebarCollapsed(true);
@@ -150,7 +150,7 @@ private slots:
 
         QCOMPARE(s.getCurrencySymbolType(), Settings::CurrencySymbol::USD);
         QCOMPARE(s.getDecimalSeparator(), Settings::DecimalSeparator::Point);
-        QCOMPARE(s.isLazyLoadingEnabled(), true);
+        QCOMPARE(s.isFastEntryEnabled(), false);
         QCOMPARE(s.getDefaultCsvDelimiter(), QChar(','));
         QCOMPARE(s.getTheme(), QString("Dark"));
         QCOMPARE(s.isSidebarCollapsed(), true);

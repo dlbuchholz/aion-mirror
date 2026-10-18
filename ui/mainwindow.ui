@@ -80,25 +80,7 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="transactionsPage">
-       <layout class="QVBoxLayout" name="transactionsLayout">
-        <property name="leftMargin">
-         <number>12</number>
-        </property>
-        <property name="topMargin">
-         <number>12</number>
-        </property>
-        <property name="rightMargin">
-         <number>12</number>
-        </property>
-        <property name="bottomMargin">
-         <number>12</number>
-        </property>
-        <item>
-         <widget class="TransactionListWidget" name="transactionListWidget" native="true"/>
-        </item>
-       </layout>
-      </widget>
+      <widget class="TransactionsPage" name="transactionsPage"/>
       <widget class="QWidget" name="budgetPage">
        <layout class="QVBoxLayout" name="budgetLayout">
         <property name="leftMargin">
@@ -209,9 +191,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>TransactionListWidget</class>
+   <class>TransactionsPage</class>
    <extends>QWidget</extends>
-   <header>widgets/transactionlistwidget.h</header>
+   <header>widgets/transactionspage.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

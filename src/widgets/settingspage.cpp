@@ -224,13 +224,15 @@ void SettingsPage::buildTransactionsSection()
 {
     QFormLayout *form = addFormSection("Transactions", "transactions");
 
-    lazyLoadingCheck = new QCheckBox("Load long transaction lists in chunks", this);
-    form->addRow(lazyLoadingCheck);
-    watch(lazyLoadingCheck);
+    fastEntryCheck = new QCheckBox("Fast entry: after saving a new transaction, start the next one", this);
+    fastEntryCheck->setToolTip("Keeps the editor open with the same date and account, so you can type many transactions in a row");
+    form->addRow(fastEntryCheck);
+    watch(fastEntryCheck);
 
-    detailEditCheck = new QCheckBox("Edit long texts in a detail box", this);
-    form->addRow(detailEditCheck);
-    watch(detailEditCheck);
+    selectionCheckboxesCheck = new QCheckBox("Show checkboxes for selecting several transactions", this);
+    selectionCheckboxesCheck->setToolTip("Without checkboxes, select several transactions with Ctrl+click or Shift+click");
+    form->addRow(selectionCheckboxesCheck);
+    watch(selectionCheckboxesCheck);
 }
 
 void SettingsPage::buildAppearanceSection()
@@ -317,8 +319,8 @@ void SettingsPage::loadSettings()
     selectByData(decimalSeparatorCombo, static_cast<int>(settings.getDecimalSeparator()));
     selectByData(thousandsSeparatorCombo, static_cast<int>(settings.getThousandsSeparator()));
 
-    lazyLoadingCheck->setChecked(settings.isLazyLoadingEnabled());
-    detailEditCheck->setChecked(settings.isDetailEditEnabled());
+    fastEntryCheck->setChecked(settings.isFastEntryEnabled());
+    selectionCheckboxesCheck->setChecked(settings.isSelectionCheckboxesEnabled());
 
     // Stored values are case-insensitive, matching Theme::fromName()
     const QString theme = settings.getTheme().toLower();
@@ -352,8 +354,8 @@ void SettingsPage::saveSettings()
     settings.setDecimalSeparator(static_cast<Settings::DecimalSeparator>(decimalSeparatorCombo->currentData().toInt()));
     settings.setThousandsSeparator(static_cast<Settings::ThousandsSeparator>(thousandsSeparatorCombo->currentData().toInt()));
 
-    settings.setLazyLoadingEnabled(lazyLoadingCheck->isChecked());
-    settings.setDetailEditEnabled(detailEditCheck->isChecked());
+    settings.setFastEntryEnabled(fastEntryCheck->isChecked());
+    settings.setSelectionCheckboxesEnabled(selectionCheckboxesCheck->isChecked());
 
     settings.setTheme(themeCombo->currentData().toString());
 

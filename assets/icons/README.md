@@ -26,3 +26,4 @@ see `LICENSE` in this folder):
 | `tag.svg`           | `tag`                   |
 | `code.svg`          | `code`                  |
 | `restore.svg`       | `restore` (simplified)  |
+| `search.svg`        | `search`                |

@@ -61,11 +61,11 @@ public:
     void setDefaultCsvDelimiter(QChar delimiter);
 
     // Transaction settings
-    bool isLazyLoadingEnabled() const;
-    void setLazyLoadingEnabled(bool enabled);
+    bool isFastEntryEnabled() const;
+    void setFastEntryEnabled(bool enabled);
 
-    bool isDetailEditEnabled() const;
-    void setDetailEditEnabled(bool enabled);
+    bool isSelectionCheckboxesEnabled() const;
+    void setSelectionCheckboxesEnabled(bool enabled);
 
     // Formatting methods
     QString formatCurrency(double amount, bool showSign = false) const;

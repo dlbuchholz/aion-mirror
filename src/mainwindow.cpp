@@ -1,5 +1,6 @@
 #include "widgets/addaccountwidget.h"
 #include "widgets/settingspage.h"
+#include "widgets/transactionspage.h"
 #include "mainwindow.h"
 #include "settings.h"
 #include "theme.h"
@@ -13,7 +14,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
 {
     ui->setupUi(this);
     ui->sidebar->setUserId(userId);
-    ui->transactionListWidget->setUserId(userId);
+    ui->transactionsPage->setUserId(userId);
 
     connect(ui->sidebar, &SidebarWidget::pageRequested, this, &MainWindow::showPage);
     connect(ui->sidebar, &SidebarWidget::accountRequested, this, &MainWindow::onAccountRequested);
@@ -22,7 +23,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
 
     // Balances and budget usage depend on the saved transactions
-    connect(ui->transactionListWidget, &TransactionListWidget::transactionsChanged,
+    connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
             ui->sidebar, &SidebarWidget::refresh);
 
     showPage(SidebarWidget::Page::Transactions);
@@ -40,9 +41,9 @@ void MainWindow::showPage(SidebarWidget::Page page) {
 
 void MainWindow::onAccountRequested(int accountId) {
     if (accountId == SidebarWidget::ALL_ACCOUNTS_ID) {
-        ui->transactionListWidget->showAccounts({});
+        ui->transactionsPage->showAccount(TransactionsPage::ALL_ACCOUNTS);
     } else {
-        ui->transactionListWidget->showAccounts({accountId});
+        ui->transactionsPage->showAccount(accountId);
     }
     showPage(SidebarWidget::Page::Transactions);
 }
@@ -63,14 +64,15 @@ void MainWindow::onAddAccountClicked() {
 
 void MainWindow::reloadAccounts() {
     ui->sidebar->refresh();
-    ui->transactionListWidget->setUserId(userId);  // will re-populate entire widget, when accounts have changed
+    ui->transactionsPage->reload();
 }
 
 void MainWindow::onSettingsChanged() {
     qDebug() << "Settings changed, refreshing UI";
     Theme::applyTheme(Theme::fromName(Settings::instance().getTheme()));
-    ui->transactionListWidget->reinitialize();
 
     // Number formats and categories may have changed
+    ui->transactionsPage->applySettings();
+    ui->transactionsPage->reload();
     ui->sidebar->refresh();
 }
