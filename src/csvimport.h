@@ -40,8 +40,8 @@ Mapping autoMapColumns(const QStringList& headers);
 
 // Reading single values
 QDate parseDate(const QString& text);
-double parseAmount(const QString& text, QChar decimalSeparator, bool* ok = nullptr);
-QString transactionType(double amount, const QString& typeText, AmountInterpretation interpretation);
+Cents parseAmount(const QString& text, QChar decimalSeparator, bool* ok = nullptr);   // Signed cents
+QString transactionType(Cents amount, const QString& typeText, AmountInterpretation interpretation);
 
 struct Options {
     int accountId = -1;

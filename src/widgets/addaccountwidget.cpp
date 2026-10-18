@@ -34,7 +34,7 @@ void AddAccountWidget::onCreateAccountClicked() {
     // Get input values
     QString accountName = ui.accountNameInput->text().trimmed();
     QString accountType = ui.accountTypeComboBox->currentText();
-    double initialBalance = ui.initialBalanceInput->value();
+    const Cents initialBalance = Money::fromDouble(ui.initialBalanceInput->value());
 
     // Validate inputs
     if (accountName.isEmpty()) {

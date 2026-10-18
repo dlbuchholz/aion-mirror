@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY,
     account_id INTEGER NOT NULL,
     payee TEXT,
-    amount REAL NOT NULL,
+    amount INTEGER NOT NULL,             -- In cents
     date TEXT NOT NULL,
     description TEXT,
     category_id INTEGER,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS budgets (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
     category TEXT NOT NULL,
-    amount REAL NOT NULL,
+    amount INTEGER NOT NULL,             -- In cents
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,

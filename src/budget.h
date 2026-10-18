@@ -7,16 +7,17 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
+#include "money.h"
 
 // Budget Object
 class Budget {
 public:
-    Budget(int id, int userId, const QString& category, double amount, const QDate& startDate, const QDate& endDate);
+    Budget(int id, int userId, const QString& category, Cents amountCents, const QDate& startDate, const QDate& endDate);
 
     int getBudgetId() const;
     int getUserId() const;
     QString getCategory() const;
-    double getAmount() const;
+    Cents getAmountCents() const;
     QDate getStartDate() const;
     QDate getEndDate() const;
 
@@ -24,7 +25,7 @@ private:
     int budgetId;
     int userId;
     QString category;
-    double amount;
+    Cents amountCents;
     QDate startDate;
     QDate endDate;
 };
@@ -37,7 +38,7 @@ public:
     bool createBudget(const Budget& budget);
     QList<Budget> getAllBudgets(int userId);
     bool deleteBudget(int budgetId);
-    double getSpentAmount(const Budget& budget);   // Sum of the user's expenses in the budget's category and period
+    Cents getSpentCents(const Budget& budget);     // Sum of the user's expenses in the budget's category and period
 
 private:
     void handleError(const QSqlQuery& query);

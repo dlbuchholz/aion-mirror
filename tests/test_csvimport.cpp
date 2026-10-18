@@ -36,7 +36,7 @@ private slots:
     void init() {
         db.yankDb();
         db.seedDefaultUser();
-        accountId = AccountDAO::createAccount(1, "Girokonto", "Checking", 0.0);
+        accountId = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         QVERIFY(accountId > 0);
     }
     void cleanup() { db.close(); }
@@ -123,22 +123,28 @@ private slots:
         QTest::addColumn<QString>("text");
         QTest::addColumn<QChar>("separator");
         QTest::addColumn<bool>("ok");
-        QTest::addColumn<double>("expected");
-        QTest::newRow("german thousands") << "1.234,56" << QChar(',') << true << 1234.56;
-        QTest::newRow("us thousands") << "1,234.56" << QChar('.') << true << 1234.56;
-        QTest::newRow("currency and sign") << "-12,50 €" << QChar(',') << true << -12.5;
-        QTest::newRow("accounting negative") << "(12.50)" << QChar('.') << true << -12.5;
-        QTest::newRow("trailing minus") << "12,50-" << QChar(',') << true << -12.5;
-        QTest::newRow("explicit plus") << "+7.00" << QChar('.') << true << 7.0;
-        QTest::newRow("dollar") << "$ 1,000" << QChar('.') << true << 1000.0;
-        QTest::newRow("text") << "abc" << QChar('.') << false << 0.0;
-        QTest::newRow("empty") << "  " << QChar('.') << false << 0.0;
+        QTest::addColumn<qint64>("expected");          // Cents
+        QTest::newRow("german thousands") << "1.234,56" << QChar(',') << true << qint64(123456);
+        QTest::newRow("us thousands") << "1,234.56" << QChar('.') << true << qint64(123456);
+        QTest::newRow("currency and sign") << "-12,50 €" << QChar(',') << true << qint64(-1250);
+        QTest::newRow("accounting negative") << "(12.50)" << QChar('.') << true << qint64(-1250);
+        QTest::newRow("trailing minus") << "12,50-" << QChar(',') << true << qint64(-1250);
+        QTest::newRow("explicit plus") << "+7.00" << QChar('.') << true << qint64(700);
+        QTest::newRow("dollar") << "$ 1,000" << QChar('.') << true << qint64(100000);
+        QTest::newRow("three decimals round up") << "12.345" << QChar('.') << true << qint64(1235);
+        QTest::newRow("three decimals round down") << "12,344" << QChar(',') << true << qint64(1234);
+        QTest::newRow("float-unfriendly value") << "0.29" << QChar('.') << true << qint64(29);  // 0.29 * 100 is 28.999... as double
+        QTest::newRow("large") << "9.876.543,21" << QChar(',') << true << qint64(987654321);
+        QTest::newRow("two separators left") << "1.2.3" << QChar(',') << true << qint64(12300);
+        QTest::newRow("only a separator") << "." << QChar('.') << false << qint64(0);
+        QTest::newRow("text") << "abc" << QChar('.') << false << qint64(0);
+        QTest::newRow("empty") << "  " << QChar('.') << false << qint64(0);
     }
     void parsesAmounts() {
         QFETCH(QString, text);
         QFETCH(QChar, separator);
         QFETCH(bool, ok);
-        QFETCH(double, expected);
+        QFETCH(qint64, expected);
         bool parsed = true;
         QCOMPARE(parseAmount(text, separator, &parsed), expected);
         QCOMPARE(parsed, ok);
@@ -164,7 +170,7 @@ private slots:
 
         const RowResult good = buildTransaction({"02.01.2026", "-12,50", "Rewe", "Weekly shop", "GROCERIES"}, 2, mapping, options);
         QVERIFY2(good.ok, qPrintable(good.error));
-        QCOMPARE(good.transaction.getAmount(), 12.5);         // Stored positive, sign goes into the type
+        QCOMPARE(good.transaction.getAmountCents(), Cents(1250));         // Stored positive, sign goes into the type
         QCOMPARE(good.transaction.getType(), QString("expense"));
         QCOMPARE(good.transaction.getAccountId(), accountId);
         QCOMPARE(good.transaction.getPayee(), QString("Rewe"));

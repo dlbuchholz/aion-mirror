@@ -109,7 +109,7 @@ QVariant TransactionListModel::data(const QModelIndex& index, int role) const {
     case AccountRole:
         return accountNames.value(transaction.getAccountId());
     case SignedAmountRole:
-        return transaction.getType() == "income" ? transaction.getAmount() : -transaction.getAmount();
+        return transaction.getType() == "income" ? transaction.getAmountCents() : -transaction.getAmountCents();
     default:
         return QVariant();
     }
@@ -178,7 +178,7 @@ void TransactionListModel::rebuild() {
         const bool income = transaction.getType() == "income";
         Row& header = rows[headerRow];
         header.dayTransactions.append(i);
-        header.dayNet += income ? transaction.getAmount() : -transaction.getAmount();
+        header.dayNet += income ? transaction.getAmountCents() : -transaction.getAmountCents();
 
         // Folded days keep their header (with count and net) but hide the transactions
         if (!collapsedDays.contains(currentDay)) {
@@ -187,9 +187,9 @@ void TransactionListModel::rebuild() {
 
         currentTotals.count++;
         if (income) {
-            currentTotals.income += transaction.getAmount();
+            currentTotals.income += transaction.getAmountCents();
         } else {
-            currentTotals.expenses += transaction.getAmount();
+            currentTotals.expenses += transaction.getAmountCents();
         }
     }
     endResetModel();

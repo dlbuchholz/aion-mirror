@@ -129,8 +129,11 @@
           </item>
           <item>
            <widget class="QDoubleSpinBox" name="initialBalanceInput">
+            <property name="minimum">
+             <double>-999999999.990000000000000</double>
+            </property>
             <property name="maximum">
-             <double>100000000000000000.000000000000000</double>
+             <double>999999999.990000000000000</double>
             </property>
            </widget>
           </item>

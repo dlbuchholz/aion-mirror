@@ -299,11 +299,11 @@ void ImportManagerDialog::updatePreviewTable()
     for (int row = 0; row < previewRows; ++row) {
         const QStringList &csvRow = csvData[row];
         const QString amountText = value(csvRow, CsvImport::FieldAmount);
-        const double amount = CsvImport::parseAmount(amountText, decimalSeparator);
+        const Cents amount = CsvImport::parseAmount(amountText, decimalSeparator);
 
         ui->previewTable->setItem(row, 0, new QTableWidgetItem(value(csvRow, CsvImport::FieldDate)));
         // Show parsed and original amount
-        ui->previewTable->setItem(row, 1, new QTableWidgetItem(QString("%1 (%2)").arg(amount, 0, 'f', 2).arg(amountText)));
+        ui->previewTable->setItem(row, 1, new QTableWidgetItem(QString("%1 (%2)").arg(Money::toPlainString(amount), amountText)));
         ui->previewTable->setItem(row, 2, new QTableWidgetItem(
             CsvImport::transactionType(amount, value(csvRow, CsvImport::FieldType), amountInterpretation)));
         ui->previewTable->setItem(row, 3, new QTableWidgetItem(value(csvRow, CsvImport::FieldPayee)));

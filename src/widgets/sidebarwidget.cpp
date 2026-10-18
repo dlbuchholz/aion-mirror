@@ -359,9 +359,9 @@ void SidebarWidget::loadAccounts() {
     const QList<Account> accounts = accountDao.getAllAccountsForUser(userId);
     const Settings& settings = Settings::instance();
 
-    double total = 0.0;
+    Cents total = 0;
     for (const Account& account : accounts) {
-        total += account.getBalance();
+        total += account.getBalanceCents();
     }
 
     auto* allItem = new SidebarItem(SidebarItem::Kind::Row);
@@ -376,7 +376,7 @@ void SidebarWidget::loadAccounts() {
         auto* item = new SidebarItem(SidebarItem::Kind::Row);
         item->setText(account.getName());
         item->setToolTip(QString("%1 (%2)").arg(account.getName(), account.getType()));
-        const double balance = account.getBalance();
+        const Cents balance = account.getBalanceCents();
         // formatNumber() formats the absolute value, so add the sign here
         item->setTrailingText((balance < 0 ? "-" : "") + settings.formatNumber(balance), balance < 0);
         accountsSection.bodyLayout->addWidget(item);
@@ -404,21 +404,21 @@ void SidebarWidget::loadBudgets() {
 
     BudgetDAO budgetDao;
     const Settings& settings = Settings::instance();
-    double totalSpent = 0.0;
-    double totalLimit = 0.0;
+    Cents totalSpent = 0;
+    Cents totalLimit = 0;
 
     for (const Budget& budget : budgetDao.getAllBudgets(userId)) {
         if (today < budget.getStartDate() || today > budget.getEndDate()) {
             continue;
         }
-        const double spent = budgetDao.getSpentAmount(budget);
+        const Cents spent = budgetDao.getSpentCents(budget);
         totalSpent += spent;
-        totalLimit += budget.getAmount();
+        totalLimit += budget.getAmountCents();
 
         auto* item = new SidebarItem(SidebarItem::Kind::Row);
         item->setText(budget.getCategory());
-        item->setTrailingText(QString("%1 / %2").arg(settings.formatNumber(spent, 0), settings.formatNumber(budget.getAmount(), 0)));
-        item->setProgress(budget.getAmount() > 0 ? spent / budget.getAmount() : 0.0);
+        item->setTrailingText(QString("%1 / %2").arg(settings.formatNumber(spent, 0), settings.formatNumber(budget.getAmountCents(), 0)));
+        item->setProgress(budget.getAmountCents() > 0 ? double(spent) / double(budget.getAmountCents()) : 0.0);
         budgetSection.bodyLayout->addWidget(item);
         connect(item, &QAbstractButton::clicked, this, [this]() {
             setCurrentPage(Page::Budget);
@@ -433,7 +433,7 @@ void SidebarWidget::loadBudgets() {
         budgetSection.bodyLayout->addWidget(emptyItem);
         budgetSection.summary.clear();
     } else {
-        budgetSection.summary = QString("%1%").arg(qRound(totalSpent / totalLimit * 100.0));
+        budgetSection.summary = QString("%1%").arg(qRound(double(totalSpent) / double(totalLimit) * 100.0));
     }
     setSectionExpanded(budgetSection, budgetSection.expanded);
 }

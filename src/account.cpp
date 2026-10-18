@@ -2,8 +2,8 @@
 #include "account.h"
 
 // Account Implementation
-Account::Account(int id, const QString& name, const QString& type, double balance)
-    : accountId(id), name(name), type(type), balance(balance) {}
+Account::Account(int id, const QString& name, const QString& type, Cents balanceCents)
+    : accountId(id), name(name), type(type), balanceCents(balanceCents) {}
 
 int Account::getAccountId() const {
     return accountId;
@@ -17,8 +17,8 @@ QString Account::getType() const {
     return type;
 }
 
-double Account::getBalance() const {
-    return balance;
+Cents Account::getBalanceCents() const {
+    return balanceCents;
 }
 
 // AccountDAO Implementation
@@ -94,7 +94,7 @@ bool AccountDAO::deleteAccountType(int id) {
     return true;
 }
 
-int AccountDAO::createAccount(int userId, const QString& name, const QString& accountTypeName, double initialBalance) {
+int AccountDAO::createAccount(int userId, const QString& name, const QString& accountTypeName, Cents initialBalanceCents) {
     const QString trimmedName = name.trimmed();
     const QString trimmedType = accountTypeName.trimmed();
 
@@ -145,9 +145,10 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
     // Get the inserted account ID
     int accountId = query.lastInsertId().toInt();
 
-    // Insert an initial transaction if the balance is non-zero
-    if (initialBalance != 0.0) {
-        Transaction initialTransaction(-1, accountId, "", initialBalance, QDate::currentDate(), "Initial deposit", 0, "income");
+    // Insert an initial transaction if the balance is non-zero (amounts are positive; the type carries the sign)
+    if (initialBalanceCents != 0) {
+        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), "Initial deposit", 0,
+                                       initialBalanceCents > 0 ? "income" : "expense");
         TransactionDAO transactionDao;
         if (!transactionDao.addTransaction(initialTransaction)) {
             qWarning() << "Failed to insert initial transaction";
@@ -179,7 +180,7 @@ Account AccountDAO::getAccountById(int accountId) {
             query.value("account_id").toInt(),
             query.value("account_name").toString(),
             query.value("account_type").toString(),
-            query.value("balance").toDouble()
+            query.value("balance").toLongLong()
             );
     }
 
@@ -203,7 +204,7 @@ QList<Account> AccountDAO::getAllAccountsForUser(int userId) {
                 query.value("account_id").toInt(),
                 query.value("account_name").toString(),
                 query.value("account_type").toString(),
-                query.value("balance").toDouble()
+                query.value("balance").toLongLong()
                 ));
         }
     } else {

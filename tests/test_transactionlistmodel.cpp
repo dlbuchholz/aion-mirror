@@ -8,10 +8,10 @@ class TestTransactionListModel : public QObject {
 
     static QList<Transaction> sample() {
         return {
-            Transaction(1, 10, "Rewe", 40.0, QDate(2026, 10, 5), "Weekly shop", 4, "expense"),
-            Transaction(2, 10, "ACME", 2000.0, QDate(2026, 10, 15), "Salary", 2, "income"),
-            Transaction(3, 20, "Kino", 12.5, QDate(2026, 10, 15), "", 0, "expense"),
-            Transaction(4, 20, "Rewe", 20.0, QDate(2026, 9, 30), "", 4, "expense"),
+            Transaction(1, 10, "Rewe", 4000, QDate(2026, 10, 5), "Weekly shop", 4, "expense"),
+            Transaction(2, 10, "ACME", 200000, QDate(2026, 10, 15), "Salary", 2, "income"),
+            Transaction(3, 20, "Kino", 1250, QDate(2026, 10, 15), "", 0, "expense"),
+            Transaction(4, 20, "Rewe", 2000, QDate(2026, 9, 30), "", 4, "expense"),
         };
     }
 
@@ -49,8 +49,8 @@ private slots:
         const QModelIndex salary = model.indexForTransaction(2);
         QCOMPARE(salary.data(TransactionListModel::AccountRole).toString(), QString("Girokonto"));
         QCOMPARE(salary.data(TransactionListModel::CategoryRole).toString(), QString("Salary"));
-        QCOMPARE(salary.data(TransactionListModel::SignedAmountRole).toDouble(), 2000.0);
-        QCOMPARE(model.indexForTransaction(3).data(TransactionListModel::SignedAmountRole).toDouble(), -12.5);
+        QCOMPARE(salary.data(TransactionListModel::SignedAmountRole).toLongLong(), 200000);
+        QCOMPARE(model.indexForTransaction(3).data(TransactionListModel::SignedAmountRole).toLongLong(), -1250);
         QCOMPARE(model.indexForTransaction(3).data(TransactionListModel::CategoryRole).toString(), QString());
     }
 
@@ -58,16 +58,16 @@ private slots:
         TransactionListModel model;
         load(model);
         QCOMPARE(model.totals().count, 4);
-        QCOMPARE(model.totals().income, 2000.0);
-        QCOMPARE(model.totals().expenses, 72.5);
-        QCOMPARE(model.totals().net(), 1927.5);
+        QCOMPARE(model.totals().income, Cents(200000));
+        QCOMPARE(model.totals().expenses, Cents(7250));
+        QCOMPARE(model.totals().net(), Cents(192750));
 
         TransactionFilter october;
         october.from = QDate(2026, 10, 1);
         october.to = QDate(2026, 10, 31);
         model.setFilter(october);
         QCOMPARE(model.totals().count, 3);
-        QCOMPARE(model.totals().expenses, 52.5);
+        QCOMPARE(model.totals().expenses, Cents(5250));
         QVERIFY(!model.indexForTransaction(4).isValid());
     }
 
@@ -120,7 +120,7 @@ private slots:
         QCOMPARE(kindAt(model, 0), Kind::DayHeader);
         QCOMPARE(model.index(0).data(TransactionListModel::CollapsedRole).toBool(), true);
         QCOMPARE(model.index(0).data(TransactionListModel::DayCountRole).toInt(), 2);
-        QCOMPARE(model.index(0).data(TransactionListModel::DayNetRole).toDouble(), 1987.5);
+        QCOMPARE(model.index(0).data(TransactionListModel::DayNetRole).toLongLong(), 198750);
         QCOMPARE(kindAt(model, 1), Kind::DayHeader);
         // Totals still cover folded days
         QCOMPARE(model.totals().count, 4);

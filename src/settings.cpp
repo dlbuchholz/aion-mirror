@@ -195,7 +195,7 @@ void Settings::setSelectionCheckboxesEnabled(bool enabled) {
 }
 
 // Format Currency
-QString Settings::formatCurrency(double amount, bool showSign) const {
+QString Settings::formatCurrency(Cents amount, bool showSign) const {
     QString formatted = formatNumber(qAbs(amount), 2);
     QString symbol = getCurrencySymbol();
 
@@ -219,13 +219,11 @@ QString Settings::formatCurrency(double amount, bool showSign) const {
 }
 
 // Format Number
-QString Settings::formatNumber(double number, int decimals) const {
-    // Split into integer and decimal parts
-    QString numStr = QString::number(qAbs(number), 'f', decimals);
-
-    QStringList parts = numStr.split('.');
-    QString integerPart = parts[0];
-    QString decimalPart = (parts.size() > 1) ? parts[1] : "";
+QString Settings::formatNumber(Cents cents, int decimals) const {
+    // Integer arithmetic only: whole units, plus two decimals unless decimals == 0 (rounded half up)
+    const Cents absolute = qAbs(cents);
+    QString integerPart = QString::number(decimals > 0 ? absolute / 100 : (absolute + 50) / 100);
+    QString decimalPart = decimals > 0 ? QString("%1").arg(absolute % 100, 2, 10, QChar('0')) : QString();
 
     // Add thousands separator
     QString thousandsSep = getThousandsSeparatorString();

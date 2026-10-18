@@ -135,9 +135,9 @@ private slots:
 
     void refusedChangesAreReported() {
         // Used to fail silently
-        const int accountId = AccountDAO::createAccount(1, "Girokonto", "Savings", 0.0);
+        const int accountId = AccountDAO::createAccount(1, "Girokonto", "Savings", 0);
         QVERIFY(accountId > 0);
-        Transaction transaction(-1, accountId, "Rewe", 5.0, QDate::currentDate(), "", 0, "expense");
+        Transaction transaction(-1, accountId, "Rewe", 500, QDate::currentDate(), "", 0, "expense");
         QSqlQuery query(DatabaseManager::instance().database());
         QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
         transaction.setCategoryId(query.value(0).toInt());

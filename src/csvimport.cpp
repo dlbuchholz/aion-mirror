@@ -120,11 +120,11 @@ QDate parseDate(const QString& text) {
     return QLocale().toDate(cleaned, QLocale::ShortFormat);
 }
 
-double parseAmount(const QString& text, QChar decimalSeparator, bool* ok) {
+Cents parseAmount(const QString& text, QChar decimalSeparator, bool* ok) {
     if (ok) *ok = false;
     const QString trimmed = text.trimmed();
     if (trimmed.isEmpty()) {
-        return 0.0;
+        return 0;
     }
 
     // "(12.50)" is accounting notation for -12.50
@@ -141,16 +141,16 @@ double parseAmount(const QString& text, QChar decimalSeparator, bool* ok) {
         cleaned.remove(',');                         // 1,234.56 -> 1234.56
     }
 
-    bool parsed = false;
-    const double value = cleaned.toDouble(&parsed);
-    if (!parsed) {
-        return 0.0;
+    // Exact decimal parsing, no detour through double
+    const std::optional<Cents> value = Money::parsePlain(cleaned);
+    if (!value) {
+        return 0;
     }
     if (ok) *ok = true;
-    return negative ? -value : value;
+    return negative ? -*value : *value;
 }
 
-QString transactionType(double amount, const QString& typeText, AmountInterpretation interpretation) {
+QString transactionType(Cents amount, const QString& typeText, AmountInterpretation interpretation) {
     switch (interpretation) {
     case AmountInterpretation::SignBasedInverted:
         return amount < 0 ? "income" : "expense";
@@ -204,7 +204,7 @@ RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping&
     }
     const QString amountText = column(row, mapping, FieldAmount);
     bool amountOk = false;
-    const double signedAmount = parseAmount(amountText, options.decimalSeparator, &amountOk);
+    const Cents signedAmount = parseAmount(amountText, options.decimalSeparator, &amountOk);
     if (amountText.trimmed().isEmpty()) {
         result.error = prefix + "Amount is missing";
         return result;
@@ -213,7 +213,7 @@ RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping&
         result.error = prefix + QString("Failed to parse amount '%1'").arg(amountText);
         return result;
     }
-    if (signedAmount == 0.0) {
+    if (signedAmount == 0) {
         result.error = prefix + "Amount is zero";
         return result;
     }
@@ -222,7 +222,7 @@ RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping&
 
     result.transaction.setAccountId(options.accountId);
     result.transaction.setDate(date);
-    result.transaction.setAmount(qAbs(signedAmount));
+    result.transaction.setAmountCents(qAbs(signedAmount));
     result.transaction.setType(transactionType(signedAmount, column(row, mapping, FieldType), options.interpretation));
     result.transaction.setPayee(column(row, mapping, FieldPayee));
     result.transaction.setDescription(column(row, mapping, FieldDescription));

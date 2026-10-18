@@ -8,6 +8,7 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
+#include "money.h"
 
 class Transaction {
 public:
@@ -15,14 +16,14 @@ public:
     Transaction();
 
     // Parameterized constructor
-    Transaction(int id, int accountId, const QString& payee, double amount, const QDate& date,
+    Transaction(int id, int accountId, const QString& payee, Cents amountCents, const QDate& date,
                 const QString& description, int categoryId, const QString& type);
 
     // Getters
     int getTransactionId() const;
     int getAccountId() const;
     int getCategoryId() const;
-    double getAmount() const;
+    Cents getAmountCents() const;                    // Always positive; the type says income or expense
     QDate getDate() const;
     QString getDescription() const;
     QString getPayee() const;
@@ -35,7 +36,7 @@ public:
     void setDate(const QDate& date);
     void setDescription(const QString& desc);
     void setPayee(const QString& payee);
-    void setAmount(double amt);
+    void setAmountCents(Cents cents);
     void setType(const QString& transactionType);
 
     QString calculateHash() const;
@@ -44,7 +45,7 @@ private:
     int transactionId;
     int accountId;
     int categoryId;
-    double amount;
+    Cents amountCents;
     QDate date;
     QString description;
     QString payee;

@@ -20,21 +20,21 @@ private slots:
         AccountDAO dao;
         TransactionDAO tx;
 
-        const int a1 = dao.createAccount(1, "A1", "Checking", 100.0);
-        const int a2 = dao.createAccount(1, "A2", "Checking", 50.0);
+        const int a1 = dao.createAccount(1, "A1", "Checking", 10000);
+        const int a2 = dao.createAccount(1, "A2", "Checking", 5000);
         QVERIFY(a1 > 0 && a2 > 0);
 
         // expense only on a1
-        Transaction t(-1, a1, "", 10.0, QDate::currentDate(), "x", 0, "expense");
+        Transaction t(-1, a1, "", 1000, QDate::currentDate(), "x", 0, "expense");
         QVERIFY(tx.addTransaction(t) > 0);
 
-        QVERIFY(qAbs(dao.getAccountById(a1).getBalance() - 90.0) < 0.0001);
-        QVERIFY(qAbs(dao.getAccountById(a2).getBalance() - 50.0) < 0.0001);
+        QCOMPARE(dao.getAccountById(a1).getBalanceCents(), Cents(9000));
+        QCOMPARE(dao.getAccountById(a2).getBalanceCents(), Cents(5000));
     }
 
     void testCreateAccount() {
         AccountDAO dao;
-        const int accountId = dao.createAccount(1, "Test", "Checking", 100.0);
+        const int accountId = dao.createAccount(1, "Test", "Checking", 10000);
         QVERIFY2(accountId > 0, "createAccount returned invalid account id");
 
         const Account acc = dao.getAccountById(accountId);
@@ -44,7 +44,7 @@ private slots:
     void testCreateAccount_invalidType_rollsBack() {
         AccountDAO dao;
 
-        const int accountId = dao.createAccount(1, "ShouldNotExist", "NoSuchType", 10.0);
+        const int accountId = dao.createAccount(1, "ShouldNotExist", "NoSuchType", 1000);
         QCOMPARE(accountId, -1);
 
         // Ensure account wasn't inserted
@@ -59,19 +59,19 @@ private slots:
 
     void testCreateAccount_emptyName_rejected() {
         AccountDAO dao;
-        const int id = dao.createAccount(1, "", "Checking", 0.0);
+        const int id = dao.createAccount(1, "", "Checking", 0);
         QCOMPARE(id, -1);
     }
 
     void testCreateAccount_whitespaceName_rejected() {
         AccountDAO dao;
-        const int id = dao.createAccount(1, "   ", "Checking", 0.0);
+        const int id = dao.createAccount(1, "   ", "Checking", 0);
         QCOMPARE(id, -1);
     }
 
     void testCreateAccount_emptyType_rejected() {
         AccountDAO dao;
-        const int id = dao.createAccount(1, "SomeName", "", 0.0);
+        const int id = dao.createAccount(1, "SomeName", "", 0);
         QCOMPARE(id, -1);
     }
 
@@ -79,7 +79,7 @@ private slots:
         AccountDAO dao;
         const QString longName(1024, 'A');
 
-        const int id = dao.createAccount(1, longName, "Checking", 0.0);
+        const int id = dao.createAccount(1, longName, "Checking", 0);
         QVERIFY(id > 0);
 
         const Account acc = dao.getAccountById(id);
@@ -88,23 +88,27 @@ private slots:
 
     void testCreateAccount_negativeInitialBalance_createsTransactionAndBalance() {
         AccountDAO dao;
-        const int id = dao.createAccount(1, "Neg", "Checking", -50.0);
+        const int id = dao.createAccount(1, "Neg", "Checking", -5000);
         QVERIFY(id > 0);
 
         const Account acc = dao.getAccountById(id);
-        // Current expected behavior: balance becomes -50 (income of -50)
-        QVERIFY(qAbs(acc.getBalance() - (-50.0)) < 0.0001);
+        // A negative start is stored as an expense with a positive amount
+        QCOMPARE(acc.getBalanceCents(), Cents(-5000));
+        QSqlQuery q(DatabaseManager::instance().database());
+        QVERIFY(q.exec(QString("SELECT amount, type FROM transactions WHERE account_id = %1").arg(id)) && q.next());
+        QCOMPARE(q.value(0).toLongLong(), 5000);
+        QCOMPARE(q.value(1).toString(), QString("expense"));
     }
 
     void testCreateAccount_zeroInitialBalance_createsNoTransaction() {
         AccountDAO dao;
 
-        const int accountId = dao.createAccount(1, "ZeroBalance", "Checking", 0.0);
+        const int accountId = dao.createAccount(1, "ZeroBalance", "Checking", 0);
         QVERIFY(accountId > 0);
 
         // balance should be 0 via view
         const Account acc = dao.getAccountById(accountId);
-        QCOMPARE(acc.getBalance(), 0.0);
+        QCOMPARE(acc.getBalanceCents(), Cents(0));
 
         // no transactions should exist
         QSqlQuery q(DatabaseManager::instance().database());
@@ -117,7 +121,7 @@ private slots:
 
     void testCreateAccount_initialDepositTransactionInserted() {
         AccountDAO dao;
-        const int accountId = dao.createAccount(1, "InitTx", "Checking", 100.0);
+        const int accountId = dao.createAccount(1, "InitTx", "Checking", 10000);
         QVERIFY(accountId > 0);
 
         QSqlQuery q(DatabaseManager::instance().database());
@@ -126,7 +130,7 @@ private slots:
         QVERIFY(q.exec());
         QVERIFY(q.next());
 
-        QCOMPARE(q.value(0).toDouble(), 100.0);
+        QCOMPARE(q.value(0).toLongLong(), 10000);
         QCOMPARE(q.value(1).toString(), QString("income"));
         QCOMPARE(q.value(2).toString(), QString("Initial deposit"));
     }
@@ -134,10 +138,10 @@ private slots:
     void testCreateAccount_twice_returnsDistinctIds_andBothPersist() {
         AccountDAO dao;
 
-        const int id1 = dao.createAccount(1, "AccountOne", "Checking", 0.0);
+        const int id1 = dao.createAccount(1, "AccountOne", "Checking", 0);
         QVERIFY2(id1 > 0, "First createAccount returned invalid id");
 
-        const int id2 = dao.createAccount(1, "AccountTwo", "Checking", 0.0);
+        const int id2 = dao.createAccount(1, "AccountTwo", "Checking", 0);
         QVERIFY2(id2 > 0, "Second createAccount returned invalid id");
 
         QVERIFY2(id1 != id2, "Expected distinct account IDs from two createAccount() calls");
@@ -199,9 +203,9 @@ private slots:
         execOrFail(q, "INSERT INTO users (id, username, name) VALUES (2, 'testuser2', 'Test User 2')");
 
         AccountDAO dao;
-        const int a1 = dao.createAccount(1, "User1Account", "Checking", 0.0);
+        const int a1 = dao.createAccount(1, "User1Account", "Checking", 0);
         QVERIFY(a1 > 0);
-        const int a2 = dao.createAccount(2, "User2Account", "Checking", 0.0);
+        const int a2 = dao.createAccount(2, "User2Account", "Checking", 0);
         QVERIFY(a2 > 0);
 
         const auto user1Accounts = dao.getAllAccountsForUser(1);
@@ -239,7 +243,7 @@ private slots:
     void testDeleteAccount_cascadesTransactions() {
         AccountDAO dao;
 
-        const int accountId = dao.createAccount(1, "CascadeTest", "Checking", 100.0);
+        const int accountId = dao.createAccount(1, "CascadeTest", "Checking", 10000);
         QVERIFY(accountId > 0);
 
         // There should be at least one transaction (initial deposit)
@@ -284,7 +288,7 @@ private slots:
         AccountDAO dao;
 
         // Create an account that uses a seeded type ("Checking")
-        const int accountId = dao.createAccount(1, "UsesChecking", "Checking", 0.0);
+        const int accountId = dao.createAccount(1, "UsesChecking", "Checking", 0);
         QVERIFY(accountId > 0);
 
         // Get Checking type_id
@@ -302,7 +306,7 @@ private slots:
 
     void testDeleteAccountType_inUse_doesNotRemoveRow() {
         AccountDAO dao;
-        const int accountId = dao.createAccount(1, "UsesChecking2", "Checking", 0.0);
+        const int accountId = dao.createAccount(1, "UsesChecking2", "Checking", 0);
         QVERIFY(accountId > 0);
 
         QSqlQuery q(DatabaseManager::instance().database());
@@ -327,7 +331,7 @@ private slots:
 
     void testDeleteAccount_removesFromBalancesView() {
         AccountDAO dao;
-        const int accountId = dao.createAccount(1, "ToDelete", "Checking", 0.0);
+        const int accountId = dao.createAccount(1, "ToDelete", "Checking", 0);
         QVERIFY(accountId > 0);
 
         QVERIFY(dao.deleteAccount(accountId));
@@ -340,16 +344,16 @@ private slots:
         AccountDAO accountDao;
         TransactionDAO txDao;
 
-        const int accountId = accountDao.createAccount(1, "BalanceTest", "Checking", 100.0);
+        const int accountId = accountDao.createAccount(1, "BalanceTest", "Checking", 10000);
         QVERIFY(accountId > 0);
 
         // Add an expense of 25
-        Transaction t(-1, accountId, "", 25.0, QDate::currentDate(), "Test expense", 0, "expense");
+        Transaction t(-1, accountId, "", 2500, QDate::currentDate(), "Test expense", 0, "expense");
         const int txId = txDao.addTransaction(t);
         QVERIFY2(txId > 0, "Expected addTransaction to return a positive id");
 
         const Account acc = accountDao.getAccountById(accountId);
-        QCOMPARE(acc.getBalance(), 75.0);
+        QCOMPARE(acc.getBalanceCents(), Cents(7500));
     }
 
     void testGetAccountById_notFound_returnsInvalid() {
@@ -358,17 +362,17 @@ private slots:
             QCOMPARE(acc.getAccountId(), -1);
             QCOMPARE(acc.getName(), QString(""));
             QCOMPARE(acc.getType(), QString(""));
-            QCOMPARE(acc.getBalance(), 0.0);
+            QCOMPARE(acc.getBalanceCents(), Cents(0));
         }
 
 
     void testUpdateTransaction_refreshesHash() {
         AccountDAO accountDao;
         TransactionDAO transactionDao;
-        const int accountId = accountDao.createAccount(1, "HashTest", "Checking", 0.0);
+        const int accountId = accountDao.createAccount(1, "HashTest", "Checking", 0);
         QVERIFY(accountId > 0);
 
-        Transaction transaction(-1, accountId, "Before", 10.0, QDate(2026, 1, 1), "Old", 0, "expense");
+        Transaction transaction(-1, accountId, "Before", 1000, QDate(2026, 1, 1), "Old", 0, "expense");
         const int transactionId = transactionDao.addTransaction(transaction);
         QVERIFY(transactionId > 0);
 

@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QString>
 #include <QLocale>
+#include "money.h"
 
 class Settings {
 public:
@@ -69,8 +70,8 @@ public:
     void setSelectionCheckboxesEnabled(bool enabled);
 
     // Formatting methods
-    QString formatCurrency(double amount, bool showSign = false) const;
-    QString formatNumber(double number, int decimals = 2) const;
+    QString formatCurrency(Cents amount, bool showSign = false) const;   // Sign shown for negatives (and + if showSign)
+    QString formatNumber(Cents cents, int decimals = 2) const;          // Absolute value; decimals is 2 or 0
 
     // Other app settings (expandable)
     QString getTheme() const;

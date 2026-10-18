@@ -195,7 +195,7 @@ void TransactionEditor::editTransaction(const Transaction& transaction) {
 
     setType(transaction.getType());
     populateCategories(transaction.getCategoryId());
-    amountEdit->setValue(transaction.getAmount());
+    amountEdit->setValue(Money::toDouble(transaction.getAmountCents()));
     payeeEdit->setText(transaction.getPayee());
     dateEdit->setDate(transaction.getDate());
     descriptionEdit->setPlainText(transaction.getDescription());
@@ -257,7 +257,7 @@ void TransactionEditor::requestSave() {
         accountCombo->setFocus();
         return;
     }
-    if (amountEdit->value() <= 0.0) {
+    if (Money::fromDouble(amountEdit->value()) <= 0) {
         showError("Enter an amount greater than zero.");
         amountEdit->setFocus();
         amountEdit->selectAll();
@@ -265,7 +265,7 @@ void TransactionEditor::requestSave() {
     }
     errorLabel->hide();
 
-    Transaction transaction(transactionId, accountId, payeeEdit->text().trimmed(), amountEdit->value(),
+    Transaction transaction(transactionId, accountId, payeeEdit->text().trimmed(), Money::fromDouble(amountEdit->value()),
                             dateEdit->date(), descriptionEdit->toPlainText().trimmed(),
                             categoryCombo->currentData().toInt(), currentType());
     emit saveRequested(transaction);

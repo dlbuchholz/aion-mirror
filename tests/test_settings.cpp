@@ -35,8 +35,8 @@ private slots:
         s.setThousandsSeparator(Settings::ThousandsSeparator::Point);
         s.setCurrencySymbol(Settings::CurrencySymbol::EUR);
         s.setCurrencySymbolPrefix(false);
-        QCOMPARE(s.formatNumber(1234567.5), QString("1.234.567,50"));
-        QCOMPARE(s.formatCurrency(-1234.5), QString("-1.234,50 €"));
+        QCOMPARE(s.formatNumber(123456750), QString("1.234.567,50"));
+        QCOMPARE(s.formatCurrency(-123450), QString("-1.234,50 €"));
     }
 
     void settingsRoundTripAndDelimiterFallback() {
@@ -96,15 +96,19 @@ private slots:
         s.setDecimalSeparator(Settings::DecimalSeparator::Point);
         s.setThousandsSeparator(Settings::ThousandsSeparator::Comma);
         s.setCurrencySymbolPrefix(true);
-        QCOMPARE(s.formatNumber(12.345, 2), QString("12.35"));
-        QCOMPARE(s.formatNumber(0.0, 0), QString("0"));
-        QCOMPARE(s.formatNumber(1234.0, 0), QString("1,234"));
-        QCOMPARE(s.formatCurrency(0.0), QString("$0.00"));
-        QCOMPARE(s.formatCurrency(12.5, true), QString("+$12.50"));
-        QCOMPARE(s.formatCurrency(-12.5, true), QString("-$12.50"));
+        QCOMPARE(s.formatNumber(1235, 2), QString("12.35"));
+        QCOMPARE(s.formatNumber(-1235, 2), QString("12.35"));       // Absolute value
+        QCOMPARE(s.formatNumber(31250, 0), QString("313"));         // Whole units round half up
+        QCOMPARE(s.formatNumber(31249, 0), QString("312"));
+        QCOMPARE(s.formatNumber(5, 2), QString("0.05"));
+        QCOMPARE(s.formatNumber(0, 0), QString("0"));
+        QCOMPARE(s.formatNumber(123400, 0), QString("1,234"));
+        QCOMPARE(s.formatCurrency(0), QString("$0.00"));
+        QCOMPARE(s.formatCurrency(1250, true), QString("+$12.50"));
+        QCOMPARE(s.formatCurrency(-1250, true), QString("-$12.50"));
 
         s.setCurrencySymbolPrefix(false);
-        QCOMPARE(s.formatCurrency(12.5), QString("12.50 $"));
+        QCOMPARE(s.formatCurrency(1250), QString("12.50 $"));
         s.setTheme("Light");
         s.setDefaultUserId(-1);
         QCOMPARE(s.getTheme(), QString("Light"));

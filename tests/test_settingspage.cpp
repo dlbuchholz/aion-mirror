@@ -121,7 +121,7 @@ private slots:
         child<QPushButton>(page, "applyButton")->click();
         QCOMPARE(Settings::instance().getCurrencySymbolType(), Settings::CurrencySymbol::Custom);
         QCOMPARE(Settings::instance().getCurrencySymbol(), QString("Fr."));
-        QCOMPARE(Settings::instance().formatCurrency(-1234.5), QString("-1.234,50 Fr."));
+        QCOMPARE(Settings::instance().formatCurrency(-123450), QString("-1.234,50 Fr."));
     }
 
     void categoryEditsUseTheSameApplyButton() {

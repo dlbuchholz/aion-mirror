@@ -52,8 +52,8 @@ private slots:
         s.setCurrencySymbolPrefix(false);
         s.getQSettings().remove("ui");                   // Expanded sidebar, open sections
 
-        giroId = AccountDAO::createAccount(1, "Girokonto", "Checking", 2100.0);
-        creditId = AccountDAO::createAccount(1, "Kreditkarte", "Checking", -245.9);
+        giroId = AccountDAO::createAccount(1, "Girokonto", "Checking", 210000);
+        creditId = AccountDAO::createAccount(1, "Kreditkarte", "Checking", -24590);
         QVERIFY(giroId > 0 && creditId > 0);
     }
     void cleanup() { db.close(); }
@@ -66,7 +66,7 @@ private slots:
         QCOMPARE(valueOf(sidebar, "Kreditkarte"), QString("-245,90"));   // Sign used to be dropped
 
         // New accounts appear after a refresh
-        QVERIFY(AccountDAO::createAccount(1, "Tagesgeld", "Savings", 10.0) > 0);
+        QVERIFY(AccountDAO::createAccount(1, "Tagesgeld", "Savings", 1000) > 0);
         sidebar.refresh();
         QCOMPARE(valueOf(sidebar, "Tagesgeld"), QString("10,00"));
     }
@@ -106,9 +106,9 @@ private slots:
         const QDate today = QDate::currentDate();
         const QDate monthStart(today.year(), today.month(), 1);
         BudgetDAO budgets;
-        QVERIFY(budgets.createBudget(Budget(1, 1, "Groceries", 400.0, monthStart, monthStart.addMonths(1).addDays(-1))));
-        QVERIFY(budgets.createBudget(Budget(2, 1, "Rent", 900.0, monthStart.addMonths(-1), monthStart.addDays(-1))));  // Last month
-        Transaction shopping(-1, giroId, "Rewe", 312.0, today, "", 0, "expense");
+        QVERIFY(budgets.createBudget(Budget(1, 1, "Groceries", 40000, monthStart, monthStart.addMonths(1).addDays(-1))));
+        QVERIFY(budgets.createBudget(Budget(2, 1, "Rent", 90000, monthStart.addMonths(-1), monthStart.addDays(-1))));  // Last month
+        Transaction shopping(-1, giroId, "Rewe", 31200, today, "", 0, "expense");
         QSqlQuery query(DatabaseManager::instance().database());
         QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
         shopping.setCategoryId(query.value(0).toInt());
@@ -130,8 +130,8 @@ private slots:
     void foldedSectionsShowASummaryAndAreRemembered() {
         const QDate today = QDate::currentDate();
         const QDate monthStart(today.year(), today.month(), 1);
-        QVERIFY(BudgetDAO().createBudget(Budget(1, 1, "Rent", 1000.0, monthStart, monthStart.addMonths(1).addDays(-1))));
-        Transaction rent(-1, giroId, "Landlord", 250.0, today, "", 0, "expense");
+        QVERIFY(BudgetDAO().createBudget(Budget(1, 1, "Rent", 100000, monthStart, monthStart.addMonths(1).addDays(-1))));
+        Transaction rent(-1, giroId, "Landlord", 25000, today, "", 0, "expense");
         QSqlQuery query(DatabaseManager::instance().database());
         QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Rent'") && query.next());
         rent.setCategoryId(query.value(0).toInt());

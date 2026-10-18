@@ -3,13 +3,13 @@
 
 // Default constructor
 Transaction::Transaction()
-    : transactionId(-1), accountId(-1), payee(""), categoryId(-1), amount(0.0),
+    : transactionId(-1), accountId(-1), payee(""), categoryId(-1), amountCents(0),
     date(QDate::currentDate()), description(""), type("expense") {}
 
 // Parameterized constructor
-Transaction::Transaction(int id, int accountId, const QString& payee, double amount, const QDate& date,
+Transaction::Transaction(int id, int accountId, const QString& payee, Cents amountCents, const QDate& date,
                          const QString& description, int categoryId, const QString& type)
-    : transactionId(id), accountId(accountId), categoryId(categoryId), amount(amount),
+    : transactionId(id), accountId(accountId), categoryId(categoryId), amountCents(amountCents),
     date(date), description(description), payee(payee), type(type) {}
 
 // Getters
@@ -25,8 +25,8 @@ int Transaction:: getCategoryId() const {
     return categoryId;
 }
 
-double Transaction::getAmount() const {
-    return amount;
+Cents Transaction::getAmountCents() const {
+    return amountCents;
 }
 
 QDate Transaction::getDate() const {
@@ -70,8 +70,8 @@ void Transaction::setPayee(const QString& p) {
     payee = p;
 }
 
-void Transaction::setAmount(double amt) {
-    amount = amt;
+void Transaction::setAmountCents(Cents cents) {
+    amountCents = cents;
 }
 
 void Transaction::setType(const QString& transactionType) {
@@ -85,7 +85,7 @@ QString Transaction::calculateHash() const
     QString hashSource = QString("%1|%2|%3|%4|%5|%6")
                              .arg(accountId)
                              .arg(date.toString(Qt::ISODate))
-                             .arg(amount, 0, 'f', 2)  // Fixed precision to avoid floating point issues
+                             .arg(Money::toPlainString(amountCents))  // Same text as the old 2-decimal format, so hashes stay stable
                              .arg(type. toLower().trimmed())
                              .arg(payee.toLower().trimmed())  // Normalized payee
                              .arg(description.toLower().trimmed()); // Normalized description
@@ -125,7 +125,7 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
         );
 
     query.bindValue(":account_id", transaction.getAccountId());
-    query.bindValue(":amount", transaction.getAmount());
+    query.bindValue(":amount", transaction.getAmountCents());
     query.bindValue(":date", transaction. getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
     query.bindValue(":payee", transaction.getPayee());
@@ -165,7 +165,7 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
         );
     query.bindValue(":id", transaction.getTransactionId());
     query.bindValue(":account_id", transaction.getAccountId());
-    query.bindValue(":amount", transaction.getAmount());
+    query.bindValue(":amount", transaction.getAmountCents());
     query.bindValue(":date", transaction.getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
     query.bindValue(":payee", transaction.getPayee());
@@ -227,7 +227,7 @@ QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
                 query.value("id").toInt(),
                 accountId,
                 query.value("payee").toString(),
-                query.value("amount").toDouble(),
+                query.value("amount").toLongLong(),
                 QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
                 query.value("description").toString(),
                 categoryId,
@@ -261,7 +261,7 @@ QList<Transaction> TransactionDAO:: getShadowedTransactions() {
                 query.value("id").toInt(),
                 accountId,
                 query.value("payee").toString(),
-                query.value("amount").toDouble(),
+                query.value("amount").toLongLong(),
                 QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
                 query.value("description").toString(),
                 categoryId,
@@ -305,7 +305,7 @@ Transaction TransactionDAO::getTransactionById(int transactionId) {
             query.value("id").toInt(),
             query.value("account_id").toInt(),
             query.value("payee").toString(),
-            query.value("amount").toDouble(),
+            query.value("amount").toLongLong(),
             QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
             query.value("description").toString(),
             categoryId,

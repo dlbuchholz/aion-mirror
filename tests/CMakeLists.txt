@@ -4,6 +4,7 @@ set(TEST_TARGETS
     test_migrationmanager
     test_csvparser
     test_csvimport
+    test_money
     test_transactionlistmodel
     test_transactionspage
     test_preferenceswidget

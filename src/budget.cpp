@@ -2,8 +2,8 @@
 #include "budget.h"
 
 // Budget Implementation
-Budget::Budget(int id, int userId, const QString& category, double amount, const QDate& startDate, const QDate& endDate)
-    : budgetId(id), userId(userId), category(category), amount(amount), startDate(startDate), endDate(endDate) {}
+Budget::Budget(int id, int userId, const QString& category, Cents amountCents, const QDate& startDate, const QDate& endDate)
+    : budgetId(id), userId(userId), category(category), amountCents(amountCents), startDate(startDate), endDate(endDate) {}
 
 int Budget::getBudgetId() const {
     return budgetId;
@@ -15,8 +15,8 @@ QString Budget::getCategory() const {
     return category;
 }
 
-double Budget::getAmount() const {
-    return amount;
+Cents Budget::getAmountCents() const {
+    return amountCents;
 }
 
 QDate Budget::getStartDate() const {
@@ -39,7 +39,7 @@ bool BudgetDAO::createBudget(const Budget& budget) {
     query.bindValue(":id", budget.getBudgetId());
     query.bindValue(":user_id", budget.getUserId());
     query.bindValue(":category", budget.getCategory());
-    query.bindValue(":amount", budget.getAmount());
+    query.bindValue(":amount", budget.getAmountCents());
     query.bindValue(":start_date", budget.getStartDate().toString("yyyy-MM-dd"));
     query.bindValue(":end_date", budget.getEndDate().toString("yyyy-MM-dd"));
 
@@ -62,7 +62,7 @@ QList<Budget> BudgetDAO::getAllBudgets(int userId) {
                 query.value("id").toInt(),
                 query.value("user_id").toInt(),
                 query.value("category").toString(),
-                query.value("amount").toDouble(),
+                query.value("amount").toLongLong(),
                 QDate::fromString(query.value("start_date").toString(), "yyyy-MM-dd"),
                 QDate::fromString(query.value("end_date").toString(), "yyyy-MM-dd")
                 ));
@@ -85,7 +85,7 @@ bool BudgetDAO::deleteBudget(int budgetId) {
     return query.numRowsAffected() == 1;
 }
 
-double BudgetDAO::getSpentAmount(const Budget& budget) {
+Cents BudgetDAO::getSpentCents(const Budget& budget) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
         "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t "
@@ -101,9 +101,9 @@ double BudgetDAO::getSpentAmount(const Budget& budget) {
 
     if (!query.exec() || !query.next()) {
         handleError(query);
-        return 0.0;
+        return 0;
     }
-    return query.value(0).toDouble();
+    return query.value(0).toLongLong();
 }
 
 void BudgetDAO::handleError(const QSqlQuery& query) {

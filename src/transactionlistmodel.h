@@ -38,17 +38,17 @@ public:
         DescriptionRole,
         CategoryRole,
         AccountRole,
-        SignedAmountRole,                            // Income positive, expense negative
+        SignedAmountRole,                            // Cents; income positive, expense negative
         CollapsedRole,                               // Day headers: the day is folded
         DayCountRole,                                // Day headers: transactions on that day
-        DayNetRole                                   // Day headers: income minus expenses of that day
+        DayNetRole                                   // Day headers: income minus expenses of that day, in cents
     };
 
     struct Totals {
         int count = 0;
-        double income = 0.0;
-        double expenses = 0.0;                       // Positive sum of expense amounts
-        double net() const { return income - expenses; }
+        Cents income = 0;
+        Cents expenses = 0;                          // Positive sum of expense amounts
+        Cents net() const { return income - expenses; }
     };
 
     explicit TransactionListModel(QObject* parent = nullptr);
@@ -77,7 +77,7 @@ private:
         QDate date;
         int transactionIndex = -1;                   // Index into allTransactions for transaction rows
         QList<int> dayTransactions;                  // Day headers: indexes of the day's transactions
-        double dayNet = 0.0;                         // Day headers: income minus expenses
+        Cents dayNet = 0;                            // Day headers: income minus expenses
     };
 
     void rebuild();

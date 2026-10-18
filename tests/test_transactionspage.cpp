@@ -36,8 +36,8 @@ private slots:
     void init() {
         db.yankDb();
         db.seedDefaultUser();
-        firstId = AccountDAO::createAccount(1, "First", "Checking", 0.0);
-        secondId = AccountDAO::createAccount(1, "Second", "Checking", 0.0);
+        firstId = AccountDAO::createAccount(1, "First", "Checking", 0);
+        secondId = AccountDAO::createAccount(1, "Second", "Checking", 0);
         QVERIFY(firstId > 0);
         QVERIFY(secondId > 0);
     }
@@ -73,12 +73,12 @@ private slots:
         const QList<Transaction> saved = TransactionDAO().getTransactionsForAccount(firstId);
         QCOMPARE(saved.size(), 1);
         QCOMPARE(saved.first().getPayee(), QString("Bakery"));
-        QCOMPARE(saved.first().getAmount(), 12.5);
+        QCOMPARE(saved.first().getAmountCents(), Cents(1250));
         QCOMPARE(saved.first().getType(), QString("expense"));
     }
 
     void selectingOneTransactionOpensEditor() {
-        Transaction transaction(-1, firstId, "Bakery", 4.2, QDate::currentDate(), "", 0, "expense");
+        Transaction transaction(-1, firstId, "Bakery", 420, QDate::currentDate(), "", 0, "expense");
         const int transactionId = TransactionDAO().addTransaction(transaction);
         QVERIFY(transactionId > 0);
 
@@ -108,8 +108,8 @@ private slots:
     void plainClicksOpenButOnlyCtrlSelects() {
         Settings::instance().setSelectionCheckboxesEnabled(false);
         TransactionDAO dao;
-        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 1.0, QDate::currentDate(), "", 0, "expense"));
-        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 2.0, QDate::currentDate(), "", 0, "expense"));
+        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 100, QDate::currentDate(), "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 200, QDate::currentDate(), "", 0, "expense"));
 
         TransactionsPage page;
         page.resize(1000, 700);
@@ -150,8 +150,8 @@ private slots:
 
     void selectingMultipleShowsBulkBarAndClosesEditor() {
         TransactionDAO dao;
-        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 1.0, QDate::currentDate(), "", 0, "expense"));
-        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 2.0, QDate::currentDate(), "", 0, "expense"));
+        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 100, QDate::currentDate(), "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 200, QDate::currentDate(), "", 0, "expense"));
 
         TransactionsPage page;
         page.setUserId(1);
@@ -170,9 +170,9 @@ private slots:
     void ctrlAndShiftOnDayHeaderSelectTheDay() {
         TransactionDAO dao;
         const QDate today = QDate::currentDate();
-        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 1.0, today, "", 0, "expense"));
-        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 2.0, today, "", 0, "expense"));
-        const int c = dao.addTransaction(Transaction(-1, firstId, "C", 3.0, today.addDays(-5), "", 0, "expense"));
+        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 100, today, "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, firstId, "B", 200, today, "", 0, "expense"));
+        const int c = dao.addTransaction(Transaction(-1, firstId, "C", 300, today.addDays(-5), "", 0, "expense"));
 
         TransactionsPage page;
         page.setUserId(1);

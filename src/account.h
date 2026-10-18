@@ -12,18 +12,18 @@
 // Account Object
 class Account {
 public:
-    Account(int id, const QString& name, const QString& type, double balance);
+    Account(int id, const QString& name, const QString& type, Cents balanceCents);
 
     int getAccountId() const;
     QString getName() const;
     QString getType() const;
-    double getBalance() const;
+    Cents getBalanceCents() const;
 
 private:
     int accountId;
     QString name;
     QString type; // "savings", "checking", etc.
-    double balance;
+    Cents balanceCents;
 };
 
 // Account DAO
@@ -38,7 +38,7 @@ public:
     bool deleteAccountType(int id);
 
     // Account Management
-    static int createAccount(int userId, const QString &name, const QString &type, double initialBalance);
+    static int createAccount(int userId, const QString &name, const QString &type, Cents initialBalanceCents);
     Account getAccountById(int accountId);
     QList<Account> getAllAccountsForUser(int userId);
     bool deleteAccount(int accountId);

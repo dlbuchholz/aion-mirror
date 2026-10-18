@@ -83,7 +83,7 @@ public:
         const QFontMetrics smallMetrics(smallFont);
 
         // Amount column on the right
-        const double amount = index.data(TransactionListModel::SignedAmountRole).toDouble();
+        const Cents amount = index.data(TransactionListModel::SignedAmountRole).toLongLong();
         const int amountWidth = 130;
         QRect amountRect(row.right() - 12 - amountWidth, row.top(), amountWidth, row.height());
         painter->setFont(option.font);
@@ -183,7 +183,7 @@ private:
         // Folded days summarise what they hide
         if (collapsed) {
             const int count = index.data(TransactionListModel::DayCountRole).toInt();
-            const double net = index.data(TransactionListModel::DayNetRole).toDouble();
+            const Cents net = index.data(TransactionListModel::DayNetRole).toLongLong();
             painter->setFont(option.font);
             painter->setPen(colors.textSecondary);
             painter->drawText(textRect, Qt::AlignRight | Qt::AlignVCenter,
@@ -650,11 +650,11 @@ void TransactionsPage::updateHeader() {
     }
 
     AccountDAO accountDao;
-    double balance = 0.0;
+    Cents balance = 0;
     QString title = "All accounts";
     for (const Account& account : accountDao.getAllAccountsForUser(userId)) {
         if (accountId == ALL_ACCOUNTS || account.getAccountId() == accountId) {
-            balance += account.getBalance();
+            balance += account.getBalanceCents();
             if (account.getAccountId() == accountId) {
                 title = account.getName();
             }
