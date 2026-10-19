@@ -133,7 +133,7 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
 
     // Handle NULL category_id
     if (transaction.getCategoryId() <= 0) {
-        query.bindValue(":category_id", QVariant(QVariant::Int));  // NULL
+        query.bindValue(":category_id", QVariant(QMetaType(QMetaType::Int)));  // NULL
     } else {
         query.bindValue(":category_id", transaction.getCategoryId());
     }
@@ -173,7 +173,7 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
 
     // Handle NULL category_id
     if (transaction.getCategoryId() <= 0) {
-        query.bindValue(":category_id", QVariant(QVariant::Int));  // NULL
+        query.bindValue(":category_id", QVariant(QMetaType(QMetaType::Int)));  // NULL
     } else {
         query.bindValue(":category_id", transaction.getCategoryId());
     }

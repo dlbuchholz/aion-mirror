@@ -63,7 +63,7 @@ public:
     }
 
     int categoryId() const { return budget.categoryId; }
-    void setOpen(bool open) { this->open = open; update(); }
+    void setOpen(bool isOpen) { open = isOpen; update(); }
 
 protected:
     void paintEvent(QPaintEvent*) override {

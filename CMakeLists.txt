@@ -39,7 +39,26 @@ endif()
 # Only files that include version.h are rebuilt when the version changes.
 configure_file(${SRC_DIR}/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h @ONLY)
 
+# Compiler warnings for Aion's own code (not Qt's headers). AION_WARNINGS_AS_ERRORS turns them
+# into errors, for CI or before a release.
+option(AION_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+add_library(aion_warnings INTERFACE)
+if(MSVC)
+    target_compile_options(aion_warnings INTERFACE /W4 $<$<BOOL:${AION_WARNINGS_AS_ERRORS}>:/WX>)
+else()
+    target_compile_options(aion_warnings INTERFACE -Wall -Wextra -Wpedantic $<$<BOOL:${AION_WARNINGS_AS_ERRORS}>:-Werror>)
+endif()
+
+# MSVC's incremental linking reuses the .ilk files of earlier links and has produced test
+# programs that crash on start until relinked from scratch. Full links are quick here.
+if(MSVC)
+    foreach(flags CMAKE_EXE_LINKER_FLAGS_DEBUG CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO)
+        string(REGEX REPLACE "/INCREMENTAL(:YES)?( |$)" "/INCREMENTAL:NO\\2" ${flags} "${${flags}}")
+    endforeach()
+endif()
+
 add_library(AionLib STATIC ${SRC_FILES})
+target_link_libraries(AionLib PUBLIC aion_warnings)   # The app and the tests get the same warnings
 target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_compile_definitions(AionLib PUBLIC SQL_MIGRATIONS_DIR="${SQL_MIGRATIONS_DIR}")
 target_compile_definitions(AionLib PUBLIC ASSETS_DIR="${ASSETS_DIR}")

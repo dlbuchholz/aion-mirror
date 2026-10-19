@@ -756,9 +756,9 @@ void ImportManagerDialog::updateCategorySummary()
     int create = 0;
     int none = 0;
     for (QComboBox *choice : std::as_const(categoryChoices)) {
-        const QString data = choice->currentData().toString();
-        if (data.startsWith("create:")) ++create;
-        else if (data == "none") ++none;
+        const QString choiceData = choice->currentData().toString();
+        if (choiceData.startsWith("create:")) ++create;
+        else if (choiceData == "none") ++none;
     }
     const int mapped = int(categoryChoices.size()) - create - none;
     QStringList parts;
