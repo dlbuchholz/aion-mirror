@@ -1,5 +1,6 @@
 #include "csvimport.h"
 #include "csvparser.h"
+#include "balance.h"
 #include "db/databasemanager.h"
 
 #include <QLocale>
@@ -83,6 +84,7 @@ Mapping autoMapColumns(const QStringList& headers) {
                             "verwendung", "zweck", "referenz"}},
         {FieldType, {"type", "transaction type", "typ", "art", "soll/haben", "buchungsart"}},
         {FieldCategory, {"category", "kategorie", "transaktionsart"}},
+        {FieldBalance, {"balance", "running balance", "saldo", "saldo nach buchung", "kontostand"}},
     };
 
     Mapping mapping;
@@ -184,6 +186,40 @@ bool hasColumn(const QStringList& row, const Mapping& mapping, const QString& fi
 
 } // namespace
 
+StatedBalance statedBalance(const QList<QStringList>& rows, const Mapping& mapping, QChar decimalSeparator) {
+    StatedBalance result;
+    if (!mapping.contains(FieldBalance) || !mapping.contains(FieldDate)) {
+        return result;
+    }
+    // Banks list newest first or oldest first. On the newest day, the row furthest in that
+    // direction carries the balance after all of the day's bookings.
+    QList<QPair<QDate, Cents>> balances;
+    for (const QStringList& row : rows) {
+        bool ok = false;
+        const QDate date = parseDate(hasColumn(row, mapping, FieldDate) ? column(row, mapping, FieldDate) : QString());
+        const QString text = hasColumn(row, mapping, FieldBalance) ? column(row, mapping, FieldBalance) : QString();
+        const Cents cents = parseAmount(text, decimalSeparator, &ok);
+        if (date.isValid() && ok && !text.trimmed().isEmpty()) {
+            balances.append({date, cents});
+        }
+    }
+    if (balances.isEmpty()) {
+        return result;
+    }
+    const bool newestFirst = balances.first().first > balances.last().first;
+    result.found = true;
+    result.date = balances.first().first;
+    result.cents = balances.first().second;
+    for (const auto& balance : balances) {
+        // Oldest first: a later row of the same day wins; newest first: the first row stays
+        if (balance.first > result.date || (!newestFirst && balance.first == result.date)) {
+            result.date = balance.first;
+            result.cents = balance.second;
+        }
+    }
+    return result;
+}
+
 RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping& mapping, const Options& options) {
     RowResult result;
     const QString prefix = QString("Row %1: ").arg(rowNumber);
@@ -255,6 +291,14 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         return result;
     }
 
+    // The balance is checked on the newest day of the file unless the caller picks one
+    result.checkDate = runOptions.checkDate;
+    for (const Transaction& transaction : transactions) {
+        if (!runOptions.checkDate.isValid() && (!result.checkDate.isValid() || transaction.getDate() > result.checkDate)) {
+            result.checkDate = transaction.getDate();
+        }
+    }
+
     TransactionDAO transactionDao;
     QSet<QString> existing;
     if (!runOptions.allowDuplicates) {
@@ -267,6 +311,9 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         result.errors << "Failed to start database transaction";
         result.failed += transactions.size();
         return result;
+    }
+    if (result.checkDate.isValid()) {
+        result.balanceBeforeCents = Balance::onDate(options.accountId, result.checkDate);
     }
 
     for (int i = 0; i < transactions.size(); ++i) {
@@ -284,6 +331,8 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
 
         if (transactionDao.addTransaction(transactions[i]) != -1) {
             result.imported++;
+            result.importedNetCents += transactions[i].getType() == "income" ? transactions[i].getAmountCents()
+                                                                               : -transactions[i].getAmountCents();
             if (runOptions.allowPartialImport) {
                 savepoint.exec("RELEASE " + savepointName);
             }
@@ -305,6 +354,23 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         result.imported = 0;
         result.duplicates = 0;
         return result;
+    }
+
+    // Balance after the import, and a correction to reach the expected one
+    if (result.checkDate.isValid()) {
+        result.balanceAfterCents = Balance::onDate(options.accountId, result.checkDate);
+        if (runOptions.correct && runOptions.correctTo != result.balanceAfterCents) {
+            const Cents difference = runOptions.correctTo - result.balanceAfterCents;
+            if (Balance::addCorrection(options.accountId, result.checkDate, difference, runOptions.correctionNote) <= 0) {
+                db.rollback();
+                result.errors = {"Import aborted: the balance correction couldn't be saved"};
+                result.failed = rows.size();
+                result.imported = 0;
+                result.duplicates = 0;
+                return result;
+            }
+            result.correctionCents = difference;
+        }
     }
 
     if (runOptions.dryRun) {

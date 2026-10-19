@@ -23,6 +23,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->sidebar, &SidebarWidget::pageRequested, this, &MainWindow::showPage);
     connect(ui->sidebar, &SidebarWidget::accountRequested, this, &MainWindow::onAccountRequested);
     connect(ui->sidebar, &SidebarWidget::addAccountRequested, this, &MainWindow::onAddAccountClicked);
+    connect(ui->sidebar, &SidebarWidget::correctBalanceRequested, ui->transactionsPage, &TransactionsPage::correctBalance);
     connect(ui->sidebar, &SidebarWidget::switchUserRequested, this, &MainWindow::switchUserRequested);
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
 

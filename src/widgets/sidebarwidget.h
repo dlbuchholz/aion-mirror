@@ -38,6 +38,7 @@ signals:
     void pageRequested(SidebarWidget::Page page);
     void accountRequested(int accountId);            // ALL_ACCOUNTS_ID for all accounts
     void addAccountRequested();
+    void correctBalanceRequested(int accountId);     // From an account's right-click menu
     void switchUserRequested();
 
 protected:

@@ -22,6 +22,8 @@ inline const QString FieldPayee = QStringLiteral("Payee");
 inline const QString FieldDescription = QStringLiteral("Description");
 inline const QString FieldCategory = QStringLiteral("Category");
 inline const QString FieldType = QStringLiteral("Type");
+// Only for the balance check: the bank's running balance after each row. Never saved.
+inline const QString FieldBalance = QStringLiteral("Balance");
 
 using Mapping = QMap<QString, int>;                  // Field -> CSV column index
 
@@ -63,12 +65,31 @@ struct Result {
     int duplicates = 0;                              // Skipped because they already exist
     int failed = 0;
     QStringList errors;
+
+    // Balance check on checkDate (the latest date in the file unless RunOptions says otherwise)
+    QDate checkDate;
+    Cents importedNetCents = 0;                      // Income minus expenses of the imported rows
+    Cents balanceBeforeCents = 0;                    // Account balance on checkDate without the imported rows
+    Cents balanceAfterCents = 0;                     // ... and with them
+    Cents correctionCents = 0;                       // Balance correction added (see RunOptions::correctTo)
 };
+
+// The bank's balance from the mapped Balance column: the one after the newest row
+struct StatedBalance {
+    bool found = false;
+    QDate date;
+    Cents cents = 0;
+};
+StatedBalance statedBalance(const QList<QStringList>& rows, const Mapping& mapping, QChar decimalSeparator);
 
 struct RunOptions {
     bool allowDuplicates = false;
     bool allowPartialImport = false;                 // Keep the valid rows when some fail
     bool dryRun = false;                             // Everything is rolled back at the end
+    QDate checkDate;                                 // Invalid = the latest date in the file
+    bool correct = false;                            // Add a balance correction so the balance on checkDate ...
+    Cents correctTo = 0;                             // ... becomes this
+    QString correctionNote;
 };
 
 // Imports all rows in one database transaction

@@ -17,6 +17,7 @@ set(TEST_TARGETS
     test_budgetpage
     test_dashboard
     test_dashboardpage
+    test_balance
     test_user_category
     test_settings
 )

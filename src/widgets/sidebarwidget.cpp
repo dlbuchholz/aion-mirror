@@ -384,6 +384,13 @@ void SidebarWidget::loadAccounts() {
         connect(item, &QAbstractButton::clicked, this, [this, accountId]() {
             emit accountRequested(accountId);
         });
+        item->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(item, &QWidget::customContextMenuRequested, this, [this, item, accountId](const QPoint& position) {
+            QMenu menu(this);
+            menu.addAction("Show transactions", this, [this, accountId]() { emit accountRequested(accountId); });
+            menu.addAction("Correct balance…", this, [this, accountId]() { emit correctBalanceRequested(accountId); });
+            menu.exec(item->mapToGlobal(position));
+        });
     }
 
     auto* addItem = new SidebarItem(SidebarItem::Kind::Row);

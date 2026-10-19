@@ -1,4 +1,5 @@
 #include "importmanagerdialog.h"
+#include "../../ui/ui_importmanagerdialog.h"
 #include "account.h"
 #include "category.h"
 #include <QFileDialog>
@@ -10,6 +11,16 @@
 #include <QSignalBlocker>
 #include "settings.h"
 #include "csvparser.h"
+#include "category.h"
+#include "theme.h"
+#include <QCheckBox>
+#include <QFileInfo>
+#include <QGroupBox>
+#include <QVBoxLayout>
+#include <QGridLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QTimer>
 
 ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     : QDialog(parent)
@@ -25,7 +36,7 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     // Define transaction fields
     transactionFields << CsvImport::FieldDate << CsvImport::FieldAmount << CsvImport::FieldPayee
                       << CsvImport::FieldDescription << CsvImport::FieldCategory << CsvImport::FieldType
-                      << "(Ignore)";
+                      << CsvImport::FieldBalance << "(Ignore)";
 
     // Set default decimal separator from Settings (will be overridden by auto-detection)
     Settings::DecimalSeparator appDecimalSeparator = Settings::instance().getDecimalSeparator();
@@ -39,6 +50,7 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
 
     populateAccountComboBox();
     setupColumnMappingTable();
+    setupBalanceCheck();
 
     // Connections
     connect(ui->selectFileButton, &QPushButton::clicked,
@@ -95,6 +107,10 @@ void ImportManagerDialog::setupColumnMappingTable()
         // Transaction field label (read-only)
         QTableWidgetItem *fieldItem = new QTableWidgetItem(transactionFields[i]);
         fieldItem->setFlags(fieldItem->flags() & ~Qt::ItemIsEditable);
+        if (transactionFields[i] == CsvImport::FieldBalance) {
+            fieldItem->setText("Balance (check only)");
+            fieldItem->setToolTip("The bank's balance after each booking. Used to check the account's balance, never saved.");
+        }
         ui->columnMappingTable->setItem(i, 0, fieldItem);
 
         // CSV column combo box
@@ -121,7 +137,11 @@ void ImportManagerDialog::onSelectFileClicked()
     if (filePath.isEmpty()) {
         return;
     }
+    loadFile(filePath);
+}
 
+void ImportManagerDialog::loadFile(const QString &filePath)
+{
     currentFilePath = filePath;
     autoDetectDelimiterOnNextParse = true;
     ui->filePathLineEdit->setText(filePath);
@@ -312,6 +332,7 @@ void ImportManagerDialog::updatePreviewTable()
     }
 
     ui->previewTable->resizeColumnsToContents();
+    scheduleBalanceCheck();
 }
 
 bool ImportManagerDialog::validateMapping()
@@ -351,7 +372,198 @@ CsvImport::Result ImportManagerDialog::runImport(bool dryRun)
     runOptions.allowPartialImport = ui->allowPartialImportCheckBox->isChecked();
     runOptions.dryRun = dryRun;
 
+    // Check the balance on the day the bank's balance column refers to, if it is mapped
+    const CsvImport::StatedBalance stated = CsvImport::statedBalance(csvData, mappingFromComboBoxes(), decimalSeparator);
+    if (stated.found) {
+        runOptions.checkDate = stated.date;
+    }
+    Cents expected = 0;
+    if (!dryRun && correctionWanted() && expectedBalance(&expected)) {
+        runOptions.correct = true;
+        runOptions.correctTo = expected;
+        runOptions.correctionNote = QString("Import of %1").arg(QFileInfo(currentFilePath).fileName());
+    }
+
     return CsvImport::run(csvData, mappingFromComboBoxes(), options, runOptions);
+}
+
+void ImportManagerDialog::setupBalanceCheck()
+{
+    balanceGroupBox = new QGroupBox("Balance check", this);
+    balanceGroupBox->setObjectName("balanceGroupBox");
+    auto *layout = new QVBoxLayout(balanceGroupBox);
+
+    balanceHintLabel = new QLabel(balanceGroupBox);
+    balanceHintLabel->setObjectName("balanceHintLabel");
+    balanceHintLabel->setWordWrap(true);
+    balanceHintLabel->setForegroundRole(QPalette::PlaceholderText);
+    layout->addWidget(balanceHintLabel);
+
+    balanceDetails = new QWidget(balanceGroupBox);
+    auto *grid = new QGridLayout(balanceDetails);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setColumnStretch(0, 1);
+    auto addRow = [&](int row, QLabel **caption, QLabel **value, const QString &name) {
+        *caption = new QLabel(balanceDetails);
+        *value = new QLabel(balanceDetails);
+        (*value)->setObjectName(name);
+        (*value)->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        grid->addWidget(*caption, row, 0);
+        grid->addWidget(*value, row, 1);
+    };
+    addRow(0, &balanceNowCaption, &balanceNowValue, "balanceNowValue");
+    addRow(1, &balanceChangeCaption, &balanceChangeValue, "balanceChangeValue");
+    addRow(2, &balanceAfterCaption, &balanceAfterValue, "balanceAfterValue");
+    for (QLabel *label : {balanceAfterCaption, balanceAfterValue}) {
+        QFont font = label->font();
+        font.setBold(true);
+        label->setFont(font);
+    }
+
+    expectedCaption = new QLabel(balanceDetails);
+    expectedEdit = new QLineEdit(balanceDetails);
+    expectedEdit->setObjectName("expectedBalanceEdit");
+    expectedEdit->setPlaceholderText("Optional");
+    expectedEdit->setAlignment(Qt::AlignRight);
+    expectedEdit->setMaximumWidth(160);
+    grid->addWidget(expectedCaption, 3, 0);
+    grid->addWidget(expectedEdit, 3, 1);
+    expectedSourceLabel = new QLabel(balanceDetails);
+    expectedSourceLabel->setForegroundRole(QPalette::PlaceholderText);
+    grid->addWidget(expectedSourceLabel, 4, 0, 1, 2);
+    connect(expectedEdit, &QLineEdit::textEdited, this, [this]() {
+        expectedEditedByUser = true;
+        expectedSourceLabel->clear();
+        updateBalanceStatus();
+    });
+
+    balanceStatusLabel = new QLabel(balanceDetails);
+    balanceStatusLabel->setObjectName("balanceStatusLabel");
+    balanceStatusLabel->setWordWrap(true);
+    grid->addWidget(balanceStatusLabel, 5, 0, 1, 2);
+    correctionCheckBox = new QCheckBox(balanceDetails);
+    correctionCheckBox->setObjectName("correctionCheckBox");
+    correctionCheckBox->setChecked(true);
+    grid->addWidget(correctionCheckBox, 6, 0, 1, 2);
+    layout->addWidget(balanceDetails);
+
+    // Between the preview and the buttons
+    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->previewGroupBox) + 1, balanceGroupBox);
+
+    balanceTimer = new QTimer(this);
+    balanceTimer->setSingleShot(true);
+    balanceTimer->setInterval(250);
+    connect(balanceTimer, &QTimer::timeout, this, &ImportManagerDialog::refreshBalanceCheck);
+    connect(ui->accountComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
+        expectedEditedByUser = false;                // Another account has another balance
+        scheduleBalanceCheck();
+    });
+    connect(ui->allowDuplicatesCheckBox, &QCheckBox::toggled, this, &ImportManagerDialog::scheduleBalanceCheck);
+    connect(ui->allowPartialImportCheckBox, &QCheckBox::toggled, this, &ImportManagerDialog::scheduleBalanceCheck);
+    refreshBalanceCheck();
+}
+
+void ImportManagerDialog::scheduleBalanceCheck()
+{
+    if (balanceTimer) {
+        balanceTimer->start();
+    }
+}
+
+void ImportManagerDialog::refreshBalanceCheck()
+{
+    const CsvImport::Mapping mapping = mappingFromComboBoxes();
+    balanceReady = !csvData.isEmpty() && mapping.contains(CsvImport::FieldDate) && mapping.contains(CsvImport::FieldAmount)
+                   && ui->accountComboBox->currentIndex() >= 0;
+    if (balanceReady) {
+        balanceResult = runImport(true);
+        balanceReady = balanceResult.checkDate.isValid();
+    }
+    balanceDetails->setVisible(balanceReady);
+    balanceHintLabel->setText(balanceReady
+        ? QString("Compare the account's balance after the import with the one your bank shows. Nothing is saved until you import.")
+        : QString("Choose a file and map its date and amount columns to check the account's balance after the import."));
+    if (!balanceReady) {
+        return;
+    }
+
+    const Settings &settings = Settings::instance();
+    const QLocale english(QLocale::English);
+    const QString day = english.toString(balanceResult.checkDate, "d MMMM yyyy");
+    const Cents change = balanceResult.balanceAfterCents - balanceResult.balanceBeforeCents;
+    balanceNowCaption->setText(QString("Balance on %1 now").arg(day));
+    balanceNowValue->setText(settings.formatCurrency(balanceResult.balanceBeforeCents));
+    QString changeText = QString("%1 new %2").arg(balanceResult.imported).arg(balanceResult.imported == 1 ? "transaction" : "transactions");
+    if (balanceResult.duplicates > 0) {
+        changeText += QString(" · %1 %2 skipped").arg(balanceResult.duplicates).arg(balanceResult.duplicates == 1 ? "duplicate" : "duplicates");
+    }
+    balanceChangeCaption->setText(changeText);
+    balanceChangeValue->setText(settings.formatCurrency(change, true));
+    balanceAfterCaption->setText(QString("Balance on %1 after import").arg(day));
+    balanceAfterValue->setText(settings.formatCurrency(balanceResult.balanceAfterCents));
+    expectedCaption->setText(QString("Your bank's balance on %1").arg(day));
+
+    // Fill in the bank's balance from the file unless the user typed one
+    if (!expectedEditedByUser) {
+        const CsvImport::StatedBalance stated = CsvImport::statedBalance(csvData, mapping, decimalSeparator);
+        expectedEdit->setText(stated.found ? settings.formatCurrency(stated.cents) : QString());
+        expectedSourceLabel->setText(stated.found ? QString("From the file's \"%1\" column").arg(csvHeaders.value(mapping.value(CsvImport::FieldBalance)))
+                                                  : QString());
+        expectedSourceLabel->setVisible(stated.found);
+    }
+    updateBalanceStatus();
+}
+
+bool ImportManagerDialog::expectedBalance(Cents *cents) const
+{
+    if (!expectedEdit || expectedEdit->text().trimmed().isEmpty()) {
+        return false;
+    }
+    const QChar separator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
+    bool ok = false;
+    *cents = CsvImport::parseAmount(expectedEdit->text(), separator, &ok);
+    return ok;
+}
+
+bool ImportManagerDialog::correctionWanted() const
+{
+    return balanceReady && correctionCheckBox && correctionCheckBox->isVisible() && correctionCheckBox->isChecked();
+}
+
+void ImportManagerDialog::updateBalanceStatus()
+{
+    if (!balanceReady) {
+        return;
+    }
+    const Settings &settings = Settings::instance();
+    const Theme::Colors colors = Theme::colors();
+    QPalette statusPalette = balanceStatusLabel->palette();
+
+    Cents expected = 0;
+    if (expectedEdit->text().trimmed().isEmpty()) {
+        balanceStatusLabel->setText("Enter the balance your bank shows to compare.");
+        statusPalette.setColor(QPalette::WindowText, colors.textSecondary);
+        correctionCheckBox->hide();
+    } else if (!expectedBalance(&expected)) {
+        balanceStatusLabel->setText("That isn't an amount Aion can read.");
+        statusPalette.setColor(QPalette::WindowText, colors.danger);
+        correctionCheckBox->hide();
+    } else if (expected == balanceResult.balanceAfterCents) {
+        balanceStatusLabel->setText("Matches your bank after the import.");
+        statusPalette.setColor(QPalette::WindowText, colors.positive);
+        correctionCheckBox->hide();
+    } else {
+        const Cents difference = expected - balanceResult.balanceAfterCents;
+        balanceStatusLabel->setText(QString("%1 %2 than your bank after the import. Missing or extra bookings, for example "
+                                            "from a gap between exports, can cause this.")
+                                        .arg(settings.formatCurrency(qAbs(difference)), difference > 0 ? "less" : "more"));
+        statusPalette.setColor(QPalette::WindowText, colors.danger);
+        correctionCheckBox->setText(QString("Add a balance correction of %1 on %2")
+                                        .arg(settings.formatCurrency(difference, true),
+                                             QLocale(QLocale::English).toString(balanceResult.checkDate, "d MMMM")));
+        correctionCheckBox->show();
+    }
+    balanceStatusLabel->setPalette(statusPalette);
 }
 
 void ImportManagerDialog::onDryRunClicked()
@@ -417,6 +629,12 @@ void ImportManagerDialog::onImportClicked()
         message += QString("⚠️  Skipped duplicates: %1 transactions\n").arg(result.duplicates);
     }
 
+    if (result.correctionCents != 0) {
+        message += QString("Balance correction: %1 on %2\n")
+                       .arg(Settings::instance().formatCurrency(result.correctionCents, true),
+                            QLocale(QLocale::English).toString(result.checkDate, "d MMMM yyyy"));
+    }
+
     if (result.failed > 0) {
         message += QString("❌ Failed:  %1 transactions\n").arg(result.failed);
 
@@ -439,7 +657,7 @@ void ImportManagerDialog::onImportClicked()
         QMessageBox::information(this, "Import Complete", message);
     }
 
-    if (result.imported > 0) {
+    if (result.imported > 0 || result.correctionCents != 0) {
         emit transactionsImported(result.imported);
         accept();
     } else if (result.duplicates > 0 && result.failed == 0) {

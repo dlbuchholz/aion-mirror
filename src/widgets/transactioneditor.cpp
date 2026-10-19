@@ -228,7 +228,9 @@ void TransactionEditor::populateCategories(int selectedCategoryId) {
     categoryCombo->clear();
     categoryCombo->addItem("(No category)", NO_CATEGORY);
     for (const Category& category : categories) {
-        if (category.getType() == currentType() || category.getCategoryId() == selectedCategoryId) {
+        // Balance adjustments go either way, so they're offered for both types
+        if (category.getType() == currentType() || category.getCategoryId() == selectedCategoryId
+            || isBalanceAdjustmentCategory(category.getName())) {
             categoryCombo->addItem(category.getName(), category.getCategoryId());
         }
     }

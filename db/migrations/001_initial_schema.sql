@@ -100,4 +100,5 @@ INSERT OR IGNORE INTO categories (name, type) VALUES
 ('Groceries', 'expense'),
 ('Rent', 'expense'),
 ('Utilities', 'expense'),
-('Entertainment', 'expense');
+('Entertainment', 'expense'),
+('Balance correction', 'income');

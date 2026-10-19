@@ -1,5 +1,6 @@
 #include "transactionspage.h"
 #include "account.h"
+#include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
 #include "icons.h"
 #include "settings.h"
@@ -303,6 +304,11 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     titles->addWidget(subtitleLabel);
     header->addLayout(titles, 1);
 
+    correctBalanceButton = new QPushButton("Correct balance", this);
+    correctBalanceButton->setObjectName("correctBalanceButton");
+    correctBalanceButton->setToolTip("Match the balance your bank shows by adding a balance correction");
+    connect(correctBalanceButton, &QPushButton::clicked, this, [this]() { correctBalance(accountId); });
+    header->addWidget(correctBalanceButton, 0, Qt::AlignTop);
     importButton = new QPushButton("Import", this);
     connect(importButton, &QPushButton::clicked, this, &TransactionsPage::importTransactions);
     header->addWidget(importButton, 0, Qt::AlignTop);
@@ -849,13 +855,19 @@ void TransactionsPage::onSaveRequested(const Transaction& transaction) {
     }
 }
 
+void TransactionsPage::correctBalance(int forAccountId) {
+    BalanceCorrectionDialog dialog(userId, forAccountId, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        reload();
+        emit transactionsChanged();
+    }
+}
+
 void TransactionsPage::importTransactions() {
     ImportManagerDialog dialog(userId, this);
-    connect(&dialog, &ImportManagerDialog::transactionsImported, this, [this](int count) {
-        if (count > 0) {
-            reload();
-            emit transactionsChanged();
-        }
+    connect(&dialog, &ImportManagerDialog::transactionsImported, this, [this]() {
+        reload();                                    // Also sent for a balance correction without new rows
+        emit transactionsChanged();
     });
     dialog.exec();
 }

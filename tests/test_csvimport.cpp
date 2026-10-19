@@ -223,6 +223,87 @@ private slots:
         QCOMPARE(transactionCount(accountId), 0);
     }
 
+    // --- Balance check ---
+
+    void mapsTheBalanceColumn() {
+        const Mapping mapping = autoMapColumns({"Buchungstag", "Betrag", "Saldo nach Buchung"});
+        QCOMPARE(mapping.value(FieldBalance, -1), 2);
+    }
+
+    void statedBalanceIsTheOneAfterTheNewestRow() {
+        Mapping mapping = basicMapping();
+        mapping.insert(FieldBalance, 4);
+        // Oldest first: the last row of the newest day
+        const QList<QStringList> oldestFirst = {
+            {"01.10.2026", "-1,00", "A", "", "99,00"},
+            {"17.10.2026", "-2,00", "B", "", "97,00"},
+            {"17.10.2026", "-3,00", "C", "", "94,00"},
+        };
+        StatedBalance stated = statedBalance(oldestFirst, mapping, ',');
+        QVERIFY(stated.found);
+        QCOMPARE(stated.date, QDate(2026, 10, 17));
+        QCOMPARE(stated.cents, Cents(9400));
+
+        // Newest first: the first row
+        const QList<QStringList> newestFirst = {oldestFirst[2], oldestFirst[1], oldestFirst[0]};
+        stated = statedBalance(newestFirst, mapping, ',');
+        QCOMPARE(stated.cents, Cents(9400));
+
+        // Without the column (or values) there is nothing to compare with
+        QVERIFY(!statedBalance(oldestFirst, basicMapping(), ',').found);
+        QVERIFY(!statedBalance({{"01.10.2026", "-1,00", "A", "", ""}}, mapping, ',').found);
+    }
+
+    void dryRunReportsTheBalanceBeforeAndAfter() {
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, accountId, "Old", 100000, QDate(2026, 9, 1), "", 0, "income")) > 0);
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, accountId, "Later", 5000, QDate(2026, 11, 1), "", 0, "expense")) > 0);
+        RunOptions dryRun;
+        dryRun.dryRun = true;
+        const Result result = run({{"02.10.2026", "-12,50", "Rewe", ""}, {"17.10.2026", "200,00", "ACME", ""}},
+                                  basicMapping(), basicOptions(), dryRun);
+        QCOMPARE(result.checkDate, QDate(2026, 10, 17));             // The newest day in the file
+        QCOMPARE(result.balanceBeforeCents, Cents(100000));           // November isn't counted
+        QCOMPARE(result.importedNetCents, Cents(18750));
+        QCOMPARE(result.balanceAfterCents, Cents(118750));
+        QCOMPARE(transactionCount(accountId), 2);
+    }
+
+    void importAddsTheBalanceCorrection() {
+        RunOptions correct;
+        correct.correct = true;
+        correct.correctTo = 18000;                                    // The bank says 180,00
+        correct.correctionNote = "Import of test.csv";
+        const Result result = run({{"02.10.2026", "-12,50", "Rewe", ""}, {"17.10.2026", "200,00", "ACME", ""}},
+                                  basicMapping(), basicOptions(), correct);
+        QCOMPARE(result.imported, 2);
+        QCOMPARE(result.correctionCents, Cents(-750));
+        QCOMPARE(transactionCount(accountId), 3);
+
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT t.amount, t.type, t.date, c.name, t.description FROM transactions t "
+                           "JOIN categories c ON c.id = t.category_id WHERE c.name = 'Balance correction'") && query.next());
+        QCOMPARE(query.value(0).toLongLong(), 750);
+        QCOMPARE(query.value(1).toString(), QString("expense"));
+        QCOMPARE(query.value(2).toString(), QString("2026-10-17"));
+        QCOMPARE(query.value(4).toString(), QString("Import of test.csv"));
+
+        // Matching already: no correction
+        const Result again = run({{"18.10.2026", "1,00", "X", ""}}, basicMapping(), basicOptions(),
+                                 [] { RunOptions o; o.correct = true; o.correctTo = 18100; return o; }());
+        QCOMPARE(again.correctionCents, Cents(0));
+        QCOMPARE(transactionCount(accountId), 4);
+    }
+
+    void correctionInADryRunIsRolledBack() {
+        RunOptions dryRun;
+        dryRun.dryRun = true;
+        dryRun.correct = true;
+        dryRun.correctTo = 0;
+        const Result result = run({{"02.10.2026", "-12,50", "Rewe", ""}}, basicMapping(), basicOptions(), dryRun);
+        QCOMPARE(result.correctionCents, Cents(1250));
+        QCOMPARE(transactionCount(accountId), 0);
+    }
+
     void unreadableRowsAbortUnlessPartialImport() {
         const QList<QStringList> rows = {
             {"02.01.2026", "-1,00", "Good", ""},

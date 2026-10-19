@@ -39,6 +39,7 @@ public:
 public slots:
     void addTransaction();
     void importTransactions();
+    void correctBalance(int accountId);              // ALL_ACCOUNTS: the dialog lets the user pick one
 
 signals:
     void transactionsChanged();
@@ -87,6 +88,7 @@ private:
     QLabel* titleLabel = nullptr;
     QLabel* subtitleLabel = nullptr;
     QPushButton* importButton = nullptr;
+    QPushButton* correctBalanceButton = nullptr;
     QLineEdit* searchEdit = nullptr;
     QAction* searchAction = nullptr;
     QButtonGroup* periodGroup = nullptr;

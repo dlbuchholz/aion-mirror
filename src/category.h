@@ -7,11 +7,17 @@
 #include <QSqlError>
 #include <QDebug>
 
-// Holds the starting balances of accounts; they count towards balances but aren't income or spending
+// Balance adjustments count towards balances but aren't income or spending:
+// the starting balances of accounts, and corrections to match the bank's balance
 inline const QString InitialBalanceCategory = "Initial balance";
-// SQL condition on transactions "t" that leaves out starting balances
-inline const QString NotInitialBalanceSql =
-    "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name = '" + InitialBalanceCategory + "')";
+inline const QString BalanceCorrectionCategory = "Balance correction";
+inline bool isBalanceAdjustmentCategory(const QString& name) {
+    return name == InitialBalanceCategory || name == BalanceCorrectionCategory;
+}
+// SQL condition on transactions "t" that leaves out balance adjustments
+inline const QString NotBalanceAdjustmentSql =
+    "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name IN ('" + InitialBalanceCategory + "', '"
+    + BalanceCorrectionCategory + "'))";
 
 // Category Object
 class Category {
