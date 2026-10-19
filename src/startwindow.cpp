@@ -135,6 +135,7 @@ StartWindow::StartWindow(QWidget* parent)
     header->addLayout(titles, 1);
 
     databaseButton = new QToolButton(this);
+    databaseButton->setObjectName("databaseButton");
     databaseButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     databaseButton->setPopupMode(QToolButton::InstantPopup);
     databaseMenu = new QMenu(databaseButton);
@@ -144,6 +145,7 @@ StartWindow::StartWindow(QWidget* parent)
     root->addLayout(header);
 
     messageLabel = new QLabel(this);
+    messageLabel->setObjectName("startMessageLabel");
     messageLabel->setWordWrap(true);
     messageLabel->hide();
     root->addWidget(messageLabel);

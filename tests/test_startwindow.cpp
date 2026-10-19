@@ -3,7 +3,10 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
+#include <QAbstractButton>
+#include <QMenu>
 #include <QPushButton>
+#include <QToolButton>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 
@@ -76,6 +79,82 @@ private slots:
         window.findChild<QCheckBox*>()->setChecked(true);
         fillForm(window, "Sam Example", "sam");
         QCOMPARE(Settings::instance().getDefaultUserId(), window.selectedUserId());
+    }
+
+    // --- Switching databases ---
+
+    static QMenu* databaseMenu(StartWindow& window) {
+        QMenu* menu = window.findChild<QToolButton*>("databaseButton")->menu();
+        emit menu->aboutToShow();                    // Built when it opens
+        return menu;
+    }
+
+    static QAction* menuEntry(QMenu* menu, const QString& text) {
+        for (QAction* action : menu->actions()) {
+            if (action->text() == text) return action;
+        }
+        return nullptr;
+    }
+
+    static bool showsUser(StartWindow& window, const QString& name) {
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        for (QAbstractButton* card : window.findChildren<QAbstractButton*>()) {
+            if (card->accessibleName() == name && !card->isHidden()) return true;
+        }
+        return false;
+    }
+
+    void menuListsRecentDatabasesAndForgetsMissingOnes() {
+        const QString other = dir.filePath("other.db");
+        QVERIFY(DatabaseSession::create(other));
+        const QString current = dir.filePath(QString("case%1.db").arg(++databaseCounter));
+        QVERIFY(DatabaseSession::create(current));
+        const QString gone = dir.filePath("gone.db");
+        Settings::instance().addRecentDatabase(gone);                     // File doesn't exist
+
+        StartWindow window;
+        QCOMPARE(window.findChild<QToolButton*>("databaseButton")->text(), QFileInfo(current).fileName());
+        QMenu* menu = databaseMenu(window);
+        QVERIFY(menuEntry(menu, "other.db"));
+        QVERIFY(menuEntry(menu, QFileInfo(current).fileName())->isChecked());
+        QVERIFY(!menuEntry(menu, "other.db")->isChecked());
+        QVERIFY(!menuEntry(menu, "gone.db"));
+        QVERIFY(!Settings::instance().getRecentDatabases().contains(gone));
+        QVERIFY(menuEntry(menu, "Open database file…"));
+        QVERIFY(menuEntry(menu, "New database…"));
+    }
+
+    void switchingShowsTheOtherDatabasesUsers() {
+        const QString other = dir.filePath("people.db");
+        QVERIFY(DatabaseSession::create(other));
+        QVERIFY(UserDAO().createUser(User(0, "anna", "Anna Other")));
+        QVERIFY(DatabaseSession::create(dir.filePath(QString("case%1.db").arg(++databaseCounter))));
+        QVERIFY(UserDAO().createUser(User(0, "bob", "Bob Here")));
+
+        StartWindow window;
+        QVERIFY(showsUser(window, "Bob Here"));
+        menuEntry(databaseMenu(window), "people.db")->trigger();
+        QCOMPARE(DatabaseSession::currentDatabasePath(), other);
+        QCOMPARE(window.findChild<QToolButton*>("databaseButton")->text(), QString("people.db"));
+        QVERIFY(showsUser(window, "Anna Other"));
+        QVERIFY(!showsUser(window, "Bob Here"));
+    }
+
+    void aBrokenDatabaseFileIsExplained() {
+        const QString current = DatabaseSession::currentDatabasePath();
+        const QString broken = dir.filePath("broken.db");
+        QFile file(broken);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("this is not a database");
+        file.close();
+        Settings::instance().addRecentDatabase(broken);
+
+        StartWindow window;
+        menuEntry(databaseMenu(window), "broken.db")->trigger();
+        auto* message = window.findChild<QLabel*>("startMessageLabel");
+        QVERIFY(!message->isHidden());
+        QVERIFY(message->text().startsWith("Couldn't open broken.db."));
+        QCOMPARE(DatabaseSession::currentDatabasePath(), current);         // Still the old one
     }
 
     void invalidOrDuplicateUsersShowAnError() {
