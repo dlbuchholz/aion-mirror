@@ -22,6 +22,7 @@ private:
     void copyReport();
 
     QVBoxLayout* infoLayout = nullptr;
+    QList<QLabel*> valueLabels;                      // One per SystemInfo entry, in order
     QLabel* copiedLabel = nullptr;
 };
 

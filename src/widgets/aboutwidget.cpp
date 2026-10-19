@@ -78,21 +78,20 @@ AboutWidget::AboutWidget(QWidget* parent)
 }
 
 void AboutWidget::refresh() {
-    while (QLayoutItem* item = infoLayout->takeAt(0)) {
-        if (item->layout()) {
-            while (QLayoutItem* child = item->layout()->takeAt(0)) {
-                delete child->widget();
-                delete child;
-            }
+    // The rows stay the same, only values like the database size change. Rebuilding all the
+    // labels on every show made the page slow to open.
+    const QList<SystemInfo::Entry> entries = SystemInfo::entries();
+    if (valueLabels.size() == entries.size()) {
+        for (qsizetype i = 0; i < entries.size(); ++i) {
+            valueLabels[i]->setText(entries[i].value);
         }
-        delete item->widget();
-        delete item;
+        return;
     }
 
     const Theme::Colors colors = Theme::colors();
     QString currentSection;
     QFormLayout* form = nullptr;
-    for (const SystemInfo::Entry& entry : SystemInfo::entries()) {
+    for (const SystemInfo::Entry& entry : entries) {
         if (entry.section != currentSection) {
             currentSection = entry.section;
             auto* sectionLabel = new QLabel(currentSection, this);
@@ -113,6 +112,7 @@ void AboutWidget::refresh() {
         auto* value = new QLabel(entry.value, this);
         value->setTextInteractionFlags(Qt::TextSelectableByMouse);
         form->addRow(entry.label, value);
+        valueLabels.append(value);
     }
 }
 
