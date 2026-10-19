@@ -1,35 +1,16 @@
-set(TEST_TARGETS
-    test_account
-    test_integration
-    test_migrationmanager
-    test_csvparser
-    test_csvimport
-    test_money
-    test_transactionlistmodel
-    test_transactionspage
-    test_settingspage
-    test_sidebarwidget
-    test_databasesession
-    test_startwindow
-    test_systeminfo
-    test_budget
-    test_budgetpage
-    test_dashboard
-    test_dashboardpage
-    test_balance
-    test_categorysettings
-    test_user_category
-    test_settings
-)
+# Every tests/test_*.cpp is its own test executable. CONFIGURE_DEPENDS re-runs CMake when a
+# test file is added or removed, so new tests don't need to be listed anywhere.
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp")
 
-foreach(test_name IN LISTS TEST_TARGETS)
-    add_executable(${test_name} ${test_name}.cpp
+foreach(test_source IN LISTS TEST_SOURCES)
+    get_filename_component(test_name ${test_source} NAME_WE)
+    add_executable(${test_name} ${test_source}
         test_db_fixture.h
     )
     target_include_directories(${test_name} PRIVATE ../src)
     target_link_libraries(${test_name}
         PRIVATE
-                        AionLib
+            AionLib
             Qt6::Core
             Qt6::Widgets
             Qt6::Sql
