@@ -71,6 +71,7 @@ target_link_libraries(AionLib PUBLIC
 
 # Bundle the monochrome UI icons into the library as Qt resources (:/icons/<name>.svg)
 file(GLOB ICON_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
+list(APPEND ICON_FILES assets/aion-logo.svg)             # :/aion-logo.svg
 qt_add_resources(AionLib "icons"
     PREFIX "/"
     BASE "assets"
@@ -81,6 +82,25 @@ qt_add_executable(Aion
     WIN32 MACOSX_BUNDLE
     ${SRC_FILES}
 )
+# The .exe icon in Win Explorer, made from the logo during the build (tools/makeico), so it always
+# matches assets/aion-logo.svg. The helper runs in Qt's bin folder, so Windows finds Qt's DLLs.
+if(WIN32)
+    add_executable(aion_makeico tools/makeico/makeico.cpp)
+    target_link_libraries(aion_makeico PRIVATE Qt::Gui Qt::Svg)
+    set(AION_ICON ${CMAKE_CURRENT_BINARY_DIR}/generated/aion.ico)
+    set(AION_LOGO ${CMAKE_CURRENT_SOURCE_DIR}/assets/aion-logo.svg)
+    add_custom_command(
+        OUTPUT ${AION_ICON}
+        COMMAND $<TARGET_FILE:aion_makeico> ${AION_LOGO} ${AION_ICON}
+        WORKING_DIRECTORY $<TARGET_FILE_DIR:Qt::Core>
+        DEPENDS aion_makeico ${AION_LOGO}
+        COMMENT "Making aion.ico from the logo"
+        VERBATIM)
+    set(AION_RC ${CMAKE_CURRENT_BINARY_DIR}/generated/aion.rc)
+    file(WRITE ${AION_RC} "IDI_ICON1 ICON \"${AION_ICON}\"\n")
+    set_source_files_properties(${AION_RC} PROPERTIES OBJECT_DEPENDS ${AION_ICON})   # Recompile when the icon changes
+    target_sources(Aion PRIVATE ${AION_RC} ${AION_ICON})
+endif()
 
 target_link_libraries(Aion PRIVATE AionLib)
 

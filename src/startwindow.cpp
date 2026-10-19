@@ -122,8 +122,14 @@ StartWindow::StartWindow(QWidget* parent)
     root->setContentsMargins(28, 24, 28, 18);
     root->setSpacing(14);
 
-    // Header: welcome text and the database switcher
+    // Header: logo, welcome text and the database switcher
     auto* header = new QHBoxLayout();
+    header->setSpacing(14);
+    auto* logo = new QLabel(this);
+    logo->setObjectName("logoLabel");
+    logo->setPixmap(Icons::logo(52, devicePixelRatioF()));
+    logo->setAccessibleName("Aion logo");
+    header->addWidget(logo, 0, Qt::AlignTop);
     auto* titles = new QVBoxLayout();
     titles->setSpacing(2);
     auto* title = new QLabel("Welcome to Aion", this);

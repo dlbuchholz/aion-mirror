@@ -1,4 +1,5 @@
 #include "aboutwidget.h"
+#include "icons.h"
 #include "systeminfo.h"
 #include "theme.h"
 #include "updatecheck.h"
@@ -24,6 +25,33 @@ AboutWidget::AboutWidget(QWidget* parent)
     headingFont.setBold(true);
     heading->setFont(headingFont);
     layout->addWidget(heading);
+
+    // Logo with name, version and license
+    auto* identity = new QHBoxLayout();
+    identity->setSpacing(16);
+    auto* logo = new QLabel(this);
+    logo->setObjectName("logoLabel");
+    logo->setPixmap(Icons::logo(64, devicePixelRatioF()));
+    logo->setAccessibleName("Aion logo");
+    identity->addWidget(logo, 0, Qt::AlignTop);
+    auto* identityText = new QVBoxLayout();
+    identityText->setSpacing(2);
+    auto* name = new QLabel("Aion", this);
+    QFont nameFont = name->font();
+    nameFont.setPointSize(14);
+    name->setFont(nameFont);
+    identityText->addWidget(name);
+    auto* version = new QLabel(QString("Version %1").arg(SystemInfo::versionText()), this);
+    version->setObjectName("aboutVersionLabel");
+    identityText->addWidget(version);
+    auto* license = new QLabel("Free software under the GNU GPL, version 3 or later. "
+                               "The name and logo belong to the Aion contributors.", this);
+    license->setObjectName("aboutLicenseLabel");
+    license->setWordWrap(true);
+    license->setForegroundRole(QPalette::PlaceholderText);
+    identityText->addWidget(license);
+    identity->addLayout(identityText, 1);
+    layout->addLayout(identity);
 
     infoLayout = new QVBoxLayout();
     infoLayout->setSpacing(14);

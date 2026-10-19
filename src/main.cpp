@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "db/databasesession.h"
+#include "icons.h"
 #include "startwindow.h"
 #include "settings.h"
 #include "theme.h"
@@ -48,6 +49,7 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     // Only the version: setting the application/organization name would move the AppData folder
     QApplication::setApplicationVersion(AION_VERSION);
+    QApplication::setWindowIcon(Icons::appIcon());   // Every window and the taskbar
     if (!openStartupDatabase()) {
         QMessageBox::critical(nullptr, "Database Error",
                               "Aion could not initialize its database. See the application log for details.");
