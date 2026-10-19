@@ -113,9 +113,14 @@ private slots:
         ImportManagerDialog dialog(1);
         dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
         dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();                                                           // Columns
+        next->click();                                                           // No category column: on to the review
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
         auto* status = dialog.findChild<QLabel*>("balanceStatusLabel");
         auto* correction = dialog.findChild<QCheckBox*>("correctionCheckBox");
-        QTRY_VERIFY(dialog.findChild<QLabel*>("balanceAfterValue")->text() != "–");
+        QCOMPARE(dialog.findChild<QLabel*>("newCountLabel")->text(), QString("2"));
+        QCOMPARE(dialog.findChild<QPushButton*>("importButton")->text(), QString("Import 2 transactions"));
 
         // 1.204,10 + 318,80 = 1.522,90 after the import; the file's balance says 1.510,25
         QCOMPARE(dialog.findChild<QLabel*>("balanceAfterValue")->text(), Settings::instance().formatCurrency(152290));
@@ -133,13 +138,47 @@ private slots:
         QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(120410));    // Still nothing written
     }
 
-    void importButtonsStayOutsideTheScrollingPart() {
+    void importWizardChecksEachStep() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("plain.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("When,How much,Who\n2026-10-17,-12.50,Bakery\n2026-10-18,oops,Kiosk\n");
+        file.close();
+
         ImportManagerDialog dialog(1);
-        auto* scroll = dialog.findChild<QWidget*>("importScroll");
-        QVERIFY(scroll);
-        QVERIFY(scroll->isAncestorOf(dialog.findChild<QWidget*>("balanceGroupBox")));
-        QVERIFY(!scroll->isAncestorOf(dialog.findChild<QPushButton*>("importButton")));
-        QVERIFY(!scroll->isAncestorOf(dialog.findChild<QPushButton*>("dryRunButton")));
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        auto* back = dialog.findChild<QPushButton*>("backButton");
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::File);        // No file yet
+
+        dialog.loadFile(path);
+        QCOMPARE(dialog.findChild<QLabel*>("formatSummaryLabel")->text(), QString("2 rows · comma separated · decimal point"));
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Columns);
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Columns);     // Headers unknown: date and amount needed
+
+        auto* date = dialog.findChild<QComboBox*>("map_Date");
+        auto* amount = dialog.findChild<QComboBox*>("map_Amount");
+        date->setCurrentIndex(date->findData(0));
+        amount->setCurrentIndex(amount->findData(1));
+        dialog.findChild<QComboBox*>("map_Payee")->setCurrentIndex(3);
+        QVERIFY(dialog.findChild<QLabel*>("example_Date")->text().contains("17 October 2026"));
+        QVERIFY(dialog.findChild<QLabel*>("example_Amount")->text().contains("expense"));
+
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QCOMPARE(dialog.findChild<QLabel*>("failedCountLabel")->text(), QString("1"));
+        QVERIFY(dialog.findChild<QLabel*>("problemsLabel")->text().contains("Skip rows that can't be read"));
+        QVERIFY(!dialog.findChild<QPushButton*>("importButton")->isEnabled());  // Nothing would be imported
+
+        back->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Columns);     // Categories skipped both ways
+        dialog.findChild<QCheckBox*>("allowPartialCheck")->setChecked(true);
+        next->click();
+        QCOMPARE(dialog.findChild<QPushButton*>("importButton")->text(), QString("Import 1 transaction"));
+        QVERIFY(dialog.findChild<QPushButton*>("importButton")->isEnabled());
     }
 
     void manyFileCategoriesStayCompact() {
@@ -153,9 +192,12 @@ private slots:
 
         ImportManagerDialog dialog(1);
         dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Categories);
         auto* summary = dialog.findChild<QLabel*>("categorySummaryLabel");
         QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in Aion, 30 will be created."));
-        QVERIFY(dialog.findChild<QWidget*>("categoriesScroll")->height() <= 280);   // The list scrolls on its own
 
         // One click for all new ones
         auto* button = dialog.findChild<QToolButton*>("newCategoriesButton");
@@ -164,6 +206,12 @@ private slots:
         for (QComboBox* choice : dialog.findChildren<QComboBox*>("categoryChoice")) {
             QCOMPARE(choice->currentData().toString(), QString("none"));
         }
+        next->click();
+        QVERIFY(dialog.findChild<QLabel*>("newCategoriesLabel")->isHidden());   // None are created now
+        dialog.findChild<QPushButton*>("backButton")->click();
+        button->menu()->actions().at(0)->trigger();
+        next->click();
+        QCOMPARE(dialog.findChild<QLabel*>("newCategoriesLabel")->text(), QString("New categories: Neu 1, Neu 10 and 28 more"));
     }
 
     void dialogChecksAnEarlierDay() {

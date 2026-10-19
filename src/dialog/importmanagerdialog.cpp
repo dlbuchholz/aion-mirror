@@ -1,486 +1,605 @@
 #include "importmanagerdialog.h"
-#include "../../ui/ui_importmanagerdialog.h"
 #include "account.h"
 #include "category.h"
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QFile>
-#include <QTextStream>
-#include <QDebug>
-#include <QHeaderView>
-#include <QSignalBlocker>
-#include "settings.h"
 #include "csvparser.h"
-#include "category.h"
+#include "settings.h"
 #include "theme.h"
 #include "widgets/categorytag.h"
+
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
-#include <QGroupBox>
-#include <QGuiApplication>
-#include <QScreen>
-#include <QMenu>
-#include <QScrollArea>
-#include <QToolButton>
-#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QFrame>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QTimer>
+#include <QMenu>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QStackedWidget>
+#include <QTextStream>
+#include <QToolButton>
+#include <QVBoxLayout>
+#include <algorithm>
+
+namespace {
+
+const QLocale english(QLocale::English);
+
+// The fields shown on the Columns step, in order, with their labels
+const QList<QPair<QString, QString>> &columnFields()
+{
+    static const QList<QPair<QString, QString>> fields = {
+        {CsvImport::FieldDate, "Date"},
+        {CsvImport::FieldAmount, "Amount"},
+        {CsvImport::FieldPayee, "Payee"},
+        {CsvImport::FieldDescription, "Description"},
+        {CsvImport::FieldCategory, "Category"},
+        {CsvImport::FieldBalance, "Bank balance"},
+    };
+    return fields;
+}
+
+QString delimiterName(QChar delimiter)
+{
+    if (delimiter == ';') return "semicolon separated";
+    if (delimiter == '\t') return "tab separated";
+    if (delimiter == '|') return "pipe separated";
+    return "comma separated";
+}
+
+void setTextColor(QWidget *widget, const QColor &color)
+{
+    QPalette palette = widget->palette();
+    palette.setColor(QPalette::WindowText, color);
+    widget->setPalette(palette);
+}
+
+void makePrimary(QPushButton *button)
+{
+    QPalette palette = button->palette();
+    palette.setColor(QPalette::Button, Theme::colors().accent);
+    palette.setColor(QPalette::ButtonText, Theme::colors().onAccent);
+    button->setPalette(palette);
+}
+
+// A small number tile on the review step
+QLabel *addTile(QHBoxLayout *layout, const QString &caption, const QString &name, QWidget *parent)
+{
+    auto *tile = new QFrame(parent);
+    tile->setFrameShape(QFrame::StyledPanel);
+    auto *tileLayout = new QVBoxLayout(tile);
+    tileLayout->setContentsMargins(12, 8, 12, 8);
+    tileLayout->setSpacing(2);
+    auto *captionLabel = new QLabel(caption, tile);
+    captionLabel->setForegroundRole(QPalette::PlaceholderText);
+    auto *value = new QLabel("0", tile);
+    value->setObjectName(name);
+    QFont font = value->font();
+    font.setPointSize(14);
+    value->setFont(font);
+    tileLayout->addWidget(captionLabel);
+    tileLayout->addWidget(value);
+    layout->addWidget(tile, 1);
+    return value;
+}
+
+} // namespace
 
 ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     : QDialog(parent)
-    , ui(new Ui::ImportManagerDialog)
     , userId(userId)
-    , csvDelimiter(',')
-    , amountInterpretation(CsvImport::AmountInterpretation::SignBased)
-    , autoDetectDelimiterOnNextParse(true)
 {
-    ui->setupUi(this);
-    setupUI();
+    setWindowTitle("Import transactions");
+    resize(780, 680);
+    setMinimumSize(640, 480);
+    decimalSeparator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
 
-    // Define transaction fields
-    transactionFields << CsvImport::FieldDate << CsvImport::FieldAmount << CsvImport::FieldPayee
-                      << CsvImport::FieldDescription << CsvImport::FieldCategory << CsvImport::FieldType
-                      << CsvImport::FieldBalance << "(Ignore)";
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(20, 16, 20, 16);
+    root->setSpacing(14);
 
-    // Set default decimal separator from Settings (will be overridden by auto-detection)
-    Settings::DecimalSeparator appDecimalSeparator = Settings::instance().getDecimalSeparator();
-    if (appDecimalSeparator == Settings::DecimalSeparator::Comma) {
-        decimalSeparator = ',';
-        ui->decimalSeparatorComboBox->setCurrentIndex(1);  // Comma
-    } else {
-        decimalSeparator = '.';
-        ui->decimalSeparatorComboBox->setCurrentIndex(0);  // Point
-    }
-
-    populateAccountComboBox();
-    setupColumnMappingTable();
-    setupBalanceCheck();
-    makeScrollable();
-
-    // Connections
-    connect(ui->selectFileButton, &QPushButton::clicked,
-            this, &ImportManagerDialog::onSelectFileClicked);
-    connect(ui->delimiterComboBox, &QComboBox::currentTextChanged,
-            this, &ImportManagerDialog::onDelimiterChanged);
-    connect(ui->decimalSeparatorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &ImportManagerDialog::onDecimalSeparatorChanged);
-    connect(ui->amountInterpretationComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &ImportManagerDialog::onAmountInterpretationChanged);
-    connect(ui->refreshPreviewButton, &QPushButton::clicked,
-            this, &ImportManagerDialog::onPreviewRefreshClicked);
-    connect(ui->dryRunButton, &QPushButton::clicked,
-            this, &ImportManagerDialog::onDryRunClicked);
-    connect(ui->importButton, &QPushButton::clicked,
-            this, &ImportManagerDialog::onImportClicked);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected,
-            this, &ImportManagerDialog::onCancelClicked);
-}
-
-ImportManagerDialog::~ImportManagerDialog()
-{
-    delete ui;
-}
-
-void ImportManagerDialog::setupUI()
-{
-    // Configure column mapping table
-    ui->columnMappingTable->horizontalHeader()->setStretchLastSection(true);
-    ui->columnMappingTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    ui->columnMappingTable->verticalHeader()->setVisible(false);
-
-    // Configure preview table
-    ui->previewTable->horizontalHeader()->setStretchLastSection(true);
-    ui->previewTable->verticalHeader()->setVisible(true);
-}
-
-void ImportManagerDialog::populateAccountComboBox()
-{
-    AccountDAO accountDao;
-    QList<Account> accounts = accountDao.getAllAccountsForUser(userId);
-
-    ui->accountComboBox->clear();
-    for (const Account& account : accounts) {
-        ui->accountComboBox->addItem(account.getName(), account.getAccountId());
-    }
-}
-
-void ImportManagerDialog::setupColumnMappingTable()
-{
-    ui->columnMappingTable->setRowCount(transactionFields.size());
-
-    for (int i = 0; i < transactionFields.size(); ++i) {
-        // Transaction field label (read-only)
-        QTableWidgetItem *fieldItem = new QTableWidgetItem(transactionFields[i]);
-        fieldItem->setFlags(fieldItem->flags() & ~Qt::ItemIsEditable);
-        if (transactionFields[i] == CsvImport::FieldBalance) {
-            fieldItem->setText("Balance (check only)");
-            fieldItem->setToolTip("The bank's balance after each booking. Used to check the account's balance, never saved.");
+    // Where am I: File › Columns › Categories › Review
+    auto *steps = new QHBoxLayout();
+    steps->setSpacing(8);
+    const QStringList stepNames = {"File", "Columns", "Categories", "Review"};
+    for (int i = 0; i < stepNames.size(); ++i) {
+        if (i > 0) {
+            auto *separator = new QLabel("›", this);
+            separator->setForegroundRole(QPalette::PlaceholderText);
+            steps->addWidget(separator);
         }
-        ui->columnMappingTable->setItem(i, 0, fieldItem);
+        auto *label = new QLabel(stepNames[i], this);
+        label->setObjectName("step" + stepNames[i]);
+        stepLabels.append(label);
+        steps->addWidget(label);
+    }
+    steps->addStretch();
+    root->addLayout(steps);
 
-        // CSV column combo box
-        QComboBox *comboBox = new QComboBox(this);
-        comboBox->addItem("(Not Mapped)", -1);
-        ui->columnMappingTable->setCellWidget(i, 1, comboBox);
+    pages = new QStackedWidget(this);
+    pages->addWidget(buildFilePage());
+    pages->addWidget(buildColumnsPage());
+    pages->addWidget(buildCategoriesPage());
+    pages->addWidget(buildReviewPage());
+    root->addWidget(pages, 1);
 
-        mappingComboBoxes[transactionFields[i]] = comboBox;
+    auto *buttons = new QHBoxLayout();
+    auto *cancelButton = new QPushButton("Cancel", this);
+    connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+    buttons->addWidget(cancelButton);
+    buttons->addStretch();
+    backButton = new QPushButton("Back", this);
+    backButton->setObjectName("backButton");
+    connect(backButton, &QPushButton::clicked, this, &ImportManagerDialog::back);
+    buttons->addWidget(backButton);
+    nextButton = new QPushButton("Next", this);
+    nextButton->setObjectName("nextButton");
+    nextButton->setDefault(true);
+    makePrimary(nextButton);
+    connect(nextButton, &QPushButton::clicked, this, &ImportManagerDialog::next);
+    buttons->addWidget(nextButton);
+    importButton = new QPushButton("Import", this);
+    importButton->setObjectName("importButton");
+    makePrimary(importButton);
+    connect(importButton, &QPushButton::clicked, this, &ImportManagerDialog::import);
+    buttons->addWidget(importButton);
+    root->addLayout(buttons);
 
-        connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &ImportManagerDialog::onColumnMappingChanged);
+    goTo(Step::File);
+}
+
+ImportManagerDialog::Step ImportManagerDialog::currentStep() const
+{
+    return static_cast<Step>(pages->currentIndex());
+}
+
+QLabel *ImportManagerDialog::pageTitle(const QString &text, QWidget *parent)
+{
+    auto *label = new QLabel(text, parent);
+    QFont font = label->font();
+    font.setPointSize(13);
+    label->setFont(font);
+    return label;
+}
+
+QLabel *ImportManagerDialog::hintLabel(const QString &text, QWidget *parent)
+{
+    auto *label = new QLabel(text, parent);
+    label->setWordWrap(true);
+    label->setForegroundRole(QPalette::PlaceholderText);
+    return label;
+}
+
+// --- Step 1: file, account and the file's format ---
+
+QWidget *ImportManagerDialog::buildFilePage()
+{
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
+    layout->addWidget(pageTitle("Choose a file", page));
+    layout->addWidget(hintLabel("A CSV export from your bank. Aion reads it first and shows you everything before "
+                                "anything is saved.", page));
+
+    auto *fileRow = new QHBoxLayout();
+    filePathEdit = new QLineEdit(page);
+    filePathEdit->setObjectName("filePathEdit");
+    filePathEdit->setReadOnly(true);
+    filePathEdit->setPlaceholderText("No file chosen");
+    auto *chooseButton = new QPushButton("Choose file…", page);
+    chooseButton->setObjectName("chooseFileButton");
+    connect(chooseButton, &QPushButton::clicked, this, &ImportManagerDialog::chooseFile);
+    fileRow->addWidget(filePathEdit, 1);
+    fileRow->addWidget(chooseButton);
+    layout->addLayout(fileRow);
+
+    // The detected format in one line, changeable on request
+    auto *formatRow = new QHBoxLayout();
+    formatSummaryLabel = new QLabel(page);
+    formatSummaryLabel->setObjectName("formatSummaryLabel");
+    formatSummaryLabel->setForegroundRole(QPalette::PlaceholderText);
+    changeFormatButton = new QToolButton(page);
+    changeFormatButton->setText("Change");
+    changeFormatButton->setAutoRaise(true);
+    changeFormatButton->setCheckable(true);
+    changeFormatButton->setCursor(Qt::PointingHandCursor);
+    QPalette linkPalette = changeFormatButton->palette();
+    linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
+    changeFormatButton->setPalette(linkPalette);
+    formatRow->addWidget(formatSummaryLabel);
+    formatRow->addWidget(changeFormatButton);
+    formatRow->addStretch();
+    layout->addLayout(formatRow);
+
+    formatBox = new QFrame(page);
+    formatBox->setFrameShape(QFrame::StyledPanel);
+    auto *formatForm = new QFormLayout(formatBox);
+    delimiterCombo = new QComboBox(formatBox);
+    delimiterCombo->setObjectName("delimiterCombo");
+    delimiterCombo->addItem("Comma ( , )", QString(","));
+    delimiterCombo->addItem("Semicolon ( ; )", QString(";"));
+    delimiterCombo->addItem("Tab", QString("\t"));
+    delimiterCombo->addItem("Pipe ( | )", QString("|"));
+    formatForm->addRow("Columns separated by", delimiterCombo);
+    decimalCombo = new QComboBox(formatBox);
+    decimalCombo->setObjectName("decimalCombo");
+    decimalCombo->addItem("Point (1234.56)", QString("."));
+    decimalCombo->addItem("Comma (1234,56)", QString(","));
+    formatForm->addRow("Decimal separator", decimalCombo);
+    formatBox->hide();
+    layout->addWidget(formatBox);
+    connect(changeFormatButton, &QToolButton::toggled, formatBox, &QWidget::setVisible);
+    connect(delimiterCombo, &QComboBox::currentIndexChanged, this, [this]() {
+        delimiter = delimiterCombo->currentData().toString().at(0);
+        parseFile();
+    });
+    connect(decimalCombo, &QComboBox::currentIndexChanged, this, [this]() {
+        decimalSeparator = decimalCombo->currentData().toString().at(0);
+        updateFormatSummary();
+        updateExamples();
+    });
+
+    auto *accountForm = new QFormLayout();
+    accountForm->setContentsMargins(0, 8, 0, 0);
+    accountCombo = new QComboBox(page);
+    accountCombo->setObjectName("accountComboBox");
+    for (const Account &account : AccountDAO().getAllAccountsForUser(userId)) {
+        accountCombo->addItem(account.getName(), account.getAccountId());
+    }
+    connect(accountCombo, &QComboBox::currentIndexChanged, this, [this]() { expectedEditedByUser = false; });
+    accountForm->addRow("Import into", accountCombo);
+    layout->addLayout(accountForm);
+
+    fileErrorLabel = new QLabel(page);
+    fileErrorLabel->setWordWrap(true);
+    fileErrorLabel->hide();
+    layout->addWidget(fileErrorLabel);
+    layout->addStretch();
+
+    updateFormatSummary();
+    return page;
+}
+
+void ImportManagerDialog::chooseFile()
+{
+    const QString chosen = QFileDialog::getOpenFileName(this, "Choose a file to import", QDir::homePath(),
+                                                        "CSV files (*.csv);;All files (*.*)");
+    if (!chosen.isEmpty()) {
+        loadFile(chosen);
     }
 }
 
-void ImportManagerDialog::onSelectFileClicked()
+void ImportManagerDialog::loadFile(const QString &path)
 {
-    QString filePath = QFileDialog::getOpenFileName(
-        this,
-        "Select File to Import",
-        QDir::homePath(),
-        "CSV Files (*.csv);;All Files (*.*)"
-        );
-
-    if (filePath.isEmpty()) {
-        return;
-    }
-    loadFile(filePath);
-}
-
-void ImportManagerDialog::loadFile(const QString &filePath)
-{
-    currentFilePath = filePath;
-    autoDetectDelimiterOnNextParse = true;
-    ui->filePathLineEdit->setText(filePath);
-
-    if (filePath.endsWith(".csv", Qt::CaseInsensitive)) {
-        parseCSV(filePath);
-    } else {
-        QMessageBox::warning(this, "Unsupported Format",
-                             "Only CSV files are currently supported.");
-    }
-}
-
-void ImportManagerDialog::parseCSV(const QString &filePath)
-{
-    QFile file(filePath);
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::critical(this, "Error", "Failed to open file: " + file.errorString());
+        showError(fileErrorLabel, QString("The file couldn't be opened: %1").arg(file.errorString()));
         return;
     }
-    QTextStream in(&file);
-    const QString text = in.readAll();
-    file.close();
+    filePath = path;
+    fileText = QTextStream(&file).readAll();
+    filePathEdit->setText(QDir::toNativeSeparators(path));
+    expectedEditedByUser = false;
 
-    if (autoDetectDelimiterOnNextParse) {
-        autoDetectDelimiterOnNextParse = false;
-        csvDelimiter = Settings::instance().isAutoDetectCsvDelimiter()
-                           ? CsvImport::detectDelimiter(text)
-                           : Settings::instance().getDefaultCsvDelimiter();
-
-        const QSignalBlocker blocker(ui->delimiterComboBox);
-        if (csvDelimiter == ',') {
-            ui->delimiterComboBox->setCurrentIndex(0);  // Comma
-        } else if (csvDelimiter == ';') {
-            ui->delimiterComboBox->setCurrentIndex(1);  // Semicolon
-        } else if (csvDelimiter == '\t') {
-            ui->delimiterComboBox->setCurrentIndex(2);  // Tab
-        } else if (csvDelimiter == '|') {
-            ui->delimiterComboBox->setCurrentIndex(3);  // Pipe
-        }
+    // Detect the delimiter (or use the default from Settings), then read the rows
+    const Settings &settings = Settings::instance();
+    delimiter = settings.isAutoDetectCsvDelimiter() ? CsvImport::detectDelimiter(fileText) : settings.getDefaultCsvDelimiter();
+    {
+        const QSignalBlocker blocker(delimiterCombo);
+        delimiterCombo->setCurrentIndex(qMax(0, delimiterCombo->findData(QString(delimiter))));
     }
+    parseFile();
 
-    csvData.clear();
-    csvHeaders.clear();
+    // The decimal separator follows the amount column if detection is on
+    const QChar appSeparator = settings.getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
+    decimalSeparator = settings.isAutoDetectDecimalSeparator()
+        ? CsvImport::detectDecimalSeparator(rows, mapping().value(CsvImport::FieldAmount, -1), appSeparator)
+        : appSeparator;
+    {
+        const QSignalBlocker blocker(decimalCombo);
+        decimalCombo->setCurrentIndex(qMax(0, decimalCombo->findData(QString(decimalSeparator))));
+    }
+    updateFormatSummary();
+    updateExamples();
+}
 
+void ImportManagerDialog::parseFile()
+{
+    rows.clear();
+    headers.clear();
     QString parseError;
-    const QList<QStringList> records = CsvParser::parse(text, csvDelimiter, &parseError);
+    const QList<QStringList> records = CsvParser::parse(fileText, delimiter, &parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(this, "CSV Error", parseError);
-        return;
+        showError(fileErrorLabel, QString("This file can't be read as CSV: %1").arg(parseError));
+    } else {
+        fileErrorLabel->hide();
     }
     if (!records.isEmpty()) {
-        csvHeaders = records.first();
-        for (qsizetype i = 1; i < records.size(); ++i) {
-            csvData.append(records[i]);
-        }
+        headers = records.first();
+        rows = records.mid(1);
     }
 
-    for (auto it = mappingComboBoxes.begin(); it != mappingComboBoxes.end(); ++it) {
-        QComboBox *combo = it.value();
+    // Offer the file's columns and guess which is which from the headers
+    for (QComboBox *combo : std::as_const(mappingCombos)) {
         const QSignalBlocker blocker(combo);
         combo->clear();
-        combo->addItem("(Not Mapped)", -1);
-        for (int i = 0; i < csvHeaders.size(); ++i) combo->addItem(csvHeaders[i], i);
+        combo->addItem("(Not in the file)", -1);
+        for (int i = 0; i < headers.size(); ++i) combo->addItem(headers[i], i);
     }
-
-    // Auto-map columns based on header names
-    const CsvImport::Mapping mapping = CsvImport::autoMapColumns(csvHeaders);
-    applyMappingToComboBoxes(mapping);
-
-    // Detect the decimal separator from the amount column if enabled in settings
-    const QChar appSeparator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
-    decimalSeparator = Settings::instance().isAutoDetectDecimalSeparator()
-                           ? CsvImport::detectDecimalSeparator(csvData, mapping.value(CsvImport::FieldAmount, -1), appSeparator)
-                           : appSeparator;
-    {
-        const QSignalBlocker blocker(ui->decimalSeparatorComboBox);
-        ui->decimalSeparatorComboBox->setCurrentIndex(decimalSeparator == ',' ? 1 : 0);
-    }
-
-    updatePreviewTable();
-
-    // Enable buttons
-    ui->dryRunButton->setEnabled(true);
-    ui->importButton->setEnabled(true);
+    applyMapping(CsvImport::autoMapColumns(headers));
+    updateFormatSummary();
+    updateExamples();
 }
 
-void ImportManagerDialog::applyMappingToComboBoxes(const CsvImport::Mapping &mapping)
+void ImportManagerDialog::updateFormatSummary()
 {
-    for (auto it = mappingComboBoxes.begin(); it != mappingComboBoxes.end(); ++it) {
-        QComboBox *combo = it.value();
-        const QSignalBlocker blocker(combo);
-        const int index = combo->findData(mapping.value(it.key(), -1));
-        combo->setCurrentIndex(index >= 0 ? index : 0);
-    }
-}
-
-CsvImport::Mapping ImportManagerDialog::mappingFromComboBoxes() const
-{
-    CsvImport::Mapping mapping;
-    for (auto it = mappingComboBoxes.begin(); it != mappingComboBoxes.end(); ++it) {
-        const int columnIndex = it.value()->currentData().toInt();
-        if (columnIndex >= 0) {
-            mapping.insert(it.key(), columnIndex);
-        }
-    }
-    return mapping;
-}
-
-void ImportManagerDialog::onDelimiterChanged(const QString &delimiter)
-{
-    autoDetectDelimiterOnNextParse = false;
-    if (delimiter.contains("Comma")) {
-        csvDelimiter = ',';
-    } else if (delimiter.contains("Semicolon")) {
-        csvDelimiter = ';';
-    } else if (delimiter.contains("Tab")) {
-        csvDelimiter = '\t';
-    } else if (delimiter.contains("Pipe")) {
-        csvDelimiter = '|';
-    }
-
-    // Re-parse file with new delimiter
-    if (!currentFilePath.isEmpty()) {
-        parseCSV(currentFilePath);
-    }
-}
-
-void ImportManagerDialog::onDecimalSeparatorChanged(int index)
-{
-    // 0 = Point, 1 = Comma
-    decimalSeparator = (index == 1) ? ',' : '.';
-    updatePreviewTable();
-}
-
-void ImportManagerDialog::onAmountInterpretationChanged(int index)
-{
-    amountInterpretation = static_cast<CsvImport::AmountInterpretation>(index);
-    updatePreviewTable();
-}
-
-void ImportManagerDialog::onColumnMappingChanged()
-{
-    updatePreviewTable();
-}
-
-void ImportManagerDialog::onPreviewRefreshClicked()
-{
-    updatePreviewTable();
-}
-
-void ImportManagerDialog::updatePreviewTable()
-{
-    refreshFileCategories();
-    ui->previewTable->clear();
-    ui->previewTable->setRowCount(0);
-    ui->previewTable->setColumnCount(0);
-
-    if (csvData.isEmpty()) {
+    if (filePath.isEmpty()) {
+        formatSummaryLabel->setText("Choose a file to see what Aion finds in it.");
+        changeFormatButton->hide();
         return;
     }
-
-    const CsvImport::Mapping mapping = mappingFromComboBoxes();
-    auto value = [&mapping](const QStringList &row, const QString &field) {
-        const int column = mapping.value(field, -1);
-        return (column >= 0 && column < row.size()) ? row[column] : QString();
-    };
-
-    const QStringList previewHeaders = {"Date", "Amount", "Type", "Payee", "Description", "Category"};
-    ui->previewTable->setColumnCount(previewHeaders.size());
-    ui->previewTable->setHorizontalHeaderLabels(previewHeaders);
-
-    // Show first 10 rows
-    const int previewRows = qMin(10, csvData.size());
-    ui->previewTable->setRowCount(previewRows);
-
-    for (int row = 0; row < previewRows; ++row) {
-        const QStringList &csvRow = csvData[row];
-        const QString amountText = value(csvRow, CsvImport::FieldAmount);
-        const Cents amount = CsvImport::parseAmount(amountText, decimalSeparator);
-
-        ui->previewTable->setItem(row, 0, new QTableWidgetItem(value(csvRow, CsvImport::FieldDate)));
-        // Show parsed and original amount
-        ui->previewTable->setItem(row, 1, new QTableWidgetItem(QString("%1 (%2)").arg(Money::toPlainString(amount), amountText)));
-        ui->previewTable->setItem(row, 2, new QTableWidgetItem(
-            CsvImport::transactionType(amount, value(csvRow, CsvImport::FieldType), amountInterpretation)));
-        ui->previewTable->setItem(row, 3, new QTableWidgetItem(value(csvRow, CsvImport::FieldPayee)));
-        ui->previewTable->setItem(row, 4, new QTableWidgetItem(value(csvRow, CsvImport::FieldDescription)));
-        ui->previewTable->setItem(row, 5, new QTableWidgetItem(value(csvRow, CsvImport::FieldCategory)));
+    formatSummaryLabel->setText(QString("%1 %2 · %3 · decimal %4")
+                                    .arg(rows.size()).arg(rows.size() == 1 ? "row" : "rows")
+                                    .arg(delimiterName(delimiter), decimalSeparator == ',' ? "comma" : "point"));
+    changeFormatButton->show();
+    if (columnsSubtitle) {
+        columnsSubtitle->setText(QFileInfo(filePath).fileName() + " · " + formatSummaryLabel->text());
     }
-
-    ui->previewTable->resizeColumnsToContents();
-    scheduleBalanceCheck();
 }
 
-bool ImportManagerDialog::validateMapping()
+// --- Step 2: which column is what ---
+
+QWidget *ImportManagerDialog::buildColumnsPage()
 {
-    const CsvImport::Mapping mapping = mappingFromComboBoxes();
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
+    layout->addWidget(pageTitle("Which column is what?", page));
+    columnsSubtitle = hintLabel(QString(), page);
+    layout->addWidget(columnsSubtitle);
 
-    // Check that required fields are mapped
-    if (!mapping.contains(CsvImport::FieldDate)) {
-        QMessageBox::warning(this, "Validation Error", "Date field must be mapped");
-        return false;
+    auto *grid = new QGridLayout();
+    grid->setHorizontalSpacing(12);
+    grid->setVerticalSpacing(8);
+    grid->setColumnMinimumWidth(0, 110);
+    grid->setColumnStretch(1, 2);
+    grid->setColumnStretch(2, 3);
+    int column = 0;
+    for (const QString &caption : {QString("Aion field"), QString("Column in the file"), QString("Example")}) {
+        auto *header = new QLabel(caption, page);
+        header->setForegroundRole(QPalette::PlaceholderText);
+        grid->addWidget(header, 0, column++);
     }
-    if (!mapping.contains(CsvImport::FieldAmount)) {
-        QMessageBox::warning(this, "Validation Error", "Amount field must be mapped");
-        return false;
+    int row = 1;
+    for (const auto &field : columnFields()) {
+        auto *label = new QLabel(field.second, page);
+        if (field.first == CsvImport::FieldBalance) {
+            label->setToolTip("The bank's balance after each booking. Only used to check the account's balance, never saved.");
+        }
+        auto *combo = new QComboBox(page);
+        combo->setObjectName("map_" + field.first);
+        auto *example = new QLabel(page);
+        example->setObjectName("example_" + field.first);
+        example->setForegroundRole(QPalette::PlaceholderText);
+        connect(combo, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateExamples);
+        mappingCombos.insert(field.first, combo);
+        exampleLabels.insert(field.first, example);
+        grid->addWidget(label, row, 0);
+        grid->addWidget(combo, row, 1);
+        grid->addWidget(example, row, 2);
+        ++row;
     }
+    layout->addLayout(grid);
 
-    // Check that an account is selected
-    if (ui->accountComboBox->currentIndex() < 0) {
-        QMessageBox::warning(this, "Validation Error", "Please select an account");
-        return false;
-    }
-    return true;
+    // Rarely needed: where income and expenses come from, duplicates and unreadable rows
+    moreOptionsButton = new QToolButton(page);
+    moreOptionsButton->setObjectName("moreOptionsButton");
+    moreOptionsButton->setText("More options");
+    moreOptionsButton->setCheckable(true);
+    moreOptionsButton->setAutoRaise(true);
+    moreOptionsButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    moreOptionsButton->setArrowType(Qt::RightArrow);
+    connect(moreOptionsButton, &QToolButton::toggled, this, [this](bool open) {
+        moreOptionsBox->setVisible(open);
+        moreOptionsButton->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+        if (open) {
+            // The explanations wrap: grow the window if they need more room than it has
+            this->layout()->activate();
+            const int needed = this->layout()->hasHeightForWidth() ? this->layout()->totalHeightForWidth(width()) : sizeHint().height();
+            if (needed > height()) resize(width(), needed);
+        }
+    });
+    layout->addWidget(moreOptionsButton);
+
+    moreOptionsBox = new QFrame(page);
+    moreOptionsBox->setFrameShape(QFrame::StyledPanel);
+    auto *more = new QFormLayout(moreOptionsBox);
+    interpretationCombo = new QComboBox(moreOptionsBox);
+    interpretationCombo->setObjectName("interpretationCombo");
+    interpretationCombo->addItem("From the sign (− expense, + income)", int(CsvImport::AmountInterpretation::SignBased));
+    interpretationCombo->addItem("From the sign, reversed (− income, + expense)", int(CsvImport::AmountInterpretation::SignBasedInverted));
+    interpretationCombo->addItem("Everything is income", int(CsvImport::AmountInterpretation::AllIncome));
+    interpretationCombo->addItem("Everything is an expense", int(CsvImport::AmountInterpretation::AllExpense));
+    interpretationCombo->addItem("From a type column", int(CsvImport::AmountInterpretation::ColumnBased));
+    connect(interpretationCombo, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateExamples);
+    more->addRow("Income or expense", interpretationCombo);
+    auto *typeCombo = new QComboBox(moreOptionsBox);
+    typeCombo->setObjectName("map_" + CsvImport::FieldType);
+    typeCombo->setToolTip("A column saying whether a row is income or expense, for example \"Soll/Haben\"");
+    connect(typeCombo, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateExamples);
+    mappingCombos.insert(CsvImport::FieldType, typeCombo);
+    more->addRow("Type column", typeCombo);
+    // Each option with a line saying when you'd want it
+    auto addOption = [&](QCheckBox *check, const QString &explanation) {
+        auto *hint = hintLabel(explanation, moreOptionsBox);
+        hint->setContentsMargins(24, 0, 0, 4);       // Under the checkbox text
+        more->addRow(check);
+        more->addRow(hint);
+    };
+    allowDuplicatesCheck = new QCheckBox("Import identical transactions", moreOptionsBox);
+    allowDuplicatesCheck->setObjectName("allowDuplicatesCheck");
+    addOption(allowDuplicatesCheck, "Normally rows with the same date, amount, payee and description as a transaction "
+                                    "in this account are skipped, so importing overlapping exports doesn't count them twice. "
+                                    "Turn this on if you really have identical transactions, like two coffees on one day.");
+    allowPartialCheck = new QCheckBox("Skip rows that can't be read", moreOptionsBox);
+    allowPartialCheck->setObjectName("allowPartialCheck");
+    addOption(allowPartialCheck, "Normally one unreadable row, like a broken date, stops the whole import so nothing is "
+                                 "half imported. Turn this on to leave such rows out and import the rest. The review "
+                                 "lists the rows that would be left out.");
+    moreOptionsBox->hide();
+    layout->addWidget(moreOptionsBox);
+
+    columnsErrorLabel = new QLabel(page);
+    columnsErrorLabel->setWordWrap(true);
+    columnsErrorLabel->hide();
+    layout->addWidget(columnsErrorLabel);
+    layout->addStretch();
+    return page;
 }
 
-CsvImport::Result ImportManagerDialog::runImport(bool dryRun)
+void ImportManagerDialog::applyMapping(const CsvImport::Mapping &newMapping)
+{
+    for (auto it = mappingCombos.cbegin(); it != mappingCombos.cend(); ++it) {
+        const QSignalBlocker blocker(it.value());
+        it.value()->setCurrentIndex(qMax(0, it.value()->findData(newMapping.value(it.key(), -1))));
+    }
+}
+
+CsvImport::Mapping ImportManagerDialog::mapping() const
+{
+    CsvImport::Mapping result;
+    for (auto it = mappingCombos.cbegin(); it != mappingCombos.cend(); ++it) {
+        const int column = it.value()->currentData().toInt();
+        if (column >= 0) result.insert(it.key(), column);
+    }
+    return result;
+}
+
+void ImportManagerDialog::updateExamples()
+{
+    const CsvImport::Mapping current = mapping();
+    const Settings &settings = Settings::instance();
+    const Theme::Colors colors = Theme::colors();
+    const auto interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
+
+    for (auto it = exampleLabels.cbegin(); it != exampleLabels.cend(); ++it) {
+        QLabel *example = it.value();
+        example->setForegroundRole(QPalette::PlaceholderText);
+        example->setPalette(QPalette());
+        const int column = current.value(it.key(), -1);
+        // The first row that has something in this column
+        QString value;
+        const QStringList *sampleRow = nullptr;
+        for (const QStringList &row : std::as_const(rows)) {
+            if (column >= 0 && column < row.size() && !row[column].trimmed().isEmpty()) {
+                value = row[column].trimmed();
+                sampleRow = &row;
+                break;
+            }
+        }
+        if (column < 0 || value.isEmpty()) {
+            example->setText(column < 0 ? QString() : QString("empty in this file"));
+            continue;
+        }
+
+        QString text = value;
+        bool problem = false;
+        if (it.key() == CsvImport::FieldDate) {
+            const QDate date = CsvImport::parseDate(value);
+            problem = !date.isValid();
+            text = problem ? QString("can't read \"%1\" as a date").arg(value) : english.toString(date, "d MMMM yyyy");
+        } else if (it.key() == CsvImport::FieldAmount || it.key() == CsvImport::FieldBalance) {
+            bool ok = false;
+            const Cents cents = CsvImport::parseAmount(value, decimalSeparator, &ok);
+            problem = !ok;
+            if (problem) {
+                text = QString("can't read \"%1\" as an amount").arg(value);
+            } else if (it.key() == CsvImport::FieldBalance) {
+                text = settings.formatCurrency(cents) + " · only for checking the balance";
+            } else {
+                const int typeColumn = current.value(CsvImport::FieldType, -1);
+                const QString typeText = typeColumn >= 0 && typeColumn < sampleRow->size() ? sampleRow->at(typeColumn) : QString();
+                const QString type = CsvImport::transactionType(cents, typeText, interpretation);
+                text = QString("%1 → %2 %3").arg(value, type, settings.formatCurrency(qAbs(cents)));
+            }
+        }
+        example->setText(example->fontMetrics().elidedText(text, Qt::ElideRight, 320));
+        example->setToolTip(text);
+        if (problem) setTextColor(example, colors.danger);
+    }
+}
+
+CsvImport::Options ImportManagerDialog::importOptions() const
 {
     CsvImport::Options options;
-    options.accountId = ui->accountComboBox->currentData().toInt();
+    options.accountId = accountCombo->currentData().toInt();
     options.decimalSeparator = decimalSeparator;
-    options.interpretation = amountInterpretation;
+    options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
     for (const Category &category : CategoryDAO().getAllCategories()) {
         options.categoryIds.insert(category.getName().simplified().toLower(), category.getCategoryId());
     }
     applyCategoryChoices(options);
-
-    CsvImport::RunOptions runOptions;
-    runOptions.allowDuplicates = ui->allowDuplicatesCheckBox->isChecked();
-    runOptions.allowPartialImport = ui->allowPartialImportCheckBox->isChecked();
-    runOptions.dryRun = dryRun;
-
-    // Check the balance on the day the bank's balance column refers to, if it is mapped
-    const CsvImport::StatedBalance stated = CsvImport::statedBalance(csvData, mappingFromComboBoxes(), decimalSeparator);
-    if (stated.found) {
-        runOptions.checkDate = stated.date;
-    }
-    Cents expected = 0;
-    if (!dryRun && correctionWanted() && expectedBalance(&expected)) {
-        runOptions.correct = true;
-        runOptions.correctTo = expected;
-        runOptions.correctionNote = QString("Import of %1").arg(QFileInfo(currentFilePath).fileName());
-    }
-
-    return CsvImport::run(csvData, mappingFromComboBoxes(), options, runOptions);
+    return options;
 }
 
-namespace {
+// --- Step 3: the file's categories ---
 
-// Scroll area content that never gets squeezed below its preferred height; the scroll
-// bar takes over instead (otherwise wrapped labels and group boxes get cut off). The scroll
-// area doesn't notice when sections grow later (the balance check after a dry run), so the
-// content keeps its own minimum height up to date.
-class FullHeightContent : public QWidget
+QWidget *ImportManagerDialog::buildCategoriesPage()
 {
-public:
-    using QWidget::QWidget;
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
+    layout->addWidget(pageTitle("Categories in this file", page));
 
-protected:
-    bool event(QEvent *event) override
-    {
-        const bool handled = QWidget::event(event);
-        if ((event->type() == QEvent::LayoutRequest || event->type() == QEvent::Resize) && layout()) {
-            // Wrapped labels and tables need more height at narrower widths
-            int height = layout()->sizeHint().height();
-            if (layout()->hasHeightForWidth()) height = qMax(height, layout()->totalHeightForWidth(width()));
-            if (minimumHeight() != height) {
-                setMinimumHeight(height);
-                if (this->height() < height) resize(width(), height);
-            }
-        }
-        return handled;
-    }
-};
+    auto *summaryRow = new QHBoxLayout();
+    categorySummaryLabel = new QLabel(page);
+    categorySummaryLabel->setObjectName("categorySummaryLabel");
+    categorySummaryLabel->setWordWrap(true);
+    categorySummaryLabel->setForegroundRole(QPalette::PlaceholderText);
+    summaryRow->addWidget(categorySummaryLabel, 1);
+    newCategoriesButton = new QToolButton(page);
+    newCategoriesButton->setObjectName("newCategoriesButton");
+    newCategoriesButton->setText("All new categories");
+    newCategoriesButton->setPopupMode(QToolButton::InstantPopup);
+    auto *menu = new QMenu(newCategoriesButton);
+    menu->addAction("Create them", this, [this]() { setAllNewCategories(true); });
+    menu->addAction("Import without a category", this, [this]() { setAllNewCategories(false); });
+    newCategoriesButton->setMenu(menu);
+    summaryRow->addWidget(newCategoriesButton);
+    layout->addLayout(summaryRow);
 
-} // namespace
-
-void ImportManagerDialog::makeScrollable()
-{
-    // Move the groups into a scroll area; the button row stays below it
-    auto *scroll = new QScrollArea(this);
-    scroll->setObjectName("importScroll");
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    auto *content = new FullHeightContent(scroll);
-    auto *contentLayout = new QVBoxLayout(content);
-    contentLayout->setContentsMargins(0, 0, 0, 0);
-    while (ui->verticalLayout->count() > 0) {
-        QLayoutItem *item = ui->verticalLayout->itemAt(0);
-        if (item->layout() == ui->horizontalLayout_buttons) {
-            break;
-        }
-        ui->verticalLayout->takeAt(0);
-        if (QWidget *widget = item->widget()) {
-            contentLayout->addWidget(widget);
-            delete item;
-        } else {
-            contentLayout->addItem(item);
-        }
-    }
-    scroll->setWidget(content);
-    ui->verticalLayout->insertWidget(0, scroll, 1);
-
-    // Never taller than the screen
-    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
-        const QRect available = screen->availableGeometry();
-        resize(qMin(width(), available.width() - 40), qMin(height(), available.height() - 80));
-    }
+    categoriesScroll = new QScrollArea(page);
+    categoriesScroll->setObjectName("categoriesScroll");
+    categoriesScroll->setWidgetResizable(true);
+    categoriesScroll->setFrameShape(QFrame::StyledPanel);
+    categoriesScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    layout->addWidget(categoriesScroll, 1);
+    return page;
 }
 
 void ImportManagerDialog::refreshFileCategories()
 {
-    if (!categoriesGroupBox) {
-        return;
-    }
-    // Keep the user's choices while the table is rebuilt
+    // Keep the user's choices while the list is rebuilt
     for (auto it = categoryChoices.cbegin(); it != categoryChoices.cend(); ++it) {
         chosenCategories.insert(it.key(), it.value()->currentData().toString());
     }
     categoryChoices.clear();
     delete categoriesScroll->takeWidget();
-    categoriesTable = nullptr;
 
     CsvImport::Options options;
     options.decimalSeparator = decimalSeparator;
-    options.interpretation = amountInterpretation;
-    const QList<CsvImport::FileCategory> found = CsvImport::fileCategories(csvData, mappingFromComboBoxes(), options);
-    categoriesGroupBox->setVisible(!found.isEmpty());
-    if (found.isEmpty()) {
-        return;
-    }
+    options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
+    fileCategories = CsvImport::fileCategories(rows, mapping(), options);
 
     QHash<QString, Category> existing;
     QList<Category> choosable;
@@ -489,41 +608,41 @@ void ImportManagerDialog::refreshFileCategories()
         if (!category.isBuiltIn()) choosable.append(category);
     }
 
-    categoriesTable = new QWidget();
-    auto *grid = new QGridLayout(categoriesTable);
-    grid->setContentsMargins(0, 0, 0, 0);
+    auto *table = new QWidget();
+    auto *grid = new QGridLayout(table);
+    grid->setContentsMargins(10, 8, 10, 8);
     grid->setColumnStretch(0, 1);
     grid->setColumnStretch(2, 2);
-    int row = 0;
+    int column = 0;
     for (const QString &caption : {QString("In the file"), QString("Rows"), QString("In Aion")}) {
-        auto *header = new QLabel(caption, categoriesTable);
+        auto *header = new QLabel(caption, table);
         header->setForegroundRole(QPalette::PlaceholderText);
-        grid->addWidget(header, 0, row++);
+        grid->addWidget(header, 0, column++);
     }
-    row = 1;
-    for (const CsvImport::FileCategory &category : found) {
+    int row = 1;
+    for (const CsvImport::FileCategory &category : std::as_const(fileCategories)) {
         const QString key = category.name.toLower();
-        grid->addWidget(new QLabel(category.name, categoriesTable), row, 0);
-        auto *count = new QLabel(QString::number(category.rows), categoriesTable);
+        grid->addWidget(new QLabel(category.name, table), row, 0);
+        auto *count = new QLabel(QString::number(category.rows), table);
         count->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(count, row, 1);
 
         if (existing.contains(key)) {
             // Already known: just show it
-            auto *match = new QWidget(categoriesTable);
-            auto *layout = new QHBoxLayout(match);
-            layout->setContentsMargins(0, 0, 0, 0);
-            auto *tag = new CategoryTag(match);
             const Category &known = existing.find(key).value();
+            auto *match = new QWidget(table);
+            auto *matchLayout = new QHBoxLayout(match);
+            matchLayout->setContentsMargins(0, 0, 0, 0);
+            auto *tag = new CategoryTag(match);
             tag->setCategory(known.getName(), known.getColor());
-            layout->addWidget(tag);
+            matchLayout->addWidget(tag);
             auto *note = new QLabel("matches", match);
             note->setForegroundRole(QPalette::PlaceholderText);
-            layout->addWidget(note);
-            layout->addStretch();
+            matchLayout->addWidget(note);
+            matchLayout->addStretch();
             grid->addWidget(match, row, 2);
         } else {
-            auto *choice = new QComboBox(categoriesTable);
+            auto *choice = new QComboBox(table);
             choice->setObjectName("categoryChoice");
             choice->setAccessibleName(category.name);
             choice->setProperty("fileName", category.name);
@@ -538,18 +657,15 @@ void ImportManagerDialog::refreshFileCategories()
             }
             const int remembered = choice->findData(chosenCategories.value(key));
             choice->setCurrentIndex(remembered >= 0 ? remembered : 0);
-            connect(choice, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::scheduleBalanceCheck);
             connect(choice, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateCategorySummary);
             categoryChoices.insert(key, choice);
             grid->addWidget(choice, row, 2);
         }
         ++row;
     }
-    matchedCategories = int(found.size() - categoryChoices.size());
-
-    // A long list scrolls inside the section instead of pushing the rest of the dialog away
-    categoriesScroll->setWidget(categoriesTable);
-    categoriesScroll->setFixedHeight(qMin(categoriesTable->sizeHint().height() + 2 * categoriesScroll->frameWidth(), 280));
+    grid->setRowStretch(row, 1);
+    matchedCategories = int(fileCategories.size() - categoryChoices.size());
+    categoriesScroll->setWidget(table);
     updateCategorySummary();
 }
 
@@ -568,10 +684,9 @@ void ImportManagerDialog::updateCategorySummary()
     if (create > 0) parts << QString("%1 will be created").arg(create);
     if (mapped > 0) parts << QString("%1 mapped to other categories").arg(mapped);
     if (none > 0) parts << QString("%1 imported without a category").arg(none);
+    const int total = matchedCategories + int(categoryChoices.size());
     categorySummaryLabel->setText(QString("%1 %2 in the file: %3.")
-                                      .arg(matchedCategories + categoryChoices.size())
-                                      .arg(matchedCategories + categoryChoices.size() == 1 ? "category" : "categories",
-                                           parts.join(", ")));
+                                      .arg(total).arg(total == 1 ? "category" : "categories", parts.join(", ")));
     newCategoriesButton->setVisible(!categoryChoices.isEmpty());
 }
 
@@ -582,7 +697,6 @@ void ImportManagerDialog::setAllNewCategories(bool create)
         choice->setCurrentIndex(create ? 0 : choice->findData("none"));   // Index 0: create with the likely type
     }
     updateCategorySummary();
-    scheduleBalanceCheck();
 }
 
 void ImportManagerDialog::applyCategoryChoices(CsvImport::Options &options) const
@@ -599,176 +713,147 @@ void ImportManagerDialog::applyCategoryChoices(CsvImport::Options &options) cons
     }
 }
 
-void ImportManagerDialog::setupBalanceCheck()
+// --- Step 4: review and balance check ---
+
+QWidget *ImportManagerDialog::buildReviewPage()
 {
-    balanceGroupBox = new QGroupBox("Balance check", this);
-    balanceGroupBox->setObjectName("balanceGroupBox");
-    auto *layout = new QVBoxLayout(balanceGroupBox);
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
+    reviewTitle = pageTitle(QString(), page);
+    layout->addWidget(reviewTitle);
+    layout->addWidget(hintLabel("Nothing has been saved yet.", page));
 
-    balanceHintLabel = new QLabel(balanceGroupBox);
-    balanceHintLabel->setObjectName("balanceHintLabel");
-    balanceHintLabel->setWordWrap(true);
-    balanceHintLabel->setForegroundRole(QPalette::PlaceholderText);
-    layout->addWidget(balanceHintLabel);
+    auto *tiles = new QHBoxLayout();
+    tiles->setSpacing(8);
+    newCountLabel = addTile(tiles, "New", "newCountLabel", page);
+    duplicateCountLabel = addTile(tiles, "Already in Aion, skipped", "duplicateCountLabel", page);
+    failedCountLabel = addTile(tiles, "Can't be read", "failedCountLabel", page);
+    layout->addLayout(tiles);
 
-    balanceDetails = new QWidget(balanceGroupBox);
-    auto *grid = new QGridLayout(balanceDetails);
-    grid->setContentsMargins(0, 0, 0, 0);
+    problemsLabel = new QLabel(page);
+    problemsLabel->setObjectName("problemsLabel");
+    problemsLabel->setWordWrap(true);
+    layout->addWidget(problemsLabel);
+    newCategoriesLabel = new QLabel(page);
+    newCategoriesLabel->setObjectName("newCategoriesLabel");
+    newCategoriesLabel->setWordWrap(true);
+    layout->addWidget(newCategoriesLabel);
+
+    // Balance after the import compared with the bank's
+    balanceBox = new QFrame(page);
+    balanceBox->setObjectName("balanceGroupBox");
+    balanceBox->setFrameShape(QFrame::StyledPanel);
+    auto *grid = new QGridLayout(balanceBox);
+    grid->setContentsMargins(12, 10, 12, 10);
     grid->setColumnStretch(0, 1);
-    auto addRow = [&](int row, QLabel **caption, QLabel **value, const QString &name) {
-        *caption = new QLabel(balanceDetails);
-        *value = new QLabel(balanceDetails);
-        (*value)->setObjectName(name);
-        (*value)->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        grid->addWidget(*caption, row, 0);
-        grid->addWidget(*value, row, 1);
-    };
-    addRow(0, &balanceNowCaption, &balanceNowValue, "balanceNowValue");
-    addRow(1, &balanceChangeCaption, &balanceChangeValue, "balanceChangeValue");
-    addRow(2, &balanceAfterCaption, &balanceAfterValue, "balanceAfterValue");
-    for (QLabel *label : {balanceAfterCaption, balanceAfterValue}) {
-        QFont font = label->font();
-        font.setBold(true);
-        label->setFont(font);
-    }
-
-    expectedCaption = new QLabel(balanceDetails);
-    expectedEdit = new QLineEdit(balanceDetails);
+    balanceAfterCaption = new QLabel(balanceBox);
+    balanceAfterValue = new QLabel(balanceBox);
+    balanceAfterValue->setObjectName("balanceAfterValue");
+    balanceAfterValue->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    QFont bold = balanceAfterValue->font();
+    bold.setBold(true);
+    balanceAfterValue->setFont(bold);
+    grid->addWidget(balanceAfterCaption, 0, 0);
+    grid->addWidget(balanceAfterValue, 0, 1);
+    balanceBreakdownLabel = new QLabel(balanceBox);
+    balanceBreakdownLabel->setObjectName("balanceBreakdownLabel");
+    balanceBreakdownLabel->setForegroundRole(QPalette::PlaceholderText);
+    grid->addWidget(balanceBreakdownLabel, 1, 0, 1, 2);
+    expectedCaption = new QLabel(balanceBox);
+    expectedEdit = new QLineEdit(balanceBox);
     expectedEdit->setObjectName("expectedBalanceEdit");
     expectedEdit->setPlaceholderText("Optional");
     expectedEdit->setAlignment(Qt::AlignRight);
     expectedEdit->setMaximumWidth(160);
-    grid->addWidget(expectedCaption, 3, 0);
-    grid->addWidget(expectedEdit, 3, 1);
-    expectedSourceLabel = new QLabel(balanceDetails);
-    expectedSourceLabel->setForegroundRole(QPalette::PlaceholderText);
-    grid->addWidget(expectedSourceLabel, 4, 0, 1, 2);
     connect(expectedEdit, &QLineEdit::textEdited, this, [this]() {
         expectedEditedByUser = true;
-        expectedSourceLabel->clear();
+        expectedSourceLabel->setText(" ");
         updateBalanceStatus();
     });
-
-    balanceStatusLabel = new QLabel(balanceDetails);
+    grid->addWidget(expectedCaption, 2, 0);
+    grid->addWidget(expectedEdit, 2, 1);
+    expectedSourceLabel = new QLabel(" ", balanceBox);
+    expectedSourceLabel->setForegroundRole(QPalette::PlaceholderText);
+    grid->addWidget(expectedSourceLabel, 3, 0, 1, 2);
+    balanceStatusLabel = new QLabel(balanceBox);
     balanceStatusLabel->setObjectName("balanceStatusLabel");
     balanceStatusLabel->setWordWrap(true);
-    grid->addWidget(balanceStatusLabel, 5, 0, 1, 2);
-    correctionCheckBox = new QCheckBox(balanceDetails);
+    grid->addWidget(balanceStatusLabel, 4, 0, 1, 2);
+    correctionCheckBox = new QCheckBox(balanceBox);
     correctionCheckBox->setObjectName("correctionCheckBox");
     correctionCheckBox->setChecked(true);
-    // Hidden parts keep their space so the section never changes height
-    for (QWidget *widget : {static_cast<QWidget *>(correctionCheckBox), static_cast<QWidget *>(expectedSourceLabel)}) {
-        QSizePolicy policy = widget->sizePolicy();
-        policy.setRetainSizeWhenHidden(true);
-        widget->setSizePolicy(policy);
-    }
-    grid->addWidget(correctionCheckBox, 6, 0, 1, 2);
-    layout->addWidget(balanceDetails);
-
-    // Categories in the file, then the balance check, between the preview and the buttons
-    categoriesGroupBox = new QGroupBox("Categories in this file", this);
-    categoriesGroupBox->setObjectName("categoriesGroupBox");
-    auto *categoriesLayout = new QVBoxLayout(categoriesGroupBox);
-    auto *summaryRow = new QHBoxLayout();
-    categorySummaryLabel = new QLabel(categoriesGroupBox);
-    categorySummaryLabel->setObjectName("categorySummaryLabel");
-    categorySummaryLabel->setWordWrap(true);
-    summaryRow->addWidget(categorySummaryLabel, 1);
-    newCategoriesButton = new QToolButton(categoriesGroupBox);
-    newCategoriesButton->setObjectName("newCategoriesButton");
-    newCategoriesButton->setText("All new categories");
-    newCategoriesButton->setPopupMode(QToolButton::InstantPopup);
-    auto *newCategoriesMenu = new QMenu(newCategoriesButton);
-    newCategoriesMenu->addAction("Create them", this, [this]() { setAllNewCategories(true); });
-    newCategoriesMenu->addAction("Import without a category", this, [this]() { setAllNewCategories(false); });
-    newCategoriesButton->setMenu(newCategoriesMenu);
-    summaryRow->addWidget(newCategoriesButton);
-    categoriesLayout->addLayout(summaryRow);
-    categoriesScroll = new QScrollArea(categoriesGroupBox);
-    categoriesScroll->setObjectName("categoriesScroll");
-    categoriesScroll->setWidgetResizable(true);
-    categoriesScroll->setFrameShape(QFrame::StyledPanel);
-    categoriesScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    categoriesLayout->addWidget(categoriesScroll);
-    categoriesGroupBox->hide();
-    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->previewGroupBox) + 1, categoriesGroupBox);
-    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(categoriesGroupBox) + 1, balanceGroupBox);
-
-    balanceTimer = new QTimer(this);
-    balanceTimer->setSingleShot(true);
-    balanceTimer->setInterval(250);
-    connect(balanceTimer, &QTimer::timeout, this, &ImportManagerDialog::refreshBalanceCheck);
-    connect(ui->accountComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
-        expectedEditedByUser = false;                // Another account has another balance
-        scheduleBalanceCheck();
-    });
-    connect(ui->allowDuplicatesCheckBox, &QCheckBox::toggled, this, &ImportManagerDialog::scheduleBalanceCheck);
-    connect(ui->allowPartialImportCheckBox, &QCheckBox::toggled, this, &ImportManagerDialog::scheduleBalanceCheck);
-    refreshBalanceCheck();
+    connect(correctionCheckBox, &QCheckBox::toggled, this, &ImportManagerDialog::updateBalanceStatus);
+    grid->addWidget(correctionCheckBox, 5, 0, 1, 2);
+    layout->addWidget(balanceBox);
+    layout->addStretch();
+    return page;
 }
 
-void ImportManagerDialog::scheduleBalanceCheck()
+void ImportManagerDialog::refreshReview()
 {
-    if (balanceTimer) {
-        balanceTimer->start();
-    }
-}
+    dryRun = runImport(true);
+    reviewTitle->setText(QString("Ready to import into %1").arg(accountCombo->currentText()));
+    newCountLabel->setText(QString::number(dryRun.imported));
+    duplicateCountLabel->setText(QString::number(dryRun.duplicates));
+    failedCountLabel->setText(QString::number(dryRun.failed));
+    setTextColor(failedCountLabel, dryRun.failed > 0 ? Theme::colors().danger : palette().color(QPalette::WindowText));
 
-void ImportManagerDialog::refreshBalanceCheck()
-{
-    const CsvImport::Mapping mapping = mappingFromComboBoxes();
-    balanceReady = !csvData.isEmpty() && mapping.contains(CsvImport::FieldDate) && mapping.contains(CsvImport::FieldAmount)
-                   && ui->accountComboBox->currentIndex() >= 0;
-    if (balanceReady) {
-        balanceResult = runImport(true);
-        balanceReady = balanceResult.checkDate.isValid();
-    }
-    // The rows stay in place (with dashes until there is something to show), so the section
-    // keeps its height and the scrolling layout around it never has to catch up
-    balanceDetails->setEnabled(balanceReady);
-    balanceHintLabel->setText(balanceReady
-        ? QString("Compare the account's balance after the import with the one your bank shows. Nothing is saved until you import.")
-        : QString("Choose a file and map its date and amount columns to check the account's balance after the import."));
-    if (!balanceReady) {
-        for (QLabel *value : {balanceNowValue, balanceChangeValue, balanceAfterValue}) value->setText("–");
-        balanceNowCaption->setText("Balance now");
-        balanceChangeCaption->setText("New transactions");
-        balanceAfterCaption->setText("Balance after import");
-        expectedCaption->setText("Your bank's balance");
-        balanceStatusLabel->clear();
-        correctionCheckBox->hide();
-        return;
+    // Rows that can't be read: say why and what to do
+    if (dryRun.failed > 0) {
+        QStringList shown = dryRun.errors.mid(0, 4);
+        QString text = shown.join("\n");
+        if (dryRun.errors.size() > shown.size()) text += QString("\n… and %1 more").arg(dryRun.errors.size() - shown.size());
+        if (!allowPartialCheck->isChecked()) {
+            text += "\n\nNothing will be imported like this. Check the columns, or go back and choose "
+                    "\"Skip rows that can't be read\" under More options.";
+        }
+        problemsLabel->setText(text);
+        setTextColor(problemsLabel, Theme::colors().danger);
+        problemsLabel->show();
+    } else if (dryRun.imported == 0 && dryRun.duplicates > 0) {
+        problemsLabel->setText("Everything in this file is already in Aion.");
+        problemsLabel->setPalette(QPalette());
+        problemsLabel->show();
+    } else {
+        problemsLabel->hide();
     }
 
-    const Settings &settings = Settings::instance();
-    const QLocale english(QLocale::English);
-    const QString day = english.toString(balanceResult.checkDate, "d MMMM yyyy");
-    const Cents change = balanceResult.balanceAfterCents - balanceResult.balanceBeforeCents;
-    balanceNowCaption->setText(QString("Balance on %1 now").arg(day));
-    balanceNowValue->setText(settings.formatCurrency(balanceResult.balanceBeforeCents));
-    QString changeText = QString("%1 new %2").arg(balanceResult.imported).arg(balanceResult.imported == 1 ? "transaction" : "transactions");
-    if (balanceResult.duplicates > 0) {
-        changeText += QString(" · %1 %2 skipped").arg(balanceResult.duplicates).arg(balanceResult.duplicates == 1 ? "duplicate" : "duplicates");
+    QStringList created;
+    for (QComboBox *choice : std::as_const(categoryChoices)) {
+        if (choice->currentData().toString().startsWith("create:")) created << choice->property("fileName").toString();
     }
-    balanceChangeCaption->setText(changeText);
-    balanceChangeValue->setText(settings.formatCurrency(change, true));
-    balanceAfterCaption->setText(QString("Balance on %1 after import").arg(day));
-    balanceAfterValue->setText(settings.formatCurrency(balanceResult.balanceAfterCents));
-    expectedCaption->setText(QString("Your bank's balance on %1").arg(day));
+    std::sort(created.begin(), created.end(), [](const QString &a, const QString &b) { return a.compare(b, Qt::CaseInsensitive) < 0; });
+    newCategoriesLabel->setText(created.isEmpty() ? QString()
+        : created.size() <= 3 ? QString("New categories: %1").arg(created.join(", "))
+                              : QString("New categories: %1 and %2 more").arg(created.mid(0, 2).join(", ")).arg(created.size() - 2));
+    newCategoriesLabel->setVisible(!created.isEmpty());
 
-    // Fill in the bank's balance from the file unless the user typed one
-    if (!expectedEditedByUser) {
-        const CsvImport::StatedBalance stated = CsvImport::statedBalance(csvData, mapping, decimalSeparator);
-        expectedEdit->setText(stated.found ? settings.formatCurrency(stated.cents) : QString());
-        expectedSourceLabel->setText(stated.found ? QString("From the file's \"%1\" column").arg(csvHeaders.value(mapping.value(CsvImport::FieldBalance)))
-                                                  : QString(" "));   // Keeps its line
+    // Balance check on the newest day of the file (or the day of the bank's balance column)
+    balanceBox->setVisible(dryRun.checkDate.isValid());
+    if (dryRun.checkDate.isValid()) {
+        const Settings &settings = Settings::instance();
+        const QString day = english.toString(dryRun.checkDate, "d MMMM yyyy");
+        balanceAfterCaption->setText(QString("Balance on %1 after the import").arg(day));
+        balanceAfterValue->setText(settings.formatCurrency(dryRun.balanceAfterCents));
+        balanceBreakdownLabel->setText(QString("Now %1 · from this file %2")
+                                           .arg(settings.formatCurrency(dryRun.balanceBeforeCents),
+                                                settings.formatCurrency(dryRun.balanceAfterCents - dryRun.balanceBeforeCents, true)));
+        expectedCaption->setText("Your bank says");
+        if (!expectedEditedByUser) {
+            const CsvImport::StatedBalance stated = CsvImport::statedBalance(rows, mapping(), decimalSeparator);
+            expectedEdit->setText(stated.found ? settings.formatCurrency(stated.cents) : QString());
+            expectedSourceLabel->setText(stated.found ? QString("From the file's \"%1\" column").arg(headers.value(mapping().value(CsvImport::FieldBalance)))
+                                                      : QString(" "));
+        }
     }
     updateBalanceStatus();
 }
 
 bool ImportManagerDialog::expectedBalance(Cents *cents) const
 {
-    if (!expectedEdit || expectedEdit->text().trimmed().isEmpty()) {
+    if (expectedEdit->text().trimmed().isEmpty()) {
         return false;
     }
     const QChar separator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
@@ -777,156 +862,177 @@ bool ImportManagerDialog::expectedBalance(Cents *cents) const
     return ok;
 }
 
-bool ImportManagerDialog::correctionWanted() const
-{
-    return balanceReady && correctionCheckBox && correctionCheckBox->isVisible() && correctionCheckBox->isChecked();
-}
-
 void ImportManagerDialog::updateBalanceStatus()
 {
-    if (!balanceReady) {
-        return;
-    }
     const Settings &settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
-    QPalette statusPalette = balanceStatusLabel->palette();
-
     Cents expected = 0;
-    if (expectedEdit->text().trimmed().isEmpty()) {
-        balanceStatusLabel->setText("Enter the balance your bank shows to compare.");
-        statusPalette.setColor(QPalette::WindowText, colors.textSecondary);
+    bool correction = false;
+    if (!dryRun.checkDate.isValid()) {
+        balanceStatusLabel->clear();
+        correctionCheckBox->hide();
+    } else if (expectedEdit->text().trimmed().isEmpty()) {
+        balanceStatusLabel->setText("Enter the balance your bank shows for that day to compare.");
+        setTextColor(balanceStatusLabel, colors.textSecondary);
         correctionCheckBox->hide();
     } else if (!expectedBalance(&expected)) {
         balanceStatusLabel->setText("That isn't an amount Aion can read.");
-        statusPalette.setColor(QPalette::WindowText, colors.danger);
+        setTextColor(balanceStatusLabel, colors.danger);
         correctionCheckBox->hide();
-    } else if (expected == balanceResult.balanceAfterCents) {
+    } else if (expected == dryRun.balanceAfterCents) {
         balanceStatusLabel->setText("Matches your bank after the import.");
-        statusPalette.setColor(QPalette::WindowText, colors.positive);
+        setTextColor(balanceStatusLabel, colors.positive);
         correctionCheckBox->hide();
     } else {
-        const Cents difference = expected - balanceResult.balanceAfterCents;
+        const Cents difference = expected - dryRun.balanceAfterCents;
         balanceStatusLabel->setText(QString("%1 %2 than your bank after the import. Missing or extra bookings, for example "
                                             "from a gap between exports, can cause this.")
                                         .arg(settings.formatCurrency(qAbs(difference)), difference > 0 ? "less" : "more"));
-        statusPalette.setColor(QPalette::WindowText, colors.danger);
-        correctionCheckBox->setText(QString("Add a balance correction of %1 on %2")
-                                        .arg(settings.formatCurrency(difference, true),
-                                             QLocale(QLocale::English).toString(balanceResult.checkDate, "d MMMM")));
+        setTextColor(balanceStatusLabel, colors.danger);
+        correctionCheckBox->setText(QString("Add a balance correction of %1 so they match")
+                                        .arg(settings.formatCurrency(difference, true)));
         correctionCheckBox->show();
-    }
-    balanceStatusLabel->setPalette(statusPalette);
-}
-
-void ImportManagerDialog::onDryRunClicked()
-{
-    if (!validateMapping()) {
-        return;
-    }
-    const CsvImport::Result result = runImport(true);
-
-    // Build detailed report
-    QString message = QString("Dry Run Results:\n\n");
-    message += QString("✅ Valid transactions:    %1\n").arg(result.imported);
-    message += QString("⚠️  Duplicate transactions: %1\n").arg(result.duplicates);
-    message += QString("❌ Failed validations:  %1\n").arg(result.failed);
-
-    if (result.imported > 0) {
-        message += QString("\n%1 transactions would be imported. ").arg(result.imported);
-    }
-    if (result.duplicates > 0) {
-        message += QString("\n%1 transactions would be skipped (duplicates).").arg(result.duplicates);
+        correction = correctionCheckBox->isChecked();
     }
 
-    if (result.failed > 0) {
-        if (ui->allowPartialImportCheckBox->isChecked()) {
-            message += QString("\n\n⚠️  Partial import is enabled:  %1 valid transactions would still be imported despite %2 errors.")
-                           .arg(result.imported)
-                           .arg(result.failed);
-        } else {
-            message += QString("\n\n❌ Partial import is disabled:  Import would be aborted due to errors.");
-        }
-
-        message += "\n\nErrors: ";
-        const int errorCount = qMin(10, result.errors.size());
-        for (int i = 0; i < errorCount; ++i) {
-            message += "\n• " + result.errors[i];
-        }
-        if (result.errors.size() > 10) {
-            message += QString("\n... and %1 more errors").arg(result.errors.size() - 10);
-        }
-    }
-
-    message += "\n\nNo data has been written to the database.";
-
-    if (result.failed > 0) {
-        QMessageBox::warning(this, "Dry Run Complete", message);
+    // Import what can be imported; a correction alone is fine too
+    const bool rowsToImport = dryRun.imported > 0 && (dryRun.failed == 0 || allowPartialCheck->isChecked());
+    if (rowsToImport) {
+        importButton->setText(QString("Import %1 %2").arg(dryRun.imported).arg(dryRun.imported == 1 ? "transaction" : "transactions"));
     } else {
-        QMessageBox::information(this, "Dry Run Complete", message);
+        importButton->setText("Add balance correction");
     }
+    importButton->setEnabled(rowsToImport || correction);
 }
 
-void ImportManagerDialog::onImportClicked()
+CsvImport::Result ImportManagerDialog::runImport(bool dry)
 {
-    if (!validateMapping()) {
-        return;
+    const CsvImport::Options options = importOptions();
+    CsvImport::RunOptions runOptions;
+    runOptions.allowDuplicates = allowDuplicatesCheck->isChecked();
+    // The review counts rows one by one; whether unreadable rows stop the import is shown separately
+    runOptions.allowPartialImport = dry || allowPartialCheck->isChecked();
+    runOptions.dryRun = dry;
+
+    // Check the balance on the day the bank's balance column refers to, if it is mapped
+    const CsvImport::StatedBalance stated = CsvImport::statedBalance(rows, mapping(), decimalSeparator);
+    if (stated.found) {
+        runOptions.checkDate = stated.date;
     }
+    Cents expected = 0;
+    if (!dry && correctionCheckBox->isVisible() && correctionCheckBox->isChecked() && expectedBalance(&expected)) {
+        runOptions.correct = true;
+        runOptions.correctTo = expected;
+        runOptions.correctionNote = QString("Import of %1").arg(QFileInfo(filePath).fileName());
+    }
+    return CsvImport::run(rows, mapping(), options, runOptions);
+}
+
+void ImportManagerDialog::import()
+{
     const CsvImport::Result result = runImport(false);
-
-    // Show detailed results
-    QString message = QString("Import Results:\n\n");
-    message += QString("✅ Successfully imported: %1 transactions\n").arg(result.imported);
-
-    if (result.duplicates > 0) {
-        message += QString("⚠️  Skipped duplicates: %1 transactions\n").arg(result.duplicates);
+    if (result.imported == 0 && result.correctionCents == 0) {
+        QMessageBox::warning(this, "Nothing imported",
+                             result.errors.isEmpty() ? QString("There was nothing new to import.") : result.errors.join("\n"));
+        refreshReview();
+        return;
     }
 
+    QStringList lines;
+    lines << QString("%1 %2 imported.").arg(result.imported).arg(result.imported == 1 ? "transaction" : "transactions");
+    if (result.duplicates > 0) lines << QString("%1 already in Aion, skipped.").arg(result.duplicates);
+    if (result.categoriesCreated > 0) lines << QString("%1 new %2.").arg(result.categoriesCreated).arg(result.categoriesCreated == 1 ? "category" : "categories");
     if (result.correctionCents != 0) {
-        message += QString("Balance correction: %1 on %2\n")
-                       .arg(Settings::instance().formatCurrency(result.correctionCents, true),
-                            QLocale(QLocale::English).toString(result.checkDate, "d MMMM yyyy"));
+        lines << QString("Balance correction of %1 on %2.").arg(Settings::instance().formatCurrency(result.correctionCents, true),
+                                                                english.toString(result.checkDate, "d MMMM yyyy"));
     }
-    if (result.categoriesCreated > 0) {
-        message += QString("New categories: %1\n").arg(result.categoriesCreated);
-    }
+    if (result.failed > 0) lines << QString("%1 %2 couldn't be read.").arg(result.failed).arg(result.failed == 1 ? "row" : "rows");
+    QMessageBox::information(this, "Import complete", lines.join("\n"));
+    emit transactionsImported(result.imported);
+    accept();
+}
 
-    if (result.failed > 0) {
-        message += QString("❌ Failed:  %1 transactions\n").arg(result.failed);
+// --- Navigation ---
 
-        if (!result.errors.isEmpty()) {
-            message += "\n\nErrors:";
-            const int errorCount = qMin(10, result.errors.size());
-            for (int i = 0; i < errorCount; ++i) {
-                message += "\n• " + result.errors[i];
-            }
-            if (result.errors.size() > 10) {
-                message += QString("\n... and %1 more errors (check console)").arg(result.errors.size() - 10);
-            }
+bool ImportManagerDialog::hasCategoriesStep() const
+{
+    return !fileCategories.isEmpty();
+}
+
+void ImportManagerDialog::showError(QLabel *label, const QString &message)
+{
+    label->setText(message);
+    setTextColor(label, Theme::colors().danger);
+    label->setVisible(!message.isEmpty());
+}
+
+void ImportManagerDialog::next()
+{
+    switch (currentStep()) {
+    case Step::File:
+        if (rows.isEmpty()) {
+            showError(fileErrorLabel, filePath.isEmpty() ? QString("Choose a file first.") : QString("This file has no rows to import."));
+            return;
         }
-
-        QMessageBox::warning(this, "Import Complete with Errors", message);
-        for (const QString &error : result.errors) {
-            qWarning() << error;
+        if (accountCombo->currentIndex() < 0) {
+            showError(fileErrorLabel, "Add an account first. Imported transactions need one.");
+            return;
         }
-    } else {
-        QMessageBox::information(this, "Import Complete", message);
-    }
-
-    if (result.imported > 0 || result.correctionCents != 0) {
-        emit transactionsImported(result.imported);
-        accept();
-    } else if (result.duplicates > 0 && result.failed == 0) {
-        QMessageBox::information(this, "Import Complete",
-                                 "All transactions were duplicates and have been skipped.");
-        reject();
-    } else if (result.failed > 0 && result.imported == 0) {
-        QMessageBox::critical(this, "Import Failed",
-                              "No transactions were imported due to errors.");
-        reject();
+        fileErrorLabel->hide();
+        goTo(Step::Columns);
+        break;
+    case Step::Columns:
+        if (!mapping().contains(CsvImport::FieldDate) || !mapping().contains(CsvImport::FieldAmount)) {
+            showError(columnsErrorLabel, "Choose the columns for the date and the amount. Everything else is optional.");
+            return;
+        }
+        columnsErrorLabel->hide();
+        refreshFileCategories();
+        goTo(hasCategoriesStep() ? Step::Categories : Step::Review);
+        break;
+    case Step::Categories:
+        goTo(Step::Review);
+        break;
+    case Step::Review:
+        break;
     }
 }
 
-void ImportManagerDialog::onCancelClicked()
+void ImportManagerDialog::back()
 {
-    reject();
+    switch (currentStep()) {
+    case Step::Columns: goTo(Step::File); break;
+    case Step::Categories: goTo(Step::Columns); break;
+    case Step::Review: goTo(hasCategoriesStep() ? Step::Categories : Step::Columns); break;
+    case Step::File: break;
+    }
+}
+
+void ImportManagerDialog::goTo(Step step)
+{
+    if (step == Step::Review) {
+        refreshReview();
+    }
+    pages->setCurrentIndex(static_cast<int>(step));
+    backButton->setVisible(step != Step::File);
+    nextButton->setVisible(step != Step::Review);
+    importButton->setVisible(step == Step::Review);
+    (step == Step::Review ? importButton : nextButton)->setDefault(true);
+    updateStepIndicator();
+}
+
+void ImportManagerDialog::updateStepIndicator()
+{
+    const Theme::Colors colors = Theme::colors();
+    const int current = pages->currentIndex();
+    const QStringList names = {"File", "Columns", "Categories", "Review"};
+    for (int i = 0; i < stepLabels.size(); ++i) {
+        QLabel *label = stepLabels[i];
+        const bool skipped = i == int(Step::Categories) && current > i && !hasCategoriesStep();
+        QFont font = label->font();
+        font.setBold(i == current);
+        label->setFont(font);
+        label->setText(i < current && !skipped ? "✓ " + names[i] : names[i]);
+        setTextColor(label, i == current ? colors.accent : i < current && !skipped ? colors.positive : colors.textMuted);
+    }
 }

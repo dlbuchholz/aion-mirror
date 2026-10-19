@@ -2,64 +2,63 @@
 #define IMPORTMANAGERDIALOG_H
 
 #include <QDialog>
+#include <QHash>
 #include <QMap>
-#include <QComboBox>
-#include <QTableWidget>
 #include "csvimport.h"
 
 class QCheckBox;
-class QGroupBox;
+class QComboBox;
+class QFrame;
+class QGridLayout;
 class QLabel;
 class QLineEdit;
-class QTimer;
+class QPushButton;
 class QScrollArea;
+class QStackedWidget;
 class QToolButton;
 
-namespace Ui {
-class ImportManagerDialog;
-}
-
-// UI for importing a CSV file; the parsing and import logic lives in CsvImport
+// Import wizard for CSV bank exports: file and account, which column is what, the file's
+// categories, then a review with a balance check. The import logic lives in CsvImport.
 class ImportManagerDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit ImportManagerDialog(int userId, QWidget *parent = nullptr);
-    ~ImportManagerDialog();
+    enum class Step { File, Columns, Categories, Review };
 
-    void loadFile(const QString &filePath);          // Same as choosing it with "Select file"
+    explicit ImportManagerDialog(int userId, QWidget *parent = nullptr);
+
+    void loadFile(const QString &filePath);          // Same as choosing it with "Choose file"
+    Step currentStep() const;
 
 signals:
     void transactionsImported(int count);
 
-private slots:
-    void onSelectFileClicked();
-    void onDelimiterChanged(const QString &delimiter);
-    void onDecimalSeparatorChanged(int index);
-    void onAmountInterpretationChanged(int index);
-    void onColumnMappingChanged();
-    void onPreviewRefreshClicked();
-    void onDryRunClicked();
-    void onImportClicked();
-    void onCancelClicked();
-
 private:
-    // File handling
-    void parseCSV(const QString &filePath);
+    // Pages
+    QWidget *buildFilePage();
+    QWidget *buildColumnsPage();
+    QWidget *buildCategoriesPage();
+    QWidget *buildReviewPage();
+    QLabel *pageTitle(const QString &text, QWidget *parent);
+    QLabel *hintLabel(const QString &text, QWidget *parent);
 
-    // UI setup
-    void setupUI();
-    void makeScrollable();                          // Everything but the buttons scrolls, so they stay reachable
-    void setupColumnMappingTable();
-    void populateAccountComboBox();
-    void updatePreviewTable();
-    void applyMappingToComboBoxes(const CsvImport::Mapping &mapping);
-    CsvImport::Mapping mappingFromComboBoxes() const;
+    // Navigation
+    void goTo(Step step);
+    void next();
+    void back();
+    bool hasCategoriesStep() const;
+    void updateStepIndicator();
+    void showError(QLabel *label, const QString &message);
 
-    // Import
-    bool validateMapping();
-    CsvImport::Result runImport(bool dryRun);
+    // File and columns
+    void chooseFile();
+    void parseFile();
+    void updateFormatSummary();
+    void applyMapping(const CsvImport::Mapping &mapping);
+    CsvImport::Mapping mapping() const;
+    void updateExamples();
+    CsvImport::Options importOptions() const;
 
     // Categories named in the file: matched, created on import, mapped to another or dropped
     void refreshFileCategories();
@@ -67,62 +66,75 @@ private:
     void updateCategorySummary();
     void setAllNewCategories(bool create);          // false: import them without a category
 
-    // Balance check: dry run of the import, compared with the balance the bank shows
-    void setupBalanceCheck();
-    void scheduleBalanceCheck();
-    void refreshBalanceCheck();
+    // Review: dry run of the import, compared with the balance the bank shows
+    void refreshReview();
     void updateBalanceStatus();
-    bool expectedBalance(Cents* cents) const;      // false if the field is empty or unreadable
-    bool correctionWanted() const;
-
-    Ui::ImportManagerDialog *ui;
+    bool expectedBalance(Cents *cents) const;      // false if the field is empty or unreadable
+    CsvImport::Result runImport(bool dryRun);
+    void import();
 
     int userId;
-    QString currentFilePath;
-    QChar csvDelimiter;
-    QChar decimalSeparator;
-    CsvImport::AmountInterpretation amountInterpretation;
-    bool autoDetectDelimiterOnNextParse;
+    QString filePath;
+    QString fileText;
+    QChar delimiter = ',';
+    QChar decimalSeparator = '.';
+    QList<QStringList> rows;                         // Without the header
+    QStringList headers;
 
-    // CSV data storage
-    QList<QStringList> csvData;  // Rows without the header
-    QStringList csvHeaders;      // Column headers from CSV
+    QStackedWidget *pages = nullptr;
+    QList<QLabel *> stepLabels;
+    QPushButton *backButton = nullptr;
+    QPushButton *nextButton = nullptr;
+    QPushButton *importButton = nullptr;
 
-    // Available transaction fields (CsvImport field names plus "(Ignore)")
-    QStringList transactionFields;
+    // File page
+    QLineEdit *filePathEdit = nullptr;
+    QComboBox *accountCombo = nullptr;
+    QLabel *formatSummaryLabel = nullptr;
+    QToolButton *changeFormatButton = nullptr;
+    QFrame *formatBox = nullptr;
+    QComboBox *delimiterCombo = nullptr;
+    QComboBox *decimalCombo = nullptr;
+    QLabel *fileErrorLabel = nullptr;
 
-    // Widgets for column mapping
-    QMap<QString, QComboBox*> mappingComboBoxes;
+    // Columns page
+    QLabel *columnsSubtitle = nullptr;
+    QMap<QString, QComboBox *> mappingCombos;       // CsvImport field -> column choice
+    QMap<QString, QLabel *> exampleLabels;
+    QToolButton *moreOptionsButton = nullptr;
+    QFrame *moreOptionsBox = nullptr;
+    QComboBox *interpretationCombo = nullptr;
+    QCheckBox *allowDuplicatesCheck = nullptr;
+    QCheckBox *allowPartialCheck = nullptr;
+    QLabel *columnsErrorLabel = nullptr;
 
-    // Categories in the file
-    QGroupBox* categoriesGroupBox = nullptr;
-    QWidget* categoriesTable = nullptr;
-    QScrollArea* categoriesScroll = nullptr;
-    QLabel* categorySummaryLabel = nullptr;
-    QToolButton* newCategoriesButton = nullptr;
-    int matchedCategories = 0;
-    QHash<QString, QComboBox*> categoryChoices;      // Lower-case file name -> choice (unknown names only)
+    // Categories page
+    QList<CsvImport::FileCategory> fileCategories;
+    QScrollArea *categoriesScroll = nullptr;
+    QLabel *categorySummaryLabel = nullptr;
+    QToolButton *newCategoriesButton = nullptr;
+    QHash<QString, QComboBox *> categoryChoices;     // Lower-case file name -> choice (unknown names only)
     QHash<QString, QString> chosenCategories;        // Remembered while the table is rebuilt
+    int matchedCategories = 0;
 
-    // Balance check
-    QTimer* balanceTimer = nullptr;
-    CsvImport::Result balanceResult;
-    bool balanceReady = false;
+    // Review page
+    CsvImport::Result dryRun;
+    QLabel *reviewTitle = nullptr;
+    QLabel *newCountLabel = nullptr;
+    QLabel *duplicateCountLabel = nullptr;
+    QLabel *failedCountLabel = nullptr;
+    QLabel *problemsLabel = nullptr;
+    QLabel *newCategoriesLabel = nullptr;
+    QLabel *balanceAfterCaption = nullptr;
+    QLabel *balanceAfterValue = nullptr;
+    QLabel *balanceBreakdownLabel = nullptr;        // "Now … · from this file …"
+    QFrame *balanceBox = nullptr;
+    QLabel *expectedCaption = nullptr;
+    QLineEdit *expectedEdit = nullptr;
+    QLabel *expectedSourceLabel = nullptr;
+    QLabel *balanceStatusLabel = nullptr;
+    QCheckBox *correctionCheckBox = nullptr;
     bool expectedEditedByUser = false;
-    QGroupBox* balanceGroupBox = nullptr;
-    QLabel* balanceHintLabel = nullptr;
-    QWidget* balanceDetails = nullptr;
-    QLabel* balanceNowCaption = nullptr;
-    QLabel* balanceNowValue = nullptr;
-    QLabel* balanceChangeCaption = nullptr;
-    QLabel* balanceChangeValue = nullptr;
-    QLabel* balanceAfterCaption = nullptr;
-    QLabel* balanceAfterValue = nullptr;
-    QLabel* expectedCaption = nullptr;
-    QLineEdit* expectedEdit = nullptr;
-    QLabel* expectedSourceLabel = nullptr;
-    QLabel* balanceStatusLabel = nullptr;
-    QCheckBox* correctionCheckBox = nullptr;
 };
 
 #endif // IMPORTMANAGERDIALOG_H
