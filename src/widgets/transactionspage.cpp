@@ -874,6 +874,11 @@ void TransactionsPage::importTransactions() {
         reload();                                    // Also sent for a balance correction without new rows
         emit transactionsChanged();
     });
+    // A new account shows up in the sidebar and filters even if the import is cancelled afterwards
+    connect(&dialog, &ImportManagerDialog::accountCreated, this, [this]() {
+        reload();
+        emit transactionsChanged();
+    });
     dialog.exec();
 }
 

@@ -251,12 +251,53 @@ QWidget *ImportManagerDialog::buildFilePage()
     accountForm->setContentsMargins(0, 8, 0, 0);
     accountCombo = new QComboBox(page);
     accountCombo->setObjectName("accountComboBox");
-    for (const Account &account : AccountDAO().getAllAccountsForUser(userId)) {
-        accountCombo->addItem(account.getName(), account.getAccountId());
-    }
-    connect(accountCombo, &QComboBox::currentIndexChanged, this, [this]() { expectedEditedByUser = false; });
+    connect(accountCombo, &QComboBox::currentIndexChanged, this, [this]() {
+        expectedEditedByUser = false;
+        const bool creating = accountCombo->currentData().toInt() == NewAccount;
+        newAccountBox->setVisible(creating);
+        if (creating) {
+            newAccountNameEdit->setFocus();
+        } else {
+            lastAccountIndex = accountCombo->currentIndex();
+        }
+    });
     accountForm->addRow("Import into", accountCombo);
     layout->addLayout(accountForm);
+
+    // A new account right here. No starting balance: the balance comes from the imported
+    // transactions, and the review's balance check offers a correction if the bank's differs.
+    newAccountBox = new QFrame(page);
+    newAccountBox->setObjectName("newAccountBox");
+    newAccountBox->setFrameShape(QFrame::StyledPanel);
+    auto *newAccountLayout = new QVBoxLayout(newAccountBox);
+    auto *newAccountForm = new QFormLayout();
+    newAccountNameEdit = new QLineEdit(newAccountBox);
+    newAccountNameEdit->setObjectName("newAccountNameEdit");
+    newAccountNameEdit->setPlaceholderText("For example Girokonto");
+    connect(newAccountNameEdit, &QLineEdit::returnPressed, this, &ImportManagerDialog::createAccount);
+    newAccountForm->addRow("Name", newAccountNameEdit);
+    newAccountTypeCombo = new QComboBox(newAccountBox);
+    newAccountTypeCombo->setObjectName("newAccountTypeCombo");
+    newAccountTypeCombo->addItems(AccountDAO().getAccountTypes());
+    newAccountForm->addRow("Type", newAccountTypeCombo);
+    newAccountLayout->addLayout(newAccountForm);
+    newAccountLayout->addWidget(hintLabel("The balance comes from the imported transactions. If your bank shows a "
+                                          "different one, the last step can correct it.", newAccountBox));
+    auto *newAccountButtons = new QHBoxLayout();
+    newAccountButtons->addStretch();
+    auto *cancelNewAccount = new QPushButton("Cancel", newAccountBox);
+    connect(cancelNewAccount, &QPushButton::clicked, this, [this]() {
+        if (lastAccountIndex >= 0) accountCombo->setCurrentIndex(lastAccountIndex);   // No account yet: keep the form
+    });
+    newAccountButtons->addWidget(cancelNewAccount);
+    auto *createAccountButton = new QPushButton("Create account", newAccountBox);
+    createAccountButton->setObjectName("createAccountButton");
+    connect(createAccountButton, &QPushButton::clicked, this, &ImportManagerDialog::createAccount);
+    newAccountButtons->addWidget(createAccountButton);
+    newAccountLayout->addLayout(newAccountButtons);
+    newAccountBox->hide();
+    layout->addWidget(newAccountBox);
+    loadAccounts(-1);
 
     fileErrorLabel = new QLabel(page);
     fileErrorLabel->setWordWrap(true);
@@ -266,6 +307,47 @@ QWidget *ImportManagerDialog::buildFilePage()
 
     updateFormatSummary();
     return page;
+}
+
+void ImportManagerDialog::loadAccounts(int selectAccountId)
+{
+    const QSignalBlocker blocker(accountCombo);
+    accountCombo->clear();
+    for (const Account &account : AccountDAO().getAllAccountsForUser(userId)) {
+        accountCombo->addItem(account.getName(), account.getAccountId());
+    }
+    accountCombo->insertSeparator(accountCombo->count());
+    accountCombo->addItem("New account…", NewAccount);
+    const int index = accountCombo->findData(selectAccountId);
+    // Without any account, start right with a new one
+    accountCombo->setCurrentIndex(index >= 0 ? index : accountCombo->count() == 2 ? 1 : 0);
+    lastAccountIndex = accountCombo->currentData().toInt() == NewAccount ? -1 : accountCombo->currentIndex();
+    newAccountBox->setVisible(accountCombo->currentData().toInt() == NewAccount);
+}
+
+void ImportManagerDialog::createAccount()
+{
+    const QString name = newAccountNameEdit->text().simplified();
+    if (name.isEmpty()) {
+        showError(fileErrorLabel, "Enter a name for the new account.");
+        newAccountNameEdit->setFocus();
+        return;
+    }
+    for (int i = 0; i < accountCombo->count(); ++i) {
+        if (accountCombo->itemData(i).toInt() > 0 && accountCombo->itemText(i).compare(name, Qt::CaseInsensitive) == 0) {
+            showError(fileErrorLabel, QString("You already have an account called \"%1\".").arg(accountCombo->itemText(i)));
+            return;
+        }
+    }
+    const int accountId = AccountDAO::createAccount(userId, name, newAccountTypeCombo->currentText(), 0);
+    if (accountId <= 0) {
+        showError(fileErrorLabel, "The account couldn't be created.");
+        return;
+    }
+    fileErrorLabel->hide();
+    newAccountNameEdit->clear();
+    loadAccounts(accountId);
+    emit accountCreated(accountId);
 }
 
 void ImportManagerDialog::chooseFile()
@@ -993,8 +1075,8 @@ void ImportManagerDialog::next()
             showError(fileErrorLabel, filePath.isEmpty() ? QString("Choose a file first.") : QString("This file has no rows to import."));
             return;
         }
-        if (accountCombo->currentIndex() < 0) {
-            showError(fileErrorLabel, "Add an account first. Imported transactions need one.");
+        if (accountCombo->currentData().toInt() <= 0) {
+            showError(fileErrorLabel, "Create the new account first, or choose an existing one.");
             return;
         }
         fileErrorLabel->hide();

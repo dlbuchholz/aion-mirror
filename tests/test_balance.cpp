@@ -2,6 +2,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateEdit>
+#include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -254,6 +255,32 @@ private slots:
         finish->click();
         QCOMPARE(dialog.result(), int(QDialog::Accepted));
         QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(97380));     // Nothing was added
+    }
+
+    void importerCanCreateTheAccount() {
+        ImportManagerDialog dialog(1);
+        QSignalSpy created(&dialog, &ImportManagerDialog::accountCreated);
+        auto* accounts = dialog.findChild<QComboBox*>("accountComboBox");
+        QCOMPARE(accounts->currentData().toInt(), giro);                       // An existing account comes first
+        QVERIFY(dialog.findChild<QFrame*>("newAccountBox")->isHidden());
+
+        accounts->setCurrentIndex(accounts->findData(ImportManagerDialog::NewAccount));
+        QVERIFY(!dialog.findChild<QFrame*>("newAccountBox")->isHidden());
+        auto* name = dialog.findChild<QLineEdit*>("newAccountNameEdit");
+        auto* create = dialog.findChild<QPushButton*>("createAccountButton");
+        name->setText("girokonto");
+        create->click();
+        QCOMPARE(created.count(), 0);                                           // Already exists
+
+        name->setText("Kreditkarte");
+        dialog.findChild<QComboBox*>("newAccountTypeCombo")->setCurrentText("Checking");
+        create->click();
+        QCOMPARE(created.count(), 1);
+        const int newId = created[0][0].toInt();
+        QCOMPARE(accounts->currentData().toInt(), newId);                      // Selected right away
+        QCOMPARE(accounts->currentText(), QString("Kreditkarte"));
+        QVERIFY(dialog.findChild<QFrame*>("newAccountBox")->isHidden());
+        QCOMPARE(Balance::onDate(newId, QDate::currentDate()), Cents(0));       // No starting balance
     }
 
     void dialogChecksAnEarlierDay() {

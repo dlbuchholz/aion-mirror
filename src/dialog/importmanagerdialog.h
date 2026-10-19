@@ -31,8 +31,11 @@ public:
     void loadFile(const QString &filePath);          // Same as choosing it with "Choose file"
     Step currentStep() const;
 
+    static constexpr int NewAccount = -2;            // Account picker entry that opens the new account form
+
 signals:
     void transactionsImported(int count);
+    void accountCreated(int accountId);              // Even if the import is cancelled afterwards
 
 private:
     // Pages
@@ -52,6 +55,8 @@ private:
     void showError(QLabel *label, const QString &message);
 
     // File and columns
+    void loadAccounts(int selectAccountId);
+    void createAccount();
     void chooseFile();
     void parseFile();
     void updateFormatSummary();
@@ -90,6 +95,10 @@ private:
     // File page
     QLineEdit *filePathEdit = nullptr;
     QComboBox *accountCombo = nullptr;
+    int lastAccountIndex = -1;                       // Restored when the new account form is cancelled
+    QFrame *newAccountBox = nullptr;
+    QLineEdit *newAccountNameEdit = nullptr;
+    QComboBox *newAccountTypeCombo = nullptr;
     QLabel *formatSummaryLabel = nullptr;
     QToolButton *changeFormatButton = nullptr;
     QFrame *formatBox = nullptr;
