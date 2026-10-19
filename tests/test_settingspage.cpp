@@ -30,8 +30,13 @@ class TestSettingsPage : public QObject {
     }
 
     static bool hasUnsavedChanges(SettingsPage& page) {
-        return child<QPushButton>(page, "applyButton")->isEnabled()
-               && !child<QPushButton>(page, "revertButton")->isHidden()
+        // Apply, Revert and the note appear together, and only while something is unsaved
+        const bool apply = !child<QPushButton>(page, "applyButton")->isHidden();
+        if (apply != !child<QPushButton>(page, "revertButton")->isHidden()) {
+            qWarning("Apply and Revert are out of step");
+            return false;
+        }
+        return apply
                && !child<QLabel>(page, "unsavedLabel")->isHidden();
     }
 

@@ -344,7 +344,7 @@ void SettingsPage::updateChangeState()
     const bool hasChanges = formChanged;
     unsavedLabel->setVisible(hasChanges);
     revertButton->setVisible(hasChanges);
-    applyButton->setEnabled(hasChanges);
+    applyButton->setVisible(hasChanges);
 }
 
 void SettingsPage::loadSettings()
