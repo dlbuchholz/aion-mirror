@@ -70,13 +70,19 @@ private slots:
         SidebarWidget sidebar;
         sidebar.setUserId(1);
         QCOMPARE(valueOf(sidebar, "All accounts"), QString("1.854,10 €"));
-        QCOMPARE(valueOf(sidebar, "Girokonto"), QString("2.100,00"));
-        QCOMPARE(valueOf(sidebar, "Kreditkarte"), QString("-245,90"));   // Sign used to be dropped
+        QCOMPARE(valueOf(sidebar, "Girokonto"), QString("2.100,00 €"));
+        QCOMPARE(valueOf(sidebar, "Kreditkarte"), QString("-245,90 €"));
 
         // New accounts appear after a refresh
         QVERIFY(AccountDAO::createAccount(1, "Tagesgeld", "Savings", 1000) > 0);
         sidebar.refresh();
-        QCOMPARE(valueOf(sidebar, "Tagesgeld"), QString("10,00"));
+        QCOMPARE(valueOf(sidebar, "Tagesgeld"), QString("10,00 €"));
+
+        // The currency settings apply here too
+        Settings::instance().setCurrencySymbol(Settings::CurrencySymbol::USD);
+        Settings::instance().setCurrencySymbolPrefix(true);
+        sidebar.refresh();
+        QCOMPARE(valueOf(sidebar, "Kreditkarte"), QString("-$245,90"));
     }
 
     void clicksRequestAccountsPagesAndActions() {
@@ -122,7 +128,7 @@ private slots:
         SidebarWidget sidebar;
         sidebar.setUserId(1);
         QCOMPARE(sidebar.findChild<QAbstractButton*>("budgetHeader")->text(), budgetHeaderTitle());
-        QCOMPARE(valueOf(sidebar, "Groceries"), QString("312 / 400"));
+        QCOMPARE(valueOf(sidebar, "Groceries"), QString("312 € / 400 €"));
         QVERIFY(!item(sidebar, "Rent"));                 // Only budgets covering today
     }
 

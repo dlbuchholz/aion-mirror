@@ -195,8 +195,8 @@ void Settings::setSelectionCheckboxesEnabled(bool enabled) {
 }
 
 // Format Currency
-QString Settings::formatCurrency(Cents amount, bool showSign) const {
-    QString formatted = formatNumber(qAbs(amount), 2);
+QString Settings::formatCurrency(Cents amount, bool showSign, int decimals) const {
+    QString formatted = formatNumber(qAbs(amount), decimals);
     QString symbol = getCurrencySymbol();
 
     // Add currency symbol

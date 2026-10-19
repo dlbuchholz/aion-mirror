@@ -106,6 +106,7 @@ private slots:
         QCOMPARE(s.formatCurrency(0), QString("$0.00"));
         QCOMPARE(s.formatCurrency(1250, true), QString("+$12.50"));
         QCOMPARE(s.formatCurrency(-1250, true), QString("-$12.50"));
+        QCOMPARE(s.formatCurrency(-31250, false, 0), QString("-$313"));   // Whole units, for tight spots
 
         s.setCurrencySymbolPrefix(false);
         QCOMPARE(s.formatCurrency(1250), QString("12.50 $"));

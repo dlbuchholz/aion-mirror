@@ -402,8 +402,7 @@ void SidebarWidget::loadAccounts() {
         item->setText(account.getName());
         item->setToolTip(QString("%1 (%2)").arg(account.getName(), account.getType()));
         const Cents balance = account.getBalanceCents();
-        // formatNumber() formats the absolute value, so add the sign here
-        item->setTrailingText((balance < 0 ? "-" : "") + settings.formatNumber(balance), balance < 0);
+        item->setTrailingText(settings.formatCurrency(balance), balance < 0);
         accountsSection.bodyLayout->addWidget(item);
         const int accountId = account.getAccountId();
         connect(item, &QAbstractButton::clicked, this, [this, accountId]() {
@@ -445,7 +444,8 @@ void SidebarWidget::loadBudgets() {
 
         auto* item = new SidebarItem(SidebarItem::Kind::Row);
         item->setText(budget.categoryName);
-        item->setTrailingText(QString("%1 / %2").arg(settings.formatNumber(budget.spentCents, 0), settings.formatNumber(budget.limitCents, 0)));
+        item->setTrailingText(QString("%1 / %2").arg(settings.formatCurrency(budget.spentCents, false, 0),
+                                                     settings.formatCurrency(budget.limitCents, false, 0)));
         item->setProgress(double(budget.spentCents) / double(budget.limitCents));   // Limits are positive
         budgetSection.bodyLayout->addWidget(item);
         connect(item, &QAbstractButton::clicked, this, [this]() {
