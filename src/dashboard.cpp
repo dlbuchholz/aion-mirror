@@ -118,11 +118,12 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
     std::sort(data.spendingByCategory.begin(), data.spendingByCategory.end(),
               [](const CategorySpending& a, const CategorySpending& b) { return a.spentCents > b.spentCents; });
 
-    // Latest transactions; future-dated ones (planned payments) don't count as recent
+    // Latest transactions; future-dated ones (planned payments) and balance adjustments don't count as recent
     QSqlQuery recentQuery = prepared(
         "SELECT t.id, t.date, t.payee, c.name, t.amount, t.type, c.color FROM transactions t "
         "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
-        "WHERE a.user_id = :user_id AND t.date <= :today ORDER BY t.date DESC, t.id DESC LIMIT :limit");
+        "WHERE a.user_id = :user_id AND t.date <= :today AND " + NotBalanceAdjustmentSql + " "
+        "ORDER BY t.date DESC, t.id DESC LIMIT :limit");
     recentQuery.bindValue(":user_id", userId);
     recentQuery.bindValue(":today", today.toString("yyyy-MM-dd"));
     recentQuery.bindValue(":limit", recentCount);

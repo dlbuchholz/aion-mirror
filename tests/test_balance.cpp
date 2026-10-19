@@ -75,6 +75,7 @@ private slots:
         QCOMPARE(data.thisMonth.expenseCents, Cents(0));
         QVERIFY(data.spendingByCategory.isEmpty());
         QCOMPARE(data.totalBalanceCents, Cents(-1000));                           // But the balance changes
+        QVERIFY(data.recent.isEmpty());                                           // And they aren't "recent transactions"
         QVERIFY(BudgetDAO().unbudgetedSpending(1, today).isEmpty());
     }
 

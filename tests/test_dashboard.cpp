@@ -127,9 +127,8 @@ private slots:
         QCOMPARE(data.dailyAverageCents, Cents(3600 / 18));
         QCOMPARE(data.spendingByCategory.size(), 1);
         QCOMPARE(data.spendingByCategory[0].categoryId, groceries);
-        QCOMPARE(data.recent.size(), 3);                            // Still listed
-        QCOMPARE(data.recent[2].categoryName, QString("Initial balance"));
-        QCOMPARE(data.recent[2].signedCents, Cents(250000));
+        QCOMPARE(data.recent.size(), 1);                            // Not "recent transactions" either
+        QCOMPARE(data.recent[0].categoryName, QString("Groceries"));
 
         add(giro, 7000, QDate(2026, 9, 5), initial, "expense");
         QCOMPARE(Dashboard::load(1, today).lastMonthToDateExpenseCents, Cents(0));
