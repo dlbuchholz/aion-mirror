@@ -12,13 +12,20 @@
     Requires OpenCppCoverage (winget install OpenCppCoverage.OpenCppCoverage) and a
     Debug build (needs the .pdb files).
 
+    With -Publish it also writes COVERAGE.md (per file: coverage, the test suites that run it and
+    links to the uncovered lines) and docs/coverage-badge.svg, which the README shows.
+
 .EXAMPLE
     .\scripts\coverage.ps1 -BuildDir build\Desktop_Qt_6_12_0_MSVC2022_64bit_Debug -QtBin D:\Qt\6.12.0\msvc2022_64\bin
+
+.EXAMPLE
+    .\scripts\coverage.ps1 -BuildDir build\Desktop_Qt_6_12_0_MSVC2022_64bit_Debug -QtBin D:\Qt\6.12.0\msvc2022_64\bin -Publish
 #>
 param(
     [Parameter(Mandatory = $true)][string]$BuildDir,
     [string]$QtBin = "",                             # Folder with the Qt DLLs, if not on PATH
-    [string]$OpenCppCoverage = "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe"
+    [string]$OpenCppCoverage = "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe",
+    [switch]$Publish                                 # Also write COVERAGE.md and docs/coverage-badge.svg for the repository
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,13 +67,34 @@ New-Item -ItemType Directory -Force $output | Out-Null
 
 $partials = @()
 $failed = @()
+$suiteFiles = @{}                                    # test -> files it runs code of
+$suiteCases = @{}                                    # test -> names of its test functions
 foreach ($test in $tests) {
     $exe = Join-Path $BuildDir "$test.exe"
     $partial = Join-Path $output "$test.cov"
+    $suiteXml = Join-Path $output "$test.xml"
     Write-Host "Running $test"
-    & $OpenCppCoverage --quiet --sources $sources --export_type "binary:$partial" -- $exe *> $null
+    & $OpenCppCoverage --quiet --sources $sources --export_type "binary:$partial" --export_type "cobertura:$suiteXml" -- $exe *> $null
     if ($LASTEXITCODE -ne 0) { $failed += $test }
     $partials += $partial
+
+    if ($Publish) {
+        # Which files this suite runs, and how many test functions it has (QtTest lists them with -functions).
+        # Every test program runs each file's global constants at startup, so a suite only counts for a
+        # file once it runs a real part of it: 5 lines, or a quarter of a small file.
+        [xml]$suiteReport = Get-Content $suiteXml
+        $suiteFiles[$test] = @($suiteReport.coverage.packages.package.classes.class |
+            Where-Object {
+                $lines = @($_.lines.line)
+                $hit = @($lines | Where-Object { [int]$_.hits -gt 0 }).Count
+                $hit -gt 0 -and $hit -ge [math]::Min(5, [math]::Ceiling($lines.Count / 4))
+            } |
+            ForEach-Object { $_.filename -replace '^.*?[\\/]src[\\/]', 'src/' -replace '\\', '/' } | Sort-Object -Unique)
+        $suiteCases[$test] = @(& $exe -functions 2>$null | ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -match '\(\)$' -and $_ -notmatch '^(initTestCase|cleanupTestCase|init|cleanup)\(\)$' } |
+            ForEach-Object { $_ -replace '\(\)$', '' })
+    }
+    Remove-Item $suiteXml -ErrorAction SilentlyContinue
 }
 
 # Merge all runs into one report
@@ -106,3 +134,118 @@ Write-Host "Report: $(Join-Path $output 'html\index.html')"
 if ($failed) {
     Write-Warning "These tests failed while measuring: $($failed -join ', ')"
 }
+
+if (-not $Publish) {
+    return
+}
+
+# --- COVERAGE.md and the badge, for the repository ---
+
+$percent = [math]::Round(100.0 * $coveredTotal / $total)
+$commit = (& git -C $repo rev-parse --short HEAD 2>$null)
+$dirty = (& git -C $repo status --porcelain --untracked-files=no 2>$null)
+$measuredAt = if ($commit) { "``$commit``" + $(if ($dirty) { " (modified)" } else { "" }) } else { "unknown commit" }
+$dot = " $([char]0x00B7) "                          # Middle dot, written by code so this file stays ASCII
+
+# Uncovered lines as ranges: "33-40, 57"
+function Get-UncoveredRanges($hits) {
+    $missing = @($hits.Keys | Where-Object { -not $hits[$_] } | Sort-Object)
+    $ranges = @()
+    $start = $null
+    $previous = $null
+    foreach ($line in $missing + @($null)) {
+        if ($null -ne $start -and ($null -eq $line -or $line -ne $previous + 1)) {
+            $ranges += [pscustomobject]@{ From = $start; To = $previous }
+            $start = $null
+        }
+        if ($null -ne $line -and $null -eq $start) { $start = $line }
+        $previous = $line
+    }
+    return $ranges
+}
+
+# Which suites cover a file
+$coveredBy = @{}
+foreach ($test in $suiteFiles.Keys) {
+    foreach ($file in $suiteFiles[$test]) {
+        if (-not $coveredBy.ContainsKey($file)) { $coveredBy[$file] = @() }
+        $coveredBy[$file] += ($test -replace '^test_', '')
+    }
+}
+
+$md = [System.Collections.Generic.List[string]]::new()
+$md.Add("# Test coverage")
+$md.Add("")
+$md.Add("![Coverage](docs/coverage-badge.svg)")
+$md.Add("")
+$cases = ($suiteCases.Values | ForEach-Object { @($_).Count } | Measure-Object -Sum).Sum
+$md.Add("**$percent%**${dot}$coveredTotal / $total lines${dot}$($tests.Count) test suites${dot}$cases test cases${dot}" +
+        "$(Get-Date -Format 'yyyy-MM-dd')${dot}$measuredAt")
+$md.Add("")
+$md.Add("## Files")
+$md.Add("")
+$md.Add("| File | Coverage | Lines | Covered by |")
+$md.Add("|---|---:|---:|---|")
+foreach ($file in ($files | Sort-Object Coverage, File)) {
+    $suites = @($coveredBy[$file.File] | Sort-Object)
+    $suiteText = if ($suites.Count -eq 0) { "*none*" }
+                 elseif ($suites.Count -le 4) { $suites -join ", " }
+                 else { ($suites[0..2] -join ", ") + " and $($suites.Count - 3) more" }
+    $md.Add("| [$($file.File)]($($file.File)) | $($file.Coverage)% | $($file.Covered) / $($file.Lines) | $suiteText |")
+}
+$md.Add("")
+$md.Add("## Not covered yet")
+$md.Add("")
+foreach ($file in ($files | Where-Object { $_.Covered -lt $_.Lines } | Sort-Object Coverage, File)) {
+    $ranges = @(Get-UncoveredRanges $lineHits[$file.File])
+    $links = foreach ($range in $ranges) {
+        if ($range.From -eq $range.To) { "[$($range.From)]($($file.File)#L$($range.From))" }
+        else { "[$($range.From)$([char]0x2013)$($range.To)]($($file.File)#L$($range.From)-L$($range.To))" }
+    }
+    $md.Add("- **$($file.File)** ($($file.Lines - $file.Covered) lines): $($links -join ', ')")
+}
+$md.Add("")
+$md.Add("## Test suites")
+$md.Add("")
+# "deletingAsksFirst" -> "Deleting asks first"
+function ConvertTo-Sentence($name) {
+    $words = ($name -creplace '_', ' ' -creplace '([a-z0-9])([A-Z])', '$1 $2' -creplace '([A-Z])([A-Z][a-z])', '$1 $2').Trim().ToLower() -replace '\s+', ' '
+    return $words.Substring(0, 1).ToUpper() + $words.Substring(1)
+}
+
+foreach ($test in ($tests | Sort-Object)) {
+    $names = @($suiteCases[$test])
+    $md.Add("<details><summary><b>$test</b>$dot$($names.Count) test cases$dot$(@($suiteFiles[$test]).Count) files</summary>")
+    $md.Add("")
+    $md.Add("[tests/$test.cpp](tests/$test.cpp)")
+    $md.Add("")
+    foreach ($name in $names) {
+        $md.Add("- $(ConvertTo-Sentence $name)")
+    }
+    $md.Add("")
+    $md.Add("</details>")
+    $md.Add("")
+}
+$markdownPath = Join-Path $repo "COVERAGE.md"
+[System.IO.File]::WriteAllText($markdownPath, ($md -join "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+
+# A small SVG badge, so the README shows the number without asking an outside service
+$color = if ($percent -ge 90) { "#2e9e5b" } elseif ($percent -ge 75) { "#a3a31f" } elseif ($percent -ge 50) { "#d08a1d" } else { "#c9372c" }
+$value = "$percent%"
+$badge = @"
+<svg xmlns="http://www.w3.org/2000/svg" width="104" height="20" role="img" aria-label="coverage: $value">
+  <title>coverage: $value</title>
+  <clipPath id="r"><rect width="104" height="20" rx="3" fill="#fff"/></clipPath>
+  <g clip-path="url(#r)">
+    <rect width="61" height="20" fill="#555"/>
+    <rect x="61" width="43" height="20" fill="$color"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="30.5" y="14">coverage</text>
+    <text x="82.5" y="14">$value</text>
+  </g>
+</svg>
+"@
+New-Item -ItemType Directory -Force (Join-Path $repo "docs") | Out-Null
+[System.IO.File]::WriteAllText((Join-Path $repo "docs\coverage-badge.svg"), $badge, [System.Text.UTF8Encoding]::new($false))
+Write-Host "Wrote COVERAGE.md and docs/coverage-badge.svg"
