@@ -8,6 +8,31 @@
 #include <QDebug>
 #include <QSqlRecord>
 
+// Splits a script into statements at ';', leaving out "-- ..." comments. Semicolons and
+// "--" inside quoted strings or comments don't count.
+static QStringList splitSqlStatements(const QString& script) {
+    QStringList statements;
+    QString current;
+    bool inString = false;
+    for (qsizetype i = 0; i < script.size(); ++i) {
+        const QChar c = script[i];
+        if (c == '\'') {
+            inString = !inString;                    // '' inside a string toggles twice, which is fine
+        } else if (!inString && c == '-' && i + 1 < script.size() && script[i + 1] == '-') {
+            while (i < script.size() && script[i] != '\n') ++i;
+            current += '\n';
+            continue;
+        } else if (!inString && c == ';') {
+            statements << current;
+            current.clear();
+            continue;
+        }
+        current += c;
+    }
+    statements << current;
+    return statements;
+}
+
 static QString stripLeadingSqlComments(QString s) {
     QString out = s;
     while (true) {
@@ -79,7 +104,7 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
     // Split the script into individual statements ...
     // For SQLite, the query string can contain only one statement at a time.
     // If more than one statements are give, the function returns false.
-    QStringList scriptQueries = in.readAll().split(';');
+    QStringList scriptQueries = splitSqlStatements(in.readAll());
     file.close();
 
     QSqlDatabase database = DatabaseManager::instance().database();

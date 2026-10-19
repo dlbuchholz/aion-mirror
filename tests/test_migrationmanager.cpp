@@ -30,6 +30,27 @@ private slots:
         QCOMPARE(query.value(0).toInt(), 0);
     }
 
+    void semicolonsInCommentsDontSplitStatements() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QFile migration(root.filePath("002_comments.sql"));
+        QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
+        migration.write("-- Notes; with semicolons\n"
+                        "CREATE TABLE notes (\n"
+                        "    id INTEGER,  -- Key; never reused\n"
+                        "    text TEXT DEFAULT '--; not a comment'\n"
+                        ");\n");
+        migration.close();
+
+        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
+        MigrationManager manager(root.path());
+        manager.applyMigrations();                       // Reports the missing app tables; the script itself ran
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("INSERT INTO notes (id) VALUES (1)"));
+        QVERIFY(query.exec("SELECT text FROM notes") && query.next());
+        QCOMPARE(query.value(0).toString(), QString("--; not a comment"));
+    }
+
     void partiallyInitializedVersionOneCanRecover() {
         QTemporaryDir root;
         QVERIFY(root.isValid());
