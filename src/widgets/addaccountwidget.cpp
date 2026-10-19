@@ -1,27 +1,30 @@
 #include "db/databasemanager.h"
 #include "account.h"
 #include "addaccountwidget.h"
+#include "../../ui/ui_addaccountwidget.h"
+
+#include <QMessageBox>
 
 #include <QSqlQuery>
 #include <qsqlerror.h>
 
 AddAccountWidget::AddAccountWidget(QWidget* parent)
-    : QWidget(parent) {
-    ui.setupUi(this);
+    : QWidget(parent), ui(new Ui::AddAccountWidget) {
+    ui->setupUi(this);
 
     // The form is shown inside the "Add account" dialog, so the inline toggle buttons are not needed
-    ui.addAccountButton->setVisible(false);
-    ui.toolButton_2->setVisible(false);
-    ui.line->setVisible(false);
+    ui->addAccountButton->setVisible(false);
+    ui->toolButton_2->setVisible(false);
+    ui->line->setVisible(false);
 
     // Populate account types
     AccountDAO accountDao;
     QList<QString> accountTypes = accountDao.getAccountTypes();
     for (const QString& type : accountTypes) {
-        ui.accountTypeComboBox->addItem(type);
+        ui->accountTypeComboBox->addItem(type);
     }
 
-    connect(ui.createAccountButton, &QAbstractButton::clicked, this, &AddAccountWidget::onCreateAccountClicked);
+    connect(ui->createAccountButton, &QAbstractButton::clicked, this, &AddAccountWidget::onCreateAccountClicked);
 }
 
 void AddAccountWidget::onCreateAccountClicked() {
@@ -32,9 +35,9 @@ void AddAccountWidget::onCreateAccountClicked() {
     }
 
     // Get input values
-    QString accountName = ui.accountNameInput->text().trimmed();
-    QString accountType = ui.accountTypeComboBox->currentText();
-    const Cents initialBalance = Money::fromDouble(ui.initialBalanceInput->value());
+    QString accountName = ui->accountNameInput->text().trimmed();
+    QString accountType = ui->accountTypeComboBox->currentText();
+    const Cents initialBalance = Money::fromDouble(ui->initialBalanceInput->value());
 
     // Validate inputs
     if (accountName.isEmpty()) {
@@ -55,12 +58,16 @@ void AddAccountWidget::onCreateAccountClicked() {
     }
 
     // Clear input fields
-    ui.accountNameInput->clear();
-    ui.accountTypeComboBox->setCurrentIndex(0);
-    ui.initialBalanceInput->setValue(0);
+    ui->accountNameInput->clear();
+    ui->accountTypeComboBox->setCurrentIndex(0);
+    ui->initialBalanceInput->setValue(0);
 
     // Emit a signal to notify other components
     emit accountCreated();
+}
+
+AddAccountWidget::~AddAccountWidget() {
+    delete ui;
 }
 
 void AddAccountWidget::setUserId(int newUserId) {

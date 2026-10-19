@@ -2,15 +2,10 @@
 #define ADDACCOUNTWIDGET_H
 
 #include <QWidget>
-#include <QSqlDatabase>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QMessageBox>
 
-#include "../../ui/ui_addaccountwidget.h"
+namespace Ui {
+class AddAccountWidget;
+}
 
 class AddAccountWidget : public QWidget {
     Q_OBJECT
@@ -20,12 +15,13 @@ signals:
 
 public:
     explicit AddAccountWidget(QWidget* parent = nullptr);
+    ~AddAccountWidget() override;
     void setUserId(int newUserId);
 private slots:
     void onCreateAccountClicked();
 
 private:
-    Ui::AddAccountWidget ui;
+    Ui::AddAccountWidget* ui;
     int userId = -1;
 };
 
