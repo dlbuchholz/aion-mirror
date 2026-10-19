@@ -1,0 +1,140 @@
+#include <QtTest>
+#include <QComboBox>
+#include <QLabel>
+#include <QListView>
+#include <QSqlQuery>
+#include <QStackedWidget>
+
+#include "account.h"
+#include "category.h"
+#include "mainwindow.h"
+#include "settings.h"
+#include "tests/test_db_fixture.h"
+#include "transactionlistmodel.h"
+#include "widgets/budgetpage.h"
+#include "widgets/dashboardpage.h"
+#include "widgets/settingspage.h"
+#include "widgets/sidebarwidget.h"
+#include "widgets/transactioneditor.h"
+#include "widgets/transactionspage.h"
+
+class TestMainWindow : public QObject {
+    Q_OBJECT
+    TestDbFixture db;
+    QMap<QString, QVariant> originalSettings;
+    int giro = -1;
+    int savings = -1;
+    int groceries = 0;
+
+    static QWidget* currentPage(MainWindow& window) {
+        return window.findChild<QStackedWidget*>("pageStack")->currentWidget();
+    }
+
+    static int shownTransactions(MainWindow& window) {
+        auto* list = window.findChild<TransactionsPage*>()->findChild<QListView*>("transactionList");
+        return static_cast<TransactionListModel*>(list->model())->totals().count;
+    }
+
+    int spend(int account, Cents cents, int category = 0) {
+        return TransactionDAO().addTransaction(Transaction(-1, account, "Shop", cents, QDate::currentDate(), "", category, "expense"));
+    }
+
+private slots:
+    void initTestCase() {
+        db.init();
+        QSettings& settings = Settings::instance().getQSettings();
+        for (const QString& key : settings.allKeys()) originalSettings.insert(key, settings.value(key));
+    }
+    void cleanupTestCase() {
+        QSettings& settings = Settings::instance().getQSettings();
+        settings.clear();
+        for (auto it = originalSettings.cbegin(); it != originalSettings.cend(); ++it) settings.setValue(it.key(), it.value());
+    }
+    void init() {
+        db.yankDb();
+        QSqlQuery(DatabaseManager::instance().database()).exec("INSERT INTO users (id, username, name) VALUES (1, 'alex', 'Alex Example')");
+        giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        savings = AccountDAO::createAccount(1, "Tagesgeld", "Savings", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        groceries = query.value(0).toInt();
+    }
+    void cleanup() { db.close(); }
+
+    void startsOnTheDashboard() {
+        MainWindow window(1);
+        QCOMPARE(currentPage(window), window.findChild<DashboardPage*>());
+        QVERIFY(window.findChild<QLabel*>("greetingLabel")->text().endsWith(", Alex"));
+    }
+
+    void sidebarSwitchesPagesAndAccounts() {
+        spend(giro, 1000);
+        spend(savings, 2000);
+        spend(savings, 3000);
+        MainWindow window(1);
+        auto* sidebar = window.findChild<SidebarWidget*>();
+
+        emit sidebar->pageRequested(SidebarWidget::Page::Budget);
+        QCOMPARE(currentPage(window), window.findChild<BudgetPage*>());
+        emit sidebar->pageRequested(SidebarWidget::Page::Settings);
+        QCOMPARE(currentPage(window), window.findChild<SettingsPage*>());
+
+        emit sidebar->accountRequested(savings);
+        QCOMPARE(currentPage(window), window.findChild<TransactionsPage*>());
+        QCOMPARE(shownTransactions(window), 2);
+        emit sidebar->accountRequested(SidebarWidget::ALL_ACCOUNTS_ID);
+        QCOMPARE(shownTransactions(window), 3);
+
+        QSignalSpy switchUser(&window, &MainWindow::switchUserRequested);
+        emit sidebar->switchUserRequested();
+        QCOMPARE(switchUser.count(), 1);
+    }
+
+    void dashboardShortcutsOpenTheRightPlace() {
+        const int transactionId = spend(giro, 1250, groceries);
+        MainWindow window(1);
+        auto* dashboard = window.findChild<DashboardPage*>();
+        auto* transactions = window.findChild<TransactionsPage*>();
+        auto* editor = transactions->findChild<TransactionEditor*>();
+
+        emit dashboard->addTransactionRequested();
+        QCOMPARE(currentPage(window), transactions);
+        QVERIFY(!editor->isHidden());
+        QVERIFY(editor->isEditingNew());
+
+        emit dashboard->transactionRequested(transactionId);
+        QCOMPARE(editor->editedTransactionId(), transactionId);
+
+        emit dashboard->categoryRequested(groceries);
+        QCOMPARE(transactions->findChild<QComboBox*>("categoryFilter")->currentData().toInt(), groceries);
+
+        emit dashboard->budgetRequested();
+        QCOMPARE(currentPage(window), window.findChild<BudgetPage*>());
+        emit dashboard->transactionsRequested();
+        QCOMPARE(currentPage(window), transactions);
+        QCOMPARE(shownTransactions(window), 1);
+    }
+
+    void changedTransactionsReachTheOtherPages() {
+        MainWindow window(1);
+        auto* expenses = window.findChild<QLabel*>("expensesValue");
+        QCOMPARE(expenses->text(), Settings::instance().formatCurrency(0));
+
+        spend(giro, 4200, groceries);
+        emit window.findChild<TransactionsPage*>()->transactionsChanged();
+        QCOMPARE(expenses->text(), Settings::instance().formatCurrency(4200));
+    }
+
+    void editedCategoriesReachTheOtherPages() {
+        MainWindow window(1);
+        auto* filter = window.findChild<TransactionsPage*>()->findChild<QComboBox*>("categoryFilter");
+        QCOMPARE(filter->findText("Travel"), -1);
+
+        QVERIFY(CategoryDAO().addCategory(Category(-1, "Travel", "expense")) > 0);
+        emit window.findChild<SettingsPage*>()->dataChanged();
+        QVERIFY(filter->findText("Travel") >= 0);
+    }
+};
+
+QTEST_MAIN(TestMainWindow)
+#include "test_mainwindow.moc"
