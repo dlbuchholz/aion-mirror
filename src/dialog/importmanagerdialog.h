@@ -135,6 +135,7 @@ private:
     QLabel *balanceStatusLabel = nullptr;
     QCheckBox *correctionCheckBox = nullptr;
     bool expectedEditedByUser = false;
+    bool closeOnly = false;                          // Nothing to import or correct: the button just closes
 };
 
 #endif // IMPORTMANAGERDIALOG_H

@@ -885,9 +885,19 @@ void ImportManagerDialog::updateBalanceStatus()
         correctionCheckBox->hide();
     } else {
         const Cents difference = expected - dryRun.balanceAfterCents;
-        balanceStatusLabel->setText(QString("%1 %2 than your bank after the import. Missing or extra bookings, for example "
-                                            "from a gap between exports, can cause this.")
-                                        .arg(settings.formatCurrency(qAbs(difference)), difference > 0 ? "less" : "more"));
+        const QString amount = settings.formatCurrency(qAbs(difference));
+        const QString direction = difference > 0 ? "less" : "more";
+        if (dryRun.imported == 0) {
+            // The file adds nothing, so the difference was there before this import
+            balanceStatusLabel->setText(QString("Aion already shows %1 %2 than your bank on that day. This file adds "
+                                                "nothing, so the difference comes from earlier: for example transactions "
+                                                "missing in Aion, or a starting balance that doesn't fit the imported history.")
+                                            .arg(amount, direction));
+        } else {
+            balanceStatusLabel->setText(QString("%1 %2 than your bank after the import. Missing or extra bookings, for example "
+                                                "from a gap between exports, can cause this.")
+                                            .arg(amount, direction));
+        }
         setTextColor(balanceStatusLabel, colors.danger);
         correctionCheckBox->setText(QString("Add a balance correction of %1 so they match")
                                         .arg(settings.formatCurrency(difference, true)));
@@ -895,14 +905,19 @@ void ImportManagerDialog::updateBalanceStatus()
         correction = correctionCheckBox->isChecked();
     }
 
-    // Import what can be imported; a correction alone is fine too
-    const bool rowsToImport = dryRun.imported > 0 && (dryRun.failed == 0 || allowPartialCheck->isChecked());
+    // Import what can be imported; a correction alone is fine too. With nothing to do (everything
+    // is already in Aion) the wizard can still be finished.
+    const bool blockedByProblems = dryRun.failed > 0 && !allowPartialCheck->isChecked();
+    const bool rowsToImport = dryRun.imported > 0 && !blockedByProblems;
+    closeOnly = !rowsToImport && !correction && !blockedByProblems;
     if (rowsToImport) {
         importButton->setText(QString("Import %1 %2").arg(dryRun.imported).arg(dryRun.imported == 1 ? "transaction" : "transactions"));
-    } else {
+    } else if (correction) {
         importButton->setText("Add balance correction");
+    } else {
+        importButton->setText(closeOnly ? "Close" : "Import");
     }
-    importButton->setEnabled(rowsToImport || correction);
+    importButton->setEnabled(rowsToImport || correction || closeOnly);
 }
 
 CsvImport::Result ImportManagerDialog::runImport(bool dry)
@@ -930,6 +945,10 @@ CsvImport::Result ImportManagerDialog::runImport(bool dry)
 
 void ImportManagerDialog::import()
 {
+    if (closeOnly) {
+        accept();                                    // Nothing new and no correction wanted
+        return;
+    }
     const CsvImport::Result result = runImport(false);
     if (result.imported == 0 && result.correctionCents == 0) {
         QMessageBox::warning(this, "Nothing imported",

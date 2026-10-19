@@ -11,6 +11,7 @@
 #include "account.h"
 #include "balance.h"
 #include "budget.h"
+#include "csvimport.h"
 #include "dashboard.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
@@ -212,6 +213,47 @@ private slots:
         button->menu()->actions().at(0)->trigger();
         next->click();
         QCOMPARE(dialog.findChild<QLabel*>("newCategoriesLabel")->text(), QString("New categories: Neu 1, Neu 10 and 28 more"));
+    }
+
+    void wizardCanFinishWhenEverythingIsAlreadyImported() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("again.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name;Saldo nach Buchung\n17.10.2026;-31,20;Rewe;968,80\n03.10.2026;1000,00;ACME;1.000,00\n");
+        file.close();
+
+        // The same file imported before, matching the bank
+        CsvImport::Options options;
+        options.accountId = giro;
+        options.decimalSeparator = ',';
+        const CsvImport::Mapping mapping = {{CsvImport::FieldDate, 0}, {CsvImport::FieldAmount, 1}, {CsvImport::FieldPayee, 2}};
+        QCOMPARE(CsvImport::run({{"17.10.2026", "-31,20", "Rewe"}, {"03.10.2026", "1000,00", "ACME"}}, mapping, options, {}).imported, 2);
+
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QCOMPARE(dialog.findChild<QLabel*>("newCountLabel")->text(), QString("0"));
+        QCOMPARE(dialog.findChild<QLabel*>("duplicateCountLabel")->text(), QString("2"));
+        QVERIFY(dialog.findChild<QLabel*>("balanceStatusLabel")->text().startsWith("Matches"));
+        auto* finish = dialog.findChild<QPushButton*>("importButton");
+        QCOMPARE(finish->text(), QString("Close"));
+        QVERIFY(finish->isEnabled());
+
+        // A difference from before: explained as such, and closing still works without a correction
+        Balance::addCorrection(giro, QDate(2026, 10, 1), 500, "");
+        dialog.findChild<QPushButton*>("backButton")->click();
+        next->click();
+        QVERIFY(dialog.findChild<QLabel*>("balanceStatusLabel")->text().contains("This file adds nothing"));
+        QCOMPARE(finish->text(), QString("Add balance correction"));
+        dialog.findChild<QCheckBox*>("correctionCheckBox")->setChecked(false);
+        QCOMPARE(finish->text(), QString("Close"));
+        finish->click();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(97380));     // Nothing was added
     }
 
     void dialogChecksAnEarlierDay() {
