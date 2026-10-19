@@ -4,7 +4,10 @@
 #include <QFrame>
 #include <QLineEdit>
 #include <QListView>
+#include <QMenu>
 #include <QPushButton>
+#include <QSqlQuery>
+#include <QToolButton>
 
 #include "account.h"
 #include "settings.h"
@@ -283,6 +286,82 @@ private slots:
         QCOMPARE(page.findChild<QComboBox*>("categoryFilter")->currentData().toInt(), groceries);
         page.showCategoryThisMonth(TransactionFilter::NO_CATEGORY);
         QCOMPARE(model->totals().count, 1);
+    }
+
+    // --- Deleting and bulk changes ---
+
+    int addExpense(const char* payee, Cents cents) {
+        return TransactionDAO().addTransaction(Transaction(-1, firstId, payee, cents, QDate::currentDate(), "", 0, "expense"));
+    }
+
+    static void selectTransactions(TransactionsPage& page, const QList<int>& transactionIds) {
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        for (int transactionId : transactionIds) {
+            list->selectionModel()->select(model->indexForTransaction(transactionId), QItemSelectionModel::Select);
+        }
+    }
+
+    void deletingAsksFirst() {
+        const int transactionId = addExpense("Bakery", 420);
+        TransactionsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &TransactionsPage::transactionsChanged);
+        QString asked;
+        bool answer = false;
+        page.confirm = [&](const QString&, const QString& text) { asked = text; return answer; };
+        page.openTransaction(transactionId);
+        auto* editor = page.findChild<TransactionEditor*>();
+
+        emit editor->deleteRequested(transactionId);                            // "Delete" in the editor
+        QCOMPARE(asked, QString("Delete this transaction? This can't be undone."));
+        QCOMPARE(TransactionDAO().getTransactionsForAccount(firstId).size(), 1); // Said no
+        QCOMPARE(changed.count(), 0);
+
+        answer = true;
+        emit editor->deleteRequested(transactionId);
+        QVERIFY(TransactionDAO().getTransactionsForAccount(firstId).isEmpty());
+        QVERIFY(editor->isHidden());
+        QCOMPARE(changed.count(), 1);
+    }
+
+    void deletesTheSelection() {
+        const int first = addExpense("A", 100);
+        const int second = addExpense("B", 200);
+        const int kept = addExpense("C", 300);
+        TransactionsPage page;
+        page.setUserId(1);
+        QString asked;
+        page.confirm = [&](const QString&, const QString& text) { asked = text; return true; };
+        selectTransactions(page, {first, second});
+        QVERIFY(QMetaObject::invokeMethod(&page, "deleteSelected"));
+        QCOMPARE(asked, QString("Delete 2 transactions? This can't be undone."));
+        const QList<Transaction> left = TransactionDAO().getTransactionsForAccount(firstId);
+        QCOMPARE(left.size(), 1);
+        QCOMPARE(left.first().getTransactionId(), kept);
+        QVERIFY(page.findChild<QFrame*>("bulkBar")->isHidden());                // Nothing selected any more
+    }
+
+    void setsTheCategoryOfTheSelection() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const int first = addExpense("A", 100);
+        const int second = addExpense("B", 200);
+        const int untouched = addExpense("C", 300);
+        TransactionsPage page;
+        page.setUserId(1);
+        selectTransactions(page, {first, second});
+
+        QAction* action = nullptr;
+        for (QAction* candidate : page.findChild<QToolButton*>("bulkCategoryButton")->menu()->actions()) {
+            if (candidate->text() == "Groceries") action = candidate;
+        }
+        QVERIFY(action);
+        action->trigger();
+        for (const Transaction& transaction : TransactionDAO().getTransactionsForAccount(firstId)) {
+            QCOMPARE(transaction.getCategoryId(), transaction.getTransactionId() == untouched ? 0 : groceries);
+        }
     }
 };
 

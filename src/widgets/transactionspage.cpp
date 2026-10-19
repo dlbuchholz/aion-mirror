@@ -287,6 +287,10 @@ void makePrimary(QPushButton* button) {
 
 TransactionsPage::TransactionsPage(QWidget* parent)
     : QWidget(parent) {
+    confirm = [this](const QString& title, const QString& text) {
+        return QMessageBox::question(this, title, text, QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel)
+               == QMessageBox::Yes;
+    };
     model = new TransactionListModel(this);
 
     auto* root = new QVBoxLayout(this);
@@ -372,6 +376,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     bulkLayout->addWidget(bulkLabel);
     bulkLayout->addStretch();
     bulkCategoryButton = new QToolButton(bulkBar);
+    bulkCategoryButton->setObjectName("bulkCategoryButton");
     bulkCategoryButton->setText("Set category");
     bulkCategoryButton->setPopupMode(QToolButton::InstantPopup);
     bulkCategoryButton->setMenu(new QMenu(bulkCategoryButton));
@@ -893,8 +898,7 @@ void TransactionsPage::deleteTransactions(const QList<int>& transactionIds) {
     const QString question = transactionIds.size() == 1
         ? QString("Delete this transaction? This can't be undone.")
         : QString("Delete %1 transactions? This can't be undone.").arg(transactionIds.size());
-    if (QMessageBox::question(this, "Delete transactions", question,
-                              QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Yes) {
+    if (!confirm("Delete transactions", question)) {
         return;
     }
 

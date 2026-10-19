@@ -2,6 +2,7 @@
 #define TRANSACTIONSPAGE_H
 
 #include <QWidget>
+#include <functional>
 #include "category.h"
 #include "transaction.h"
 
@@ -28,6 +29,9 @@ public:
     static constexpr int ALL_ACCOUNTS = -1;
 
     explicit TransactionsPage(QWidget* parent = nullptr);
+
+    // Asks before deleting (a message box; tests replace it)
+    std::function<bool(const QString& title, const QString& text)> confirm;
 
     void setUserId(int userId);
     void showAccount(int accountId);                 // ALL_ACCOUNTS for every account of the user
