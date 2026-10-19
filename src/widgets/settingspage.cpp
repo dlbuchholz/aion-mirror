@@ -1,7 +1,8 @@
 #include "settingspage.h"
 #include "dialog/rawsettingsdialog.h"
 #include "aboutwidget.h"
-#include "preferenceswidget.h"
+#include "accounttypessettings.h"
+#include "categoriessettings.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -258,6 +259,13 @@ void SettingsPage::buildAppearanceSection()
     themeCombo->addItem("Match system", "System");
     form->addRow("Theme", themeCombo);
     watch(themeCombo);
+
+    categoryColorsCheck = new QCheckBox("Use category colours on the Dashboard and Budget page", this);
+    categoryColorsCheck->setObjectName("categoryColorsCheck");
+    categoryColorsCheck->setToolTip("Coloured spending bars and dots before budget names. "
+                                    "Without it they stay neutral; category tags are always coloured.");
+    form->addRow(categoryColorsCheck);
+    watch(categoryColorsCheck);
 }
 
 void SettingsPage::buildImportSection()
@@ -291,9 +299,14 @@ void SettingsPage::buildAboutSection()
 
 void SettingsPage::buildCategoriesSection()
 {
-    categoriesWidget = new PreferencesWidget(this);
-    connect(categoriesWidget, &PreferencesWidget::pendingChangesChanged, this, &SettingsPage::updateChangeState);
-    addSection("Categories and account types", "tag", categoriesWidget);
+    // Saved right away, so they don't take part in Apply / Revert
+    categoriesSettings = new CategoriesSettings(this);
+    connect(categoriesSettings, &CategoriesSettings::categoriesChanged, this, &SettingsPage::dataChanged);
+    addSection("Categories", "tag", categoriesSettings);
+
+    accountTypesSettings = new AccountTypesSettings(this);
+    connect(accountTypesSettings, &AccountTypesSettings::accountTypesChanged, this, &SettingsPage::dataChanged);
+    addSection("Account types", "database", accountTypesSettings);
 }
 
 void SettingsPage::watch(QComboBox *combo)
@@ -322,7 +335,7 @@ void SettingsPage::markFormChanged()
 
 void SettingsPage::updateChangeState()
 {
-    const bool hasChanges = formChanged || categoriesWidget->hasPendingChanges();
+    const bool hasChanges = formChanged;
     unsavedLabel->setVisible(hasChanges);
     revertButton->setVisible(hasChanges);
     applyButton->setEnabled(hasChanges);
@@ -342,6 +355,7 @@ void SettingsPage::loadSettings()
 
     fastEntryCheck->setChecked(settings.isFastEntryEnabled());
     selectionCheckboxesCheck->setChecked(settings.isSelectionCheckboxesEnabled());
+    categoryColorsCheck->setChecked(settings.isCategoryColorsInOverviewsEnabled());
 
     // Stored values are case-insensitive, matching Theme::fromName()
     const QString theme = settings.getTheme().toLower();
@@ -379,6 +393,7 @@ void SettingsPage::saveSettings()
     settings.setSelectionCheckboxesEnabled(selectionCheckboxesCheck->isChecked());
 
     settings.setTheme(themeCombo->currentData().toString());
+    settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());
 
     settings.setAutoDetectCsvDelimiter(autoDetectDelimiterCheck->isChecked());
     settings.setDefaultCsvDelimiter(defaultDelimiterCombo->currentData().toString().at(0));
@@ -393,17 +408,12 @@ void SettingsPage::apply()
         saveSettings();
         formChanged = false;
     }
-    if (categoriesWidget->hasPendingChanges() && !categoriesWidget->saveChanges()) {
-        QMessageBox::warning(this, "Some changes weren't saved",
-                             categoriesWidget->lastErrors().join("\n"));
-    }
     updateChangeState();
     emit settingsChanged();
 }
 
 void SettingsPage::revert()
 {
-    categoriesWidget->discardChanges();
     loadSettings();
 }
 

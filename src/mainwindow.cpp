@@ -26,6 +26,13 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->sidebar, &SidebarWidget::correctBalanceRequested, ui->transactionsPage, &TransactionsPage::correctBalance);
     connect(ui->sidebar, &SidebarWidget::switchUserRequested, this, &MainWindow::switchUserRequested);
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
+    connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {
+        // Category names, colours and merges show up everywhere
+        ui->transactionsPage->reload();
+        ui->budgetPage->reload();
+        ui->dashboardPage->reload();
+        ui->sidebar->refresh();
+    });
 
     // Balances and budget usage depend on the saved transactions
     connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,

@@ -28,6 +28,11 @@ void TransactionListModel::setFilter(const TransactionFilter& filter) {
     rebuild();
 }
 
+void TransactionListModel::setCategoryColors(const QHash<int, QString>& colors) {
+    categoryColors = colors;
+    if (!rows.isEmpty()) emit dataChanged(index(0), index(int(rows.size()) - 1));
+}
+
 const TransactionFilter& TransactionListModel::filter() const {
     return currentFilter;
 }
@@ -106,6 +111,8 @@ QVariant TransactionListModel::data(const QModelIndex& index, int role) const {
         return transaction.getDescription();
     case CategoryRole:
         return categoryNames.value(transaction.getCategoryId());
+    case CategoryColorRole:
+        return categoryColors.value(transaction.getCategoryId());
     case AccountRole:
         return accountNames.value(transaction.getAccountId());
     case SignedAmountRole:

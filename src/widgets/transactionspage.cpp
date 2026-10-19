@@ -1,5 +1,6 @@
 #include "transactionspage.h"
 #include "account.h"
+#include "categorycolors.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
 #include "icons.h"
@@ -103,8 +104,9 @@ public:
             const QRectF pill(right - categoryWidth, row.center().y() - 10, pillWidth, 20);
             QPainterPath pillPath;
             pillPath.addRoundedRect(pill, 10, 10);
-            painter->fillPath(pillPath, colors.track);
-            painter->setPen(colors.textSecondary);
+            const CategoryColors::Swatch swatch = CategoryColors::swatch(index.data(TransactionListModel::CategoryColorRole).toString());
+            painter->fillPath(pillPath, swatch.background);
+            painter->setPen(swatch.text);
             painter->drawText(pill, Qt::AlignCenter, text);
         }
         right -= categoryWidth + 12;
@@ -544,8 +546,10 @@ void TransactionsPage::reload() {
 
     categories = categoryDao.getAllCategories();
     QHash<int, QString> categoryNames;
+    QHash<int, QString> categoryColors;
     for (const Category& category : categories) {
         categoryNames.insert(category.getCategoryId(), category.getName());
+        categoryColors.insert(category.getCategoryId(), category.getColor());
     }
 
     const QList<Transaction> unassigned = transactionDao.getShadowedTransactions();
@@ -566,6 +570,7 @@ void TransactionsPage::reload() {
     const QList<int> selectedIds = selectedTransactionIds();
 
     delegate->showAccountColumn = showingUnassigned || accountId == ALL_ACCOUNTS;
+    model->setCategoryColors(categoryColors);
     model->setTransactions(transactions, accountNames, categoryNames);
     populateCategoryFilter();
     applyFilter();

@@ -84,6 +84,16 @@ QHash<int, Cents> spendingByCategory(int userId, const QDate& month) {
     return spent;
 }
 
+// Palette name per category
+QHash<int, QString> categoryColors() {
+    QSqlQuery query(DatabaseManager::instance().database());
+    QHash<int, QString> colors;
+    if (query.exec("SELECT id, color FROM categories")) {
+        while (query.next()) colors.insert(query.value(0).toInt(), query.value(1).toString());
+    }
+    return colors;
+}
+
 QHash<int, QString> categoryNames() {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare("SELECT id, name FROM categories");
@@ -142,6 +152,7 @@ QList<MonthBudget> BudgetDAO::budgetsForMonth(int userId, const QDate& month) {
     const QList<BudgetRow> rows = rowsFor(userId);
     const QHash<int, Cents> spent = spendingByCategory(userId, month);
     const QHash<int, QString> names = categoryNames();
+    const QHash<int, QString> colors = categoryColors();
 
     QSet<int> categories;
     for (const BudgetRow& row : rows) categories.insert(row.categoryId);
@@ -155,6 +166,7 @@ QList<MonthBudget> BudgetDAO::budgetsForMonth(int userId, const QDate& month) {
         MonthBudget budget;
         budget.categoryId = categoryId;
         budget.categoryName = names.value(categoryId);
+        budget.categoryColor = colors.value(categoryId);
         budget.limitCents = row->amount;
         budget.spentCents = spent.value(categoryId);
         budget.repeats = row->repeats;

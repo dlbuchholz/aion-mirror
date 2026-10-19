@@ -12,7 +12,8 @@ class QListWidget;
 class QPushButton;
 class QStackedWidget;
 class QToolButton;
-class PreferencesWidget;
+class AccountTypesSettings;
+class CategoriesSettings;
 
 // Settings page of the main window: one section per settings group plus
 // categories and account types, saved together with Apply.
@@ -25,6 +26,7 @@ public:
 
 signals:
     void settingsChanged();                          // Emitted after changes were applied
+    void dataChanged();                              // Categories or account types were edited (saved right away)
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -75,6 +77,7 @@ private:
     // Transactions
     QCheckBox *fastEntryCheck = nullptr;
     QCheckBox *selectionCheckboxesCheck = nullptr;
+    QCheckBox *categoryColorsCheck = nullptr;
 
     // Appearance
     QComboBox *themeCombo = nullptr;
@@ -85,7 +88,8 @@ private:
     QCheckBox *autoDetectDecimalCheck = nullptr;
 
     // Categories and account types
-    PreferencesWidget *categoriesWidget = nullptr;
+    CategoriesSettings *categoriesSettings = nullptr;
+    AccountTypesSettings *accountTypesSettings = nullptr;
 };
 
 #endif // SETTINGSPAGE_H

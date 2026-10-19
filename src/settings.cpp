@@ -303,7 +303,16 @@ void Settings::restoreDefaults() {
     settings.remove("transactions");
     settings.remove("import");
     settings.remove("app/theme");
+    settings.remove("appearance");
     settings.sync();
+}
+
+bool Settings::isCategoryColorsInOverviewsEnabled() const {
+    return settings.value("appearance/categoryColorsInOverviews", true).toBool();
+}
+
+void Settings::setCategoryColorsInOverviewsEnabled(bool enabled) {
+    settings.setValue("appearance/categoryColorsInOverviews", enabled);
 }
 
 // Sidebar state

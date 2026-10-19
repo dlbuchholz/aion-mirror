@@ -100,7 +100,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
 
     // This month's expenses per category
     QSqlQuery categoryQuery = prepared(
-        "SELECT COALESCE(t.category_id, 0), c.name, SUM(t.amount) FROM transactions t "
+        "SELECT COALESCE(t.category_id, 0), c.name, SUM(t.amount), c.color FROM transactions t "
         "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
         "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + NotBalanceAdjustmentSql + " "
         "GROUP BY COALESCE(t.category_id, 0)");
@@ -112,7 +112,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
             const int categoryId = categoryQuery.value(0).toInt();
             data.spendingByCategory.append({categoryId,
                                             categoryId == 0 ? QString("No category") : categoryQuery.value(1).toString(),
-                                            categoryQuery.value(2).toLongLong()});
+                                            categoryQuery.value(2).toLongLong(), categoryQuery.value(3).toString()});
         }
     }
     std::sort(data.spendingByCategory.begin(), data.spendingByCategory.end(),
@@ -120,7 +120,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
 
     // Latest transactions; future-dated ones (planned payments) don't count as recent
     QSqlQuery recentQuery = prepared(
-        "SELECT t.id, t.date, t.payee, c.name, t.amount, t.type FROM transactions t "
+        "SELECT t.id, t.date, t.payee, c.name, t.amount, t.type, c.color FROM transactions t "
         "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
         "WHERE a.user_id = :user_id AND t.date <= :today ORDER BY t.date DESC, t.id DESC LIMIT :limit");
     recentQuery.bindValue(":user_id", userId);
@@ -132,7 +132,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
             data.recent.append({recentQuery.value(0).toInt(),
                                 QDate::fromString(recentQuery.value(1).toString(), "yyyy-MM-dd"),
                                 recentQuery.value(2).toString(), recentQuery.value(3).toString(),
-                                recentQuery.value(5).toString() == "income" ? amount : -amount});
+                                recentQuery.value(5).toString() == "income" ? amount : -amount, recentQuery.value(6).toString()});
         }
     }
     return data;

@@ -41,7 +41,8 @@ public:
         SignedAmountRole,                            // Cents; income positive, expense negative
         CollapsedRole,                               // Day headers: the day is folded
         DayCountRole,                                // Day headers: transactions on that day
-        DayNetRole                                   // Day headers: income minus expenses of that day, in cents
+        DayNetRole,                                  // Day headers: income minus expenses of that day, in cents
+        CategoryColorRole                            // Palette name of the category (see CategoryColors)
     };
 
     struct Totals {
@@ -56,6 +57,7 @@ public:
     void setTransactions(const QList<Transaction>& transactions,
                          const QHash<int, QString>& accountNames,
                          const QHash<int, QString>& categoryNames);
+    void setCategoryColors(const QHash<int, QString>& colors);   // Category ID -> palette name
     void setFilter(const TransactionFilter& filter);
     const TransactionFilter& filter() const;
 
@@ -86,6 +88,7 @@ private:
     QList<Transaction> allTransactions;
     QHash<int, QString> accountNames;
     QHash<int, QString> categoryNames;
+    QHash<int, QString> categoryColors;
     TransactionFilter currentFilter;
     QSet<QDate> collapsedDays;
     QList<Row> rows;

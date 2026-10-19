@@ -4,7 +4,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QTableWidget>
+#include <QListWidget>
 
 #include "category.h"
 #include "settings.h"
@@ -124,17 +124,34 @@ private slots:
         QCOMPARE(Settings::instance().formatCurrency(-123450), QString("-1.234,50 Fr."));
     }
 
-    void categoryEditsUseTheSameApplyButton() {
+    void categoryColoursInOverviewsCanBeTurnedOff() {
+        Settings::instance().restoreDefaults();                               // Restored after the test case
+        QVERIFY(Settings::instance().isCategoryColorsInOverviewsEnabled());   // Coloured by default
         SettingsPage page;
-        auto* categories = page.findChild<QTableWidget*>("categoriesTable");
-        QVERIFY(!hasUnsavedChanges(page));
-        categories->item(0, 0)->setText("Renamed category");
+        auto* check = child<QCheckBox>(page, "categoryColorsCheck");
+        QVERIFY(check->isChecked());
+        check->setChecked(false);
         QVERIFY(hasUnsavedChanges(page));
-
         child<QPushButton>(page, "applyButton")->click();
-        QVERIFY(!hasUnsavedChanges(page));
+        QVERIFY(!Settings::instance().isCategoryColorsInOverviewsEnabled());
+        Settings::instance().restoreDefaults();
+        QVERIFY(Settings::instance().isCategoryColorsInOverviewsEnabled());
+    }
+
+    void categoriesAndAccountTypesHaveTheirOwnSectionsAndSaveRightAway() {
+        SettingsPage page;
+        QSignalSpy dataChanged(&page, &SettingsPage::dataChanged);
+        auto* sections = page.findChild<QListWidget*>();
+        QVERIFY(!sections->findItems("Categories", Qt::MatchExactly).isEmpty());
+        QVERIFY(!sections->findItems("Account types", Qt::MatchExactly).isEmpty());
+
+        child<QPushButton>(page, "addCategoryButton")->click();
+        child<QLineEdit>(page, "categoryNameEdit")->setText("Travel");
+        child<QPushButton>(page, "saveCategoryButton")->click();
+        QVERIFY(!hasUnsavedChanges(page));                       // Nothing waits for Apply
+        QCOMPARE(dataChanged.count(), 1);
         bool found = false;
-        for (const Category& category : CategoryDAO().getAllCategories()) found |= category.getName() == "Renamed category";
+        for (const Category& category : CategoryDAO().getAllCategories()) found |= category.getName() == "Travel";
         QVERIFY(found);
     }
 };

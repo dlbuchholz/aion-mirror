@@ -20,6 +20,7 @@ struct CategorySpending {
     int categoryId = 0;                              // 0 = no category
     QString categoryName;
     Cents spentCents = 0;
+    QString categoryColor;                           // Palette name, empty = neutral
 };
 
 struct RecentTransaction {
@@ -28,6 +29,7 @@ struct RecentTransaction {
     QString payee;
     QString categoryName;                            // Empty without a category
     Cents signedCents = 0;                           // Income positive, expenses negative
+    QString categoryColor;
 };
 
 // What the dashboard shows for a user, all relative to "today"

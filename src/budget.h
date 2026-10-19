@@ -14,6 +14,7 @@ struct MonthBudget {
     Cents spentCents = 0;
     bool repeats = true;                             // true: the regular monthly limit; false: set for this month only
     QDate validFrom;                                 // Repeating limits: first month this value applies to
+    QString categoryColor;                           // Palette name, empty = neutral
     Cents leftCents() const { return limitCents - spentCents; }
 };
 

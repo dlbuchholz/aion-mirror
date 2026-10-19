@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS accounts (
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL CHECK (type IN ('income', 'expense'))
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    color TEXT                           -- Palette name ('teal', 'coral', ...), NULL = neutral
 );
 
 CREATE TABLE IF NOT EXISTS transactions (

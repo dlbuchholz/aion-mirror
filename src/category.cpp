@@ -2,8 +2,8 @@
 #include "category.h"
 
 // Category Implementation
-Category::Category(int id, const QString& name, const QString& type)
-    : categoryId(id), name(name), type(type) {}
+Category::Category(int id, const QString& name, const QString& type, const QString& color)
+    : categoryId(id), name(name), type(type), color(color) {}
 
 int Category::getCategoryId() const {
     return categoryId;
@@ -17,14 +17,23 @@ QString Category::getType() const {
     return type;
 }
 
+QString Category::getColor() const {
+    return color;
+}
+
+bool Category::isBuiltIn() const {
+    return isBalanceAdjustmentCategory(name);
+}
+
 // CategoryDAO Implementation
 CategoryDAO::CategoryDAO() {}
 
 int CategoryDAO::addCategory(const Category& category) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("INSERT INTO categories (name, type) VALUES (:name, :type)");
+    query.prepare("INSERT INTO categories (name, type, color) VALUES (:name, :type, :color)");
     query.bindValue(":name", category.getName());
     query.bindValue(":type", category.getType());
+    query.bindValue(":color", category.getColor().isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : QVariant(category.getColor()));
 
     if (!query.exec()) {
         qWarning() << "CategoryDAO::createCategory failed:" << query.lastError().text();
@@ -50,7 +59,7 @@ bool CategoryDAO::createCategory(const Category& category) {
 
 QList<Category> CategoryDAO::getAllCategories() {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, name, type FROM categories");
+    query.prepare("SELECT id, name, type, color FROM categories ORDER BY name COLLATE NOCASE");
 
     QList<Category> categories;
     if (query.exec()) {
@@ -58,8 +67,8 @@ QList<Category> CategoryDAO::getAllCategories() {
             categories.append(Category(
                 query.value("id").toInt(),
                 query.value("name").toString(),
-                query.value("type").toString()
-                ));
+                query.value("type").toString(),
+                query.value("color").toString()));
         }
     } else {
         handleError(query);
@@ -69,15 +78,15 @@ QList<Category> CategoryDAO::getAllCategories() {
 
 Category CategoryDAO::getCategoryById(int categoryId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, name, type FROM categories WHERE id = :id");
+    query.prepare("SELECT id, name, type, color FROM categories WHERE id = :id");
     query.bindValue(":id", categoryId);
 
     if (query.exec() && query.next()) {
         return Category(
             query.value("id").toInt(),
             query.value("name").toString(),
-            query. value("type").toString()
-            );
+            query. value("type").toString(),
+            query.value("color").toString());
     } else {
         handleError(query);
         return Category(-1, "", "");  // Return empty category on error
@@ -109,6 +118,91 @@ bool CategoryDAO::deleteCategory(int categoryId) {
         return false;
     }
     return query.numRowsAffected() == 1;
+}
+
+bool CategoryDAO::editCategory(int id, const QString& newName, const QString& newType, const QString& newColor) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("UPDATE categories SET name = :name, type = :type, color = :color WHERE id = :id");
+    query.bindValue(":name", newName);
+    query.bindValue(":type", newType);
+    query.bindValue(":color", newColor.isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : QVariant(newColor));
+    query.bindValue(":id", id);
+    if (!query.exec()) {
+        handleError(query);
+        return false;
+    }
+    return query.numRowsAffected() == 1;
+}
+
+QHash<int, CategoryUsage> CategoryDAO::usage() {
+    QHash<int, CategoryUsage> result;
+    QSqlQuery query(DatabaseManager::instance().database());
+    if (query.exec("SELECT category_id, COUNT(*) FROM transactions WHERE category_id IS NOT NULL GROUP BY category_id")) {
+        while (query.next()) result[query.value(0).toInt()].transactions = query.value(1).toInt();
+    } else {
+        handleError(query);
+    }
+    if (query.exec("SELECT category_id, COUNT(*) FROM budgets GROUP BY category_id")) {
+        while (query.next()) result[query.value(0).toInt()].budgets = query.value(1).toInt();
+    } else {
+        handleError(query);
+    }
+    return result;
+}
+
+namespace {
+
+// Runs the statements in one database transaction; all or nothing
+bool runAll(const QList<QPair<QString, QVariantMap>>& statements) {
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) return false;
+    for (const auto& statement : statements) {
+        QSqlQuery query(db);
+        query.prepare(statement.first);
+        for (auto it = statement.second.cbegin(); it != statement.second.cend(); ++it) query.bindValue(it.key(), it.value());
+        if (!query.exec()) {
+            qWarning() << "CategoryDAO:" << query.lastError().text() << statement.first;
+            db.rollback();
+            return false;
+        }
+    }
+    return db.commit();
+}
+
+bool exists(int categoryId) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT 1 FROM categories WHERE id = :id");
+    query.bindValue(":id", categoryId);
+    return query.exec() && query.next();
+}
+
+} // namespace
+
+bool CategoryDAO::mergeCategory(int fromId, int intoId) {
+    if (fromId == intoId || !exists(fromId) || !exists(intoId)) {
+        return false;
+    }
+    const QVariantMap ids = {{":from", fromId}, {":into", intoId}};
+    return runAll({
+        {"UPDATE transactions SET category_id = :into WHERE category_id = :from", ids},
+        // The target's own budgets win; otherwise the merged category's budgets carry over
+        {"DELETE FROM budgets WHERE category_id = :from AND EXISTS (SELECT 1 FROM budgets b WHERE b.category_id = :into "
+         "AND b.user_id = budgets.user_id)", ids},
+        {"UPDATE budgets SET category_id = :into WHERE category_id = :from", ids},
+        {"DELETE FROM categories WHERE id = :from", {{":from", fromId}}},
+    });
+}
+
+bool CategoryDAO::deleteCategoryKeepingTransactions(int categoryId) {
+    if (!exists(categoryId)) {
+        return false;
+    }
+    const QVariantMap id = {{":id", categoryId}};
+    return runAll({
+        {"UPDATE transactions SET category_id = NULL WHERE category_id = :id", id},
+        {"DELETE FROM budgets WHERE category_id = :id", id},
+        {"DELETE FROM categories WHERE id = :id", id},
+    });
 }
 
 void CategoryDAO::handleError(const QSqlQuery& query) {

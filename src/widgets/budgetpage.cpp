@@ -1,5 +1,6 @@
 #include "budgetpage.h"
 #include "budgeteditor.h"
+#include "categorycolors.h"
 #include "category.h"
 #include "icons.h"
 #include "settings.h"
@@ -96,13 +97,21 @@ protected:
         const int amountsWidth = smallMetrics.horizontalAdvance(amounts);
 
         const int tagWidth = smallMetrics.horizontalAdvance(tag) + 16;
-        const int nameWidth = qMax(0, topLine.width() - leftWidth - amountsWidth - tagWidth - 32);
+        // The category's colour as a dot before the name
+        int nameLeft = topLine.left();
+        if (settings.isCategoryColorsInOverviewsEnabled() && !budget.categoryColor.isEmpty()) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(CategoryColors::swatch(budget.categoryColor).solid);
+            painter.drawEllipse(QRectF(nameLeft, topLine.center().y() - 4, 9, 9));
+            nameLeft += 17;
+        }
+        const int nameWidth = qMax(0, topLine.right() - nameLeft - leftWidth - amountsWidth - tagWidth - 32);
         const QString name = metrics.elidedText(budget.categoryName, Qt::ElideRight, nameWidth);
         painter.setFont(font);
         painter.setPen(colors.textPrimary);
-        painter.drawText(topLine, Qt::AlignLeft | Qt::AlignVCenter, name);
+        painter.drawText(QRect(nameLeft, topLine.top(), topLine.right() - nameLeft, topLine.height()), Qt::AlignLeft | Qt::AlignVCenter, name);
 
-        const QRectF pill(topLine.left() + metrics.horizontalAdvance(name) + 10, topLine.center().y() - 9, tagWidth, 18);
+        const QRectF pill(nameLeft + metrics.horizontalAdvance(name) + 10, topLine.center().y() - 9, tagWidth, 18);
         QPainterPath pillPath;
         pillPath.addRoundedRect(pill, 9, 9);
         painter.fillPath(pillPath, colors.track);

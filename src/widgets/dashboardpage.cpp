@@ -1,5 +1,6 @@
 #include "dashboardpage.h"
 #include "budget.h"
+#include "categorycolors.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -86,6 +87,7 @@ public:
 
     QColor valueColor;                               // Invalid = secondary text
     QColor barColor;
+    QColor dotColor;                                 // Category colour before the name; invalid = none
 
 protected:
     void paintEvent(QPaintEvent*) override {
@@ -99,9 +101,16 @@ protected:
         painter.setPen(valueColor.isValid() ? valueColor : colors.textSecondary);
         painter.drawText(line, Qt::AlignRight | Qt::AlignVCenter, value);
         const int valueWidth = fontMetrics().horizontalAdvance(value);
+        int nameLeft = 0;
+        if (dotColor.isValid()) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(dotColor);
+            painter.drawEllipse(QRectF(line.left(), line.center().y() - 3.5, 8, 8));
+            nameLeft = 15;
+        }
         painter.setPen(colors.textPrimary);
-        painter.drawText(line.adjusted(0, 0, -valueWidth - 12, 0), Qt::AlignLeft | Qt::AlignVCenter,
-                         fontMetrics().elidedText(text(), Qt::ElideRight, qMax(0, line.width() - valueWidth - 12)));
+        painter.drawText(line.adjusted(nameLeft, 0, -valueWidth - 12, 0), Qt::AlignLeft | Qt::AlignVCenter,
+                         fontMetrics().elidedText(text(), Qt::ElideRight, qMax(0, line.width() - valueWidth - 12 - nameLeft)));
 
         const QRectF track(content.left(), content.bottom() - 5, content.width(), 5);
         QPainterPath trackPath;
@@ -159,8 +168,9 @@ protected:
             const QRectF pill(right - pillWidth, content.center().y() - 10, pillWidth, 20);
             QPainterPath pillPath;
             pillPath.addRoundedRect(pill, 10, 10);
-            painter.fillPath(pillPath, colors.track);
-            painter.setPen(colors.textSecondary);
+            const CategoryColors::Swatch swatch = CategoryColors::swatch(transaction.categoryColor);
+            painter.fillPath(pillPath, swatch.background);
+            painter.setPen(swatch.text);
             painter.drawText(pill, Qt::AlignCenter, text);
         }
         right -= pillArea + 12;
@@ -589,6 +599,9 @@ void DashboardPage::updateBudgets() {
         row->setObjectName("budgetProgressRow");
         if (left < 0) row->valueColor = colors.danger;
         row->barColor = left < 0 ? colors.danger : left == 0 ? colors.textMuted : colors.accent;
+        if (settings.isCategoryColorsInOverviewsEnabled() && !budget.categoryColor.isEmpty()) {
+            row->dotColor = CategoryColors::swatch(budget.categoryColor).solid;
+        }
         connect(row, &QAbstractButton::clicked, this, &DashboardPage::budgetRequested);
         budgetLayout->addWidget(row);
     }
@@ -621,7 +634,13 @@ void DashboardPage::updateCategories() {
         auto* row = new ProgressRow(spending.categoryName, Settings::instance().formatCurrency(spending.spentCents),
                                     double(spending.spentCents) / double(largest), this);
         row->setObjectName("categoryRow");
-        row->barColor = Theme::colors().textMuted;
+        if (Settings::instance().isCategoryColorsInOverviewsEnabled()) {
+            const QColor solid = CategoryColors::swatch(spending.categoryColor).solid;
+            row->barColor = solid;
+            row->dotColor = solid;
+        } else {
+            row->barColor = Theme::colors().textMuted;   // Neutral bars, no dots
+        }
         row->setToolTip(QString("Show %1 transactions this month").arg(spending.categoryName));
         const int categoryId = spending.categoryId;
         connect(row, &QAbstractButton::clicked, this, [this, categoryId]() { emit categoryRequested(categoryId); });

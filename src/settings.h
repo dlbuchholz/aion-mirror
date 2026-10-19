@@ -77,6 +77,10 @@ public:
     QString getTheme() const;
     void setTheme(const QString& theme);
 
+    // Category colours on the Dashboard's spending bars and as dots on budget rows (tags are always coloured)
+    bool isCategoryColorsInOverviewsEnabled() const;
+    void setCategoryColorsInOverviewsEnabled(bool enabled);
+
     int getDefaultUserId() const;                    // User opened automatically at start, -1 for none
     void setDefaultUserId(int userId);
 

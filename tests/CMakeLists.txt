@@ -7,7 +7,6 @@ set(TEST_TARGETS
     test_money
     test_transactionlistmodel
     test_transactionspage
-    test_preferenceswidget
     test_settingspage
     test_sidebarwidget
     test_databasesession
@@ -18,6 +17,7 @@ set(TEST_TARGETS
     test_dashboard
     test_dashboardpage
     test_balance
+    test_categorysettings
     test_user_category
     test_settings
 )

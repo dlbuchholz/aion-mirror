@@ -1,6 +1,7 @@
 #ifndef CATEGORY_H
 #define CATEGORY_H
 
+#include <QHash>
 #include <QString>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -22,16 +23,25 @@ inline const QString NotBalanceAdjustmentSql =
 // Category Object
 class Category {
 public:
-    Category(int id, const QString& name, const QString& type);
+    Category(int id, const QString& name, const QString& type, const QString& color = QString());
 
     int getCategoryId() const;
     QString getName() const;
     QString getType() const; // "income" or "expense"
+    QString getColor() const; // Palette name (see CategoryColors), empty = neutral
+    bool isBuiltIn() const;  // Balance adjustments other features rely on
 
 private:
     int categoryId;
     QString name;
     QString type;
+    QString color;
+};
+
+// How much a category is used, for the settings list and confirmations
+struct CategoryUsage {
+    int transactions = 0;
+    int budgets = 0;                                 // Budget rows of any user
 };
 
 // Category DAO
@@ -44,7 +54,15 @@ public:
     QList<Category> getAllCategories();
     Category getCategoryById(int categoryId);
     bool editCategory(int id, const QString &newName, const QString &newType);
-    bool deleteCategory(int categoryId);
+    bool editCategory(int id, const QString &newName, const QString &newType, const QString &newColor);
+    bool deleteCategory(int categoryId);             // Fails while transactions or budgets use it
+
+    QHash<int, CategoryUsage> usage();
+    // Moves transactions to intoId and deletes fromId. Budgets of fromId move along unless
+    // intoId has budgets of its own, which then win.
+    bool mergeCategory(int fromId, int intoId);
+    // Deletes the category with its budgets; its transactions keep no category
+    bool deleteCategoryKeepingTransactions(int categoryId);
 
 private:
     void handleError(const QSqlQuery& query);
