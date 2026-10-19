@@ -7,6 +7,8 @@
 #include "icons.h"
 
 #include <QAbstractButton>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
@@ -181,6 +183,26 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     root->setContentsMargins(8, 12, 8, 12);
     root->setSpacing(2);
 
+    // Logo and name; the collapsed rail keeps only the logo
+    auto* brand = new QWidget(this);
+    brand->setObjectName("sidebarBrand");
+    auto* brandLayout = new QHBoxLayout(brand);
+    brandLayout->setContentsMargins(4, 0, 0, 12);
+    brandLayout->setSpacing(10);
+    auto* logo = new QLabel(brand);
+    logo->setObjectName("sidebarLogo");
+    logo->setPixmap(Icons::logo(28, devicePixelRatioF()));
+    logo->setAccessibleName("Aion logo");
+    brandLayout->addWidget(logo);
+    brandName = new QLabel("Aion", brand);
+    brandName->setObjectName("sidebarBrandName");
+    QFont brandFont = brandName->font();
+    brandFont.setPointSize(13);
+    brandFont.setWeight(QFont::DemiBold);
+    brandName->setFont(brandFont);
+    brandLayout->addWidget(brandName, 1);
+    root->addWidget(brand);
+
     // Navigation
     navGroup.setExclusive(true);
     addNavItem(root, "dashboard", "Dashboard", Page::Dashboard);
@@ -246,6 +268,7 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     connect(&widthAnimation, &QVariantAnimation::finished, this, [this]() {
         if (!collapsed) {
             sectionsArea->setVisible(true);
+            brandName->setVisible(true);
         }
     });
 
@@ -330,6 +353,7 @@ void SidebarWidget::setCollapsed(bool shouldCollapse, bool animate) {
     // Sections disappear before shrinking and reappear once the sidebar is wide again
     if (collapsed) {
         sectionsArea->setVisible(false);
+        brandName->setVisible(false);
     }
 
     const int target = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
@@ -341,6 +365,7 @@ void SidebarWidget::setCollapsed(bool shouldCollapse, bool animate) {
     } else {
         setFixedWidth(target);
         sectionsArea->setVisible(!collapsed);
+        brandName->setVisible(!collapsed);
     }
 }
 

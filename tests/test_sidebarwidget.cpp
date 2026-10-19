@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <QAbstractButton>
+#include <QLabel>
 
 #include "account.h"
 #include "budget.h"
@@ -155,6 +156,21 @@ private slots:
         SidebarWidget sidebar;
         sidebar.setUserId(1);
         QCOMPARE(sidebar.findChild<QAbstractButton*>("budgetHeader")->accessibleDescription(), QString("25%"));
+    }
+
+    void showsTheLogoAndNameAndKeepsTheLogoWhenCollapsed() {
+        SidebarWidget sidebar;
+        sidebar.setUserId(1);
+        auto* logo = sidebar.findChild<QLabel*>("sidebarLogo");
+        auto* name = sidebar.findChild<QLabel*>("sidebarBrandName");
+        QVERIFY(!logo->pixmap().isNull());
+        QCOMPARE(name->text(), QString("Aion"));
+
+        sidebar.setCollapsed(true, false);
+        QVERIFY(name->isHidden());
+        QVERIFY(!logo->isHidden());
+        sidebar.setCollapsed(false, false);
+        QVERIFY(!name->isHidden());
     }
 
     void collapsingIsRemembered() {

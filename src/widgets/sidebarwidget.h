@@ -5,6 +5,7 @@
 #include <QButtonGroup>
 #include <QVariantAnimation>
 
+class QLabel;
 class QVBoxLayout;
 class SidebarItem;
 
@@ -73,6 +74,7 @@ private:
     Section budgetSection;
     SidebarItem* userItem = nullptr;
     SidebarItem* collapseItem = nullptr;
+    QLabel* brandName = nullptr;                     // "Aion" next to the logo, hidden in the collapsed rail
     QList<SidebarItem*> labelledItems;               // Items whose label hides in the collapsed rail
     QVariantAnimation widthAnimation;
 };
