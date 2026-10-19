@@ -13,9 +13,15 @@
 #include "csvparser.h"
 #include "category.h"
 #include "theme.h"
+#include "widgets/categorytag.h"
 #include <QCheckBox>
 #include <QFileInfo>
 #include <QGroupBox>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QMenu>
+#include <QScrollArea>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
@@ -51,6 +57,7 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     populateAccountComboBox();
     setupColumnMappingTable();
     setupBalanceCheck();
+    makeScrollable();
 
     // Connections
     connect(ui->selectFileButton, &QPushButton::clicked,
@@ -294,6 +301,7 @@ void ImportManagerDialog::onPreviewRefreshClicked()
 
 void ImportManagerDialog::updatePreviewTable()
 {
+    refreshFileCategories();
     ui->previewTable->clear();
     ui->previewTable->setRowCount(0);
     ui->previewTable->setColumnCount(0);
@@ -364,8 +372,9 @@ CsvImport::Result ImportManagerDialog::runImport(bool dryRun)
     options.decimalSeparator = decimalSeparator;
     options.interpretation = amountInterpretation;
     for (const Category &category : CategoryDAO().getAllCategories()) {
-        options.categoryIds.insert(category.getName().trimmed().toLower(), category.getCategoryId());
+        options.categoryIds.insert(category.getName().simplified().toLower(), category.getCategoryId());
     }
+    applyCategoryChoices(options);
 
     CsvImport::RunOptions runOptions;
     runOptions.allowDuplicates = ui->allowDuplicatesCheckBox->isChecked();
@@ -385,6 +394,209 @@ CsvImport::Result ImportManagerDialog::runImport(bool dryRun)
     }
 
     return CsvImport::run(csvData, mappingFromComboBoxes(), options, runOptions);
+}
+
+namespace {
+
+// Scroll area content that never gets squeezed below its preferred height; the scroll
+// bar takes over instead (otherwise wrapped labels and group boxes get cut off). The scroll
+// area doesn't notice when sections grow later (the balance check after a dry run), so the
+// content keeps its own minimum height up to date.
+class FullHeightContent : public QWidget
+{
+public:
+    using QWidget::QWidget;
+
+protected:
+    bool event(QEvent *event) override
+    {
+        const bool handled = QWidget::event(event);
+        if ((event->type() == QEvent::LayoutRequest || event->type() == QEvent::Resize) && layout()) {
+            // Wrapped labels and tables need more height at narrower widths
+            int height = layout()->sizeHint().height();
+            if (layout()->hasHeightForWidth()) height = qMax(height, layout()->totalHeightForWidth(width()));
+            if (minimumHeight() != height) {
+                setMinimumHeight(height);
+                if (this->height() < height) resize(width(), height);
+            }
+        }
+        return handled;
+    }
+};
+
+} // namespace
+
+void ImportManagerDialog::makeScrollable()
+{
+    // Move the groups into a scroll area; the button row stays below it
+    auto *scroll = new QScrollArea(this);
+    scroll->setObjectName("importScroll");
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    auto *content = new FullHeightContent(scroll);
+    auto *contentLayout = new QVBoxLayout(content);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    while (ui->verticalLayout->count() > 0) {
+        QLayoutItem *item = ui->verticalLayout->itemAt(0);
+        if (item->layout() == ui->horizontalLayout_buttons) {
+            break;
+        }
+        ui->verticalLayout->takeAt(0);
+        if (QWidget *widget = item->widget()) {
+            contentLayout->addWidget(widget);
+            delete item;
+        } else {
+            contentLayout->addItem(item);
+        }
+    }
+    scroll->setWidget(content);
+    ui->verticalLayout->insertWidget(0, scroll, 1);
+
+    // Never taller than the screen
+    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
+        const QRect available = screen->availableGeometry();
+        resize(qMin(width(), available.width() - 40), qMin(height(), available.height() - 80));
+    }
+}
+
+void ImportManagerDialog::refreshFileCategories()
+{
+    if (!categoriesGroupBox) {
+        return;
+    }
+    // Keep the user's choices while the table is rebuilt
+    for (auto it = categoryChoices.cbegin(); it != categoryChoices.cend(); ++it) {
+        chosenCategories.insert(it.key(), it.value()->currentData().toString());
+    }
+    categoryChoices.clear();
+    delete categoriesScroll->takeWidget();
+    categoriesTable = nullptr;
+
+    CsvImport::Options options;
+    options.decimalSeparator = decimalSeparator;
+    options.interpretation = amountInterpretation;
+    const QList<CsvImport::FileCategory> found = CsvImport::fileCategories(csvData, mappingFromComboBoxes(), options);
+    categoriesGroupBox->setVisible(!found.isEmpty());
+    if (found.isEmpty()) {
+        return;
+    }
+
+    QHash<QString, Category> existing;
+    QList<Category> choosable;
+    for (const Category &category : CategoryDAO().getAllCategories()) {
+        existing.insert(category.getName().simplified().toLower(), category);
+        if (!category.isBuiltIn()) choosable.append(category);
+    }
+
+    categoriesTable = new QWidget();
+    auto *grid = new QGridLayout(categoriesTable);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setColumnStretch(0, 1);
+    grid->setColumnStretch(2, 2);
+    int row = 0;
+    for (const QString &caption : {QString("In the file"), QString("Rows"), QString("In Aion")}) {
+        auto *header = new QLabel(caption, categoriesTable);
+        header->setForegroundRole(QPalette::PlaceholderText);
+        grid->addWidget(header, 0, row++);
+    }
+    row = 1;
+    for (const CsvImport::FileCategory &category : found) {
+        const QString key = category.name.toLower();
+        grid->addWidget(new QLabel(category.name, categoriesTable), row, 0);
+        auto *count = new QLabel(QString::number(category.rows), categoriesTable);
+        count->setForegroundRole(QPalette::PlaceholderText);
+        grid->addWidget(count, row, 1);
+
+        if (existing.contains(key)) {
+            // Already known: just show it
+            auto *match = new QWidget(categoriesTable);
+            auto *layout = new QHBoxLayout(match);
+            layout->setContentsMargins(0, 0, 0, 0);
+            auto *tag = new CategoryTag(match);
+            const Category &known = existing.find(key).value();
+            tag->setCategory(known.getName(), known.getColor());
+            layout->addWidget(tag);
+            auto *note = new QLabel("matches", match);
+            note->setForegroundRole(QPalette::PlaceholderText);
+            layout->addWidget(note);
+            layout->addStretch();
+            grid->addWidget(match, row, 2);
+        } else {
+            auto *choice = new QComboBox(categoriesTable);
+            choice->setObjectName("categoryChoice");
+            choice->setAccessibleName(category.name);
+            choice->setProperty("fileName", category.name);
+            const QString likely = category.likelyType();
+            const QString other = likely == "expense" ? "income" : "expense";
+            choice->addItem(QString("Create \"%1\" (%2)").arg(category.name, likely), "create:" + likely);
+            choice->addItem(QString("Create \"%1\" (%2)").arg(category.name, other), "create:" + other);
+            choice->addItem("No category", "none");
+            choice->insertSeparator(choice->count());
+            for (const Category &target : choosable) {
+                choice->addItem(target.getName(), QString("id:%1").arg(target.getCategoryId()));
+            }
+            const int remembered = choice->findData(chosenCategories.value(key));
+            choice->setCurrentIndex(remembered >= 0 ? remembered : 0);
+            connect(choice, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::scheduleBalanceCheck);
+            connect(choice, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateCategorySummary);
+            categoryChoices.insert(key, choice);
+            grid->addWidget(choice, row, 2);
+        }
+        ++row;
+    }
+    matchedCategories = int(found.size() - categoryChoices.size());
+
+    // A long list scrolls inside the section instead of pushing the rest of the dialog away
+    categoriesScroll->setWidget(categoriesTable);
+    categoriesScroll->setFixedHeight(qMin(categoriesTable->sizeHint().height() + 2 * categoriesScroll->frameWidth(), 280));
+    updateCategorySummary();
+}
+
+void ImportManagerDialog::updateCategorySummary()
+{
+    int create = 0;
+    int none = 0;
+    for (QComboBox *choice : std::as_const(categoryChoices)) {
+        const QString data = choice->currentData().toString();
+        if (data.startsWith("create:")) ++create;
+        else if (data == "none") ++none;
+    }
+    const int mapped = int(categoryChoices.size()) - create - none;
+    QStringList parts;
+    if (matchedCategories > 0) parts << QString("%1 already in Aion").arg(matchedCategories);
+    if (create > 0) parts << QString("%1 will be created").arg(create);
+    if (mapped > 0) parts << QString("%1 mapped to other categories").arg(mapped);
+    if (none > 0) parts << QString("%1 imported without a category").arg(none);
+    categorySummaryLabel->setText(QString("%1 %2 in the file: %3.")
+                                      .arg(matchedCategories + categoryChoices.size())
+                                      .arg(matchedCategories + categoryChoices.size() == 1 ? "category" : "categories",
+                                           parts.join(", ")));
+    newCategoriesButton->setVisible(!categoryChoices.isEmpty());
+}
+
+void ImportManagerDialog::setAllNewCategories(bool create)
+{
+    for (QComboBox *choice : std::as_const(categoryChoices)) {
+        const QSignalBlocker blocker(choice);
+        choice->setCurrentIndex(create ? 0 : choice->findData("none"));   // Index 0: create with the likely type
+    }
+    updateCategorySummary();
+    scheduleBalanceCheck();
+}
+
+void ImportManagerDialog::applyCategoryChoices(CsvImport::Options &options) const
+{
+    for (auto it = categoryChoices.cbegin(); it != categoryChoices.cend(); ++it) {
+        const QString choice = it.value()->currentData().toString();
+        if (choice.startsWith("create:")) {
+            options.categoriesToCreate.insert(it.key(), {it.value()->property("fileName").toString(), choice.mid(7)});
+        } else if (choice.startsWith("id:")) {
+            options.categoryIds.insert(it.key(), choice.mid(3).toInt());
+        } else {
+            options.categoryIds.remove(it.key());   // No category
+        }
+    }
 }
 
 void ImportManagerDialog::setupBalanceCheck()
@@ -444,11 +656,43 @@ void ImportManagerDialog::setupBalanceCheck()
     correctionCheckBox = new QCheckBox(balanceDetails);
     correctionCheckBox->setObjectName("correctionCheckBox");
     correctionCheckBox->setChecked(true);
+    // Hidden parts keep their space so the section never changes height
+    for (QWidget *widget : {static_cast<QWidget *>(correctionCheckBox), static_cast<QWidget *>(expectedSourceLabel)}) {
+        QSizePolicy policy = widget->sizePolicy();
+        policy.setRetainSizeWhenHidden(true);
+        widget->setSizePolicy(policy);
+    }
     grid->addWidget(correctionCheckBox, 6, 0, 1, 2);
     layout->addWidget(balanceDetails);
 
-    // Between the preview and the buttons
-    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->previewGroupBox) + 1, balanceGroupBox);
+    // Categories in the file, then the balance check, between the preview and the buttons
+    categoriesGroupBox = new QGroupBox("Categories in this file", this);
+    categoriesGroupBox->setObjectName("categoriesGroupBox");
+    auto *categoriesLayout = new QVBoxLayout(categoriesGroupBox);
+    auto *summaryRow = new QHBoxLayout();
+    categorySummaryLabel = new QLabel(categoriesGroupBox);
+    categorySummaryLabel->setObjectName("categorySummaryLabel");
+    categorySummaryLabel->setWordWrap(true);
+    summaryRow->addWidget(categorySummaryLabel, 1);
+    newCategoriesButton = new QToolButton(categoriesGroupBox);
+    newCategoriesButton->setObjectName("newCategoriesButton");
+    newCategoriesButton->setText("All new categories");
+    newCategoriesButton->setPopupMode(QToolButton::InstantPopup);
+    auto *newCategoriesMenu = new QMenu(newCategoriesButton);
+    newCategoriesMenu->addAction("Create them", this, [this]() { setAllNewCategories(true); });
+    newCategoriesMenu->addAction("Import without a category", this, [this]() { setAllNewCategories(false); });
+    newCategoriesButton->setMenu(newCategoriesMenu);
+    summaryRow->addWidget(newCategoriesButton);
+    categoriesLayout->addLayout(summaryRow);
+    categoriesScroll = new QScrollArea(categoriesGroupBox);
+    categoriesScroll->setObjectName("categoriesScroll");
+    categoriesScroll->setWidgetResizable(true);
+    categoriesScroll->setFrameShape(QFrame::StyledPanel);
+    categoriesScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    categoriesLayout->addWidget(categoriesScroll);
+    categoriesGroupBox->hide();
+    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(ui->previewGroupBox) + 1, categoriesGroupBox);
+    ui->verticalLayout->insertWidget(ui->verticalLayout->indexOf(categoriesGroupBox) + 1, balanceGroupBox);
 
     balanceTimer = new QTimer(this);
     balanceTimer->setSingleShot(true);
@@ -479,11 +723,20 @@ void ImportManagerDialog::refreshBalanceCheck()
         balanceResult = runImport(true);
         balanceReady = balanceResult.checkDate.isValid();
     }
-    balanceDetails->setVisible(balanceReady);
+    // The rows stay in place (with dashes until there is something to show), so the section
+    // keeps its height and the scrolling layout around it never has to catch up
+    balanceDetails->setEnabled(balanceReady);
     balanceHintLabel->setText(balanceReady
         ? QString("Compare the account's balance after the import with the one your bank shows. Nothing is saved until you import.")
         : QString("Choose a file and map its date and amount columns to check the account's balance after the import."));
     if (!balanceReady) {
+        for (QLabel *value : {balanceNowValue, balanceChangeValue, balanceAfterValue}) value->setText("–");
+        balanceNowCaption->setText("Balance now");
+        balanceChangeCaption->setText("New transactions");
+        balanceAfterCaption->setText("Balance after import");
+        expectedCaption->setText("Your bank's balance");
+        balanceStatusLabel->clear();
+        correctionCheckBox->hide();
         return;
     }
 
@@ -508,8 +761,7 @@ void ImportManagerDialog::refreshBalanceCheck()
         const CsvImport::StatedBalance stated = CsvImport::statedBalance(csvData, mapping, decimalSeparator);
         expectedEdit->setText(stated.found ? settings.formatCurrency(stated.cents) : QString());
         expectedSourceLabel->setText(stated.found ? QString("From the file's \"%1\" column").arg(csvHeaders.value(mapping.value(CsvImport::FieldBalance)))
-                                                  : QString());
-        expectedSourceLabel->setVisible(stated.found);
+                                                  : QString(" "));   // Keeps its line
     }
     updateBalanceStatus();
 }
@@ -633,6 +885,9 @@ void ImportManagerDialog::onImportClicked()
         message += QString("Balance correction: %1 on %2\n")
                        .arg(Settings::instance().formatCurrency(result.correctionCents, true),
                             QLocale(QLocale::English).toString(result.checkDate, "d MMMM yyyy"));
+    }
+    if (result.categoriesCreated > 0) {
+        message += QString("New categories: %1\n").arg(result.categoriesCreated);
     }
 
     if (result.failed > 0) {

@@ -4,7 +4,9 @@
 #include <QDateEdit>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
+#include <QToolButton>
 
 #include "account.h"
 #include "balance.h"
@@ -112,7 +114,7 @@ private slots:
         dialog.loadFile(path);
         auto* status = dialog.findChild<QLabel*>("balanceStatusLabel");
         auto* correction = dialog.findChild<QCheckBox*>("correctionCheckBox");
-        QTRY_VERIFY(!dialog.findChild<QLabel*>("balanceAfterValue")->text().isEmpty());
+        QTRY_VERIFY(dialog.findChild<QLabel*>("balanceAfterValue")->text() != "–");
 
         // 1.204,10 + 318,80 = 1.522,90 after the import; the file's balance says 1.510,25
         QCOMPARE(dialog.findChild<QLabel*>("balanceAfterValue")->text(), Settings::instance().formatCurrency(152290));
@@ -128,6 +130,39 @@ private slots:
         QVERIFY(!correction->isVisibleTo(&dialog));
         QVERIFY(status->text().startsWith("Matches"));
         QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(120410));    // Still nothing written
+    }
+
+    void importButtonsStayOutsideTheScrollingPart() {
+        ImportManagerDialog dialog(1);
+        auto* scroll = dialog.findChild<QWidget*>("importScroll");
+        QVERIFY(scroll);
+        QVERIFY(scroll->isAncestorOf(dialog.findChild<QWidget*>("balanceGroupBox")));
+        QVERIFY(!scroll->isAncestorOf(dialog.findChild<QPushButton*>("importButton")));
+        QVERIFY(!scroll->isAncestorOf(dialog.findChild<QPushButton*>("dryRunButton")));
+    }
+
+    void manyFileCategoriesStayCompact() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("many.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name;Kategorie\n10.10.2026;-1,00;A;Groceries\n");
+        for (int i = 1; i <= 30; ++i) file.write(QString("10.10.2026;-%1,00;Shop;Neu %1\n").arg(i).toUtf8());
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        auto* summary = dialog.findChild<QLabel*>("categorySummaryLabel");
+        QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in Aion, 30 will be created."));
+        QVERIFY(dialog.findChild<QWidget*>("categoriesScroll")->height() <= 280);   // The list scrolls on its own
+
+        // One click for all new ones
+        auto* button = dialog.findChild<QToolButton*>("newCategoriesButton");
+        button->menu()->actions().at(1)->trigger();
+        QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in Aion, 30 imported without a category."));
+        for (QComboBox* choice : dialog.findChildren<QComboBox*>("categoryChoice")) {
+            QCOMPARE(choice->currentData().toString(), QString("none"));
+        }
     }
 
     void dialogChecksAnEarlierDay() {

@@ -12,6 +12,8 @@ class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QTimer;
+class QScrollArea;
+class QToolButton;
 
 namespace Ui {
 class ImportManagerDialog;
@@ -48,6 +50,7 @@ private:
 
     // UI setup
     void setupUI();
+    void makeScrollable();                          // Everything but the buttons scrolls, so they stay reachable
     void setupColumnMappingTable();
     void populateAccountComboBox();
     void updatePreviewTable();
@@ -57,6 +60,12 @@ private:
     // Import
     bool validateMapping();
     CsvImport::Result runImport(bool dryRun);
+
+    // Categories named in the file: matched, created on import, mapped to another or dropped
+    void refreshFileCategories();
+    void applyCategoryChoices(CsvImport::Options &options) const;
+    void updateCategorySummary();
+    void setAllNewCategories(bool create);          // false: import them without a category
 
     // Balance check: dry run of the import, compared with the balance the bank shows
     void setupBalanceCheck();
@@ -84,6 +93,16 @@ private:
 
     // Widgets for column mapping
     QMap<QString, QComboBox*> mappingComboBoxes;
+
+    // Categories in the file
+    QGroupBox* categoriesGroupBox = nullptr;
+    QWidget* categoriesTable = nullptr;
+    QScrollArea* categoriesScroll = nullptr;
+    QLabel* categorySummaryLabel = nullptr;
+    QToolButton* newCategoriesButton = nullptr;
+    int matchedCategories = 0;
+    QHash<QString, QComboBox*> categoryChoices;      // Lower-case file name -> choice (unknown names only)
+    QHash<QString, QString> chosenCategories;        // Remembered while the table is rebuilt
 
     // Balance check
     QTimer* balanceTimer = nullptr;

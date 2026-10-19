@@ -50,6 +50,12 @@ struct Options {
     QChar decimalSeparator = '.';
     AmountInterpretation interpretation = AmountInterpretation::SignBased;
     QHash<QString, int> categoryIds;                 // Lower-case category name -> ID
+    // Categories the file names that don't exist yet and should be created on import
+    struct NewCategory {
+        QString name;                                // As spelled in the file
+        QString type;                                // "expense" or "income"
+    };
+    QHash<QString, NewCategory> categoriesToCreate;  // Lower-case name -> new category
 };
 
 // One CSV row as a transaction (rowNumber is the line in the file, for messages)
@@ -72,7 +78,17 @@ struct Result {
     Cents balanceBeforeCents = 0;                    // Account balance on checkDate without the imported rows
     Cents balanceAfterCents = 0;                     // ... and with them
     Cents correctionCents = 0;                       // Balance correction added (see RunOptions::correctTo)
+    int categoriesCreated = 0;
 };
+
+// The distinct values of the mapped Category column, most used first
+struct FileCategory {
+    QString name;                                    // First spelling found in the file
+    int rows = 0;
+    int expenseRows = 0;
+    QString likelyType() const { return expenseRows * 2 >= rows ? "expense" : "income"; }
+};
+QList<FileCategory> fileCategories(const QList<QStringList>& rows, const Mapping& mapping, const Options& options);
 
 // The bank's balance from the mapped Balance column: the one after the newest row
 struct StatedBalance {

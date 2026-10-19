@@ -304,6 +304,50 @@ private slots:
         QCOMPARE(transactionCount(accountId), 0);
     }
 
+    // --- Categories named in the file ---
+
+    void listsTheFilesCategories() {
+        Mapping mapping = basicMapping();
+        mapping.insert(FieldCategory, 4);
+        const QList<QStringList> rows = {
+            {"01.10.2026", "-10,00", "A", "", "Tanken"},
+            {"02.10.2026", "-20,00", "B", "", "tanken "},
+            {"03.10.2026", "100,00", "C", "", "Gehalt"},
+            {"04.10.2026", "-5,00", "D", "", ""},
+        };
+        const QList<FileCategory> found = fileCategories(rows, mapping, basicOptions());
+        QCOMPARE(found.size(), 2);
+        QCOMPARE(found[0].name, QString("Tanken"));               // Same name in any case, most rows first
+        QCOMPARE(found[0].rows, 2);
+        QCOMPARE(found[0].likelyType(), QString("expense"));
+        QCOMPARE(found[1].likelyType(), QString("income"));
+        QVERIFY(fileCategories(rows, basicMapping(), basicOptions()).isEmpty());
+    }
+
+    void createsNewCategoriesOnImportOnly() {
+        Mapping mapping = basicMapping();
+        mapping.insert(FieldCategory, 4);
+        const QList<QStringList> rows = {{"01.10.2026", "-10,00", "Aral", "", "Tanken"}, {"02.10.2026", "-20,00", "Shell", "", "TANKEN"}};
+        Options options = basicOptions();
+        options.categoriesToCreate.insert("tanken", {"Tanken", "expense"});
+        auto categoryCount = [] {
+            QSqlQuery query(DatabaseManager::instance().database());
+            return query.exec("SELECT COUNT(*) FROM categories WHERE name = 'Tanken'") && query.next() ? query.value(0).toInt() : -1;
+        };
+
+        RunOptions dryRun;
+        dryRun.dryRun = true;
+        QCOMPARE(run(rows, mapping, options, dryRun).categoriesCreated, 1);
+        QCOMPARE(categoryCount(), 0);                             // Rolled back
+
+        const Result result = run(rows, mapping, options, {});
+        QCOMPARE(result.imported, 2);
+        QCOMPARE(categoryCount(), 1);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT COUNT(*) FROM transactions t JOIN categories c ON c.id = t.category_id WHERE c.name = 'Tanken'") && query.next());
+        QCOMPARE(query.value(0).toInt(), 2);
+    }
+
     void unreadableRowsAbortUnlessPartialImport() {
         const QList<QStringList> rows = {
             {"02.01.2026", "-1,00", "Good", ""},

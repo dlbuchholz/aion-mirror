@@ -1,9 +1,11 @@
 #include "csvimport.h"
 #include "csvparser.h"
 #include "balance.h"
+#include "category.h"
 #include "db/databasemanager.h"
 
 #include <QLocale>
+#include <algorithm>
 #include <QRegularExpression>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -186,6 +188,32 @@ bool hasColumn(const QStringList& row, const Mapping& mapping, const QString& fi
 
 } // namespace
 
+QList<FileCategory> fileCategories(const QList<QStringList>& rows, const Mapping& mapping, const Options& options) {
+    QList<FileCategory> result;
+    if (!mapping.contains(FieldCategory)) {
+        return result;
+    }
+    QHash<QString, int> indexByKey;
+    for (const QStringList& row : rows) {
+        const QString name = column(row, mapping, FieldCategory).simplified();
+        if (name.isEmpty()) continue;
+        const QString key = name.toLower();
+        if (!indexByKey.contains(key)) {
+            indexByKey.insert(key, int(result.size()));
+            result.append({name, 0, 0});
+        }
+        FileCategory& category = result[indexByKey.value(key)];
+        category.rows++;
+        bool ok = false;
+        const Cents amount = parseAmount(column(row, mapping, FieldAmount), options.decimalSeparator, &ok);
+        if (ok && transactionType(amount, column(row, mapping, FieldType), options.interpretation) == "expense") {
+            category.expenseRows++;
+        }
+    }
+    std::stable_sort(result.begin(), result.end(), [](const FileCategory& a, const FileCategory& b) { return a.rows > b.rows; });
+    return result;
+}
+
 StatedBalance statedBalance(const QList<QStringList>& rows, const Mapping& mapping, QChar decimalSeparator) {
     StatedBalance result;
     if (!mapping.contains(FieldBalance) || !mapping.contains(FieldDate)) {
@@ -254,7 +282,7 @@ RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping&
         return result;
     }
 
-    const QString categoryName = column(row, mapping, FieldCategory).trimmed().toLower();
+    const QString categoryName = column(row, mapping, FieldCategory).simplified().toLower();
 
     result.transaction.setAccountId(options.accountId);
     result.transaction.setDate(date);
@@ -273,6 +301,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
     // Read every row first; the file's first line is the header, so data starts at line 2
     QList<Transaction> transactions;
     QStringList hashes;
+    QStringList categoryKeys;                        // Lower-case category of each transaction, for new categories
     for (int i = 0; i < rows.size(); ++i) {
         const RowResult row = buildTransaction(rows[i], i + 2, mapping, options);
         if (!row.ok) {
@@ -282,6 +311,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         }
         transactions.append(row.transaction);
         hashes.append(row.transaction.calculateHash());
+        categoryKeys.append(column(rows[i], mapping, FieldCategory).simplified().toLower());
     }
 
     // Without partial import, one unreadable row stops the whole import
@@ -314,6 +344,21 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
     }
     if (result.checkDate.isValid()) {
         result.balanceBeforeCents = Balance::onDate(options.accountId, result.checkDate);
+    }
+
+    // Create the file's new categories (rolled back with everything else in a dry run) and use them
+    for (auto it = options.categoriesToCreate.cbegin(); it != options.categoriesToCreate.cend(); ++it) {
+        const int categoryId = CategoryDAO().addCategory(Category(-1, it.value().name, it.value().type));
+        if (categoryId <= 0) {
+            db.rollback();
+            result.errors = {QString("Import aborted: the category \"%1\" couldn't be created").arg(it.value().name)};
+            result.failed = rows.size();
+            return result;
+        }
+        result.categoriesCreated++;
+        for (int i = 0; i < transactions.size(); ++i) {
+            if (categoryKeys[i] == it.key()) transactions[i].setCategoryId(categoryId);
+        }
     }
 
     for (int i = 0; i < transactions.size(); ++i) {
