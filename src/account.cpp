@@ -1,5 +1,6 @@
 #include "db/databasemanager.h"
 #include "account.h"
+#include "category.h"
 
 // Account Implementation
 Account::Account(int id, const QString& name, const QString& type, Cents balanceCents)
@@ -147,7 +148,14 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
 
     // Insert an initial transaction if the balance is non-zero (amounts are positive; the type carries the sign)
     if (initialBalanceCents != 0) {
-        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), "Initial deposit", 0,
+        // In the starting balance category if there is one, so it isn't counted as income or spending
+        int categoryId = 0;
+        query.prepare("SELECT id FROM categories WHERE name = :name");
+        query.bindValue(":name", InitialBalanceCategory);
+        if (query.exec() && query.next()) {
+            categoryId = query.value(0).toInt();
+        }
+        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), "Initial deposit", categoryId,
                                        initialBalanceCents > 0 ? "income" : "expense");
         TransactionDAO transactionDao;
         if (!transactionDao.addTransaction(initialTransaction)) {

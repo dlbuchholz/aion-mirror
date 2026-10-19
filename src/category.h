@@ -7,6 +7,12 @@
 #include <QSqlError>
 #include <QDebug>
 
+// Holds the starting balances of accounts; they count towards balances but aren't income or spending
+inline const QString InitialBalanceCategory = "Initial balance";
+// SQL condition on transactions "t" that leaves out starting balances
+inline const QString NotInitialBalanceSql =
+    "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name = '" + InitialBalanceCategory + "')";
+
 // Category Object
 class Category {
 public:

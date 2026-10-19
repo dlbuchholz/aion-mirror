@@ -168,6 +168,22 @@ private slots:
         QCOMPARE(rest[1].categoryName, QString("No category"));
     }
 
+    void startingBalancesArentSpending() {
+        const int initial = categoryId("Initial balance");
+        QVERIFY(initial > 0);
+        BudgetDAO dao;
+        QVERIFY(dao.setMonthlyLimit(1, initial, oct(), 1000));
+        spend(50000, QDate(2026, 10, 1), initial);
+        spend(4640, QDate(2026, 10, 4), 0);
+
+        QCOMPARE(dao.budgetsForMonth(1, oct()).first().spentCents, Cents(0));
+        QVERIFY(dao.removeLimit(1, initial, oct(), true));
+        const QList<UnbudgetedSpending> rest = dao.unbudgetedSpending(1, oct());
+        QCOMPARE(rest.size(), 1);
+        QCOMPARE(rest[0].categoryId, 0);
+        QCOMPARE(rest[0].spentCents, Cents(4640));
+    }
+
     void budgetsBelongToTheirUser() {
         db.seedDefaultUser(2, "other", "Other");
         BudgetDAO dao;

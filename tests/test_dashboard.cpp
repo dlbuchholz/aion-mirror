@@ -110,6 +110,31 @@ private slots:
         QCOMPARE(recent[2].payee, QString("First"));
     }
 
+    void startingBalancesArentIncomeOrSpending() {
+        const int initial = categoryId("Initial balance");
+        QVERIFY(initial > 0);
+        add(giro, 250000, QDate(2026, 10, 1), initial, "income", "Start");
+        add(savings, 40000, QDate(2026, 10, 2), initial, "expense", "Start overdrawn");
+        add(giro, 3600, QDate(2026, 10, 3), groceries, "expense");
+
+        const DashboardData data = Dashboard::load(1, today);
+        QCOMPARE(data.totalBalanceCents, Cents(250000 - 40000 - 3600));
+        QCOMPARE(data.thisMonth.incomeCents, Cents(0));
+        QCOMPARE(data.thisMonth.incomeCount, 0);
+        QCOMPARE(data.thisMonth.expenseCents, Cents(3600));
+        QCOMPARE(data.thisMonth.expenseCount, 1);
+        QCOMPARE(data.cashFlow.last().netCents(), Cents(-3600));
+        QCOMPARE(data.dailyAverageCents, Cents(3600 / 18));
+        QCOMPARE(data.spendingByCategory.size(), 1);
+        QCOMPARE(data.spendingByCategory[0].categoryId, groceries);
+        QCOMPARE(data.recent.size(), 3);                            // Still listed
+        QCOMPARE(data.recent[2].categoryName, QString("Initial balance"));
+        QCOMPARE(data.recent[2].signedCents, Cents(250000));
+
+        add(giro, 7000, QDate(2026, 9, 5), initial, "expense");
+        QCOMPARE(Dashboard::load(1, today).lastMonthToDateExpenseCents, Cents(0));
+    }
+
     void otherUsersDontCount() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);

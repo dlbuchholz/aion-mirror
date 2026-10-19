@@ -1,5 +1,6 @@
 #include "dashboard.h"
 #include "account.h"
+#include "category.h"
 #include "db/databasemanager.h"
 
 #include <QHash>
@@ -46,7 +47,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
         data.totalBalanceCents += account.getBalanceCents();
     }
 
-    // Income and expenses per month, from the first shown month to the end of this one
+    // Income and expenses per month (without starting balances), from the first shown month to the end of this one
     const QDate first = monthStart(today).addMonths(-(qMax(months, 2) - 1));
     const QDate last = monthStart(today).addMonths(1).addDays(-1);
     QHash<QString, MonthFlow> flows;
@@ -58,7 +59,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
     QSqlQuery flowQuery = prepared(
         "SELECT substr(t.date, 1, 7), t.type, SUM(t.amount), COUNT(*) FROM transactions t "
         "JOIN accounts a ON a.id = t.account_id "
-        "WHERE a.user_id = :user_id AND t.date BETWEEN :first AND :last "
+        "WHERE a.user_id = :user_id AND t.date BETWEEN :first AND :last AND " + NotInitialBalanceSql + " "
         "GROUP BY substr(t.date, 1, 7), t.type");
     flowQuery.bindValue(":user_id", userId);
     flowQuery.bindValue(":first", first.toString("yyyy-MM-dd"));
@@ -86,7 +87,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
     const QDate lastMonthStart = monthStart(today).addMonths(-1);
     QSqlQuery toDateQuery = prepared(
         "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t JOIN accounts a ON a.id = t.account_id "
-        "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last");
+        "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + NotInitialBalanceSql);
     toDateQuery.bindValue(":user_id", userId);
     toDateQuery.bindValue(":first", lastMonthStart.toString("yyyy-MM-dd"));
     toDateQuery.bindValue(":last", lastMonthStart.addDays(qMin(today.day(), lastMonthStart.daysInMonth()) - 1).toString("yyyy-MM-dd"));
@@ -101,7 +102,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
     QSqlQuery categoryQuery = prepared(
         "SELECT COALESCE(t.category_id, 0), c.name, SUM(t.amount) FROM transactions t "
         "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
-        "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last "
+        "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + NotInitialBalanceSql + " "
         "GROUP BY COALESCE(t.category_id, 0)");
     categoryQuery.bindValue(":user_id", userId);
     categoryQuery.bindValue(":first", monthStart(today).toString("yyyy-MM-dd"));

@@ -135,6 +135,35 @@ private slots:
         QCOMPARE(q.value(2).toString(), QString("Initial deposit"));
     }
 
+    void testCreateAccount_initialTransactionIsInInitialBalanceCategory() {
+        AccountDAO dao;
+        const int accountId = dao.createAccount(1, "InitCat", "Checking", -2500);
+        QVERIFY(accountId > 0);
+
+        QSqlQuery q(DatabaseManager::instance().database());
+        q.prepare("SELECT c.name FROM transactions t JOIN categories c ON c.id = t.category_id WHERE t.account_id = :aid");
+        q.bindValue(":aid", accountId);
+        QVERIFY(q.exec());
+        QVERIFY(q.next());
+        QCOMPARE(q.value(0).toString(), QString("Initial balance"));
+    }
+
+    void testCreateAccount_withoutInitialBalanceCategory_hasNoCategory() {
+        QSqlQuery q(DatabaseManager::instance().database());
+        QVERIFY(q.exec("DELETE FROM categories WHERE name = 'Initial balance'"));
+
+        AccountDAO dao;
+        const int accountId = dao.createAccount(1, "NoInitCat", "Checking", 10000);
+        QVERIFY(accountId > 0);
+        QCOMPARE(dao.getAccountById(accountId).getBalanceCents(), Cents(10000));
+
+        q.prepare("SELECT category_id FROM transactions WHERE account_id = :aid");
+        q.bindValue(":aid", accountId);
+        QVERIFY(q.exec());
+        QVERIFY(q.next());
+        QVERIFY(q.value(0).isNull());
+    }
+
     void testCreateAccount_twice_returnsDistinctIds_andBothPersist() {
         AccountDAO dao;
 
