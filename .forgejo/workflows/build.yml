@@ -116,7 +116,7 @@ jobs:
           name: windows-zip
           path: dist/${{ steps.package.outputs.name }}.zip
 
-  # After both builds pass on a push to develop: replace the rolling "develop" pre-release, and
+  # After both builds pass on a push to develop: replace the rolling "staging" pre-release, and
   # tag a new version from CMakeLists.txt with a draft release (scripts/publish-release.sh).
   release:
     name: Release

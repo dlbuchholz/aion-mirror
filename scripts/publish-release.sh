@@ -7,7 +7,7 @@
 #   GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_SHA   where and which commit
 #   RELEASE_TOKEN                                      a token allowed to create tags and releases
 #
-# 1. The rolling pre-release "develop" is replaced: always the newest build, at the same address.
+# 1. The rolling pre-release "staging" is replaced: always the newest build, at the same address.
 # 2. The version in CMakeLists.txt gets a draft release "Aion <version>" with its tag. Until you
 #    publish it on Codeberg, every push moves the tag to the new commit and replaces the files,
 #    keeping the notes written in the draft. Once published, it's left alone.
@@ -15,7 +15,7 @@
 # JSON is read and written with Node (the build image has it for the CI actions).
 set -euo pipefail
 
-rolling_tag=develop
+rolling_tag=staging                      # Not "develop": a tag with a branch's name makes pushes ambiguous
 api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
 source_dir=$(realpath "$(dirname "$0")/..")
 version=$(sed -n 's/^project(Aion VERSION \([0-9.]*\).*/\1/p' "$source_dir/CMakeLists.txt")

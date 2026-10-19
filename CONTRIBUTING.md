@@ -144,7 +144,7 @@ If Aion starts using a Qt module it didn't use before, add it to the plugin tabl
 
 ### Releases
 
-- **Development build:** the pre-release `develop` always has the latest build of `develop`.
+- **Development build:** the pre-release `staging` always has the latest build of `develop`.
 - **Versions:** the version in `CMakeLists.txt` (`project(Aion VERSION …)`) has a **draft** release
   with the tag `v<version>`. Until it's published, every push moves the tag to the new commit and
   replaces the zip. Notes written in the draft are saved.
