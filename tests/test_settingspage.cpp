@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
@@ -136,6 +137,20 @@ private slots:
         QVERIFY(!Settings::instance().isCategoryColorsInOverviewsEnabled());
         Settings::instance().restoreDefaults();
         QVERIFY(Settings::instance().isCategoryColorsInOverviewsEnabled());
+    }
+
+    void showsCategoriesAddedElsewhereAfterReload() {
+        SettingsPage page;
+        auto hasRow = [&page](const QString& name) {
+            for (QAbstractButton* row : page.findChildren<QAbstractButton*>("categoryRow")) {
+                if (row->accessibleName() == name && !row->isHidden()) return true;
+            }
+            return false;
+        };
+        QVERIFY(CategoryDAO().addCategory(Category(-1, "Tanken", "expense")) > 0);   // As an import would
+        QVERIFY(!hasRow("Tanken"));
+        page.reloadData();
+        QVERIFY(hasRow("Tanken"));
     }
 
     void categoriesAndAccountTypesHaveTheirOwnSectionsAndSaveRightAway() {

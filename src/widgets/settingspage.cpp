@@ -292,6 +292,12 @@ void SettingsPage::buildImportSection()
     watch(autoDetectDecimalCheck);
 }
 
+void SettingsPage::reloadData()
+{
+    categoriesSettings->reload();
+    accountTypesSettings->reload();
+}
+
 void SettingsPage::buildAboutSection()
 {
     addSection("About", "info", new AboutWidget(this));

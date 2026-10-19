@@ -43,6 +43,9 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->budgetPage, &BudgetPage::budgetsChanged, ui->dashboardPage, &DashboardPage::reload);
     connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
             ui->dashboardPage, &DashboardPage::reload);
+    // Imports can add categories, and category usage counts follow the transactions
+    connect(ui->transactionsPage, &TransactionsPage::transactionsChanged,
+            ui->settingsPage, &SettingsPage::reloadData);
 
     // Dashboard shortcuts into the other pages
     DashboardPage* dashboard = ui->dashboardPage;

@@ -24,6 +24,8 @@ class SettingsPage : public QWidget
 public:
     explicit SettingsPage(QWidget *parent = nullptr);
 
+    void reloadData();                               // Categories and account types changed elsewhere (an import)
+
 signals:
     void settingsChanged();                          // Emitted after changes were applied
     void dataChanged();                              // Categories or account types were edited (saved right away)
