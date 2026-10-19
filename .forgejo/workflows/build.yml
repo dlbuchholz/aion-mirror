@@ -174,15 +174,8 @@ jobs:
       # needed here, so their path is set for this step and not for the Linux job. Under Wine Qt
       # draws real Windows windows, so xvfb-run gives Wine a virtual screen for tests that wait
       # for a window to appear. The default 640x480 screen is smaller than the test windows.
-      # Wine's server (and its Windows services) normally stops when a program ends, and starting
-      # it took about 5 s per test; wineserver -p keeps it running until all tests are done. It's
-      # stopped at the end even when a test fails, as its windows belong to this step's screen.
       - name: Test
-        run: |
-          export QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins"
-          wineserver -p
-          trap 'wineserver -k' EXIT
-          xvfb-run -a -s "-screen 0 1920x1080x24" ctest --test-dir build-windows --output-on-failure
+        run: QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" xvfb-run -a -s "-screen 0 1920x1080x24" ctest --test-dir build-windows --output-on-failure
 
       # Under Wine without a console, Qt Test's output goes to the Windows debug output and not
       # into the log. Rerun each failed test with its results written to a file, and print that.
