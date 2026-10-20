@@ -4,6 +4,13 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL UNIQUE
 );
 
+-- Settings that belong to the data rather than to the computer, like the currency and
+-- number format. Keys as in QSettings ('currency/symbol', ...)
+CREATE TABLE IF NOT EXISTS database_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS account_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE

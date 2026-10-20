@@ -17,6 +17,7 @@ DatabaseManager::DatabaseManager()
 void DatabaseManager::setDatabase(const QSqlDatabase &newDatabase)
 {
     m_database = newDatabase;
+    ++m_generation;
 }
 
 DatabaseManager::~DatabaseManager() {
@@ -36,6 +37,7 @@ bool DatabaseManager::openDatabase(const QString& dbPath) {
     }
 
     if (!m_database.isOpen()) {
+        ++m_generation;
         m_database.setDatabaseName(dbPath);
         if (!m_database.open()) {
             qCritical() << "Failed to open database:" << m_database.lastError().text();
@@ -63,5 +65,6 @@ bool DatabaseManager::openDatabase(const QString& dbPath) {
 void DatabaseManager::closeDatabase() {
     if (m_database.isOpen()) {
         m_database.close();
+        ++m_generation;
     }
 }

@@ -1,6 +1,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include <QHash>
 #include <QSettings>
 #include <QStringList>
 #include <QString>
@@ -112,6 +113,13 @@ private:
     Settings& operator=(const Settings&) = delete;
 
     QSettings settings;
+
+    // Currency and number format, stored in the open database
+    QVariant formatValue(const QString& key, const QVariant& defaultValue) const;
+    void setFormatValue(const QString& key, const QVariant& value);
+    void loadDatabaseValues() const;
+    mutable QHash<QString, QString> databaseValues;
+    mutable quint64 loadedGeneration = quint64(-1);
 
     // Helper methods
     QString getCurrencySymbolString(CurrencySymbol symbol) const;

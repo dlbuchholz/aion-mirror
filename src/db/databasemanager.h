@@ -16,9 +16,13 @@ public:
 
     void setDatabase(const QSqlDatabase &newDatabase);
 
+    // Goes up whenever a database is opened or closed, so caches of database values know to reload
+    quint64 generation() const { return m_generation; }
+
 private:
     DatabaseManager();
     QSqlDatabase m_database;
+    quint64 m_generation = 0;
 };
 
 #endif // DATABASEMANAGER_H

@@ -1,9 +1,11 @@
 #include <QtTest>
 #include "settings.h"
+#include "tests/test_db_fixture.h"
 
 class TestSettings : public QObject {
     Q_OBJECT
     QMap<QString, QVariant> original;
+    TestDbFixture db;
 
 private slots:
     void init() {
@@ -162,6 +164,35 @@ private slots:
         QCOMPARE(s.getDefaultCsvDelimiter(), QChar(','));
         QCOMPARE(s.getTheme(), QString("Dark"));
         QCOMPARE(s.isSidebarCollapsed(), true);
+    }
+
+    void theNumberFormatBelongsToTheDatabase() {
+        auto& s = Settings::instance();
+        QSettings& raw = s.getQSettings();
+        raw.remove("currency");
+        raw.setValue("currency/symbol", "GBP");      // What this computer had before
+        db.init();
+
+        // A database without a format of its own starts with the computer's
+        db.yankDb("euro.db");
+        QCOMPARE(s.getCurrencySymbol(), QString("£"));
+        s.setCurrencySymbol(Settings::CurrencySymbol::EUR);
+        s.setDecimalSeparator(Settings::DecimalSeparator::Comma);
+        QCOMPARE(s.formatCurrency(150), QString("€1,50"));
+        QCOMPARE(raw.value("currency/symbol").toString(), QString("GBP"));   // Not on the computer
+        db.close();
+
+        db.yankDb("other.db");
+        QCOMPARE(s.formatCurrency(150), QString("£1.50"));
+        db.close();
+
+        // Reopening finds it again
+        QVERIFY(DatabaseManager::instance().openDatabase(QFileInfo(db.path()).dir().filePath("euro.db")));
+        QCOMPARE(s.formatCurrency(150), QString("€1,50"));
+
+        s.restoreDefaults();
+        QCOMPARE(s.formatCurrency(150), QString("$1.50"));
+        db.close();
     }
 
     void recentDatabasesAreDistinctNewestFirstAndLimited() {

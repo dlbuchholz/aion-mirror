@@ -229,6 +229,12 @@ void SettingsPage::buildCurrencySection()
     thousandsSeparatorCombo->addItem("Space (1 234)", static_cast<int>(Settings::ThousandsSeparator::Space));
     form->addRow("Thousands separator", thousandsSeparatorCombo);
     watch(thousandsSeparatorCombo);
+
+    auto *note = new QLabel("Saved in this database, so it looks the same on every computer that opens it.", this);
+    note->setObjectName("currencyNote");
+    note->setWordWrap(true);
+    note->setForegroundRole(QPalette::PlaceholderText);
+    form->addRow(note);
 }
 
 void SettingsPage::buildTransactionsSection()

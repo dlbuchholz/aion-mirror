@@ -1,25 +1,14 @@
 #include "settings.h"
+#include "db/databasemanager.h"
 #include <QLocale>
+#include <QSqlError>
+#include <QSqlQuery>
 
 Settings:: Settings()
     : settings("LeineHive", "Aion") {
     // settings(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/settings.ini",
     //           QSettings::IniFormat)
     qDebug() << "Settings file location:" << settings.fileName();
-
-    // Initialize with defaults if not set
-    if (! settings.contains("currency/symbol")) {
-        setCurrencySymbol(CurrencySymbol::USD);
-    }
-    if (!settings.contains("currency/decimalSeparator")) {
-        setDecimalSeparator(DecimalSeparator::Point);
-    }
-    if (!settings.contains("currency/thousandsSeparator")) {
-        setThousandsSeparator(ThousandsSeparator::Comma);
-    }
-    if (!settings.contains("currency/symbolPrefix")) {
-        setCurrencySymbolPrefix(true);
-    }
 
     // Import defaults
     if (!settings.contains("import/autoDetectCsvDelimiter")) {
@@ -43,12 +32,57 @@ QSettings &Settings::getQSettings()
     return settings;
 }
 
+// The currency and number format belong to the open database (database_settings), so a
+// database looks the same on every computer. A database that has none yet uses what this
+// computer had before, then the defaults. Read on every formatted amount, hence the cache.
+void Settings::loadDatabaseValues() const {
+    DatabaseManager& manager = DatabaseManager::instance();
+    if (loadedGeneration == manager.generation()) {
+        return;
+    }
+    loadedGeneration = manager.generation();
+    databaseValues.clear();
+    if (!manager.database().isOpen()) {
+        return;
+    }
+    QSqlQuery query(manager.database());
+    if (query.exec("SELECT key, value FROM database_settings")) {
+        while (query.next()) {
+            databaseValues.insert(query.value(0).toString(), query.value(1).toString());
+        }
+    }
+}
+
+QVariant Settings::formatValue(const QString& key, const QVariant& defaultValue) const {
+    loadDatabaseValues();
+    const auto stored = databaseValues.constFind(key);
+    return stored != databaseValues.constEnd() ? QVariant(*stored) : settings.value(key, defaultValue);
+}
+
+void Settings::setFormatValue(const QString& key, const QVariant& value) {
+    QSqlDatabase& database = DatabaseManager::instance().database();
+    if (!database.isOpen()) {
+        settings.setValue(key, value);               // Only before a database is open
+        return;
+    }
+    loadDatabaseValues();
+    QSqlQuery query(database);
+    query.prepare("INSERT OR REPLACE INTO database_settings (key, value) VALUES (:key, :value)");
+    query.bindValue(":key", key);
+    query.bindValue(":value", value.toString());
+    if (!query.exec()) {
+        qWarning() << "Could not save" << key << "in the database:" << query.lastError().text();
+        return;
+    }
+    databaseValues.insert(key, value.toString());
+}
+
 // Currency Symbol
 QString Settings::getCurrencySymbol() const {
-    QString symbolType = settings.value("currency/symbol", "USD").toString();
+    QString symbolType = formatValue("currency/symbol", "USD").toString();
 
     if (symbolType == "Custom") {
-        return settings.value("currency/customSymbol", "$").toString();
+        return formatValue("currency/customSymbol", "$").toString();
     }
 
     if (symbolType == "USD") return "$";
@@ -61,7 +95,7 @@ QString Settings::getCurrencySymbol() const {
 }
 
 Settings::CurrencySymbol Settings::getCurrencySymbolType() const {
-    const QString symbolType = settings.value("currency/symbol", "USD").toString();
+    const QString symbolType = formatValue("currency/symbol", "USD").toString();
     if (symbolType == "EUR") return CurrencySymbol::EUR;
     if (symbolType == "GBP") return CurrencySymbol::GBP;
     if (symbolType == "JPY") return CurrencySymbol::JPY;
@@ -71,7 +105,7 @@ Settings::CurrencySymbol Settings::getCurrencySymbolType() const {
 }
 
 QString Settings::getCustomCurrencySymbol() const {
-    return settings.value("currency/customSymbol", "$").toString();
+    return formatValue("currency/customSymbol", "$").toString();
 }
 
 void Settings:: setCurrencySymbol(CurrencySymbol symbol) {
@@ -84,23 +118,23 @@ void Settings:: setCurrencySymbol(CurrencySymbol symbol) {
     case CurrencySymbol::CHF: symbolStr = "CHF"; break;
     case CurrencySymbol::Custom:  symbolStr = "Custom"; break;
     }
-    settings.setValue("currency/symbol", symbolStr);
+    setFormatValue("currency/symbol", symbolStr);
 }
 
 void Settings:: setCustomCurrencySymbol(const QString& symbol) {
-    settings.setValue("currency/customSymbol", symbol);
+    setFormatValue("currency/customSymbol", symbol);
     setCurrencySymbol(CurrencySymbol::Custom);
 }
 
 // Decimal Separator
 Settings::DecimalSeparator Settings:: getDecimalSeparator() const {
-    QString sep = settings.value("currency/decimalSeparator", "Point").toString();
+    QString sep = formatValue("currency/decimalSeparator", "Point").toString();
     return (sep == "Comma") ? DecimalSeparator::Comma : DecimalSeparator::Point;
 }
 
 void Settings::setDecimalSeparator(DecimalSeparator separator) {
     QString sepStr = (separator == DecimalSeparator:: Comma) ? "Comma" : "Point";
-    settings. setValue("currency/decimalSeparator", sepStr);
+    setFormatValue("currency/decimalSeparator", sepStr);
 }
 
 char Settings::getDecimalSeparatorChar() const {
@@ -109,7 +143,7 @@ char Settings::getDecimalSeparatorChar() const {
 
 // Thousands Separator
 Settings::ThousandsSeparator Settings::getThousandsSeparator() const {
-    QString sep = settings.value("currency/thousandsSeparator", "Comma").toString();
+    QString sep = formatValue("currency/thousandsSeparator", "Comma").toString();
 
     if (sep == "None") return ThousandsSeparator:: None;
     if (sep == "Point") return ThousandsSeparator::Point;
@@ -125,7 +159,7 @@ void Settings:: setThousandsSeparator(ThousandsSeparator separator) {
     case ThousandsSeparator::Point: sepStr = "Point"; break;
     case ThousandsSeparator::Space: sepStr = "Space"; break;
     }
-    settings.setValue("currency/thousandsSeparator", sepStr);
+    setFormatValue("currency/thousandsSeparator", sepStr);
 }
 
 QString Settings::getThousandsSeparatorString() const {
@@ -140,11 +174,11 @@ QString Settings::getThousandsSeparatorString() const {
 
 // Currency Symbol Position
 bool Settings::isCurrencySymbolPrefix() const {
-    return settings.value("currency/symbolPrefix", true).toBool();
+    return formatValue("currency/symbolPrefix", true).toBool();
 }
 
 void Settings::setCurrencySymbolPrefix(bool isPrefix) {
-    settings.setValue("currency/symbolPrefix", isPrefix);
+    setFormatValue("currency/symbolPrefix", isPrefix);
 }
 
 // Auto-detect CSV delimiter setting
@@ -306,6 +340,11 @@ void Settings::removeRecentDatabase(const QString& path) {
 }
 
 void Settings::restoreDefaults() {
+    if (DatabaseManager::instance().database().isOpen()) {
+        QSqlQuery query(DatabaseManager::instance().database());
+        query.exec("DELETE FROM database_settings WHERE key LIKE 'currency/%'");
+        loadedGeneration = quint64(-1);              // Reload
+    }
     settings.remove("currency");
     settings.remove("transactions");
     settings.remove("import");
