@@ -81,8 +81,10 @@ public:
     bool isCategoryColorsInOverviewsEnabled() const;
     void setCategoryColorsInOverviewsEnabled(bool enabled);
 
-    int getDefaultUserId() const;                    // User opened automatically at start, -1 for none
-    void setDefaultUserId(int userId);
+    // User opened automatically at start, -1 for none. Remembered per database file, since user
+    // IDs mean different people in different databases.
+    int getDefaultUserId(const QString& databasePath) const;
+    void setDefaultUserId(const QString& databasePath, int userId);
 
     // Database files
     QString getLastDatabase() const;                 // Empty: use the default database

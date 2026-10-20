@@ -260,12 +260,19 @@ void Settings::setTheme(const QString& theme) {
 }
 
 // Default User ID
-int Settings::getDefaultUserId() const {
-    return settings.value("app/defaultUserId", -1).toInt();
+int Settings::getDefaultUserId(const QString& databasePath) const {
+    return settings.value("app/defaultUsers").toMap().value(databasePath, -1).toInt();
 }
 
-void Settings::setDefaultUserId(int userId) {
-    settings.setValue("app/defaultUserId", userId);
+void Settings::setDefaultUserId(const QString& databasePath, int userId) {
+    QVariantMap users = settings.value("app/defaultUsers").toMap();
+    if (userId > 0) {
+        users.insert(databasePath, userId);
+    } else {
+        users.remove(databasePath);
+    }
+    settings.setValue("app/defaultUsers", users);
+    settings.remove("app/defaultUserId");            // One user for every database, before 0.1.0
 }
 
 // Database files

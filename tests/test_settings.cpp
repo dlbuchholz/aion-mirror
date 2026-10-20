@@ -111,11 +111,14 @@ private slots:
         s.setCurrencySymbolPrefix(false);
         QCOMPARE(s.formatCurrency(1250), QString("12.50 $"));
         s.setTheme("Light");
-        s.setDefaultUserId(-1);
+        s.setDefaultUserId("C:/data/a.db", -1);
         QCOMPARE(s.getTheme(), QString("Light"));
-        QCOMPARE(s.getDefaultUserId(), -1);
-        s.setDefaultUserId(42);
-        QCOMPARE(s.getDefaultUserId(), 42);
+        QCOMPARE(s.getDefaultUserId("C:/data/a.db"), -1);
+        s.setDefaultUserId("C:/data/a.db", 42);
+        QCOMPARE(s.getDefaultUserId("C:/data/a.db"), 42);
+        QCOMPARE(s.getDefaultUserId("C:/data/b.db"), -1);   // Another database, other people
+        s.setDefaultUserId("C:/data/a.db", -1);
+        QCOMPARE(s.getDefaultUserId("C:/data/a.db"), -1);
     }
 
     void missingKeysUseDocumentedDefaults() {
@@ -126,7 +129,7 @@ private slots:
             "currency/symbolPrefix", "import/autoDetectCsvDelimiter",
             "import/autoDetectDecimalSeparator", "import/defaultCsvDelimiter",
             "transactions/fastEntryEnabled", "transactions/selectionCheckboxes",
-            "app/theme", "app/defaultUserId"
+            "app/theme", "app/defaultUsers"
         };
         for (const QString& key : keys) raw.remove(key);
         QCOMPARE(s.getCurrencySymbol(), QString("$"));
@@ -139,7 +142,7 @@ private slots:
         QCOMPARE(s.isFastEntryEnabled(), false);
         QCOMPARE(s.isSelectionCheckboxesEnabled(), false);
         QCOMPARE(s.getTheme(), QString("Dark"));
-        QCOMPARE(s.getDefaultUserId(), -1);
+        QCOMPARE(s.getDefaultUserId("C:/data/a.db"), -1);
     }
 
     void restoreDefaultsKeepsWindowState() {

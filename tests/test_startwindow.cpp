@@ -31,6 +31,10 @@ class TestStartWindow : public QObject {
         window.findChild<QPushButton*>("addUserButton")->click();
     }
 
+    static int remembered() {
+        return Settings::instance().getDefaultUserId(DatabaseSession::currentDatabasePath());
+    }
+
 private slots:
     void initTestCase() {
         QVERIFY(dir.isValid());
@@ -49,7 +53,7 @@ private slots:
     void init() {
         // Every test gets its own fresh database
         QVERIFY(DatabaseSession::create(dir.filePath(QString("case%1.db").arg(++databaseCounter))));
-        Settings::instance().setDefaultUserId(-1);
+        Settings::instance().getQSettings().remove("app/defaultUsers");
     }
 
     void emptyDatabaseOpensAddForm() {
@@ -71,14 +75,14 @@ private slots:
         const int id = UserDAO().findUserIdByUsername("alex");
         QVERIFY(id > 0);
         QCOMPARE(window.selectedUserId(), id);
-        QCOMPARE(Settings::instance().getDefaultUserId(), -1);   // Not remembered unless asked
+        QCOMPARE(remembered(), -1);   // Not remembered unless asked
     }
 
     void rememberStoresTheUser() {
         StartWindow window;
         window.findChild<QCheckBox*>()->setChecked(true);
         fillForm(window, "Sam Example", "sam");
-        QCOMPARE(Settings::instance().getDefaultUserId(), window.selectedUserId());
+        QCOMPARE(remembered(), window.selectedUserId());
     }
 
     // --- Switching databases ---
@@ -138,6 +142,27 @@ private slots:
         QCOMPARE(window.findChild<QToolButton*>("databaseButton")->text(), QString("people.db"));
         QVERIFY(showsUser(window, "Anna Other"));
         QVERIFY(!showsUser(window, "Bob Here"));
+    }
+
+    void theRememberedUserBelongsToItsDatabase() {
+        // User 1 in another database is someone else, so it must not open automatically there
+        const QString other = dir.filePath("household.db");
+        QVERIFY(DatabaseSession::create(other));
+        QVERIFY(UserDAO().createUser(User(0, "kim", "Kim Other")));
+        QVERIFY(DatabaseSession::create(dir.filePath(QString("case%1.db").arg(++databaseCounter))));
+        {
+            StartWindow window;
+            window.findChild<QCheckBox*>()->setChecked(true);
+            fillForm(window, "Sam Example", "sam");
+            QCOMPARE(remembered(), window.selectedUserId());
+        }
+
+        StartWindow window;
+        auto* rememberCheck = window.findChild<QCheckBox*>();
+        QVERIFY(rememberCheck->isChecked());
+        menuEntry(databaseMenu(window), "household.db")->trigger();
+        QCOMPARE(remembered(), -1);
+        QVERIFY(!rememberCheck->isChecked());
     }
 
     void aBrokenDatabaseFileIsExplained() {

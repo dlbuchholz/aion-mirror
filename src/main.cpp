@@ -36,7 +36,7 @@ static bool openStartupDatabase() {
 
 // The user to open without asking, if one was remembered and exists in this database
 static int rememberedUserId() {
-    const int userId = Settings::instance().getDefaultUserId();
+    const int userId = Settings::instance().getDefaultUserId(DatabaseSession::currentDatabasePath());
     if (userId <= 0) {
         return -1;
     }

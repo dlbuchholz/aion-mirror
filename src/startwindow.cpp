@@ -213,7 +213,6 @@ StartWindow::StartWindow(QWidget* parent)
 
     // Footer: open automatically; version, update check and quit
     rememberCheck = new QCheckBox("Open this user automatically next time", this);
-    rememberCheck->setChecked(Settings::instance().getDefaultUserId() > 0);
     rememberCheck->setToolTip("Use \"Switch user\" in the sidebar to come back here");
     root->addWidget(rememberCheck);
 
@@ -246,6 +245,7 @@ int StartWindow::selectedUserId() const {
 }
 
 void StartWindow::loadUsers() {
+    rememberCheck->setChecked(Settings::instance().getDefaultUserId(DatabaseSession::currentDatabasePath()) > 0);
     while (QLayoutItem* item = cardsLayout->takeAt(0)) {
         delete item->widget();
         delete item;
@@ -277,7 +277,7 @@ void StartWindow::loadUsers() {
 
 void StartWindow::chooseUser(int chosenUserId) {
     userId = chosenUserId;
-    Settings::instance().setDefaultUserId(rememberCheck->isChecked() ? chosenUserId : -1);
+    Settings::instance().setDefaultUserId(DatabaseSession::currentDatabasePath(), rememberCheck->isChecked() ? chosenUserId : -1);
     accept();
 }
 
