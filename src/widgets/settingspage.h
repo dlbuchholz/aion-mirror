@@ -24,6 +24,7 @@ class SettingsPage : public QWidget
 public:
     explicit SettingsPage(QWidget *parent = nullptr);
 
+    void setUserId(int userId);                      // Whose categories and account types to show
     void reloadData();                               // Categories and account types changed elsewhere (an import)
 
 signals:

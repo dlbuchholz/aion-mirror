@@ -15,6 +15,7 @@ class AccountTypesSettings : public QWidget {
 public:
     explicit AccountTypesSettings(QWidget* parent = nullptr);
 
+    void setUserId(int userId);                      // Shows and edits that user's list
     void reload();
 
 signals:
@@ -26,6 +27,7 @@ private:
     void remove(int typeId);
     void showError(const QString& message);
 
+    int userId = -1;
     QVBoxLayout* listLayout = nullptr;
     QLineEdit* newTypeEdit = nullptr;
     QLabel* errorLabel = nullptr;

@@ -19,6 +19,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     ui->transactionsPage->setUserId(userId);
     ui->budgetPage->setUserId(userId);
     ui->dashboardPage->setUserId(userId);
+    ui->settingsPage->setUserId(userId);
 
     connect(ui->sidebar, &SidebarWidget::pageRequested, this, &MainWindow::showPage);
     connect(ui->sidebar, &SidebarWidget::accountRequested, this, &MainWindow::onAccountRequested);

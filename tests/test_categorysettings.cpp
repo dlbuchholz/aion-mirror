@@ -25,7 +25,7 @@ class TestCategorySettings : public QObject {
     }
 
     static Category named(const QString& name) {
-        for (const Category& category : CategoryDAO().getAllCategories()) {
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
             if (category.getName() == name) return category;
         }
         return Category(-1, "", "");
@@ -40,6 +40,7 @@ private slots:
 
     void listsCategoriesInGroupsWithBuiltInOnesLocked() {
         CategoriesSettings settings;
+        settings.setUserId(1);
         QVERIFY(row(settings, "Groceries"));
         QVERIFY(row(settings, "Salary"));
         QAbstractButton* builtIn = row(settings, "Balance correction");
@@ -53,6 +54,7 @@ private slots:
 
     void addsACategoryWithAColour() {
         CategoriesSettings settings;
+        settings.setUserId(1);
         QSignalSpy changed(&settings, &CategoriesSettings::categoriesChanged);
         settings.findChild<QPushButton*>("addCategoryButton")->click();
         settings.findChild<QLineEdit*>("categoryNameEdit")->setText("  Travel  ");
@@ -70,6 +72,7 @@ private slots:
 
     void rejectsDuplicateAndEmptyNames() {
         CategoriesSettings settings;
+        settings.setUserId(1);
         settings.findChild<QPushButton*>("addCategoryButton")->click();
         auto* name = settings.findChild<QLineEdit*>("categoryNameEdit");
         auto* error = settings.findChild<QLabel*>("categoryError");
@@ -84,6 +87,7 @@ private slots:
 
     void editsNameTypeAndColour() {
         CategoriesSettings settings;
+        settings.setUserId(1);
         row(settings, "Entertainment")->click();
         settle();
         QCOMPARE(settings.findChild<QLineEdit*>("categoryNameEdit")->text(), QString("Entertainment"));
@@ -96,9 +100,10 @@ private slots:
     }
 
     void mergesAfterConfirming() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int from = dao.addCategory(Category(-1, "Lebensmittel", "expense"));
         CategoriesSettings settings;
+        settings.setUserId(1);
         QString asked;
         settings.confirm = [&asked](const QString&, const QString& text) { asked = text; return true; };
         row(settings, "Lebensmittel")->click();
@@ -119,9 +124,10 @@ private slots:
     }
 
     void deleteCanBeCancelled() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         dao.addCategory(Category(-1, "Travel", "expense"));
         CategoriesSettings settings;
+        settings.setUserId(1);
         settings.confirm = [](const QString&, const QString&) { return false; };
         row(settings, "Travel")->click();
         settle();
@@ -136,6 +142,7 @@ private slots:
 
     void searchFiltersTheList() {
         CategoriesSettings settings;
+        settings.setUserId(1);
         settings.findChild<QLineEdit*>("categorySearch")->setText("gro");
         settle();
         QVERIFY(row(settings, "Groceries"));
@@ -145,6 +152,7 @@ private slots:
     void accountTypesCanBeAddedRenamedAndDeletedWhenUnused() {
         AccountDAO::createAccount(1, "Giro", "Checking", 0);
         AccountTypesSettings settings;
+        settings.setUserId(1);
         QSignalSpy changed(&settings, &AccountTypesSettings::accountTypesChanged);
         settings.findChild<QLineEdit*>("newAccountTypeEdit")->setText("Credit card");
         settings.findChild<QPushButton*>("addAccountTypeButton")->click();
@@ -165,7 +173,7 @@ private slots:
         name->setText("Card");
         emit name->editingFinished();
         settle();
-        QVERIFY(AccountDAO().getAccountTypes().contains("Card"));
+        QVERIFY(AccountDAO().getAccountTypes(1).contains("Card"));
 
         for (QWidget* typeRow : settings.findChildren<QWidget*>("accountTypeRow")) {
             if (typeRow->isVisibleTo(&settings) && typeRow->accessibleName() == "Card") {
@@ -173,7 +181,28 @@ private slots:
             }
         }
         settle();
-        QVERIFY(!AccountDAO().getAccountTypes().contains("Card"));
+        QVERIFY(!AccountDAO().getAccountTypes(1).contains("Card"));
+    }
+
+    void showsOnlyTheUsersOwnCategoriesAndAccountTypes() {
+        QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
+        QVERIFY(CategoryDAO(2).addCategory(Category(-1, "Sam's hobby", "expense")) > 0);
+        QVERIFY(AccountDAO().addAccountType(2, "Sam's depot") > 0);
+
+        CategoriesSettings categories;
+        categories.setUserId(1);
+        QVERIFY(row(categories, "Groceries"));
+        QVERIFY(!row(categories, "Sam's hobby"));
+        categories.setUserId(2);
+        settle();
+        QVERIFY(row(categories, "Sam's hobby"));
+
+        AccountTypesSettings types;
+        types.setUserId(1);
+        settle();
+        for (QWidget* typeRow : types.findChildren<QWidget*>("accountTypeRow")) {
+            QVERIFY(typeRow->accessibleName() != "Sam's depot");
+        }
     }
 };
 

@@ -39,7 +39,7 @@ class TestRendering : public QObject {
 
     void seed() {
         QSqlQuery query(DatabaseManager::instance().database());
-        QVERIFY(query.exec("INSERT INTO users (id, username, name) VALUES (1, 'alex', 'Alex Example')"));
+        QVERIFY(UserDAO().createUser(User(1, "alex", "Alex Example")));
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 100000);
         QVERIFY(query.exec("UPDATE categories SET color = 'teal' WHERE name = 'Groceries'"));
         QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());

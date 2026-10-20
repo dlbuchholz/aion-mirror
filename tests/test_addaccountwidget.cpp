@@ -23,8 +23,9 @@ private slots:
 
     void offersTheAccountTypes() {
         AddAccountWidget form;
+        form.setUserId(1);
         auto* types = form.findChild<QComboBox*>("accountTypeComboBox");
-        QCOMPARE(types->count(), AccountDAO().getAccountTypes().size());
+        QCOMPARE(types->count(), AccountDAO().getAccountTypes(1).size());
         QVERIFY(types->findText("Savings") >= 0);
     }
 

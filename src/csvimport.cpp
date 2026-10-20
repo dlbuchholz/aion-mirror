@@ -1,5 +1,6 @@
 #include "csvimport.h"
 #include "csvparser.h"
+#include "account.h"
 #include "balance.h"
 #include "category.h"
 #include "db/databasemanager.h"
@@ -348,7 +349,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
 
     // Create the file's new categories (rolled back with everything else in a dry run) and use them
     for (auto it = options.categoriesToCreate.cbegin(); it != options.categoriesToCreate.cend(); ++it) {
-        const int categoryId = CategoryDAO().addCategory(Category(-1, it.value().name, it.value().type));
+        const int categoryId = CategoryDAO(AccountDAO::ownerOf(options.accountId)).addCategory(Category(-1, it.value().name, it.value().type));
         if (categoryId <= 0) {
             db.rollback();
             result.errors = {QString("Import aborted: the category \"%1\" couldn't be created").arg(it.value().name)};

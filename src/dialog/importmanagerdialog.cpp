@@ -278,7 +278,7 @@ QWidget *ImportManagerDialog::buildFilePage()
     newAccountForm->addRow("Name", newAccountNameEdit);
     newAccountTypeCombo = new QComboBox(newAccountBox);
     newAccountTypeCombo->setObjectName("newAccountTypeCombo");
-    newAccountTypeCombo->addItems(AccountDAO().getAccountTypes());
+    newAccountTypeCombo->addItems(AccountDAO().getAccountTypes(userId));
     newAccountForm->addRow("Type", newAccountTypeCombo);
     newAccountLayout->addLayout(newAccountForm);
     newAccountLayout->addWidget(hintLabel("The balance comes from the imported transactions. If your bank shows a "
@@ -626,7 +626,7 @@ CsvImport::Options ImportManagerDialog::importOptions() const
     options.accountId = accountCombo->currentData().toInt();
     options.decimalSeparator = decimalSeparator;
     options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
-    for (const Category &category : CategoryDAO().getAllCategories()) {
+    for (const Category &category : CategoryDAO(userId).getAllCategories()) {
         options.categoryIds.insert(category.getName().simplified().toLower(), category.getCategoryId());
     }
     applyCategoryChoices(options);
@@ -685,7 +685,7 @@ void ImportManagerDialog::refreshFileCategories()
 
     QHash<QString, Category> existing;
     QList<Category> choosable;
-    for (const Category &category : CategoryDAO().getAllCategories()) {
+    for (const Category &category : CategoryDAO(userId).getAllCategories()) {
         existing.insert(category.getName().simplified().toLower(), category);
         if (!category.isBuiltIn()) choosable.append(category);
     }

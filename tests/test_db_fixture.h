@@ -7,6 +7,7 @@
 
 #include "db/databasemanager.h"
 #include "db/migrationmanager.h"
+#include "user.h"
 #include "tests/test_db_utils.h" // execOrFail
 
 /**
@@ -57,12 +58,8 @@ public:
     void seedDefaultUser(int id = 1,
                          const QString& username = "testuser",
                          const QString& name = "Test User") {
-        QSqlQuery q(DatabaseManager::instance().database());
-        execOrFail(q,
-                  QString("INSERT INTO users (id, username, name) VALUES (%1, '%2', '%3')")
-                      .arg(id)
-                      .arg(username)
-                      .arg(name));
+        // Like a real new user, with the default account types and categories
+        QVERIFY2(UserDAO().createUser(User(id, username, name)), "seeding the user failed");
     }
 
     const QString& path() const { return templatePath; }

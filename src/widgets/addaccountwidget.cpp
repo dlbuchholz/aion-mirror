@@ -17,13 +17,6 @@ AddAccountWidget::AddAccountWidget(QWidget* parent)
     ui->toolButton_2->setVisible(false);
     ui->line->setVisible(false);
 
-    // Populate account types
-    AccountDAO accountDao;
-    QList<QString> accountTypes = accountDao.getAccountTypes();
-    for (const QString& type : accountTypes) {
-        ui->accountTypeComboBox->addItem(type);
-    }
-
     connect(ui->createAccountButton, &QAbstractButton::clicked, this, &AddAccountWidget::onCreateAccountClicked);
 }
 
@@ -72,4 +65,7 @@ AddAccountWidget::~AddAccountWidget() {
 
 void AddAccountWidget::setUserId(int newUserId) {
     userId = newUserId;
+    // The user's own account types
+    ui->accountTypeComboBox->clear();
+    ui->accountTypeComboBox->addItems(AccountDAO().getAccountTypes(userId));
 }

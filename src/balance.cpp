@@ -26,7 +26,10 @@ int addCorrection(int accountId, const QDate& date, Cents differenceCents, const
         return 0;
     }
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id FROM categories WHERE name = :name");
+    // The account's user's own category
+    query.prepare("SELECT c.id FROM categories c JOIN accounts a ON a.user_id = c.user_id "
+                  "WHERE a.id = :account AND c.name = :name");
+    query.bindValue(":account", accountId);
     query.bindValue(":name", BalanceCorrectionCategory);
     const int categoryId = query.exec() && query.next() ? query.value(0).toInt() : 0;   // No category if it was deleted
 

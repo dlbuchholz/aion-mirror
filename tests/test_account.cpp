@@ -186,29 +186,29 @@ private slots:
 
     void testGetAccountTypes_containsSeededTypes() {
         AccountDAO dao;
-        const auto types = dao.getAccountTypes();
+        const auto types = dao.getAccountTypes(1);
         QVERIFY2(types.contains("Checking"), "Expected seeded account type 'Checking' to exist");
     }
 
     void testAddAccountType_duplicateName_fails() {
        AccountDAO dao;
 
-       const int id1 = dao.addAccountType("DupType");
+       const int id1 = dao.addAccountType(1, "DupType");
        QVERIFY(id1 > 0);
 
-       const int id2 = dao.addAccountType("DupType");
+       const int id2 = dao.addAccountType(1, "DupType");
        QCOMPARE(id2, -1);
     }
 
     void testAccountTypeCrud_addEditDelete() {
         AccountDAO dao;
 
-        const int id = dao.addAccountType("TestType");
+        const int id = dao.addAccountType(1, "TestType");
         QVERIFY2(id > 0, "addAccountType should return a positive id");
 
-        QVERIFY(dao.editAccountType(id, "TestTypeRenamed"));
+        QVERIFY(dao.editAccountType(1, id, "TestTypeRenamed"));
 
-        const auto all = dao.getAllAccountTypes();
+        const auto all = dao.getAllAccountTypes(1);
         bool found = false;
         for (const auto& pair : all) {
             if (pair.first.toInt() == id && pair.second == "TestTypeRenamed") {
@@ -216,20 +216,20 @@ private slots:
                 break;
             }
         }
-        QVERIFY2(found, "Edited account type not found in getAllAccountTypes()");
+        QVERIFY2(found, "Edited account type not found in getAllAccountTypes(1)");
 
-        QVERIFY(dao.deleteAccountType(id));
+        QVERIFY(dao.deleteAccountType(1, id));
     }
 
     void testEditAccountType_nonexistentId_returnsFalse() {
         AccountDAO dao;
-        QCOMPARE(dao.editAccountType(999999, "DoesNotMatter"), false);
+        QCOMPARE(dao.editAccountType(1, 999999, "DoesNotMatter"), false);
     }
 
     void testGetAllAccountsForUser_filtersByUser() {
         // Seed another user
         QSqlQuery q(DatabaseManager::instance().database());
-        execOrFail(q, "INSERT INTO users (id, username, name) VALUES (2, 'testuser2', 'Test User 2')");
+        QVERIFY(UserDAO().createUser(User(2, "testuser2", "Test User 2")));
 
         AccountDAO dao;
         const int a1 = dao.createAccount(1, "User1Account", "Checking", 0);
@@ -252,7 +252,7 @@ private slots:
 
     void testGetAllAccountTypes_containsCheckingWithNumericId() {
         AccountDAO dao;
-        const auto all = dao.getAllAccountTypes();
+        const auto all = dao.getAllAccountTypes(1);
 
         QVERIFY2(!all.isEmpty(), "Expected seeded account types from migrations");
 
@@ -300,10 +300,10 @@ private slots:
 
     void testDeleteAccountType_removesRow() {
         AccountDAO dao;
-        const int id = dao.addAccountType("TempDeleteMe");
+        const int id = dao.addAccountType(1, "TempDeleteMe");
         QVERIFY(id > 0);
 
-        QVERIFY(dao.deleteAccountType(id));
+        QVERIFY(dao.deleteAccountType(1, id));
 
         QSqlQuery q(DatabaseManager::instance().database());
         q.prepare("SELECT COUNT(*) FROM account_types WHERE id = :id");
@@ -329,7 +329,7 @@ private slots:
         const int checkingId = q.value(0).toInt();
 
         // Should fail due to ON DELETE RESTRICT
-        const bool deleted = dao.deleteAccountType(checkingId);
+        const bool deleted = dao.deleteAccountType(1, checkingId);
         QCOMPARE(deleted, false);
     }
 
@@ -344,7 +344,7 @@ private slots:
         QVERIFY(q.next());
         const int checkingId = q.value(0).toInt();
 
-        QCOMPARE(dao.deleteAccountType(checkingId), false);
+        QCOMPARE(dao.deleteAccountType(1, checkingId), false);
 
         q.prepare("SELECT COUNT(*) FROM account_types WHERE id = :id");
         q.bindValue(":id", checkingId);

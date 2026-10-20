@@ -52,7 +52,7 @@ private slots:
     }
     void init() {
         db.yankDb();
-        QSqlQuery(DatabaseManager::instance().database()).exec("INSERT INTO users (id, username, name) VALUES (1, 'alex', 'Alex Example')");
+        QVERIFY(UserDAO().createUser(User(1, "alex", "Alex Example")));
         giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         savings = AccountDAO::createAccount(1, "Tagesgeld", "Savings", 0);
         QSqlQuery query(DatabaseManager::instance().database());
@@ -130,7 +130,7 @@ private slots:
         auto* filter = window.findChild<TransactionsPage*>()->findChild<QComboBox*>("categoryFilter");
         QCOMPARE(filter->findText("Travel"), -1);
 
-        QVERIFY(CategoryDAO().addCategory(Category(-1, "Travel", "expense")) > 0);
+        QVERIFY(CategoryDAO(1).addCategory(Category(-1, "Travel", "expense")) > 0);
         emit window.findChild<SettingsPage*>()->dataChanged();
         QVERIFY(filter->findText("Travel") >= 0);
     }

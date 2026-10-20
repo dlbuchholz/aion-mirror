@@ -41,15 +41,17 @@ private:
 // How much a category is used, for the settings list and confirmations
 struct CategoryUsage {
     int transactions = 0;
-    int budgets = 0;                                 // Budget rows of any user
+    int budgets = 0;                                 // Budget rows
 };
 
-// Category DAO
+// Category DAO. Categories belong to a user; everything here works on that user's only.
 class CategoryDAO {
 public:
-    CategoryDAO();
+    explicit CategoryDAO(int userId);
 
-    bool createCategory(const Category& category);
+    // The categories a new user starts with, the built-in ones included
+    static bool addDefaultCategories(int userId);
+
     int addCategory(const Category &category);
     QList<Category> getAllCategories();
     Category getCategoryById(int categoryId);
@@ -66,6 +68,9 @@ public:
 
 private:
     void handleError(const QSqlQuery& query);
+    bool owns(int categoryId);
+
+    int userId;
 };
 
 #endif // CATEGORY_H

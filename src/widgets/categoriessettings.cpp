@@ -265,9 +265,14 @@ void CategoriesSettings::updateSwatches() {
     addButton->setIcon(Icons::icon("plus", this->palette().color(QPalette::ButtonText)));
 }
 
+void CategoriesSettings::setUserId(int newUserId) {
+    userId = newUserId;
+    reload();
+}
+
 void CategoriesSettings::reload() {
-    categories = CategoryDAO().getAllCategories();
-    usage = CategoryDAO().usage();
+    categories = CategoryDAO(userId).getAllCategories();
+    usage = CategoryDAO(userId).usage();
     if (editedId > 0 && !category(editedId)) {
         editedId = -1;                               // Deleted meanwhile
     }
@@ -398,7 +403,7 @@ void CategoriesSettings::save() {
             return;
         }
     }
-    CategoryDAO dao;
+    CategoryDAO dao(userId);
     const QString type = typeCombo->currentData().toString();
     const bool saved = editedId > 0 ? dao.editCategory(editedId, name, type, selectedColor())
                                     : dao.addCategory(Category(-1, name, type, selectedColor())) > 0;
@@ -427,7 +432,7 @@ void CategoriesSettings::mergeInto(int intoId) {
                                          .arg(from->getName(), into->getName(), details))) {
         return;
     }
-    if (!CategoryDAO().mergeCategory(from->getCategoryId(), intoId)) {
+    if (!CategoryDAO(userId).mergeCategory(from->getCategoryId(), intoId)) {
         errorLabel->setText("The categories couldn't be merged.");
         errorLabel->show();
         return;
@@ -449,7 +454,7 @@ void CategoriesSettings::remove() {
     if (!confirm("Delete category", question)) {
         return;
     }
-    if (!CategoryDAO().deleteCategoryKeepingTransactions(edited->getCategoryId())) {
+    if (!CategoryDAO(userId).deleteCategoryKeepingTransactions(edited->getCategoryId())) {
         errorLabel->setText("The category couldn't be deleted.");
         errorLabel->show();
         return;

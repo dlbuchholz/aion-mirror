@@ -69,6 +69,7 @@ private slots:
 
     void showsTheStoredValues() {
         SettingsPage page;
+        page.setUserId(1);
         QCOMPARE(child<QComboBox>(page, "currencyCombo")->currentData().toInt(), int(Settings::CurrencySymbol::EUR));
         QVERIFY(!child<QLineEdit>(page, "customSymbolEdit")->isEnabled());
         QCOMPARE(child<QComboBox>(page, "symbolPositionCombo")->currentData().toBool(), false);
@@ -83,6 +84,7 @@ private slots:
 
     void changesWaitForApply() {
         SettingsPage page;
+        page.setUserId(1);
         QSignalSpy changed(&page, &SettingsPage::settingsChanged);
 
         select(child<QComboBox>(page, "decimalSeparatorCombo"), int(Settings::DecimalSeparator::Point));
@@ -100,6 +102,7 @@ private slots:
 
     void revertRestoresTheStoredValues() {
         SettingsPage page;
+        page.setUserId(1);
         QComboBox* theme = child<QComboBox>(page, "themeCombo");
         select(theme, "Dark");
         QVERIFY(hasUnsavedChanges(page));
@@ -112,6 +115,7 @@ private slots:
 
     void customCurrencySymbol() {
         SettingsPage page;
+        page.setUserId(1);
         QComboBox* currency = child<QComboBox>(page, "currencyCombo");
         QLineEdit* symbol = child<QLineEdit>(page, "customSymbolEdit");
 
@@ -134,6 +138,7 @@ private slots:
         Settings::instance().restoreDefaults();                               // Restored after the test case
         QVERIFY(Settings::instance().isCategoryColorsInOverviewsEnabled());   // Coloured by default
         SettingsPage page;
+        page.setUserId(1);
         auto* check = child<QCheckBox>(page, "categoryColorsCheck");
         QVERIFY(check->isChecked());
         check->setChecked(false);
@@ -146,13 +151,14 @@ private slots:
 
     void showsCategoriesAddedElsewhereAfterReload() {
         SettingsPage page;
+        page.setUserId(1);
         auto hasRow = [&page](const QString& name) {
             for (QAbstractButton* row : page.findChildren<QAbstractButton*>("categoryRow")) {
                 if (row->accessibleName() == name && !row->isHidden()) return true;
             }
             return false;
         };
-        QVERIFY(CategoryDAO().addCategory(Category(-1, "Tanken", "expense")) > 0);   // As an import would
+        QVERIFY(CategoryDAO(1).addCategory(Category(-1, "Tanken", "expense")) > 0);   // As an import would
         QVERIFY(!hasRow("Tanken"));
         page.reloadData();
         QVERIFY(hasRow("Tanken"));
@@ -160,6 +166,7 @@ private slots:
 
     void categoriesAndAccountTypesHaveTheirOwnSectionsAndSaveRightAway() {
         SettingsPage page;
+        page.setUserId(1);
         QSignalSpy dataChanged(&page, &SettingsPage::dataChanged);
         auto* sections = page.findChild<QListWidget*>();
         QVERIFY(!sections->findItems("Categories", Qt::MatchExactly).isEmpty());
@@ -171,7 +178,7 @@ private slots:
         QVERIFY(!hasUnsavedChanges(page));                       // Nothing waits for Apply
         QCOMPARE(dataChanged.count(), 1);
         bool found = false;
-        for (const Category& category : CategoryDAO().getAllCategories()) found |= category.getName() == "Travel";
+        for (const Category& category : CategoryDAO(1).getAllCategories()) found |= category.getName() == "Travel";
         QVERIFY(found);
     }
 };

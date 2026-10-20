@@ -1,6 +1,8 @@
 #include <QtTest>
 #include "user.h"
 #include "category.h"
+#include "account.h"
+#include "balance.h"
 #include "tests/test_db_fixture.h"
 
 class TestUserCategoryDAO : public QObject {
@@ -74,7 +76,7 @@ private slots:
     }
 
     void coloursAreStored() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int id = dao.addCategory(Category(-1, "Travel", "expense", "teal"));
         QCOMPARE(dao.getCategoryById(id).getColor(), QString("teal"));
         QVERIFY(dao.editCategory(id, "Travel", "expense", ""));
@@ -86,7 +88,7 @@ private slots:
     }
 
     void usageCountsTransactionsAndBudgets() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int travel = dao.addCategory(Category(-1, "Travel", "expense"));
         addExpense(travel, "A");
         addExpense(travel, "B");
@@ -97,7 +99,7 @@ private slots:
     }
 
     void mergingMovesTransactionsAndBudgets() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int from = dao.addCategory(Category(-1, "Lebensmittel", "expense"));
         const int into = dao.addCategory(Category(-1, "Food", "expense"));
         const int moved = addExpense(from, "Rewe");
@@ -111,7 +113,7 @@ private slots:
     }
 
     void mergingKeepsTheTargetsOwnBudgets() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int from = dao.addCategory(Category(-1, "Lebensmittel", "expense"));
         const int into = dao.addCategory(Category(-1, "Food", "expense"));
         addBudget(from, "2026-10");
@@ -122,7 +124,7 @@ private slots:
     }
 
     void deletingCanKeepTheTransactions() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int travel = dao.addCategory(Category(-1, "Travel", "expense"));
         const int transaction = addExpense(travel, "Train");
         addBudget(travel, "2026-10");
@@ -132,8 +134,67 @@ private slots:
         QCOMPARE(budgetCount(travel), 0);
     }
 
+    void newUsersStartWithTheirOwnDefaults() {
+        QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
+        const QList<Category> mine = CategoryDAO(1).getAllCategories();
+        const QList<Category> theirs = CategoryDAO(2).getAllCategories();
+        QCOMPARE(theirs.size(), mine.size());
+        QVERIFY(std::any_of(theirs.cbegin(), theirs.cend(), [](const Category& c) { return c.getName() == BalanceCorrectionCategory; }));
+        for (const Category& category : theirs) {
+            QVERIFY(std::none_of(mine.cbegin(), mine.cend(), [&](const Category& c) { return c.getCategoryId() == category.getCategoryId(); }));
+        }
+        QCOMPARE(AccountDAO().getAccountTypes(2), AccountDAO().getAccountTypes(1));
+        QVERIFY(AccountDAO().getAllAccountTypes(2).first().first != AccountDAO().getAllAccountTypes(1).first().first);
+    }
+
+    void usersDontSeeOrChangeEachOthersCategories() {
+        QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
+        CategoryDAO mine(1);
+        CategoryDAO theirs(2);
+        const int travel = mine.addCategory(Category(-1, "Travel", "expense"));
+        QVERIFY(theirs.addCategory(Category(-1, "Travel", "expense")) > 0);   // Same name, other user
+        QVERIFY(mine.addCategory(Category(-1, "Travel", "expense")) <= 0);    // Not twice for one user
+
+        const int theirTrips = theirs.addCategory(Category(-1, "Trips", "expense"));
+        QCOMPARE(mine.getCategoryById(theirTrips).getCategoryId(), -1);
+        QVERIFY(!mine.editCategory(theirTrips, "Mine now", "expense"));
+        QVERIFY(!mine.mergeCategory(theirTrips, travel));
+        QVERIFY(!mine.deleteCategoryKeepingTransactions(theirTrips));
+        QVERIFY(!mine.deleteCategory(theirTrips));
+        QCOMPARE(theirs.getCategoryById(theirTrips).getName(), QString("Trips"));
+    }
+
+    void accountTypesBelongToTheirUser() {
+        QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
+        AccountDAO dao;
+        const int depot = dao.addAccountType(2, "Depot");
+        QVERIFY(depot > 0);
+        QVERIFY(!dao.getAccountTypes(1).contains("Depot"));
+        QVERIFY(!dao.editAccountType(1, depot, "Taken"));
+        QVERIFY(!dao.deleteAccountType(1, depot));
+        QVERIFY(AccountDAO::createAccount(1, "Wertpapiere", "Depot", 0) <= 0);   // Not one of user 1's types
+        QVERIFY(AccountDAO::createAccount(2, "Wertpapiere", "Depot", 0) > 0);
+    }
+
+    void startingBalancesAndCorrectionsUseTheAccountUsersCategories() {
+        QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
+        const int account = AccountDAO::createAccount(2, "Giro", "Checking", 5000);
+        QVERIFY(Balance::addCorrection(account, QDate(2026, 10, 1), -700, "") > 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        query.prepare("SELECT c.user_id, c.name FROM transactions t JOIN categories c ON c.id = t.category_id "
+                      "WHERE t.account_id = :account ORDER BY t.id");
+        query.bindValue(":account", account);
+        QVERIFY(query.exec());
+        QVERIFY(query.next());
+        QCOMPARE(query.value(0).toInt(), 2);
+        QCOMPARE(query.value(1).toString(), InitialBalanceCategory);
+        QVERIFY(query.next());
+        QCOMPARE(query.value(0).toInt(), 2);
+        QCOMPARE(query.value(1).toString(), BalanceCorrectionCategory);
+    }
+
     void categoryCrudAndValidation() {
-        CategoryDAO dao;
+        CategoryDAO dao(1);
         const int id = dao.addCategory(Category(-1, "Travel", "expense"));
         QVERIFY(id > 0);
         QCOMPARE(dao.getCategoryById(id).getName(), QString("Travel"));

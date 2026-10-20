@@ -444,7 +444,7 @@ void BudgetPage::addBudget(int categoryId, Cents suggestedLimit) {
     }
     // Expense categories that don't have a budget in this month yet
     QList<Category> available;
-    for (const Category& category : CategoryDAO().getAllCategories()) {
+    for (const Category& category : CategoryDAO(userId).getAllCategories()) {
         const bool budgeted = std::any_of(budgets.cbegin(), budgets.cend(), [&](const MonthBudget& budget) {
             return budget.categoryId == category.getCategoryId();
         });

@@ -1,5 +1,7 @@
 #include "db/databasemanager.h"
 #include "user.h"
+#include "account.h"
+#include "category.h"
 
 // User Implementation
 User::User(int id, const QString& username, const QString& name)
@@ -21,7 +23,13 @@ QString User::getName() const {
 UserDAO::UserDAO() {}
 
 bool UserDAO::createUser(const User& user) {
-    QSqlQuery query(DatabaseManager::instance().database());
+    // The user with their own default account types and categories, or nothing
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        qWarning() << "Failed to start transaction:" << db.lastError().text();
+        return false;
+    }
+    QSqlQuery query(db);
     if (user.getUserId() > 0) {
         query.prepare("INSERT INTO users (id, username, name) VALUES (:id, :username, :name)");
         query.bindValue(":id", user.getUserId());
@@ -33,6 +41,12 @@ bool UserDAO::createUser(const User& user) {
 
     if (!query.exec()) {
         handleError(query);
+        db.rollback();
+        return false;
+    }
+    const int userId = user.getUserId() > 0 ? user.getUserId() : query.lastInsertId().toInt();
+    if (!AccountDAO::addDefaultAccountTypes(userId) || !CategoryDAO::addDefaultCategories(userId) || !db.commit()) {
+        db.rollback();
         return false;
     }
     return true;

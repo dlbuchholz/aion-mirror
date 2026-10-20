@@ -43,7 +43,7 @@ private slots:
     void initTestCase() { db.init(); }
     void init() {
         db.yankDb();
-        QSqlQuery(DatabaseManager::instance().database()).exec("INSERT INTO users (id, username, name) VALUES (1, 'alex', 'Alex Example')");
+        QVERIFY(UserDAO().createUser(User(1, "alex", "Alex Example")));
         giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         groceries = categoryId("Groceries");
         rent = categoryId("Rent");

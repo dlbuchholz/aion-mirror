@@ -199,7 +199,7 @@ private slots:
         // Budgets used to reference categories by name, so a rename broke them
         BudgetDAO dao;
         QVERIFY(dao.setMonthlyLimit(1, groceries, oct(), 40000));
-        QVERIFY(CategoryDAO().editCategory(groceries, "Food", "expense"));
+        QVERIFY(CategoryDAO(1).editCategory(groceries, "Food", "expense"));
         QCOMPARE(limits(1, oct()).value("Food"), Cents(40000));
     }
 

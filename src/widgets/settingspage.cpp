@@ -298,6 +298,12 @@ void SettingsPage::buildImportSection()
     watch(autoDetectDecimalCheck);
 }
 
+void SettingsPage::setUserId(int userId)
+{
+    categoriesSettings->setUserId(userId);
+    accountTypesSettings->setUserId(userId);
+}
+
 void SettingsPage::reloadData()
 {
     categoriesSettings->reload();

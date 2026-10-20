@@ -535,7 +535,7 @@ void TransactionsPage::reload() {
     }
 
     AccountDAO accountDao;
-    CategoryDAO categoryDao;
+    CategoryDAO categoryDao(userId);
     TransactionDAO transactionDao;
 
     const QList<Account> userAccounts = accountDao.getAllAccountsForUser(userId);

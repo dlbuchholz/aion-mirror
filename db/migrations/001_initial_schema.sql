@@ -11,9 +11,14 @@ CREATE TABLE IF NOT EXISTS database_settings (
     value TEXT NOT NULL
 );
 
+-- Account types and categories belong to a user. New users get the default ones
+-- (AccountDAO::addDefaultAccountTypes, CategoryDAO::addDefaultCategories).
 CREATE TABLE IF NOT EXISTS account_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    UNIQUE (user_id, name),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -27,9 +32,12 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-    color TEXT                           -- Palette name ('teal', 'coral', ...), NULL = neutral
+    color TEXT,                          -- Palette name ('teal', 'coral', ...), NULL = neutral
+    UNIQUE (user_id, name),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -93,20 +101,3 @@ FROM accounts
 LEFT JOIN account_types ON accounts.type_id = account_types.id
 LEFT JOIN transactions ON accounts.id = transactions.account_id
 GROUP BY accounts.id;
-
-INSERT OR IGNORE INTO account_types (name) VALUES
-('Checking'),
-('Savings'),
-('Investment'),
-('Retirement'),
-('Virtual');
-
-INSERT OR IGNORE INTO categories (name, type) VALUES
-('Initial balance', 'income'),
-('Salary', 'income'),
-('Bonus', 'income'),
-('Groceries', 'expense'),
-('Rent', 'expense'),
-('Utilities', 'expense'),
-('Entertainment', 'expense'),
-('Balance correction', 'income');

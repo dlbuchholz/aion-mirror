@@ -81,6 +81,11 @@ AccountTypesSettings::AccountTypesSettings(QWidget* parent)
     reload();
 }
 
+void AccountTypesSettings::setUserId(int newUserId) {
+    userId = newUserId;
+    reload();
+}
+
 void AccountTypesSettings::reload() {
     while (QLayoutItem* item = listLayout->takeAt(0)) {
         if (QWidget* widget = item->widget()) {
@@ -90,7 +95,7 @@ void AccountTypesSettings::reload() {
         delete item;
     }
     const QHash<int, int> counts = accountCounts();
-    for (const auto& type : AccountDAO().getAllAccountTypes()) {
+    for (const auto& type : AccountDAO().getAllAccountTypes(userId)) {
         const int typeId = type.first.toInt();
         const QString name = type.second;
         const int used = counts.value(typeId);
@@ -135,7 +140,7 @@ void AccountTypesSettings::addType() {
         showError("Enter a name for the new account type.");
         return;
     }
-    if (AccountDAO().addAccountType(name) <= 0) {
+    if (AccountDAO().addAccountType(userId, name) <= 0) {
         showError(QString("\"%1\" couldn't be added. Is there already a type with that name?").arg(name));
         return;
     }
@@ -150,7 +155,7 @@ void AccountTypesSettings::rename(int typeId, QLineEdit* edit, const QString& ol
     if (name == oldName) {
         return;
     }
-    if (name.isEmpty() || !AccountDAO().editAccountType(typeId, name)) {
+    if (name.isEmpty() || !AccountDAO().editAccountType(userId, typeId, name)) {
         showError(name.isEmpty() ? QString("An account type needs a name.")
                                  : QString("\"%1\" couldn't be saved. Is there already a type with that name?").arg(name));
         edit->setText(oldName);
@@ -162,7 +167,7 @@ void AccountTypesSettings::rename(int typeId, QLineEdit* edit, const QString& ol
 }
 
 void AccountTypesSettings::remove(int typeId) {
-    if (!AccountDAO().deleteAccountType(typeId)) {
+    if (!AccountDAO().deleteAccountType(userId, typeId)) {
         showError("The account type couldn't be deleted.");
         return;
     }

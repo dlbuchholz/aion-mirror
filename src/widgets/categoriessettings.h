@@ -22,6 +22,7 @@ class CategoriesSettings : public QWidget {
 public:
     explicit CategoriesSettings(QWidget* parent = nullptr);
 
+    void setUserId(int userId);                      // Shows and edits that user's list
     void reload();
 
     // Asks before merging or deleting (a message box; tests replace it)
@@ -47,6 +48,7 @@ private:
 
     QList<Category> categories;
     QHash<int, CategoryUsage> usage;
+    int userId = -1;
     int editedId = -1;                               // -1 = editor closed, 0 = new category
 
     QLineEdit* searchEdit = nullptr;
