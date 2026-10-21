@@ -29,3 +29,32 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  # Windows, cross-compiled with Fedora's MinGW Qt (same Qt version as the Linux job). Programs
+  # built here are Windows .exe files, so the icon helper and the tests run under Wine.
+  windows:
+    name: Windows (MinGW)
+    runs-on: linux-qt
+    steps:
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # mingw64-cmake is Fedora's wrapper that sets up the MinGW toolchain and Qt. QT_HOST_PATH
+      # points at the Linux Qt, whose moc/rcc/uic run during the build.
+      - name: Configure
+        run: >
+          mingw64-cmake -S . -B build-windows -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DQT_HOST_PATH=/usr
+          -DCMAKE_CROSSCOMPILING_EMULATOR=wine
+
+      - name: Build
+        run: cmake --build build-windows
+
+      # ctest starts each test through the emulator (Wine). The Windows Qt plugins are only
+      # needed here, so their path is set for this step and not for the Linux job.
+      - name: Test
+        run: QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" ctest --test-dir build-windows --output-on-failure

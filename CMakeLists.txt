@@ -84,14 +84,20 @@ qt_add_executable(Aion
 )
 # The .exe icon in Win Explorer, made from the logo during the build (tools/makeico), so it always
 # matches assets/aion-logo.svg. The helper runs in Qt's bin folder, so Windows finds Qt's DLLs.
+# When cross-compiling (CI builds Windows on Linux) the helper is a Windows program too, so it
+# runs through CMAKE_CROSSCOMPILING_EMULATOR (Wine).
 if(WIN32)
     add_executable(aion_makeico tools/makeico/makeico.cpp)
     target_link_libraries(aion_makeico PRIVATE Qt::Gui Qt::Svg)
     set(AION_ICON ${CMAKE_CURRENT_BINARY_DIR}/generated/aion.ico)
     set(AION_LOGO ${CMAKE_CURRENT_SOURCE_DIR}/assets/aion-logo.svg)
+    set(AION_MAKEICO_LAUNCHER "")
+    if(CMAKE_CROSSCOMPILING)
+        set(AION_MAKEICO_LAUNCHER ${CMAKE_CROSSCOMPILING_EMULATOR})
+    endif()
     add_custom_command(
         OUTPUT ${AION_ICON}
-        COMMAND $<TARGET_FILE:aion_makeico> ${AION_LOGO} ${AION_ICON}
+        COMMAND ${AION_MAKEICO_LAUNCHER} $<TARGET_FILE:aion_makeico> ${AION_LOGO} ${AION_ICON}
         WORKING_DIRECTORY $<TARGET_FILE_DIR:Qt::Core>
         DEPENDS aion_makeico ${AION_LOGO}
         COMMENT "Making aion.ico from the logo"
