@@ -59,10 +59,16 @@ jobs:
       - name: Test
         run: QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" ctest --test-dir build-windows --output-on-failure
 
-      # A test that crashes under Wine loses its buffered output, and the image hides Wine's own
-      # messages (WINEDEBUG=-all). Rerun the failed ones with the exit code and Wine's errors shown.
+      # Under Wine without a console, Qt Test's output goes to the Windows debug output and not
+      # into the log. Rerun each failed test with its results written to a file, and print that.
       - name: Details of failed tests
         if: failure()
-        run: >
-          QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" WINEDEBUG=err+all,+seh
-          ctest --test-dir build-windows --rerun-failed --output-on-failure --verbose 2>&1 | tail -n 200
+        working-directory: build-windows
+        run: |
+          export QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins"
+          for test in $(cut -d: -f2 Testing/Temporary/LastTestsFailed.log 2>/dev/null); do
+            echo "::group::$test"
+            wine "./$test.exe" -o "$test.txt,txt" || true
+            cat "$test.txt"
+            echo "::endgroup::"
+          done
