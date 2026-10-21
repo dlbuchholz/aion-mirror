@@ -1,0 +1,31 @@
+# Builds Aion and runs the tests on every push to develop and every pull request.
+# Runs on the self-hosted runner (label linux-qt: Fedora with Qt 6, see the runner's Dockerfile).
+name: Build and test
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: linux-qt
+    steps:
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      # The job runs as another user than the checkout belongs to; without this git refuses
+      # to read the repository and the About page would show the commit as "unknown"
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
