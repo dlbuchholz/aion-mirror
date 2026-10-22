@@ -80,3 +80,28 @@ jobs:
             cat "$test.txt"
             echo "::endgroup::"
           done
+
+      # A zip that runs on any Windows PC, for pushes to develop (not for pull requests)
+      - name: Package
+        id: package
+        if: github.event_name == 'push'
+        run: |
+          zip=$(bash scripts/package-windows.sh build-windows dist)
+          echo "name=$(basename "$zip" .zip)" >> "$GITHUB_OUTPUT"
+
+      # Start the packaged Aion with nothing but the package's own files: no MinGW folder on the
+      # DLL path, no plugin path. A missing DLL or platform plugin fails here.
+      - name: Check the package starts
+        if: github.event_name == 'push'
+        run: |
+          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Aion.exe" --version)
+          echo "$output"
+          grep -q '^Aion ' <<< "$output"
+
+      # Downloads as a zip of the package folder, from the run's page on Codeberg
+      - name: Upload the package
+        if: github.event_name == 'push'
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: dist/${{ steps.package.outputs.name }}/
