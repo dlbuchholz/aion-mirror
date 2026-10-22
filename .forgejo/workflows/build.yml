@@ -41,6 +41,8 @@ jobs:
   windows:
     name: Windows (MinGW)
     runs-on: linux-qt
+    outputs:
+      package: ${{ steps.package.outputs.name }}
     steps:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
@@ -105,3 +107,34 @@ jobs:
         with:
           name: ${{ steps.package.outputs.name }}
           path: dist/${{ steps.package.outputs.name }}/
+
+      # The zip itself, for the release job
+      - name: Hand the zip to the release job
+        if: github.event_name == 'push'
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: windows-zip
+          path: dist/${{ steps.package.outputs.name }}.zip
+
+  # After both builds pass on a push to develop: replace the rolling "develop" pre-release, and
+  # tag a new version from CMakeLists.txt with a draft release (scripts/publish-release.sh).
+  release:
+    name: Release
+    needs: [linux, windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: linux-qt
+    steps:
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Get the Windows zip
+        uses: https://code.forgejo.org/actions/download-artifact@v3
+        with:
+          name: windows-zip
+          path: dist
+
+      # The run's own token, unless a RELEASE_TOKEN secret is set
+      - name: Publish
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
