@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "commandline.h"
 
 #include "db/databasesession.h"
 #include "icons.h"
@@ -11,6 +12,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QStyleHints>
+#include <QTextStream>
 #include <QMessageBox>
 #include <cstdlib>
 #include <functional>
@@ -49,6 +51,16 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     // Only the version: setting the application/organization name would move the AppData folder
     QApplication::setApplicationVersion(AION_VERSION);
+
+    // --version and --help, before anything opens a database
+    if (argc > 1) {
+        CommandLine::attachToParentConsole();
+    }
+    QTextStream out(stdout);
+    if (const int exitCode = CommandLine::handle(QApplication::arguments(), out); exitCode >= 0) {
+        return exitCode;
+    }
+
     QApplication::setWindowIcon(Icons::appIcon());   // Every window and the taskbar
     if (!openStartupDatabase()) {
         QMessageBox::critical(nullptr, "Database Error",

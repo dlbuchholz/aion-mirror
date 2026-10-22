@@ -14,10 +14,6 @@ set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_DIR}")
 file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${UI_DIR}/*.ui")
 include_directories(${SRC_DIR})
 
-# Define paths
-set(SQL_MIGRATIONS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/db/migrations")
-set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
-
 # Git commit for the About page. Read when CMake configures, so it can lag behind
 # until the next configure (Qt Creator re-runs CMake when CMakeLists.txt changes).
 set(AION_GIT_COMMIT "unknown")
@@ -60,8 +56,6 @@ endif()
 add_library(AionLib STATIC ${SRC_FILES})
 target_link_libraries(AionLib PUBLIC aion_warnings)   # The app and the tests get the same warnings
 target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
-target_compile_definitions(AionLib PUBLIC SQL_MIGRATIONS_DIR="${SQL_MIGRATIONS_DIR}")
-target_compile_definitions(AionLib PUBLIC ASSETS_DIR="${ASSETS_DIR}")
 target_link_libraries(AionLib PUBLIC
     Qt::Core
     Qt::Widgets
@@ -76,6 +70,16 @@ qt_add_resources(AionLib "icons"
     PREFIX "/"
     BASE "assets"
     FILES ${ICON_FILES}
+)
+
+# The database migrations too (:/migrations/<file>.sql), so Aion needs no files next to the
+# program. CONFIGURE_DEPENDS picks up new migration files.
+file(GLOB MIGRATION_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/db/migrations/*.sql")
+qt_add_resources(AionLib "migrations"
+    PREFIX "/"
+    BASE "db"
+    FILES ${MIGRATION_FILES}
 )
 
 qt_add_executable(Aion
@@ -109,10 +113,6 @@ if(WIN32)
 endif()
 
 target_link_libraries(Aion PRIVATE AionLib)
-
-# Print the path for debugging purposes
-message(STATUS "SQL Migrations Directory: ${SQL_MIGRATIONS_DIR}")
-install(DIRECTORY ${SQL_MIGRATIONS_DIR} DESTINATION migrations)
 
 include(GNUInstallDirs)
 

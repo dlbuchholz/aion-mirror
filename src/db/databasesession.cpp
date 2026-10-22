@@ -40,7 +40,7 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
         if (errorMessage) *errorMessage = "This file belongs to another program, not Aion.";
         return false;
     }
-    if (!MigrationManager(SQL_MIGRATIONS_DIR).applyMigrations()) {
+    if (!MigrationManager(BuiltInMigrations).applyMigrations()) {
         manager.closeDatabase();
         if (errorMessage) *errorMessage = "The database couldn't be updated to the current version. See the log for details.";
         return false;

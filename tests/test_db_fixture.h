@@ -34,7 +34,7 @@ public:
 
         QVERIFY2(DatabaseManager::instance().openDatabase(templatePath), "open template db failed");
 
-        MigrationManager mm(SQL_MIGRATIONS_DIR);
+        MigrationManager mm(BuiltInMigrations);
         QVERIFY2(mm.applyMigrations(), "migrations failed");
 
         DatabaseManager::instance().closeDatabase();

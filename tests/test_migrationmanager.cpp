@@ -54,7 +54,7 @@ private slots:
     void partiallyInitializedVersionOneCanRecover() {
         QTemporaryDir root;
         QVERIFY(root.isValid());
-        QVERIFY(QFile::copy(QString(SQL_MIGRATIONS_DIR) + "/001_initial_schema.sql",
+        QVERIFY(QFile::copy(BuiltInMigrations + "/001_initial_schema.sql",
                             root.filePath("001_initial_schema.sql")));
         QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
 

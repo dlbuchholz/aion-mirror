@@ -254,7 +254,7 @@ private slots:
         AccountDAO dao;
         const auto all = dao.getAllAccountTypes(1);
 
-        QVERIFY2(!all.isEmpty(), "Expected seeded account types from migrations");
+        QVERIFY2(!all.isEmpty(), "Expected the user's default account types");
 
         bool foundChecking = false;
         for (const auto& p : all) {

@@ -4,6 +4,9 @@
 #include <QString>
 #include <QVector>
 
+// The migrations built into Aion (db/migrations as Qt resources)
+inline const QString BuiltInMigrations = QStringLiteral(":/migrations");
+
 class MigrationManager {
 public:
     explicit MigrationManager(const QString& migrationDir);
