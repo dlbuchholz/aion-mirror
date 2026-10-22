@@ -211,6 +211,9 @@ public:
 
     std::function<void(const QModelIndex&, Qt::KeyboardModifiers)> onHeaderClicked;
     bool checkboxesEnabled = false;
+    // Keys held during the click that emits clicked(), from the event itself (like
+    // selectionCommand), not from the app-wide state, which can lag behind the event
+    Qt::KeyboardModifiers clickModifiers;
 
 protected:
     // Only Ctrl/Shift change the selection. A plain click opens the row (and clears an existing
@@ -256,6 +259,7 @@ protected:
             consumedPress = false;                   // Don't emit clicked() for checkbox or header presses
             return;
         }
+        clickModifiers = event->modifiers();         // clicked() is emitted during the release
         QListView::mouseReleaseEvent(event);
     }
 
@@ -422,8 +426,8 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     listView->setFrameShape(QFrame::StyledPanel);
     connect(listView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TransactionsPage::onSelectionChanged);
     // A plain click (or Enter) on a row opens it; Ctrl/Shift-clicks only extend the selection
-    connect(listView, &QListView::clicked, this, [this](const QModelIndex& index) {
-        if (!(QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier))) {
+    connect(listView, &QListView::clicked, this, [this, transactionList](const QModelIndex& index) {
+        if (!(transactionList->clickModifiers & (Qt::ControlModifier | Qt::ShiftModifier))) {
             openEditor(index);
         }
     });
