@@ -125,3 +125,37 @@ the build folder.
   warn about different things, and CI builds with GCC.
 - Run the whole test suite.
 - If you add code to `src/`, add or update tests in `tests/`.
+
+## Builds and releases
+
+CI runs on Codeberg ([.forgejo/workflows/build.yml](.forgejo/workflows/build.yml)), on a
+self-hosted runner with the label `linux-qt`: a Fedora image with Qt for Linux, Qt for MinGW and
+Wine.
+
+- **Every push and pull request to `develop`:** Linux is built and tested, and Windows is
+  cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
+- **Pushes to `develop` also:**
+  - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)), check that
+    it starts with only its own files, and attach it to the run;
+  - update the releases ([scripts/publish-release.sh](scripts/publish-release.sh)).
+
+If Aion starts using a Qt module it didn't use before, add it to the plugin table in
+`package-windows.sh`. The packaging stops and says so until you do.
+
+### Releases
+
+- **Development build:** the pre-release `develop` always has the latest build of `develop`.
+- **Versions:** the version in `CMakeLists.txt` (`project(Aion VERSION …)`) has a **draft** release
+  with the tag `v<version>`. Until it's published, every push moves the tag to the new commit and
+  replaces the zip. Notes written in the draft are saved.
+
+To release:
+
+1. Make sure the last run on `develop` passed. The draft then has that commit's build.
+2. On Codeberg, open the draft under **Releases**, write the release notes, and click **Publish**.
+   The release and its tag stay as they are from then on.
+3. Raise the version in `CMakeLists.txt` for the next release and push. That starts its draft.
+   Raising it early is fine, since a draft is only published by hand.
+
+Note: Releases use the run's own token. If that may not create tags and releases, add a Codeberg access
+token with the permission "write: repository" as the repository secret `RELEASE_TOKEN` to your fork.

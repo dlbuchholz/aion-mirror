@@ -8,8 +8,11 @@
 #   RELEASE_TOKEN                                      a token allowed to create tags and releases
 #
 # 1. The rolling pre-release "develop" is replaced: always the newest build, at the same address.
-# 2. If the version in CMakeLists.txt has no tag yet, the tag v<version> is created on this commit
-#    with a draft release "Aion <version>". Add notes on Codeberg and publish it from there.
+# 2. The version in CMakeLists.txt gets a draft release "Aion <version>" with its tag. Until you
+#    publish it on Codeberg, every push moves the tag to the new commit and replaces the files,
+#    keeping the notes written in the draft. Once published, it's left alone.
+#
+# JSON is read and written with Node (the build image has it for the CI actions).
 set -euo pipefail
 
 rolling_tag=develop
@@ -36,39 +39,58 @@ call() {
     rm -f "$body"
 }
 
-# The first "id" in a JSON response (a release's own id comes first)
-id_of() { sed -n 's/^{"id":\([0-9]*\).*/\1/p'; }
+post_json() { call POST "$1" -H 'Content-Type: application/json' -d "$2"; }
 
-# Creates a release for an existing tag and uploads the files to it
+# Runs a JavaScript expression on the JSON from stdin (as "json"); prints the result
+json() {
+    node -e 'let input = ""; process.stdin.on("data", c => input += c).on("end", () => {
+        const json = JSON.parse(input || "null"), args = process.argv.slice(1);
+        const result = eval(args[0]);
+        if (result !== undefined && result !== null) console.log(result);
+    });' "$@"
+}
+
+# The release for a tag as {"id","draft","body"}, or nothing. Lists releases because drafts
+# aren't found by tag.
+find_release() {
+    call GET "/releases?limit=50" | json 'JSON.stringify(json.find(r => r.tag_name === args[1]) ?? null)' "$1" \
+        | grep -v '^null$' || true
+}
+
+# Puts the tag on this commit (anew) and creates its release with the files
 create_release() {
-    local json=$1 release_id file
-    release_id=$(call POST /releases -H 'Content-Type: application/json' -d "$json" | id_of)
+    local tag=$1 name=$2 body=$3 draft=$4 prerelease=$5 release_id file
+    ALLOW=404 call DELETE "/tags/$tag" > /dev/null
+    post_json /tags "$(json 'JSON.stringify({tag_name: args[1], target: args[2]})' "$tag" "$GITHUB_SHA" <<< '{}')" > /dev/null
+    release_id=$(post_json /releases "$(json 'JSON.stringify({tag_name: args[1], name: args[2], body: args[3],
+        draft: args[4] === "true", prerelease: args[5] === "true"})' "$tag" "$name" "$body" "$draft" "$prerelease" <<< '{}')" \
+        | json 'json.id')
     for file in "${files[@]}"; do
-        call POST "/releases/$release_id/assets?name=$(basename "$file")" \
-             -F "attachment=@$file" > /dev/null
+        call POST "/releases/$release_id/assets?name=$(basename "$file")" -F "attachment=@$file" > /dev/null
     done
 }
 
-# 1. Rolling pre-release: remove the old one and its tag, create both anew on this commit
-old_id=$(ALLOW=404 call GET "/releases/tags/$rolling_tag" | id_of)
-if [[ -n $old_id ]]; then
-    call DELETE "/releases/$old_id" > /dev/null
+# 1. Rolling pre-release: replace it on this commit
+old=$(find_release "$rolling_tag")
+if [[ -n $old ]]; then
+    call DELETE "/releases/$(json 'json.id' <<< "$old")" > /dev/null
 fi
-ALLOW=404 call DELETE "/tags/$rolling_tag" > /dev/null
-call POST /tags -H 'Content-Type: application/json' \
-     -d "{\"tag_name\":\"$rolling_tag\",\"target\":\"$GITHUB_SHA\"}" > /dev/null
-create_release "{\"tag_name\":\"$rolling_tag\",\"name\":\"Development build\",\"prerelease\":true,
-\"body\":\"The newest build of the develop branch, from commit $short_sha ($(date -u +%Y-%m-%d)). For trying out new things: it can have bugs, so don't use it with your only copy of real data.\"}"
+create_release "$rolling_tag" "Development build" \
+    "The newest build of the develop branch, from commit $short_sha ($(date -u +%Y-%m-%d)). For trying out new things: it can have bugs, so don't use it with your only copy of real data." \
+    false true
 echo "Updated the $rolling_tag pre-release"
 
-# 2. A new version: tag it and prepare a draft release
-existing=$(ALLOW=404 call GET "/tags/v$version")
-if [[ $existing == *'"name"'* ]]; then
-    echo "v$version is already tagged"
-else
-    call POST /tags -H 'Content-Type: application/json' \
-         -d "{\"tag_name\":\"v$version\",\"target\":\"$GITHUB_SHA\",\"message\":\"Aion $version\"}" > /dev/null
-    create_release "{\"tag_name\":\"v$version\",\"name\":\"Aion $version\",\"draft\":true,
-\"body\":\"Release notes go here.\"}"
-    echo "Tagged v$version and created a draft release; publish it on Codeberg"
+# 2. The version's draft: create it, or move it to this commit keeping its notes
+tag="v$version"
+release=$(find_release "$tag")
+notes="Release notes go here."
+if [[ -n $release ]]; then
+    if [[ $(json 'json.draft' <<< "$release") != true ]]; then
+        echo "$tag is published already; raise the version in CMakeLists.txt for the next one"
+        exit 0
+    fi
+    notes=$(json 'json.body' <<< "$release")
+    call DELETE "/releases/$(json 'json.id' <<< "$release")" > /dev/null
 fi
+create_release "$tag" "Aion $version" "$notes" true false
+echo "The draft for $tag is now at $short_sha; publish it on Codeberg when it's ready"
