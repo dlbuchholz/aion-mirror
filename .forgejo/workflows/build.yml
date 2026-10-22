@@ -55,9 +55,11 @@ jobs:
         run: cmake --build build-windows
 
       # ctest starts each test through the emulator (Wine). The Windows Qt plugins are only
-      # needed here, so their path is set for this step and not for the Linux job.
+      # needed here, so their path is set for this step and not for the Linux job. Under Wine Qt
+      # draws real Windows windows, so xvfb-run gives Wine a virtual screen for tests that wait
+      # for a window to appear.
       - name: Test
-        run: QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" ctest --test-dir build-windows --output-on-failure
+        run: QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" xvfb-run -a ctest --test-dir build-windows --output-on-failure
 
       # Under Wine without a console, Qt Test's output goes to the Windows debug output and not
       # into the log. Rerun each failed test with its results written to a file, and print that.
@@ -68,7 +70,7 @@ jobs:
           export QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins"
           for test in $(cut -d: -f2 Testing/Temporary/LastTestsFailed.log 2>/dev/null); do
             echo "::group::$test"
-            wine "./$test.exe" -o "$test.txt,txt" || true
+            xvfb-run -a wine "./$test.exe" -o "$test.txt,txt" || true
             cat "$test.txt"
             echo "::endgroup::"
           done
