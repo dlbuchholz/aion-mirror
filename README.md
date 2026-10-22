@@ -21,6 +21,8 @@ cmake --build build
 ctest --test-dir build
 ```
 
+To set up your development environment (CLion or Qt Creator) and to pick a compiler that matches your Qt kit see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 To update the coverage report (Windows, MSVC debug build, [OpenCppCoverage](https://github.com/OpenCppCoverage/OpenCppCoverage)):
 
 ```
