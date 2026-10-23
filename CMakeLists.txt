@@ -48,6 +48,16 @@ else()
     target_compile_options(aion_warnings INTERFACE -Wall -Wextra -Wpedantic $<$<BOOL:${AION_WARNINGS_AS_ERRORS}>:-Werror>)
 endif()
 
+# AION_COVERAGE builds with GCC's coverage counters, for scripts/coverage.sh (GCC or Clang only)
+option(AION_COVERAGE "Build with coverage counters (GCC/Clang)" OFF)
+if(AION_COVERAGE)
+    if(MSVC)
+        message(FATAL_ERROR "AION_COVERAGE needs GCC or Clang")
+    endif()
+    target_compile_options(aion_warnings INTERFACE --coverage -O0 -g)
+    target_link_options(aion_warnings INTERFACE --coverage)
+endif()
+
 # MSVC's incremental linking reuses the .ilk files of earlier links and has produced test
 # programs that crash on start until relinked from scratch. Full links are quick here.
 if(MSVC)

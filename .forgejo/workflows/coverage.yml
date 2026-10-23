@@ -1,0 +1,76 @@
+# Measures test coverage nightly (scripts/coverage.sh) and commits COVERAGE.md and the badge to
+# develop when the report changed. Skips the night when develop has no new commits since the
+# measured one, apart from documentation (which includes the coverage commits themselves).
+# Can also be started by hand ("Run workflow" on the Actions page).
+name: Coverage
+
+on:
+  schedule:
+    - cron: '0 4 * * *'                  # UTC, after the nightly packaging at 03:00
+  workflow_dispatch:
+
+concurrency:
+  group: coverage
+  cancel-in-progress: false
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: linux-qt
+    timeout-minutes: 45
+    steps:
+      # The whole history, to compare with the measured commit. The token may push to develop:
+      # RELEASE_TOKEN if set, otherwise the run's own.
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # COVERAGE.md names the commit it measured. Nothing to do if only documentation changed since.
+      - name: Check for new commits
+        id: plan
+        run: |
+          measured=$(sed -n 's/^<!-- Measured at \([0-9a-f]\{40\}\) .*/\1/p' COVERAGE.md)
+          run=true
+          if [[ $GITHUB_EVENT_NAME == schedule && -n $measured ]] && git cat-file -e "$measured^{commit}" 2>/dev/null \
+              && ! git diff --name-only "$measured" HEAD | grep -qvE '\.md$|^docs/'; then
+            echo "Nothing but documentation changed since $measured, nothing to measure"
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Configure
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          command -v gcovr > /dev/null || dnf -y -q install gcovr
+          cmake -S . -B build-coverage -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_COVERAGE=ON
+
+      - name: Build
+        if: steps.plan.outputs.run == 'true'
+        run: cmake --build build-coverage
+
+      - name: Measure
+        if: steps.plan.outputs.run == 'true'
+        run: bash scripts/coverage.sh build-coverage --publish
+
+      # Commit only when the report changed apart from its first lines (the measured commit and the
+      # date), so a night without changes to the code's coverage leaves no commit
+      - name: Commit the report
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          strip() { sed -e '/^<!-- Measured at /d' -e '/^\*\*[0-9]*%\*\*/d'; }
+          if git show HEAD:COVERAGE.md | strip | cmp -s - <(strip < COVERAGE.md) \
+              && git diff --quiet -- docs/coverage-badge.svg; then
+            echo "The report didn't change"
+            git checkout -- COVERAGE.md docs/coverage-badge.svg
+            exit 0
+          fi
+          git config user.name "Aion CI"
+          git config user.email "ci@aion.invalid"
+          git add COVERAGE.md docs/coverage-badge.svg
+          git commit -m "docs: update test coverage"
+          git push origin HEAD:develop
