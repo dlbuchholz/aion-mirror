@@ -3,14 +3,16 @@
 #
 #   scripts/publish-release.sh <file>...
 #
-# Run by CI after a successful push to develop, with these set (CI provides the first three):
+# Run by CI after a successful publishing run on develop (nightly or by hand), with these set
+# (CI provides the first three):
 #   GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_SHA   where and which commit
 #   RELEASE_TOKEN                                      a token allowed to create tags and releases
+#   PREPARE_DRAFT                                      "true" to do step 2 as well
 #
 # 1. The rolling pre-release "staging" is replaced: always the newest build, at the same address.
 # 2. The version in CMakeLists.txt gets a draft release "Aion <version>" with its tag. Until you
-#    publish it on Codeberg, every push moves the tag to the new commit and replaces the files,
-#    keeping the notes written in the draft. Once published, it's left alone.
+#    publish it on Codeberg, every run that prepares it moves the tag to the new commit and
+#    replaces the files, keeping the notes written in the draft. Once published, it's left alone.
 #
 # JSON is read and written with Node (the build image has it for the CI actions).
 set -euo pipefail
@@ -81,6 +83,10 @@ create_release "$rolling_tag" "Development build" \
 echo "Updated the $rolling_tag pre-release"
 
 # 2. The version's draft: create it, or move it to this commit keeping its notes
+if [[ ${PREPARE_DRAFT:-} != true ]]; then
+    echo "Left the draft release alone (prepare it with \"Run workflow\" on the Actions page)"
+    exit 0
+fi
 tag="v$version"
 release=$(find_release "$tag")
 notes="Release notes go here."

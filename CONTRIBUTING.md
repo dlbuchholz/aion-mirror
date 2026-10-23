@@ -140,14 +140,18 @@ self-hosted runner with two build images:
 
 - **Every push and pull request to `develop`:** Linux is built and tested, and Windows is
   cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
-- **Pushes to `develop` also:**
-  - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)), check that
-    it starts with only its own files, and attach it to the run;
+- **Publishing runs**, nightly (03:00 UTC, only when `develop` changed since the last `staging`
+  build) and when started by hand with **Run workflow** on the Actions page, also:
+  - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)) and check
+    that it starts with only its own files;
   - build the installer ([installer/aion.nsi](installer/aion.nsi), NSIS), and check that it installs,
     starts and uninstalls under Wine;
   - pack the AppImage ([scripts/package-appimage.sh](scripts/package-appimage.sh)) and check that it
     starts;
-  - update the releases ([scripts/publish-release.sh](scripts/publish-release.sh)).
+  - update the releases ([scripts/publish-release.sh](scripts/publish-release.sh)): always the
+    `staging` pre-release, the version's draft only when started by hand with the box ticked.
+
+Packaging only in these runs saves the runner and Codeberg from packing and uploading every push.
 
 If Aion starts using a Qt module it didn't use before, add it to the plugin table in
 `package-windows.sh`. The packaging stops and says so until you do.
@@ -193,18 +197,22 @@ To undo: restore `data/runner-config.yml.bak` and restart the runner, and remove
 
 ### Releases
 
-- **Development build:** the pre-release `staging` always has the latest build of `develop`.
+- **Development build:** the pre-release `staging` has the latest build of `develop`, at most a day
+  old. For a newer one, start **Run workflow** on the Actions page.
 - **Versions:** the version in `CMakeLists.txt` (`project(Aion VERSION …)`) has a **draft** release
-  with the tag `v<version>`. Until it's published, every push moves the tag to the new commit and
-  replaces the zip. Notes written in the draft are saved.
+  with the tag `v<version>`. Until it's published, every run started by hand with **Also prepare
+  the draft release** ticked moves the tag to the new commit and replaces the files. Notes written
+  in the draft are saved.
 
 To release:
 
-1. Make sure the last run on `develop` passed. The draft then has that commit's build.
-2. On Codeberg, open the draft under **Releases**, write the release notes, and click **Publish**.
+1. On Codeberg, open **Actions**, choose the workflow, click **Run workflow** on `develop` with
+   **Also prepare the draft release** ticked, and wait for it to pass. The draft then has that
+   commit's build.
+2. Open the draft under **Releases**, write the release notes, and click **Publish**.
    The release and its tag stay as they are from then on.
-3. Raise the version in `CMakeLists.txt` for the next release and push. That starts its draft.
-   Raising it early is fine, since a draft is only published by hand.
+3. Raise the version in `CMakeLists.txt` for the next release. Its draft is made the next time you
+   prepare one. Raising it early is fine, since a draft is only published by hand.
 
 Note: Releases use the run's own token. If that may not create tags and releases, add a Codeberg access
 token with the permission "write: repository" as the repository secret `RELEASE_TOKEN` to your fork.

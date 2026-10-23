@@ -1,4 +1,6 @@
 # Builds Aion and runs the tests on every push to develop and every pull request.
+# Packages and publishes it (the "staging" pre-release) nightly when develop changed, and when
+# started by hand ("Run workflow" on the Actions page), which can also prepare the version's draft.
 # Runs on the self-hosted runner (label linux-qt: Fedora with Qt 6, see the runner's Dockerfile).
 name: Build and test
 
@@ -7,16 +9,62 @@ on:
     branches: [develop]
   pull_request:
     branches: [develop]
+  schedule:
+    - cron: '0 3 * * *'                  # UTC, on the default branch (develop)
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Also prepare the draft release of the version in CMakeLists.txt
+        type: boolean
+        default: false
 
 # Only the latest commit of a branch (or pull request) matters: a new push cancels the run
-# that is still going for an older one
+# that is still going for an older one. Publishing runs have their own group, so a push doesn't
+# cancel the nightly packaging.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'publish' || 'test' }}
   cancel-in-progress: true
 
 jobs:
+  # Decides what this run does: build (always, except a nightly run when staging already has this
+  # commit), publish (nightly and by hand) and prepare the draft (by hand, when ticked)
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      publish: ${{ steps.plan.outputs.publish }}
+      draft: ${{ steps.plan.outputs.draft }}
+    steps:
+      # The whole history with its tags, to find the commit staging was built from
+      - name: Check out
+        if: github.event_name == 'schedule'
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Plan
+        id: plan
+        env:
+          PUBLISH: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+          DRAFT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' }}
+        run: |
+          build=true
+          if [[ $GITHUB_EVENT_NAME == schedule ]]; then
+            staging=$(git -c safe.directory='*' rev-parse -q --verify 'refs/tags/staging^{commit}' || true)
+            if [[ $staging == "$GITHUB_SHA" ]]; then
+              echo "staging is at $GITHUB_SHA already, nothing to do"
+              build=false
+            fi
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
+
   linux:
     name: Linux
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: linux-qt
     steps:
       - name: Check out
@@ -40,6 +88,8 @@ jobs:
   # so it runs on older distributions too. Also tests with that Qt version.
   appimage:
     name: Linux (AppImage)
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: linux-appimage
     outputs:
       package: ${{ steps.package.outputs.name }}
@@ -61,14 +111,14 @@ jobs:
 
       - name: Package
         id: package
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         run: |
           appimage=$(bash scripts/package-appimage.sh build dist)
           echo "name=$(basename "$appimage" .AppImage)" >> "$GITHUB_OUTPUT"
 
       # Start the AppImage outside the build folder, so only its own libraries are used
       - name: Check the AppImage starts
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         run: |
           output=$(cd /tmp && "$GITHUB_WORKSPACE/dist/${{ steps.package.outputs.name }}.AppImage" --version)
           echo "$output"
@@ -76,7 +126,7 @@ jobs:
 
       # Kept for a day only: the release has it
       - name: Hand the AppImage to the release job
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
           name: linux-release
@@ -87,6 +137,8 @@ jobs:
   # built here are Windows .exe files, so the icon helper and the tests run under Wine.
   windows:
     name: Windows (MinGW)
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: linux-qt
     outputs:
       package: ${{ steps.package.outputs.name }}
@@ -130,10 +182,10 @@ jobs:
             echo "::endgroup::"
           done
 
-      # A zip that runs on any Windows PC, for pushes to develop (not for pull requests)
+      # A zip that runs on any Windows PC, in publishing runs (nightly and by hand)
       - name: Package
         id: package
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         run: |
           zip=$(bash scripts/package-windows.sh build-windows dist)
           echo "name=$(basename "$zip" .zip)" >> "$GITHUB_OUTPUT"
@@ -141,7 +193,7 @@ jobs:
       # Start the packaged Aion with nothing but the package's own files: no MinGW folder on the
       # DLL path, no plugin path. A missing DLL or platform plugin fails here.
       - name: Check the package starts
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         run: |
           output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Aion.exe" --version)
           echo "$output"
@@ -150,7 +202,7 @@ jobs:
       # The installer (installer/aion.nsi), from the packaged folder. NSIS comes from Fedora; it's
       # installed here unless the build image has it already.
       - name: Build the installer
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         run: |
           command -v makensis > /dev/null || dnf -y -q install mingw32-nsis
           name=${{ steps.package.outputs.name }}
@@ -162,7 +214,7 @@ jobs:
       # Install silently, start the installed Aion with only its own files, uninstall, and check
       # that the folder is gone. wineserver -w waits for the uninstaller, which runs from a copy.
       - name: Check the installer
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         run: |
           folder="$WINEPREFIX/drive_c/AionTest/Aion"
           xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\AionTest\Aion'
@@ -179,7 +231,7 @@ jobs:
 
       # The zip and the installer, for the release job. Kept for a day only: the release has them.
       - name: Hand the files to the release job
-        if: github.event_name == 'push'
+        if: needs.plan.outputs.publish == 'true'
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
           name: windows-release
@@ -188,12 +240,13 @@ jobs:
             dist/${{ steps.package.outputs.name }}.zip
             dist/${{ steps.package.outputs.name }}-setup.exe
 
-  # After all builds pass on a push to develop: replace the rolling "staging" pre-release, and
-  # tag a new version from CMakeLists.txt with a draft release (scripts/publish-release.sh).
+  # After all builds pass in a publishing run on develop: replace the rolling "staging"
+  # pre-release, and, when ticked, tag a new version from CMakeLists.txt with a draft release
+  # (scripts/publish-release.sh).
   release:
     name: Release
-    needs: [linux, appimage, windows]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [plan, linux, appimage, windows]
+    if: needs.plan.outputs.publish == 'true' && github.ref == 'refs/heads/develop'
     runs-on: linux-qt
     steps:
       - name: Check out
@@ -215,6 +268,7 @@ jobs:
       - name: Publish
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          PREPARE_DRAFT: ${{ needs.plan.outputs.draft }}
         run: >
           bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
           dist/${{ needs.windows.outputs.package }}-setup.exe
