@@ -31,11 +31,16 @@ ctest --test-dir build
 
 To set up your development environment (CLion or Qt Creator) and to pick a compiler that matches your Qt kit see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-To update the coverage report (Windows, MSVC debug build, [OpenCppCoverage](https://github.com/OpenCppCoverage/OpenCppCoverage)):
+The coverage report is measured nightly by CI. To measure it yourself (GCC or Clang, with
+[gcovr](https://gcovr.com)):
 
 ```
-.\scripts\coverage.ps1 -BuildDir <build folder> -QtBin <Qt bin folder> -Publish
+cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -DAION_COVERAGE=ON -DCMAKE_PREFIX_PATH=<path to Qt>
+cmake --build build-coverage
+scripts/coverage.sh build-coverage
 ```
+
+`--publish` also rewrites `COVERAGE.md` and the badge.
 
 ## License
 

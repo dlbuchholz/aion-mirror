@@ -13,7 +13,7 @@ see [Building](README.md#building) in the README.
 ## Choosing a compiler (Windows)
 
 Aion builds with MSVC and with MinGW. CI builds Linux and a MinGW build for Windows, and the coverage
-script needs MSVC. Use whichever you like. The one rule is that the compiler has to match the Qt kit
+script needs GCC or Clang. Use whichever you like. The one rule is that the compiler has to match the Qt kit
 you build against, because Qt's libraries only link with the compiler they were built with:
 
 | Qt kit | Compiler |
@@ -151,6 +151,10 @@ self-hosted runner with two build images:
     starts;
   - update the releases ([scripts/publish-release.sh](scripts/publish-release.sh)): always the
     `staging` pre-release, the version's draft only when started by hand with the box ticked.
+- **Coverage**, nightly (04:00 UTC, [.forgejo/workflows/coverage.yml](.forgejo/workflows/coverage.yml),
+  only when more than documentation changed since the measured commit): builds with
+  `-DAION_COVERAGE=ON`, runs [scripts/coverage.sh](scripts/coverage.sh) and commits `COVERAGE.md`
+  and the badge to `develop` as "Aion CI" when the report changed. That commit doesn't start a build.
 
 Packaging only in these runs saves the runner and Codeberg from packing and uploading every push.
 

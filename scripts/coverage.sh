@@ -23,6 +23,7 @@ publish=false
 [[ ${2:-} == --publish ]] && publish=true
 repo=$(realpath "$(dirname "$0")/..")
 output="$build_dir/coverage"
+jobs=$(nproc 2>/dev/null || echo 2)                  # gcovr reads the object files in parallel
 
 command -v gcovr > /dev/null || { echo "gcovr not found (dnf install gcovr, or pip install gcovr)" >&2; exit 1; }
 grep -q '^AION_COVERAGE:BOOL=ON' "$build_dir/CMakeCache.txt" 2>/dev/null \
@@ -33,25 +34,29 @@ mapfile -t tests < <(ctest --test-dir "$build_dir" -N | sed -n 's/^ *Test *#[0-9
 ((${#tests[@]})) || { echo "No tests found in $build_dir; build it first" >&2; exit 1; }
 
 rm -rf "$output"
-mkdir -p "$output/suites"
+mkdir -p "$output/suites" "$output/html"
 failed=()
 for test in "${tests[@]}"; do
     echo "Running $test"
     # Counters from earlier runs would count for this suite too
     find "$build_dir" -name '*.gcda' -delete
     ctest --test-dir "$build_dir" -R "^$test\$" > "$output/suites/$test.log" 2>&1 || failed+=("$test")
-    gcovr --root "$repo" --filter "$repo/src/" --json "$output/suites/$test.json" "$build_dir" > /dev/null
+    gcovr -j "$jobs" --root "$repo" --filter "$repo/src/" --json "$output/suites/$test.json" "$build_dir" > /dev/null
     # QtTest lists a program's test functions with -functions
     "$build_dir/$test" -functions > "$output/suites/$test.functions" 2>/dev/null || true
 done
 
-gcovr --root "$repo" --add-tracefile "$output/suites/*.json" \
-      --html-details "$output/html/index.html" > /dev/null
+tracefiles=()
+for json in "$output"/suites/*.json; do tracefiles+=(--add-tracefile "$json"); done
+gcovr --root "$repo" "${tracefiles[@]}" --html-details "$output/html/index.html" > /dev/null
 
 commit=$(git -C "$repo" rev-parse HEAD 2>/dev/null || true)
 dirty=$(git -C "$repo" status --porcelain --untracked-files=no 2>/dev/null || true)
 
-python3 - "$repo" "$output/suites" "$publish" "$commit" "${dirty:+modified}" <<'PYTHON'
+# python3 on Linux; stupidly, on Windows that name can be a stub pointing to the Microsoft Store 😒
+python=python3
+python3 -c '' 2>/dev/null || python=python
+"$python" - "$repo" "$output/suites" "$publish" "$commit" "${dirty:+modified}" <<'PYTHON'
 import datetime, json, math, pathlib, re, sys
 
 repo, suites_dir, publish, commit, dirty = sys.argv[1:6]
