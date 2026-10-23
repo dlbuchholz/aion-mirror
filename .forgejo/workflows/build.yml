@@ -108,13 +108,45 @@ jobs:
           name: ${{ steps.package.outputs.name }}
           path: dist/${{ steps.package.outputs.name }}/
 
-      # The zip itself, for the release job
-      - name: Hand the zip to the release job
+      # The installer (installer/aion.nsi), from the packaged folder. NSIS comes from Fedora; it's
+      # installed here unless the build image has it already.
+      - name: Build the installer
+        if: github.event_name == 'push'
+        run: |
+          command -v makensis > /dev/null || dnf -y -q install mingw32-nsis
+          name=${{ steps.package.outputs.name }}
+          version=$(sed -n 's/^project(Aion VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          makensis -V2 -DVERSION="$version" -DSOURCE="$PWD/dist/$name" \
+                   -DICON="$PWD/build-windows/generated/aion.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
+                   installer/aion.nsi
+
+      # Install silently, start the installed Aion with only its own files, uninstall, and check
+      # that the folder is gone. wineserver -w waits for the uninstaller, which runs from a copy.
+      - name: Check the installer
+        if: github.event_name == 'push'
+        run: |
+          folder="$WINEPREFIX/drive_c/AionTest/Aion"
+          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\AionTest\Aion'
+          wineserver -w
+          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Aion.exe" --version)
+          echo "$output"
+          grep -q '^Aion ' <<< "$output"
+          xvfb-run -a wine "$folder/Uninstall.exe" /S
+          wineserver -w
+          if [[ -e $folder ]]; then
+            echo "The uninstaller left $folder behind" >&2
+            exit 1
+          fi
+
+      # The zip and the installer, for the release job
+      - name: Hand the files to the release job
         if: github.event_name == 'push'
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
-          name: windows-zip
-          path: dist/${{ steps.package.outputs.name }}.zip
+          name: windows-release
+          path: |
+            dist/${{ steps.package.outputs.name }}.zip
+            dist/${{ steps.package.outputs.name }}-setup.exe
 
   # After both builds pass on a push to develop: replace the rolling "staging" pre-release, and
   # tag a new version from CMakeLists.txt with a draft release (scripts/publish-release.sh).
@@ -127,14 +159,16 @@ jobs:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
 
-      - name: Get the Windows zip
+      - name: Get the Windows files
         uses: https://code.forgejo.org/actions/download-artifact@v3
         with:
-          name: windows-zip
+          name: windows-release
           path: dist
 
       # The run's own token, unless a RELEASE_TOKEN secret is set
       - name: Publish
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
+        run: >
+          bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
+          dist/${{ needs.windows.outputs.package }}-setup.exe
