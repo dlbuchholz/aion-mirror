@@ -3,8 +3,8 @@
 
 // Default constructor
 Transaction::Transaction()
-    : transactionId(-1), accountId(-1), payee(""), categoryId(-1), amountCents(0),
-    date(QDate::currentDate()), description(""), type("expense") {}
+    : transactionId(-1), accountId(-1), categoryId(-1), amountCents(0),
+    date(QDate::currentDate()), description(""), payee(""), type("expense") {}
 
 // Parameterized constructor
 Transaction::Transaction(int id, int accountId, const QString& payee, Cents amountCents, const QDate& date,
