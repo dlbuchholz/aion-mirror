@@ -15,6 +15,10 @@ Every push is built and tested for Linux and Windows on a CI runner dedicated to
 maintainer), so the builds don't use Codeberg's CI resources. How it works:
 [Builds and releases](CONTRIBUTING.md#builds-and-releases).
 
+Aion tries to follow the ideas of [permacomputing](https://permacomputing.net/): use as little
+computing, energy and storage as the job needs, do work only when it's needed, and keep things
+small, simple and long-lived. Feel free to suggest anything related to that.
+
 ## Building
 
 Needs Qt 6.5 or newer and CMake 3.19 or newer (newer Qt versions ask for more: Qt 6.12 needs 3.25). Open `CMakeLists.txt` in Qt Creator, or:
