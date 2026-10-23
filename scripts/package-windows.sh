@@ -101,9 +101,13 @@ if ((${#missing[@]})); then
     exit 1
 fi
 
-# Licenses: Aion's own, and where each bundled library comes from
+# Licenses: Aion's own, the icons built into Aion.exe, and where each bundled library comes from
 cp "$source_dir/LICENSE" "$stage/LICENSE.txt"
+cp "$source_dir/assets/icons/LICENSE" "$stage/LICENSE-icons.txt"
 {
+    echo "Aion.exe contains interface icons based on Tabler Icons (https://tabler.io/icons),"
+    echo "under the MIT license in LICENSE-icons.txt."
+    echo
     echo "Aion bundles these libraries. Each is the Fedora MinGW build named next to it; its"
     echo "source is available from Fedora (https://src.fedoraproject.org/rpms/<package>) and"
     echo "its license applies to that file. Qt is used under the LGPL version 3."
