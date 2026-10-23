@@ -30,10 +30,13 @@ RUN pip3 install --no-cache-dir "cmake==$CMAKE_VERSION" && cmake --version
 
 # The official Qt (open source, LGPL), with Qt SVG. Only the SQLite driver stays: the others need
 # database client libraries that aren't installed, and linuxdeploy would fail looking for them.
+# Their CMake files go too, or CMake stops because the files they list are missing.
 RUN pip3 install --no-cache-dir aqtinstall \
     && aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O /opt/qt \
-    && test -d "/opt/qt/$QT_VERSION/gcc_64/lib/cmake/Qt6Svg" \
-    && find "/opt/qt/$QT_VERSION/gcc_64/plugins/sqldrivers" -name '*.so' ! -name 'libqsqlite.so' -delete \
+    && qt="/opt/qt/$QT_VERSION/gcc_64" \
+    && test -d "$qt/lib/cmake/Qt6Svg" \
+    && find "$qt/plugins/sqldrivers" -name '*.so' ! -name 'libqsqlite.so' -delete \
+    && find "$qt/lib/cmake/Qt6Sql" -name 'Qt6Q*DriverPlugin*.cmake' ! -name 'Qt6QSQLiteDriverPlugin*' -delete \
     && rm -rf /root/.cache aqtinstall.log
 
 # Node for the CI actions (checkout, artifacts); Ubuntu 22.04's own Node is too old for them
