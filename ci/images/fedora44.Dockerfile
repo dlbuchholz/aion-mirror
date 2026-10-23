@@ -19,6 +19,8 @@ RUN dnf -y install --setopt=install_weak_deps=False \
         mingw64-qt6-qtbase mingw64-qt6-qtdeclarative mingw64-qt6-qttools mingw64-qt6-qtsvg \
         # running Windows unit tests
         wine xorg-x11-server-Xvfb xorg-x11-xauth \
+        # the Windows installer (installer/aion.nsi)
+        mingw32-nsis \
     && dnf clean all
     # more modules: add e.g. qt6-qtcharts-devel + mingw64-qt6-qtcharts
 
