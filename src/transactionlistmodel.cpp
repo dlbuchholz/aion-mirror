@@ -178,7 +178,7 @@ void TransactionListModel::rebuild() {
         }
         if (transaction.getDate() != currentDay) {
             currentDay = transaction.getDate();
-            rows.append({Kind::DayHeader, currentDay, -1});
+            rows.append({Kind::DayHeader, currentDay, -1, {}, 0});
             headerRow = rows.size() - 1;
         }
 
@@ -189,7 +189,7 @@ void TransactionListModel::rebuild() {
 
         // Folded days keep their header (with count and net) but hide the transactions
         if (!collapsedDays.contains(currentDay)) {
-            rows.append({Kind::Transaction, currentDay, i});
+            rows.append({Kind::Transaction, currentDay, i, {}, 0});
         }
 
         currentTotals.count++;
@@ -220,7 +220,7 @@ void TransactionListModel::toggleDay(const QDate& date) {
         collapsedDays.remove(date);
         beginInsertRows(QModelIndex(), headerRow + 1, headerRow + members.size());
         for (int i = 0; i < members.size(); ++i) {
-            rows.insert(headerRow + 1 + i, {Kind::Transaction, date, members[i]});
+            rows.insert(headerRow + 1 + i, {Kind::Transaction, date, members[i], {}, 0});
         }
         endInsertRows();
     } else {
