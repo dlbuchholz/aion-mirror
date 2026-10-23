@@ -27,7 +27,8 @@ AccountDAO::AccountDAO() {}
 
 bool AccountDAO::addDefaultAccountTypes(int userId) {
     AccountDAO dao;
-    for (const QString& name : {"Checking", "Savings", "Investment", "Retirement", "Virtual"}) {
+    const QStringList defaults = {"Checking", "Savings", "Investment", "Retirement", "Virtual"};
+    for (const QString& name : defaults) {
         if (dao.addAccountType(userId, name) <= 0) {
             return false;
         }
