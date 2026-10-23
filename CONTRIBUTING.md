@@ -6,7 +6,7 @@ see [Building](README.md#building) in the README.
 ## What you need
 
 - Qt 6.5 or newer, with the **Svg** module, from the [Qt installer](https://www.qt.io/download-qt-installer)
-- CMake 3.19 or newer and Ninja. CLion and Qt Creator bundle both, and the Qt installer has them under
+- CMake 3.19 or newer (Qt 6.12 needs 3.25) and Ninja. CLion and Qt Creator bundle both, and the Qt installer has them under
   `Qt\Tools`.
 - A C++ compiler that **matches your Qt kit** (see below)
 

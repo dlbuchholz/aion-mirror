@@ -17,7 +17,7 @@ maintainer), so the builds don't use Codeberg's CI resources. How it works:
 
 ## Building
 
-Needs Qt 6.5 or newer and CMake 3.19 or newer. Open `CMakeLists.txt` in Qt Creator, or:
+Needs Qt 6.5 or newer and CMake 3.19 or newer (newer Qt versions ask for more: Qt 6.12 needs 3.25). Open `CMakeLists.txt` in Qt Creator, or:
 
 ```
 cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to Qt>

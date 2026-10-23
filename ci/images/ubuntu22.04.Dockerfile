@@ -10,19 +10,23 @@ FROM ubuntu:22.04
 
 ARG QT_VERSION=6.12.0
 ARG NODE_VERSION=22.12.0
+ARG CMAKE_VERSION=3.31.6
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Compiler and build tools; the libraries Qt's xcb platform plugin needs (linuxdeploy looks them up
 # while bundling); python for aqtinstall
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake ninja-build git ca-certificates curl xz-utils file \
+        build-essential ninja-build git ca-certificates curl xz-utils file \
         python3 python3-pip \
         libgl1-mesa-dev libegl1 libfontconfig1 libfreetype6 libdbus-1-3 libglib2.0-0 \
         libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
         libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
         libxcb-xkb1 libxcb-xfixes0 libxcb-sync1 libxcb-shm0 libxcb-util1 libx11-xcb1 \
     && rm -rf /var/lib/apt/lists/*
+
+# CMake from pip: Qt 6.12 needs CMake 3.25 or newer, Ubuntu 22.04 has 3.22
+RUN pip3 install --no-cache-dir "cmake==$CMAKE_VERSION" && cmake --version
 
 # The official Qt (open source, LGPL), with Qt SVG. Only the SQLite driver stays: the others need
 # database client libraries that aren't installed, and linuxdeploy would fail looking for them.
