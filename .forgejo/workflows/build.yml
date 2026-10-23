@@ -4,11 +4,15 @@
 # Runs on the self-hosted runner (label linux-qt: Fedora with Qt 6, see the runner's Dockerfile).
 name: Build and test
 
+# Changes to documentation alone (Markdown files, docs/) don't start a run: nothing they touch is
+# built or tested. Anything else, like CMake files, migrations, assets, scripts and workflows, does.
 on:
   push:
     branches: [develop]
+    paths-ignore: ['**.md', 'docs/**']
   pull_request:
     branches: [develop]
+    paths-ignore: ['**.md', 'docs/**']
   schedule:
     - cron: '0 3 * * *'                  # UTC, on the default branch (develop)
   workflow_dispatch:
@@ -27,7 +31,8 @@ concurrency:
 
 jobs:
   # Decides what this run does: build (always, except a nightly run when staging already has this
-  # commit), publish (nightly and by hand) and prepare the draft (by hand, when ticked)
+  # commit or only documentation changed since), publish (nightly and by hand) and prepare the
+  # draft (by hand, when ticked)
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -54,6 +59,10 @@ jobs:
             staging=$(git -c safe.directory='*' rev-parse -q --verify 'refs/tags/staging^{commit}' || true)
             if [[ $staging == "$GITHUB_SHA" ]]; then
               echo "staging is at $GITHUB_SHA already, nothing to do"
+              build=false
+            elif [[ -n $staging ]] && ! git -c safe.directory='*' diff --name-only "$staging" "$GITHUB_SHA" \
+                | grep -qvE '\.md$|^docs/'; then
+              echo "Only documentation changed since staging ($staging), nothing to do"
               build=false
             fi
           fi
