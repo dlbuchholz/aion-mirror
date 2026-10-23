@@ -12,6 +12,9 @@ set(SRC_DIR src)
 set(UI_DIR ui)
 set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_DIR}")
 file(GLOB_RECURSE SRC_FILES "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${UI_DIR}/*.ui")
+# main.cpp belongs to the program only; everything else is compiled once, into AionLib, which
+# the program and the tests link
+list(FILTER SRC_FILES EXCLUDE REGEX "/${SRC_DIR}/main\\.cpp$")
 include_directories(${SRC_DIR})
 
 # Git commit for the About page. Read when CMake configures, so it can lag behind
@@ -84,7 +87,7 @@ qt_add_resources(AionLib "migrations"
 
 qt_add_executable(Aion
     WIN32 MACOSX_BUNDLE
-    ${SRC_FILES}
+    ${SRC_DIR}/main.cpp
 )
 # The .exe icon in Win Explorer, made from the logo during the build (tools/makeico), so it always
 # matches assets/aion-logo.svg. The helper runs in Qt's bin folder, so Windows finds Qt's DLLs.
