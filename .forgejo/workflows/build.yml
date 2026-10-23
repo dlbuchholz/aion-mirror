@@ -29,6 +29,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'publish' || 'test' }}
   cancel-in-progress: true
 
+# Every job has a time limit (timeout-minutes) several times its normal length, publishing
+# included, so a run that hangs frees the runner after minutes instead of hours.
 jobs:
   # Decides what this run does: build (always, except a nightly run when staging already has this
   # commit or only documentation changed since), publish (nightly and by hand) and prepare the
@@ -36,6 +38,7 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       build: ${{ steps.plan.outputs.build }}
       publish: ${{ steps.plan.outputs.publish }}
@@ -75,6 +78,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: linux-qt
+    timeout-minutes: 15
     steps:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
@@ -100,6 +104,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: linux-appimage
+    timeout-minutes: 15
     outputs:
       package: ${{ steps.package.outputs.name }}
     steps:
@@ -149,6 +154,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: linux-qt
+    timeout-minutes: 20
     outputs:
       package: ${{ steps.package.outputs.name }}
     steps:
@@ -268,6 +274,7 @@ jobs:
     needs: [plan, linux, appimage, windows]
     if: needs.plan.outputs.publish == 'true' && github.ref == 'refs/heads/develop'
     runs-on: linux-qt
+    timeout-minutes: 15
     steps:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
