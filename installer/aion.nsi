@@ -3,8 +3,8 @@
 ;   makensis -DVERSION=0.1.0 -DSOURCE=<package folder> -DICON=<aion.ico> -DOUTFILE=<setup.exe> aion.nsi
 ;
 ; Installs for the current user only (no admin rights) into %LOCALAPPDATA%\Programs\Aion, with a
-; Start menu entry and an optional desktop shortcut. Uninstalling removes the program but never
-; the user's data (database and settings live elsewhere).
+; Start menu entry and an optional desktop shortcut. Uninstalling removes the program, and the
+; user's data (database and settings) only when they tick that option.
 
 Unicode true
 !include "MUI2.nsh"
@@ -46,6 +46,7 @@ VIAddVersionKey "LegalCopyright" "The Aion contributors"
 !insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_COMPONENTS
 !insertmacro MUI_UNPAGE_INSTFILES
 
 !insertmacro MUI_LANGUAGE "English"
@@ -100,11 +101,26 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "A shortcut to Aion on the desktop."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
-; Removes the program, its shortcuts and its Apps entry. The database and settings stay.
-Section "Uninstall"
+; Removes the program, its shortcuts and its Apps entry
+Section "un.Aion" SecUnAion
+    SectionIn RO
     !insertmacro CheckAionFolder
     Delete "$SMPROGRAMS\Aion.lnk"
     Delete "$DESKTOP\Aion.lnk"
     DeleteRegKey HKCU "${UNINSTALL_KEY}"
     RMDir /r "$INSTDIR"                              ; Checked above: a folder named Aion
 SectionEnd
+
+; Only when ticked (never in a silent uninstall): Aion's own data. Where Aion keeps it: the app
+; data folder (QStandardPaths::AppDataLocation, the default database) and the registry key of
+; its QSettings("LeineHive", "Aion"). Databases saved elsewhere aren't Aion's to delete.
+Section /o "un.My data" SecUnData
+    RMDir /r "$APPDATA\Aion"
+    DeleteRegKey HKCU "Software\LeineHive\Aion"
+    DeleteRegKey /ifempty HKCU "Software\LeineHive"
+SectionEnd
+
+!insertmacro MUI_UNFUNCTION_DESCRIPTION_BEGIN
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecUnAion} "The program, its shortcuts and its entry in Settings > Apps."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecUnData} "Also deletes your data for good: the database in $APPDATA\Aion and all settings. Databases you saved in other folders are kept."
+!insertmacro MUI_UNFUNCTION_DESCRIPTION_END
