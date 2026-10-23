@@ -14,10 +14,10 @@ ARG CMAKE_VERSION=3.31.6
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Compiler and build tools; the libraries Qt's xcb platform plugin needs (linuxdeploy looks them up
-# while bundling); python for aqtinstall
+# Compiler and build tools (ccache reuses compiler results from earlier CI runs); the libraries
+# Qt's xcb platform plugin needs (linuxdeploy looks them up while bundling); python for aqtinstall
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential ninja-build git ca-certificates curl xz-utils file \
+        build-essential ninja-build ccache git ca-certificates curl xz-utils file \
         python3 python3-pip \
         libgl1-mesa-dev libegl1 libfontconfig1 libfreetype6 libdbus-1-3 libglib2.0-0 \
         libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \

@@ -12,6 +12,8 @@ FROM fedora:44
 RUN dnf -y install --setopt=install_weak_deps=False \
         git nodejs which findutils \
         cmake ninja-build gcc-c++ \
+        # reuses compiler results from earlier CI runs (see the workflow)
+        ccache \
         # Linux Qt (also provides the host tools moc/rcc/uic for the cross build)
         qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qttools-devel qt6-qtsvg-devel \
         # Windows cross toolchain + Qt

@@ -29,6 +29,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'publish' || 'test' }}
   cancel-in-progress: true
 
+# ccache reuses compiler results from earlier runs, so only changed files are compiled again.
+# Each building job keeps its own cache folder, which the runner saves on the VPS between runs
+# (actions/cache). Without ccache in the image, the jobs build without it.
+env:
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 300M
+
 # Every job has a time limit (timeout-minutes) several times its normal length, publishing
 # included, so a run that hangs frees the runner after minutes instead of hours.
 jobs:
@@ -88,11 +95,22 @@ jobs:
       - name: Allow git in the workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Restore the compiler cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-linux-${{ github.sha }}
+          restore-keys: ccache-linux-
 
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+
+      # ccache's statistics show how much came from the cache
       - name: Build
-        run: cmake --build build
+        run: |
+          ccache -z > /dev/null 2>&1 || true
+          cmake --build build
+          ccache -s 2>/dev/null || true
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
@@ -114,11 +132,21 @@ jobs:
       - name: Allow git in the workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Restore the compiler cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-appimage-${{ github.sha }}
+          restore-keys: ccache-appimage-
+
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 
       - name: Build
-        run: cmake --build build
+        run: |
+          ccache -z > /dev/null 2>&1 || true
+          cmake --build build
+          ccache -s 2>/dev/null || true
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
@@ -164,6 +192,13 @@ jobs:
       - name: Allow git in the workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Restore the compiler cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-windows-${{ github.sha }}
+          restore-keys: ccache-windows-
+
       # mingw64-cmake is Fedora's wrapper that sets up the MinGW toolchain and Qt. QT_HOST_PATH
       # points at the Linux Qt, whose moc/rcc/uic run during the build.
       - name: Configure
@@ -172,9 +207,13 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DQT_HOST_PATH=/usr
           -DCMAKE_CROSSCOMPILING_EMULATOR=wine
+          $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 
       - name: Build
-        run: cmake --build build-windows
+        run: |
+          ccache -z > /dev/null 2>&1 || true
+          cmake --build build-windows
+          ccache -s 2>/dev/null || true
 
       # ctest starts each test through the emulator (Wine). The Windows Qt plugins are only
       # needed here, so their path is set for this step and not for the Linux job. Under Wine Qt
