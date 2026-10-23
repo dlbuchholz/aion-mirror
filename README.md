@@ -11,6 +11,10 @@ Built with Qt 6 Widgets and SQLite.
 - [Test coverage](COVERAGE.md): which files are covered by tests
 - [Roadmap](ROADMAP.md): what's planned
 
+Every push is built and tested for Linux and Windows on a CI runner dedicated to Aion and run by me (its
+maintainer), so the builds don't use Codeberg's CI resources. How it works:
+[Builds and releases](CONTRIBUTING.md#builds-and-releases).
+
 ## Building
 
 Needs Qt 6.5 or newer and CMake 3.19 or newer. Open `CMakeLists.txt` in Qt Creator, or:
