@@ -709,9 +709,10 @@ void ImportManagerDialog::refreshFileCategories()
         count->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(count, row, 1);
 
-        if (existing.contains(key)) {
+        const auto found = existing.constFind(key);
+        if (found != existing.constEnd()) {
             // Already known: just show it
-            const Category &known = existing.find(key).value();
+            const Category &known = found.value();
             auto *match = new QWidget(table);
             auto *matchLayout = new QHBoxLayout(match);
             matchLayout->setContentsMargins(0, 0, 0, 0);
