@@ -129,18 +129,67 @@ the build folder.
 ## Builds and releases
 
 CI runs on Codeberg ([.forgejo/workflows/build.yml](.forgejo/workflows/build.yml)), on a
-self-hosted runner with the label `linux-qt`: a Fedora image with Qt for Linux, Qt for MinGW and
-Wine.
+self-hosted runner with two build images:
+
+- `linux-qt`: Fedora with Qt for Linux, Qt for MinGW and Wine
+  ([ci/images/fedora44.Dockerfile](ci/images/fedora44.Dockerfile)). Builds and tests Linux and
+  Windows.
+- `linux-appimage`: Ubuntu 22.04 with the official Qt and linuxdeploy
+  ([ci/images/ubuntu22.04.Dockerfile](ci/images/ubuntu22.04.Dockerfile)). Builds, tests and packs the
+  AppImage, on an older system so it runs on older distributions too.
 
 - **Every push and pull request to `develop`:** Linux is built and tested, and Windows is
   cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
 - **Pushes to `develop` also:**
   - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)), check that
     it starts with only its own files, and attach it to the run;
+  - build the installer ([installer/aion.nsi](installer/aion.nsi), NSIS), and check that it installs,
+    starts and uninstalls under Wine;
+  - pack the AppImage ([scripts/package-appimage.sh](scripts/package-appimage.sh)) and check that it
+    starts;
   - update the releases ([scripts/publish-release.sh](scripts/publish-release.sh)).
 
 If Aion starts using a Qt module it didn't use before, add it to the plugin table in
 `package-windows.sh`. The packaging stops and says so until you do.
+
+### Build images
+
+The runner for this repo (Forgejo Runner with Docker Compose, in `/srv/forgejo-runner` on the VPS) runs jobs 
+in a docker-in-docker container, `docker_dind`. Images are built and kept inside it, in the volume
+`dind-data`, so `docker images` on the host doesn't show them. Its Docker listens on TCP only, hence
+the `-H tcp://localhost:2375` in the commands below.
+
+To add or update an image, on your VPS:
+
+1. Copy the Dockerfile from `ci/images/` to `/srv/forgejo-runner/`, for example with `nano`.
+2. Build it inside `docker_dind`. This adds the image and leaves the others alone; building with
+   the same name again replaces it.
+   ```
+   cd /srv/forgejo-runner && docker exec -i docker_dind docker -H tcp://localhost:2375 build -t local/qt-builder:ubuntu22.04 - < ubuntu22.04.Dockerfile
+   ```
+3. Check that it's there:
+   ```
+   docker exec docker_dind docker -H tcp://localhost:2375 images
+   ```
+
+A **new** image also needs a label, so workflows can name it in `runs-on`:
+
+4. Back up the runner's config:
+   ```
+   cp -p data/runner-config.yml data/runner-config.yml.bak
+   ```
+5. Add the label under `labels:` in `data/runner-config.yml`, for example
+   `- linux-appimage:docker://local/qt-builder:ubuntu22.04`, indented like the others.
+6. Restart only the runner (not `docker_dind`, which holds the images), and check its log:
+   ```
+   docker compose restart runner
+   docker logs --tail 20 runner
+   ```
+   The runner's page on Codeberg then lists the new label.
+
+To undo: restore `data/runner-config.yml.bak` and restart the runner, and remove an image with
+`docker exec docker_dind docker -H tcp://localhost:2375 rmi <name>`. Don't share
+`data/runner-config.yml` as a file: it can contain the runner's token.
 
 ### Releases
 

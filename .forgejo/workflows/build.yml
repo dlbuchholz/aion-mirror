@@ -36,6 +36,51 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+  # Linux as an AppImage, on Ubuntu 22.04 with the official Qt (ci/images/ubuntu22.04.Dockerfile),
+  # so it runs on older distributions too. Also tests with that Qt version.
+  appimage:
+    name: Linux (AppImage)
+    runs-on: linux-appimage
+    outputs:
+      package: ${{ steps.package.outputs.name }}
+    steps:
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        id: package
+        if: github.event_name == 'push'
+        run: |
+          appimage=$(bash scripts/package-appimage.sh build dist)
+          echo "name=$(basename "$appimage" .AppImage)" >> "$GITHUB_OUTPUT"
+
+      # Start the AppImage outside the build folder, so only its own libraries are used
+      - name: Check the AppImage starts
+        if: github.event_name == 'push'
+        run: |
+          output=$(cd /tmp && "$GITHUB_WORKSPACE/dist/${{ steps.package.outputs.name }}.AppImage" --version)
+          echo "$output"
+          grep -q '^Aion ' <<< "$output"
+
+      - name: Hand the AppImage to the release job
+        if: github.event_name == 'push'
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: linux-release
+          path: dist/${{ steps.package.outputs.name }}.AppImage
+
   # Windows, cross-compiled with Fedora's MinGW Qt (same Qt version as the Linux job). Programs
   # built here are Windows .exe files, so the icon helper and the tests run under Wine.
   windows:
@@ -148,11 +193,11 @@ jobs:
             dist/${{ steps.package.outputs.name }}.zip
             dist/${{ steps.package.outputs.name }}-setup.exe
 
-  # After both builds pass on a push to develop: replace the rolling "staging" pre-release, and
+  # After all builds pass on a push to develop: replace the rolling "staging" pre-release, and
   # tag a new version from CMakeLists.txt with a draft release (scripts/publish-release.sh).
   release:
     name: Release
-    needs: [linux, windows]
+    needs: [linux, appimage, windows]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: linux-qt
     steps:
@@ -165,6 +210,12 @@ jobs:
           name: windows-release
           path: dist
 
+      - name: Get the AppImage
+        uses: https://code.forgejo.org/actions/download-artifact@v3
+        with:
+          name: linux-release
+          path: dist
+
       # The run's own token, unless a RELEASE_TOKEN secret is set
       - name: Publish
         env:
@@ -172,3 +223,4 @@ jobs:
         run: >
           bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
           dist/${{ needs.windows.outputs.package }}-setup.exe
+          dist/${{ needs.appimage.outputs.package }}.AppImage
