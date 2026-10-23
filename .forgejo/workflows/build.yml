@@ -74,11 +74,13 @@ jobs:
           echo "$output"
           grep -q '^Aion ' <<< "$output"
 
+      # Kept for a day only: the release has it
       - name: Hand the AppImage to the release job
         if: github.event_name == 'push'
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
           name: linux-release
+          retention-days: 1
           path: dist/${{ steps.package.outputs.name }}.AppImage
 
   # Windows, cross-compiled with Fedora's MinGW Qt (same Qt version as the Linux job). Programs
@@ -145,14 +147,6 @@ jobs:
           echo "$output"
           grep -q '^Aion ' <<< "$output"
 
-      # Downloads as a zip of the package folder, from the run's page on Codeberg
-      - name: Upload the package
-        if: github.event_name == 'push'
-        uses: https://code.forgejo.org/actions/upload-artifact@v3
-        with:
-          name: ${{ steps.package.outputs.name }}
-          path: dist/${{ steps.package.outputs.name }}/
-
       # The installer (installer/aion.nsi), from the packaged folder. NSIS comes from Fedora; it's
       # installed here unless the build image has it already.
       - name: Build the installer
@@ -183,12 +177,13 @@ jobs:
             exit 1
           fi
 
-      # The zip and the installer, for the release job
+      # The zip and the installer, for the release job. Kept for a day only: the release has them.
       - name: Hand the files to the release job
         if: github.event_name == 'push'
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
           name: windows-release
+          retention-days: 1
           path: |
             dist/${{ steps.package.outputs.name }}.zip
             dist/${{ steps.package.outputs.name }}-setup.exe
