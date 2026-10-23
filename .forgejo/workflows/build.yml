@@ -174,8 +174,19 @@ jobs:
       # needed here, so their path is set for this step and not for the Linux job. Under Wine Qt
       # draws real Windows windows, so xvfb-run gives Wine a virtual screen for tests that wait
       # for a window to appear. The default 640x480 screen is smaller than the test windows.
+      # Wine starts its Windows background programs (services, explorer, ...) with the first program
+      # and stops them after the last one. Started by a test, they keep its output open while they
+      # shut down, and ctest waits for that: about 5 s per test. So Wine is started once before
+      # ctest, by one test with its output going nowhere, and kept running (wineserver -p) until
+      # the tests are done. --timeout ends a test that hangs anyway.
       - name: Test
-        run: QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins" xvfb-run -a -s "-screen 0 1920x1080x24" ctest --test-dir build-windows --output-on-failure
+        run: |
+          export QT_PLUGIN_PATH="$MINGW_ROOT/lib/qt6/plugins"
+          xvfb-run -a -s "-screen 0 1920x1080x24" bash -c '
+            wineserver -p > /dev/null 2>&1 < /dev/null
+            trap "wineserver -k" EXIT
+            wine build-windows/test_money.exe > /dev/null 2>&1 < /dev/null
+            ctest --test-dir build-windows --output-on-failure --timeout 120'
 
       # Under Wine without a console, Qt Test's output goes to the Windows debug output and not
       # into the log. Rerun each failed test with its results written to a file, and print that.
