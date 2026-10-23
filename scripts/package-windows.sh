@@ -15,6 +15,7 @@ output_dir=$(realpath -m "$2")
 mingw_root=${MINGW_ROOT:-/usr/x86_64-w64-mingw32/sys-root/mingw}
 plugin_root=${QT_PLUGIN_ROOT:-$mingw_root/lib/qt6/plugins}
 objdump=${OBJDUMP:-x86_64-w64-mingw32-objdump}
+strip=${STRIP:-x86_64-w64-mingw32-strip}
 source_dir=$(realpath "$(dirname "$0")/..")
 
 # The plugins each Qt module loads at runtime (paths in the plugin folder, globs allowed). They
@@ -100,6 +101,10 @@ if ((${#missing[@]})); then
     echo "These DLLs are needed but neither bundled nor part of Windows: ${missing[*]}" >&2
     exit 1
 fi
+
+# Remove debug information and symbols, which only a debugger uses. Some of Fedora's DLLs ship
+# with them (libstdc++ is 28 MB with, 2 MB without).
+find "$stage" -type f \( -iname '*.exe' -o -iname '*.dll' \) -exec "$strip" --strip-unneeded {} +
 
 # Licenses: Aion's own, the icons built into Aion.exe, and where each bundled library comes from
 cp "$source_dir/LICENSE" "$stage/LICENSE.txt"
