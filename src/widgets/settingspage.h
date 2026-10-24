@@ -14,6 +14,7 @@ class QStackedWidget;
 class QToolButton;
 class AccountTypesSettings;
 class CategoriesSettings;
+class RulesSettings;
 
 // Settings page of the main window: one section per settings group plus
 // categories and account types, saved together with Apply.
@@ -92,6 +93,7 @@ private:
 
     // Categories and account types
     CategoriesSettings *categoriesSettings = nullptr;
+    RulesSettings *rulesSettings = nullptr;
     AccountTypesSettings *accountTypesSettings = nullptr;
 };
 

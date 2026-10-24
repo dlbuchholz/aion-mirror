@@ -3,6 +3,7 @@
 #include "aboutwidget.h"
 #include "accounttypessettings.h"
 #include "categoriessettings.h"
+#include "rulessettings.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -301,12 +302,14 @@ void SettingsPage::buildImportSection()
 void SettingsPage::setUserId(int userId)
 {
     categoriesSettings->setUserId(userId);
+    rulesSettings->setUserId(userId);
     accountTypesSettings->setUserId(userId);
 }
 
 void SettingsPage::reloadData()
 {
     categoriesSettings->reload();
+    rulesSettings->reload();
     accountTypesSettings->reload();
 }
 
@@ -321,6 +324,12 @@ void SettingsPage::buildCategoriesSection()
     categoriesSettings = new CategoriesSettings(this);
     connect(categoriesSettings, &CategoriesSettings::categoriesChanged, this, &SettingsPage::dataChanged);
     addSection("Categories", "tag", categoriesSettings);
+
+    // Rules point to categories, so they reload when categories change (a merge moves rules along)
+    rulesSettings = new RulesSettings(this);
+    connect(rulesSettings, &RulesSettings::rulesChanged, this, &SettingsPage::dataChanged);
+    connect(categoriesSettings, &CategoriesSettings::categoriesChanged, rulesSettings, &RulesSettings::reload);
+    addSection("Rules", "search", rulesSettings);
 
     accountTypesSettings = new AccountTypesSettings(this);
     connect(accountTypesSettings, &AccountTypesSettings::accountTypesChanged, this, &SettingsPage::dataChanged);

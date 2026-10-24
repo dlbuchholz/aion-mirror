@@ -158,7 +158,7 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     header->addWidget(addButton);
     root->addLayout(header);
 
-    auto* hint = new QLabel("Categories are shared by all users of this database. Changes are saved right away.", this);
+    auto* hint = new QLabel("Every user has their own categories. Changes are saved right away.", this);
     hint->setForegroundRole(QPalette::PlaceholderText);
     hint->setWordWrap(true);
     root->addWidget(hint);
