@@ -70,6 +70,31 @@ CREATE TABLE IF NOT EXISTS budgets (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_unique ON budgets(user_id, category_id, start_month, repeats);
 
+-- Rules give transactions a category: when all (or any) of a rule's conditions match, it sets
+-- the category. A user's rules are tried in position order; the first match wins. Deleting the
+-- category deletes its rules.
+CREATE TABLE IF NOT EXISTS rules (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    match_all INTEGER NOT NULL DEFAULT 1 CHECK (match_all IN (0, 1)),
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
+);
+
+-- One condition of a rule. Text is compared without case; amounts are positive cents. "between"
+-- uses value and value2 (both included). Type is 'income' or 'expense', account an account id.
+CREATE TABLE IF NOT EXISTS rule_conditions (
+    id INTEGER PRIMARY KEY,
+    rule_id INTEGER NOT NULL,
+    field TEXT NOT NULL CHECK (field IN ('payee', 'description', 'payee_or_description', 'amount', 'type', 'account')),
+    operator TEXT NOT NULL CHECK (operator IN ('contains', 'is', 'starts_with', 'between')),
+    value TEXT NOT NULL,
+    value2 TEXT,
+    FOREIGN KEY (rule_id) REFERENCES rules (id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS recurring_transactions (
     id INTEGER PRIMARY KEY,
     transaction_id INTEGER NOT NULL,

@@ -209,6 +209,7 @@ bool CategoryDAO::mergeCategory(int fromId, int intoId) {
         {"DELETE FROM budgets WHERE category_id = :from AND EXISTS (SELECT 1 FROM budgets b WHERE b.category_id = :into "
          "AND b.user_id = budgets.user_id)", ids},
         {"UPDATE budgets SET category_id = :into WHERE category_id = :from", ids},
+        {"UPDATE rules SET category_id = :into WHERE category_id = :from", ids},
         {"DELETE FROM categories WHERE id = :from", {{":from", fromId}}},
     });
 }
