@@ -228,6 +228,14 @@ void Settings::setSelectionCheckboxesEnabled(bool enabled) {
     settings.setValue("transactions/selectionCheckboxes", enabled);
 }
 
+bool Settings::isCategorySuggestionEnabled() const {
+    return settings.value("transactions/suggestCategories", true).toBool();
+}
+
+void Settings::setCategorySuggestionEnabled(bool enabled) {
+    settings.setValue("transactions/suggestCategories", enabled);
+}
+
 // Format Currency
 QString Settings::formatCurrency(Cents amount, bool showSign, int decimals) const {
     QString formatted = formatNumber(qAbs(amount), decimals);

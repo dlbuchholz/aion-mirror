@@ -82,6 +82,7 @@ private slots:
     }
 
     void rulesSuggestTheCategoryOfNewTransactions() {
+        Settings::instance().setCategorySuggestionEnabled(true);
         int groceries = -1;
         int rent = -1;
         for (const Category& category : CategoryDAO(1).getAllCategories()) {
@@ -99,17 +100,28 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
         auto* editor = page.findChild<TransactionEditor*>();
         auto* category = editor->findChild<QComboBox*>("categoryCombo");
-        auto* note = editor->findChild<QLabel*>("categorySuggestionLabel");
+        auto* note = editor->findChild<QWidget*>("categorySuggestion");
         auto* payee = editor->findChild<QLineEdit*>("payeeEdit");
 
         payee->setText("REWE Markt");
         QCOMPARE(category->currentData().toInt(), groceries);
         QVERIFY(!note->isHidden());
+        QCOMPARE(editor->findChild<QLabel*>("categorySuggestionLabel")->text(),
+                 QString("✦ From your rule: Payee contains \"rewe\""));
         payee->setText("Aldi");                          // No longer matches: the suggestion goes
         QVERIFY(category->currentData().toInt() <= 0);
         QVERIFY(note->isHidden());
 
+        // Undo takes the suggestion back and stops further ones
+        payee->setText("REWE");
+        editor->findChild<QToolButton*>("undoSuggestionButton")->click();
+        QVERIFY(category->currentData().toInt() <= 0);
+        QVERIFY(note->isHidden());
+        payee->setText("REWE Markt");
+        QVERIFY(category->currentData().toInt() <= 0);
+
         // A category chosen by hand stays
+        QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
         payee->setText("REWE");
         category->setCurrentIndex(category->findData(rent));
         emit category->activated(category->currentIndex());
@@ -122,6 +134,14 @@ private slots:
         editor->editTransaction(TransactionDAO().getTransactionById(id));
         payee->setText("REWE");
         QCOMPARE(category->currentData().toInt(), rent);
+
+        // Turned off in Settings: no suggestions at all
+        Settings::instance().setCategorySuggestionEnabled(false);
+        QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
+        payee->setText("REWE Markt");
+        QVERIFY(category->currentData().toInt() <= 0);
+        QVERIFY(note->isHidden());
+        Settings::instance().setCategorySuggestionEnabled(true);
     }
 
     void selectingOneTransactionOpensEditor() {

@@ -70,6 +70,10 @@ public:
     bool isSelectionCheckboxesEnabled() const;
     void setSelectionCheckboxesEnabled(bool enabled);
 
+    // New transactions get a category from the rules while they're filled in (on by default)
+    bool isCategorySuggestionEnabled() const;
+    void setCategorySuggestionEnabled(bool enabled);
+
     // Formatting methods
     QString formatCurrency(Cents amount, bool showSign = false, int decimals = 2) const;   // Sign shown for negatives (and + if showSign)
     QString formatNumber(Cents cents, int decimals = 2) const;          // Absolute value; decimals is 2 or 0

@@ -25,27 +25,8 @@ using Operator = RuleCondition::Operator;
 
 namespace {
 
-QString fieldLabel(Field field) {
-    switch (field) {
-    case Field::Payee: return "Payee";
-    case Field::Description: return "Description";
-    case Field::PayeeOrDescription: return "Payee or description";
-    case Field::Amount: return "Amount";
-    case Field::Type: return "Type";
-    case Field::Account: return "Account";
-    }
-    return {};
-}
-
-QString operatorLabel(Operator op) {
-    switch (op) {
-    case Operator::Contains: return "contains";
-    case Operator::Is: return "is";
-    case Operator::StartsWith: return "starts with";
-    case Operator::Between: return "is between";
-    }
-    return {};
-}
+QString fieldLabel(Field field) { return RuleCondition::fieldLabel(field); }
+QString operatorLabel(Operator op) { return RuleCondition::operatorLabel(op); }
 
 QList<Operator> operatorsFor(Field field) {
     switch (field) {
@@ -429,34 +410,7 @@ void RulesSettings::reload() {
 }
 
 QString RulesSettings::describe(const Rule& rule) const {
-    QStringList parts;
-    for (const RuleCondition& condition : rule.conditions) {
-        const QString field = fieldLabel(condition.field);
-        QString text;
-        switch (condition.field) {
-        case Field::Amount: {
-            const QString from = Settings::instance().formatCurrency(condition.value.toLongLong());
-            text = condition.op == Operator::Between
-                       ? QString("amount is between %1 and %2").arg(from, Settings::instance().formatCurrency(condition.value2.toLongLong()))
-                       : QString("amount is %1").arg(from);
-            break;
-        }
-        case Field::Type:
-            text = condition.value == "income" ? "it's income" : "it's an expense";
-            break;
-        case Field::Account:
-            text = QString("account is %1").arg(accountNames.value(condition.value.toInt(), "a deleted account"));
-            break;
-        default:
-            text = QString("%1 %2 \"%3\"").arg(field, operatorLabel(condition.op), condition.value);
-        }
-        parts << (parts.isEmpty() ? text : text.left(1).toLower() + text.mid(1));
-    }
-    if (parts.isEmpty()) {
-        return "No conditions";
-    }
-    QString result = parts.join(rule.matchAll ? " and " : " or ");
-    return result.left(1).toUpper() + result.mid(1);
+    return Rules::describe(rule, accountNames);
 }
 
 int RulesSettings::matchCount(const Rule& rule) const {

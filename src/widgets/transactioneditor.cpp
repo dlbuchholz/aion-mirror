@@ -99,16 +99,33 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     categoryCombo = new QComboBox(this);
     categoryCombo->setObjectName("categoryCombo");
     form->addRow("Category", categoryCombo);
-    suggestionLabel = new QLabel("Suggested by a rule", this);
+    // "✦ From your rule: Payee contains "REWE"   Undo", in the accent colour so it's noticed
+    suggestionNote = new QWidget(this);
+    suggestionNote->setObjectName("categorySuggestion");
+    auto* noteLayout = new QHBoxLayout(suggestionNote);
+    noteLayout->setContentsMargins(0, 0, 0, 0);
+    noteLayout->setSpacing(6);
+    suggestionLabel = new QLabel(suggestionNote);
     suggestionLabel->setObjectName("categorySuggestionLabel");
-    suggestionLabel->setForegroundRole(QPalette::PlaceholderText);
-    suggestionLabel->setToolTip("Choose another category to keep your own choice");
-    suggestionLabel->hide();
-    form->addRow(suggestionLabel);
+    suggestionLabel->setWordWrap(true);
+    noteLayout->addWidget(suggestionLabel, 1);
+    auto* undoButton = new QToolButton(suggestionNote);
+    undoButton->setObjectName("undoSuggestionButton");
+    undoButton->setText("Undo");
+    undoButton->setAutoRaise(true);
+    undoButton->setToolTip("No category for this transaction, and no more suggestions for it");
+    noteLayout->addWidget(undoButton, 0, Qt::AlignTop);
+    suggestionNote->hide();
+    form->addRow(suggestionNote);
+    connect(undoButton, &QToolButton::clicked, this, [this]() {
+        categoryChosenByHand = true;
+        populateCategories(NO_CATEGORY);
+        suggestionNote->hide();
+    });
     // activated is only emitted for the user's own choice, not for suggestions
     connect(categoryCombo, &QComboBox::activated, this, [this]() {
         categoryChosenByHand = true;
-        suggestionLabel->hide();
+        suggestionNote->hide();
     });
 
     accountCombo = new QComboBox(this);
@@ -185,20 +202,31 @@ void TransactionEditor::setRules(const QList<Rule>& newRules) {
 }
 
 void TransactionEditor::suggestCategory() {
-    if (!isEditingNew() || categoryChosenByHand || !categoryCombo) {
+    if (!isEditingNew() || categoryChosenByHand || !categoryCombo
+        || !Settings::instance().isCategorySuggestionEnabled()) {
         return;
     }
     const Transaction draft(-1, accountCombo->currentData().toInt(), payeeEdit->text().trimmed(),
                             Money::fromDouble(amountEdit->value()), dateEdit->date(),
                             descriptionEdit->toPlainText().trimmed(), NO_CATEGORY, currentType());
-    const std::optional<int> suggested = Rules::categoryFor(rules, draft);
-    if (suggested) {
-        populateCategories(*suggested);
-        suggestionLabel->setVisible(categoryCombo->currentData().toInt() == *suggested);
-    } else if (!suggestionLabel->isHidden()) {
+    const Rule* rule = Rules::firstMatch(rules, draft);
+    if (rule) {
+        populateCategories(rule->categoryId);
+        QHash<int, QString> accountNames;
+        for (int i = 0; i < accountCombo->count(); ++i) {
+            accountNames.insert(accountCombo->itemData(i).toInt(), accountCombo->itemText(i));
+        }
+        const QString description = Rules::describe(*rule, accountNames);
+        suggestionLabel->setText(QString("✦ From your rule: %1").arg(description));
+        suggestionLabel->setToolTip(description);
+        QPalette palette = suggestionLabel->palette();
+        palette.setColor(QPalette::WindowText, Theme::colors().accent);
+        suggestionLabel->setPalette(palette);
+        suggestionNote->setVisible(categoryCombo->currentData().toInt() == rule->categoryId);
+    } else if (!suggestionNote->isHidden()) {
         // The earlier suggestion doesn't fit anymore
         populateCategories(NO_CATEGORY);
-        suggestionLabel->hide();
+        suggestionNote->hide();
     }
 }
 
@@ -216,7 +244,7 @@ void TransactionEditor::newTransaction(const QDate& date, int accountId) {
     deleteButton->hide();
     errorLabel->hide();
     categoryChosenByHand = false;
-    suggestionLabel->hide();
+    suggestionNote->hide();
 
     setType("expense");
     populateCategories(NO_CATEGORY);
@@ -235,7 +263,7 @@ void TransactionEditor::editTransaction(const Transaction& transaction) {
     titleLabel->setText("Edit transaction");
     deleteButton->show();
     errorLabel->hide();
-    suggestionLabel->hide();                         // Existing transactions keep their category
+    suggestionNote->hide();                          // Existing transactions keep their category
 
     setType(transaction.getType());
     populateCategories(transaction.getCategoryId());

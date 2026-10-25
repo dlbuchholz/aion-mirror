@@ -253,6 +253,12 @@ void SettingsPage::buildTransactionsSection()
     selectionCheckboxesCheck->setToolTip("Without checkboxes, select several transactions with Ctrl+click or Shift+click");
     form->addRow(selectionCheckboxesCheck);
     watch(selectionCheckboxesCheck);
+
+    suggestCategoriesCheck = new QCheckBox("Suggest a category from my rules when adding a transaction", this);
+    suggestCategoriesCheck->setObjectName("suggestCategoriesCheck");
+    suggestCategoriesCheck->setToolTip("Imports have their own choice; see the Review step of the importer");
+    form->addRow(suggestCategoriesCheck);
+    watch(suggestCategoriesCheck);
 }
 
 void SettingsPage::buildAppearanceSection()
@@ -383,6 +389,7 @@ void SettingsPage::loadSettings()
 
     fastEntryCheck->setChecked(settings.isFastEntryEnabled());
     selectionCheckboxesCheck->setChecked(settings.isSelectionCheckboxesEnabled());
+    suggestCategoriesCheck->setChecked(settings.isCategorySuggestionEnabled());
     categoryColorsCheck->setChecked(settings.isCategoryColorsInOverviewsEnabled());
 
     // Stored values are case-insensitive, matching Theme::fromName()
@@ -419,6 +426,7 @@ void SettingsPage::saveSettings()
 
     settings.setFastEntryEnabled(fastEntryCheck->isChecked());
     settings.setSelectionCheckboxesEnabled(selectionCheckboxesCheck->isChecked());
+    settings.setCategorySuggestionEnabled(suggestCategoriesCheck->isChecked());
 
     settings.setTheme(themeCombo->currentData().toString());
     settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());

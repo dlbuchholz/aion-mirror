@@ -81,6 +81,7 @@ private:
     // Transactions
     QCheckBox *fastEntryCheck = nullptr;
     QCheckBox *selectionCheckboxesCheck = nullptr;
+    QCheckBox *suggestCategoriesCheck = nullptr;
     QCheckBox *categoryColorsCheck = nullptr;
 
     // Appearance

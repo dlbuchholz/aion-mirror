@@ -195,6 +195,16 @@ private slots:
         db.close();
     }
 
+    void categorySuggestionsAreOnUntilTurnedOff() {
+        auto& s = Settings::instance();
+        s.getQSettings().remove("transactions/suggestCategories");
+        QVERIFY(s.isCategorySuggestionEnabled());
+        s.setCategorySuggestionEnabled(false);
+        QVERIFY(!s.isCategorySuggestionEnabled());
+        s.restoreDefaults();
+        QVERIFY(s.isCategorySuggestionEnabled());
+    }
+
     void recentDatabasesAreDistinctNewestFirstAndLimited() {
         auto& s = Settings::instance();
         s.getQSettings().remove("app/recentDatabases");

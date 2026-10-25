@@ -1,5 +1,6 @@
 #include "rule.h"
 #include "db/databasemanager.h"
+#include "settings.h"
 
 #include <QHash>
 #include <QSqlError>
@@ -72,6 +73,28 @@ bool RuleCondition::matches(const Transaction& transaction) const {
     return false;
 }
 
+QString RuleCondition::fieldLabel(Field field) {
+    switch (field) {
+    case Field::Payee: return "Payee";
+    case Field::Description: return "Description";
+    case Field::PayeeOrDescription: return "Payee or description";
+    case Field::Amount: return "Amount";
+    case Field::Type: return "Type";
+    case Field::Account: return "Account";
+    }
+    return {};
+}
+
+QString RuleCondition::operatorLabel(Operator op) {
+    switch (op) {
+    case Operator::Contains: return "contains";
+    case Operator::Is: return "is";
+    case Operator::StartsWith: return "starts with";
+    case Operator::Between: return "is between";
+    }
+    return {};
+}
+
 QString RuleCondition::fieldKey(Field field) {
     for (const auto& key : FieldKeys) {
         if (key.first == field) return key.second;
@@ -114,13 +137,52 @@ bool Rule::matches(const Transaction& transaction) const {
     return matchAll;
 }
 
-std::optional<int> Rules::categoryFor(const QList<Rule>& rules, const Transaction& transaction) {
+const Rule* Rules::firstMatch(const QList<Rule>& rules, const Transaction& transaction) {
     for (const Rule& rule : rules) {
         if (rule.matches(transaction)) {
-            return rule.categoryId;
+            return &rule;
         }
     }
-    return std::nullopt;
+    return nullptr;
+}
+
+std::optional<int> Rules::categoryFor(const QList<Rule>& rules, const Transaction& transaction) {
+    const Rule* rule = firstMatch(rules, transaction);
+    return rule ? std::optional<int>(rule->categoryId) : std::nullopt;
+}
+
+QString Rules::describe(const Rule& rule, const QHash<int, QString>& accountNames) {
+    using Field = RuleCondition::Field;
+    using Operator = RuleCondition::Operator;
+    const Settings& settings = Settings::instance();
+    QStringList parts;
+    for (const RuleCondition& condition : rule.conditions) {
+        QString text;
+        switch (condition.field) {
+        case Field::Amount: {
+            const QString from = settings.formatCurrency(condition.value.toLongLong());
+            text = condition.op == Operator::Between
+                       ? QString("amount is between %1 and %2").arg(from, settings.formatCurrency(condition.value2.toLongLong()))
+                       : QString("amount is %1").arg(from);
+            break;
+        }
+        case Field::Type:
+            text = condition.value == "income" ? "it's income" : "it's an expense";
+            break;
+        case Field::Account:
+            text = QString("account is %1").arg(accountNames.value(condition.value.toInt(), "a deleted account"));
+            break;
+        default:
+            text = QString("%1 %2 \"%3\"").arg(RuleCondition::fieldLabel(condition.field),
+                                               RuleCondition::operatorLabel(condition.op), condition.value);
+        }
+        parts << (parts.isEmpty() ? text : text.left(1).toLower() + text.mid(1));
+    }
+    if (parts.isEmpty()) {
+        return "No conditions";
+    }
+    const QString result = parts.join(rule.matchAll ? " and " : " or ");
+    return result.left(1).toUpper() + result.mid(1);
 }
 
 QList<RuleChange> Rules::changesFor(const QList<Rule>& rules, const QList<Transaction>& transactions,

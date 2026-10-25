@@ -1,6 +1,7 @@
 #ifndef RULE_H
 #define RULE_H
 
+#include <QHash>
 #include <QList>
 #include <QString>
 #include <optional>
@@ -24,6 +25,8 @@ struct RuleCondition {
     // Text is compared without case and with spaces simplified; amounts are positive cents
     bool matches(const Transaction& transaction) const;
 
+    static QString fieldLabel(Field field);          // For people: "Payee or description"
+    static QString operatorLabel(Operator op);       // "starts with"
     static QString fieldKey(Field field);            // Database names: "payee", "payee_or_description", ...
     static QString operatorKey(Operator op);
     static std::optional<Field> fieldFromKey(const QString& key);
@@ -49,8 +52,15 @@ struct RuleChange {
 
 namespace Rules {
 
+// The first rule (in list order) that matches, or nullptr
+const Rule* firstMatch(const QList<Rule>& rules, const Transaction& transaction);
+
 // The category of the first rule (in list order) that matches, if any
 std::optional<int> categoryFor(const QList<Rule>& rules, const Transaction& transaction);
+
+// "Payee or description contains "REWE" and amount is between 40,00 € and 120,00 €", in the
+// current currency format; accountNames names the accounts of account conditions
+QString describe(const Rule& rule, const QHash<int, QString>& accountNames);
 
 // What applying the rules to these transactions would change. Transactions in a protected
 // category (the balance adjustments) keep theirs; with onlyUncategorised, so does every

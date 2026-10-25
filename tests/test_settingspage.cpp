@@ -149,6 +149,20 @@ private slots:
         QVERIFY(Settings::instance().isCategoryColorsInOverviewsEnabled());
     }
 
+    void categorySuggestionsCanBeTurnedOff() {
+        Settings::instance().setCategorySuggestionEnabled(true);
+        SettingsPage page;
+        page.setUserId(1);
+        auto* check = child<QCheckBox>(page, "suggestCategoriesCheck");
+        QVERIFY(check->isChecked());
+        check->setChecked(false);
+        QVERIFY(hasUnsavedChanges(page));
+        QVERIFY(Settings::instance().isCategorySuggestionEnabled());   // Not before Apply
+        child<QPushButton>(page, "applyButton")->click();
+        QVERIFY(!Settings::instance().isCategorySuggestionEnabled());
+        Settings::instance().setCategorySuggestionEnabled(true);
+    }
+
     void showsCategoriesAddedElsewhereAfterReload() {
         SettingsPage page;
         page.setUserId(1);

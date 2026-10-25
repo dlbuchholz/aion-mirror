@@ -70,7 +70,8 @@ private:
     QCompleter* payeeCompleter = nullptr;
     QDateEdit* dateEdit = nullptr;
     QComboBox* categoryCombo = nullptr;
-    QLabel* suggestionLabel = nullptr;               // "Suggested by a rule"
+    QWidget* suggestionNote = nullptr;               // Which rule suggested the category, and Undo
+    QLabel* suggestionLabel = nullptr;
     QComboBox* accountCombo = nullptr;
     QTextEdit* descriptionEdit = nullptr;
     QLabel* errorLabel = nullptr;
