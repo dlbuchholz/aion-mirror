@@ -70,7 +70,8 @@ public:
     bool isSelectionCheckboxesEnabled() const;
     void setSelectionCheckboxesEnabled(bool enabled);
 
-    // New transactions get a category from the rules while they're filled in (on by default)
+    // New transactions get a category, and are offered a payee name, from the rules while they're
+    // filled in (on by default)
     bool isCategorySuggestionEnabled() const;
     void setCategorySuggestionEnabled(bool enabled);
 

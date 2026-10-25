@@ -90,6 +90,32 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     payeeCompleter->setModel(new QStringListModel(payeeCompleter));
     payeeEdit->setCompleter(payeeCompleter);
     form->addRow("Payee", payeeEdit);
+    // "✦ Your rule suggests the name "Rewe"   Rename": offered, never changed under the fingers
+    renameNote = new QWidget(this);
+    renameNote->setObjectName("payeeRenameSuggestion");
+    auto* renameLayout = new QHBoxLayout(renameNote);
+    renameLayout->setContentsMargins(0, 0, 0, 0);
+    renameLayout->setSpacing(6);
+    renameLabel = new QLabel(renameNote);
+    renameLabel->setObjectName("payeeRenameLabel");
+    renameLabel->setWordWrap(true);
+    renameLayout->addWidget(renameLabel, 1);
+    auto* acceptRenameButton = new QToolButton(renameNote);
+    acceptRenameButton->setObjectName("acceptRenameButton");
+    acceptRenameButton->setText("Rename");
+    acceptRenameButton->setAutoRaise(true);
+    acceptRenameButton->setToolTip("Use this name; what you typed is kept as the original payee");
+    renameLayout->addWidget(acceptRenameButton, 0, Qt::AlignTop);
+    renameNote->hide();
+    form->addRow(renameNote);
+    connect(acceptRenameButton, &QToolButton::clicked, this, &TransactionEditor::acceptRename);
+    // What the payee was called before a rename (the bank's name, or what was typed)
+    originalPayeeLabel = new QLabel(this);
+    originalPayeeLabel->setObjectName("originalPayeeLabel");
+    originalPayeeLabel->setForegroundRole(QPalette::PlaceholderText);
+    originalPayeeLabel->setWordWrap(true);
+    originalPayeeLabel->hide();
+    form->addRow(originalPayeeLabel);
 
     dateEdit = new QDateEdit(this);
     dateEdit->setCalendarPopup(true);
@@ -142,11 +168,11 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     layout->addLayout(form);
 
     // What rules look at; the type also re-fills the category list first (connected above)
-    connect(payeeEdit, &QLineEdit::textChanged, this, &TransactionEditor::suggestCategory);
-    connect(descriptionEdit, &QTextEdit::textChanged, this, &TransactionEditor::suggestCategory);
-    connect(amountEdit, &QDoubleSpinBox::valueChanged, this, &TransactionEditor::suggestCategory);
-    connect(accountCombo, &QComboBox::currentIndexChanged, this, &TransactionEditor::suggestCategory);
-    connect(typeGroup, &QButtonGroup::buttonClicked, this, &TransactionEditor::suggestCategory);
+    connect(payeeEdit, &QLineEdit::textChanged, this, &TransactionEditor::suggestFromRules);
+    connect(descriptionEdit, &QTextEdit::textChanged, this, &TransactionEditor::suggestFromRules);
+    connect(amountEdit, &QDoubleSpinBox::valueChanged, this, &TransactionEditor::suggestFromRules);
+    connect(accountCombo, &QComboBox::currentIndexChanged, this, &TransactionEditor::suggestFromRules);
+    connect(typeGroup, &QButtonGroup::buttonClicked, this, &TransactionEditor::suggestFromRules);
 
     errorLabel = new QLabel(this);
     errorLabel->setWordWrap(true);
@@ -201,14 +227,46 @@ void TransactionEditor::setRules(const QList<Rule>& newRules) {
     rules = newRules;
 }
 
-void TransactionEditor::suggestCategory() {
-    if (!isEditingNew() || categoryChosenByHand || !categoryCombo
-        || !Settings::instance().isCategorySuggestionEnabled()) {
+void TransactionEditor::showOriginalPayee() {
+    originalPayeeLabel->setText(QString("Originally: %1").arg(originalPayee));
+    originalPayeeLabel->setVisible(!originalPayee.isEmpty());
+}
+
+void TransactionEditor::acceptRename() {
+    if (originalPayee.isEmpty()) {
+        originalPayee = payeeEdit->text().trimmed();  // Kept, so rules for that name keep matching
+    }
+    renameNote->hide();
+    payeeEdit->setText(suggestedPayee);
+    showOriginalPayee();
+}
+
+void TransactionEditor::suggestFromRules() {
+    if (!isEditingNew() || !categoryCombo || !Settings::instance().isCategorySuggestionEnabled()) {
+        if (renameNote) renameNote->hide();
         return;
     }
-    const Transaction draft(-1, accountCombo->currentData().toInt(), payeeEdit->text().trimmed(),
-                            Money::fromDouble(amountEdit->value()), dateEdit->date(),
-                            descriptionEdit->toPlainText().trimmed(), NO_CATEGORY, currentType());
+    Transaction draft(-1, accountCombo->currentData().toInt(), payeeEdit->text().trimmed(),
+                      Money::fromDouble(amountEdit->value()), dateEdit->date(),
+                      descriptionEdit->toPlainText().trimmed(), NO_CATEGORY, currentType());
+    draft.setOriginalPayee(originalPayee);
+
+    // A new name is only offered
+    const Rule* rename = Rules::renameRule(rules, draft);
+    if (rename && rename->newPayee != draft.getPayee()) {
+        suggestedPayee = rename->newPayee;
+        renameLabel->setText(QString("✦ Your rule suggests the name \"%1\"").arg(suggestedPayee));
+        QPalette palette = renameLabel->palette();
+        palette.setColor(QPalette::WindowText, Theme::colors().accent);
+        renameLabel->setPalette(palette);
+        renameNote->show();
+    } else {
+        renameNote->hide();
+    }
+
+    if (categoryChosenByHand) {
+        return;
+    }
     const Rule* rule = Rules::categoryRule(rules, draft);
     if (rule) {
         populateCategories(rule->categoryId);
@@ -245,6 +303,9 @@ void TransactionEditor::newTransaction(const QDate& date, int accountId) {
     errorLabel->hide();
     categoryChosenByHand = false;
     suggestionNote->hide();
+    renameNote->hide();
+    originalPayee.clear();
+    showOriginalPayee();
 
     setType("expense");
     populateCategories(NO_CATEGORY);
@@ -264,6 +325,9 @@ void TransactionEditor::editTransaction(const Transaction& transaction) {
     deleteButton->show();
     errorLabel->hide();
     suggestionNote->hide();                          // Existing transactions keep their category
+    renameNote->hide();                              // ... and their payee
+    originalPayee = transaction.getOriginalPayee();
+    showOriginalPayee();
 
     setType(transaction.getType());
     populateCategories(transaction.getCategoryId());
@@ -342,6 +406,7 @@ void TransactionEditor::requestSave() {
     Transaction transaction(transactionId, accountId, payeeEdit->text().trimmed(), Money::fromDouble(amountEdit->value()),
                             dateEdit->date(), descriptionEdit->toPlainText().trimmed(),
                             categoryCombo->currentData().toInt(), currentType());
+    transaction.setOriginalPayee(originalPayee);
     emit saveRequested(transaction);
 }
 

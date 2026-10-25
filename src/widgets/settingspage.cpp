@@ -254,7 +254,7 @@ void SettingsPage::buildTransactionsSection()
     form->addRow(selectionCheckboxesCheck);
     watch(selectionCheckboxesCheck);
 
-    suggestCategoriesCheck = new QCheckBox("Suggest a category from my rules when adding a transaction", this);
+    suggestCategoriesCheck = new QCheckBox("Suggest categories and payee names from my rules when adding a transaction", this);
     suggestCategoriesCheck->setObjectName("suggestCategoriesCheck");
     suggestCategoriesCheck->setToolTip("Imports have their own choice; see the Review step of the importer");
     form->addRow(suggestCategoriesCheck);

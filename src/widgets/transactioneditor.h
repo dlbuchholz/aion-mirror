@@ -54,12 +54,16 @@ private:
     void populateCategories(int selectedCategoryId);
     void selectAccount(int accountId);
     void requestSave();
-    void suggestCategory();
+    void suggestFromRules();                         // Category and new payee name, for new transactions
+    void acceptRename();
+    void showOriginalPayee();
 
     int transactionId = -1;
     QList<Category> categories;
     QList<Rule> rules;
     bool categoryChosenByHand = false;               // Then rules stop suggesting
+    QString originalPayee;                           // Before a rename; saved with the transaction
+    QString suggestedPayee;                          // What the rename note offers
 
     QLabel* titleLabel = nullptr;
     QButtonGroup* typeGroup = nullptr;
@@ -71,6 +75,9 @@ private:
     QDateEdit* dateEdit = nullptr;
     QComboBox* categoryCombo = nullptr;
     QWidget* suggestionNote = nullptr;               // Which rule suggested the category, and Undo
+    QWidget* renameNote = nullptr;                   // A rule's name for the payee, and Rename
+    QLabel* renameLabel = nullptr;
+    QLabel* originalPayeeLabel = nullptr;            // "Originally: ..."
     QLabel* suggestionLabel = nullptr;
     QComboBox* accountCombo = nullptr;
     QTextEdit* descriptionEdit = nullptr;

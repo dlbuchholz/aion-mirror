@@ -144,6 +144,54 @@ private slots:
         Settings::instance().setCategorySuggestionEnabled(true);
     }
 
+    void rulesOfferANewPayeeNameWithoutChangingIt() {
+        Settings::instance().setFastEntryEnabled(false);
+        Settings::instance().setCategorySuggestionEnabled(true);
+        Rule rule;
+        rule.newPayee = "Rewe";
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::StartsWith, "rewe markt")};
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(firstId);
+        QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
+        auto* editor = page.findChild<TransactionEditor*>();
+        auto* payee = editor->findChild<QLineEdit*>("payeeEdit");
+        auto* offer = editor->findChild<QWidget*>("payeeRenameSuggestion");
+        auto* original = editor->findChild<QLabel*>("originalPayeeLabel");
+
+        payee->setText("REWE MARKT GMBH 4711");
+        QVERIFY(!offer->isHidden());
+        QCOMPARE(payee->text(), QString("REWE MARKT GMBH 4711"));    // Only offered
+        QCOMPARE(editor->findChild<QLabel*>("payeeRenameLabel")->text(), QString("✦ Your rule suggests the name \"Rewe\""));
+
+        editor->findChild<QToolButton*>("acceptRenameButton")->click();
+        QCOMPARE(payee->text(), QString("Rewe"));
+        QVERIFY(offer->isHidden());                      // Done; the rule still matches the original name
+        QCOMPARE(original->text(), QString("Originally: REWE MARKT GMBH 4711"));
+        QVERIFY(!original->isHidden());
+
+        editor->findChild<QDoubleSpinBox*>("amountEdit")->setValue(32.4);
+        editor->findChild<QPushButton*>("saveButton")->click();
+        const Transaction saved = TransactionDAO().getTransactionsForAccount(firstId).first();
+        QCOMPARE(saved.getPayee(), QString("Rewe"));
+        QCOMPARE(saved.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+
+        // Opening it again shows the original, and offers nothing
+        editor->editTransaction(saved);
+        QCOMPARE(original->text(), QString("Originally: REWE MARKT GMBH 4711"));
+        QVERIFY(offer->isHidden());
+
+        // Turned off: nothing offered
+        Settings::instance().setCategorySuggestionEnabled(false);
+        QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
+        QVERIFY(original->isHidden());
+        payee->setText("REWE MARKT City");
+        QVERIFY(offer->isHidden());
+        Settings::instance().setCategorySuggestionEnabled(true);
+    }
+
     void selectingOneTransactionOpensEditor() {
         Transaction transaction(-1, firstId, "Bakery", 420, QDate::currentDate(), "", 0, "expense");
         const int transactionId = TransactionDAO().addTransaction(transaction);
