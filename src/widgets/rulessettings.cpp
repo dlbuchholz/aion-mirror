@@ -6,6 +6,7 @@
 #include "settings.h"
 #include "theme.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFrame>
@@ -43,7 +44,7 @@ QList<Operator> operatorsFor(Field field) {
 // One rule: its description, its category and how many transactions it matches; ▲▼ move it
 class RuleRow : public QAbstractButton {
 public:
-    RuleRow(const QString& text, const Category* category, int matches, QWidget* parent)
+    RuleRow(const QString& text, const Category* category, const QString& newPayee, int matches, QWidget* parent)
         : QAbstractButton(parent) {
         setObjectName("ruleRow");
         setAccessibleName(text);
@@ -69,10 +70,20 @@ public:
         label->setWordWrap(true);
         label->setAttribute(Qt::WA_TransparentForMouseEvents);
         layout->addWidget(label, 1);
-        auto* tag = new CategoryTag(this);
-        tag->setCategory(category ? category->getName() : QString("?"), category ? category->getColor() : QString());
-        tag->setAttribute(Qt::WA_TransparentForMouseEvents);
-        layout->addWidget(tag);
+        // What it does: renames (→ "Rewe") and/or sets a category
+        if (!newPayee.isEmpty()) {
+            auto* rename = new QLabel(QString("→ \"%1\"").arg(newPayee), this);
+            rename->setObjectName("ruleRename");
+            rename->setToolTip("Renames the payee");
+            rename->setAttribute(Qt::WA_TransparentForMouseEvents);
+            layout->addWidget(rename);
+        }
+        if (category) {
+            auto* tag = new CategoryTag(this);
+            tag->setCategory(category->getName(), category->getColor());
+            tag->setAttribute(Qt::WA_TransparentForMouseEvents);
+            layout->addWidget(tag);
+        }
         auto* count = new QLabel(QString("%1 %2").arg(matches).arg(matches == 1 ? "match" : "matches"), this);
         count->setObjectName("ruleMatchCount");
         count->setForegroundRole(QPalette::PlaceholderText);
@@ -345,8 +356,11 @@ RulesSettings::RulesSettings(QWidget* parent)
     addConditionRowLayout->addStretch();
     editorLayout->addLayout(addConditionRowLayout);
 
+    // What the rule does: set the category, rename the payee, or both
     auto* categoryRow = new QHBoxLayout();
-    categoryRow->addWidget(new QLabel("Set category to", editor));
+    setsCategoryCheck = new QCheckBox("Set category to", editor);
+    setsCategoryCheck->setObjectName("ruleSetsCategoryCheck");
+    categoryRow->addWidget(setsCategoryCheck);
     categoryCombo = new QComboBox(editor);
     categoryCombo->setObjectName("ruleCategoryCombo");
     categoryRow->addWidget(categoryCombo);
@@ -356,6 +370,20 @@ RulesSettings::RulesSettings(QWidget* parent)
     matchCountLabel->setForegroundRole(QPalette::PlaceholderText);
     categoryRow->addWidget(matchCountLabel);
     editorLayout->addLayout(categoryRow);
+    auto* renameRow = new QHBoxLayout();
+    renamesCheck = new QCheckBox("Rename payee to", editor);
+    renamesCheck->setObjectName("ruleRenamesCheck");
+    renameRow->addWidget(renamesCheck);
+    newPayeeEdit = new QLineEdit(editor);
+    newPayeeEdit->setObjectName("ruleNewPayeeEdit");
+    newPayeeEdit->setPlaceholderText("...");
+    newPayeeEdit->setToolTip("The bank's name is kept, so imports still recognise the transaction");
+    renameRow->addWidget(newPayeeEdit, 1);
+    editorLayout->addLayout(renameRow);
+    connect(setsCategoryCheck, &QCheckBox::toggled, categoryCombo, &QWidget::setEnabled);
+    connect(renamesCheck, &QCheckBox::toggled, newPayeeEdit, &QWidget::setEnabled);
+    connect(newPayeeEdit, &QLineEdit::textEdited, this, [this]() { renamesCheck->setChecked(true); });
+    connect(newPayeeEdit, &QLineEdit::returnPressed, this, &RulesSettings::save);
 
     errorLabel = new QLabel(editor);
     errorLabel->setObjectName("ruleError");
@@ -439,7 +467,7 @@ void RulesSettings::rebuildList() {
         for (const Category& candidate : categories) {
             if (candidate.getCategoryId() == rule.categoryId) category = &candidate;
         }
-        auto* row = new RuleRow(describe(rule), category, matchCount(rule), listLayout->parentWidget());
+        auto* row = new RuleRow(describe(rule), category, rule.newPayee, matchCount(rule), listLayout->parentWidget());
         row->open = rule.id == editedId;
         row->up->setEnabled(i > 0);
         row->down->setEnabled(i < rules.size() - 1);
@@ -481,6 +509,12 @@ void RulesSettings::openEditor(int ruleId, const Rule* draft) {
     }
     matchCombo->setCurrentIndex(rule.matchAll ? 0 : 1);
     categoryCombo->setCurrentIndex(qMax(0, categoryCombo->findData(rule.categoryId)));
+    // A rule that only renames has the category unticked; anything else starts with it ticked
+    setsCategoryCheck->setChecked(rule.setsCategory() || !rule.renames());
+    renamesCheck->setChecked(rule.renames());
+    newPayeeEdit->setText(rule.newPayee);
+    categoryCombo->setEnabled(setsCategoryCheck->isChecked());
+    newPayeeEdit->setEnabled(renamesCheck->isChecked());
     const QList<RuleCondition> conditions = rule.conditions.isEmpty() ? QList<RuleCondition>{RuleCondition()}
                                                                       : rule.conditions;
     for (const RuleCondition& condition : conditions) {
@@ -524,7 +558,8 @@ std::optional<Rule> RulesSettings::editedRule(QString* error) const {
     Rule rule;
     rule.id = editedId;
     rule.matchAll = matchCombo->currentData().toBool();
-    rule.categoryId = categoryCombo->currentData().toInt();
+    rule.categoryId = setsCategoryCheck->isChecked() ? categoryCombo->currentData().toInt() : -1;
+    rule.newPayee = renamesCheck->isChecked() ? newPayeeEdit->text().simplified() : QString();
     for (const ConditionEditor* conditionEditor : conditionEditors) {
         const std::optional<RuleCondition> condition = conditionEditor->condition(error);
         if (!condition) return std::nullopt;
@@ -534,8 +569,16 @@ std::optional<Rule> RulesSettings::editedRule(QString* error) const {
         *error = "Add at least one condition.";
         return std::nullopt;
     }
-    if (categoryCombo->currentIndex() < 0) {
+    if (setsCategoryCheck->isChecked() && categoryCombo->currentIndex() < 0) {
         *error = "Choose the category the rule sets.";
+        return std::nullopt;
+    }
+    if (renamesCheck->isChecked() && rule.newPayee.isEmpty()) {
+        *error = "Enter the new name for the payee.";
+        return std::nullopt;
+    }
+    if (!rule.setsCategory() && !rule.renames()) {
+        *error = "Tick what the rule does: set a category, rename the payee, or both.";
         return std::nullopt;
     }
     return rule;

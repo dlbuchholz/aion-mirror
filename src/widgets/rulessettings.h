@@ -10,9 +10,11 @@
 #include "rule.h"
 #include "transaction.h"
 
+class QCheckBox;
 class QComboBox;
 class QFrame;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QVBoxLayout;
 class ConditionEditor;
@@ -66,7 +68,10 @@ private:
     QComboBox* matchCombo = nullptr;
     QVBoxLayout* conditionsLayout = nullptr;
     QList<ConditionEditor*> conditionEditors;
+    QCheckBox* setsCategoryCheck = nullptr;
     QComboBox* categoryCombo = nullptr;
+    QCheckBox* renamesCheck = nullptr;
+    QLineEdit* newPayeeEdit = nullptr;
     QLabel* matchCountLabel = nullptr;
     QLabel* errorLabel = nullptr;
     QPushButton* deleteButton = nullptr;

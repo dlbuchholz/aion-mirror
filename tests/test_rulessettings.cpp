@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <QAbstractButton>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFrame>
@@ -174,6 +175,50 @@ private slots:
         settle();
         QCOMPARE(RuleDAO(1).rules().size(), 1);
         QCOMPARE(rows(settings).size(), 1);
+    }
+
+    void rulesCanRenameWithOrWithoutACategory() {
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        firstCondition(settings)->findChild<QLineEdit*>("conditionText")->setText("REWE");
+        auto* setsCategory = settings.findChild<QCheckBox*>("ruleSetsCategoryCheck");
+        auto* renames = settings.findChild<QCheckBox*>("ruleRenamesCheck");
+        auto* newPayee = settings.findChild<QLineEdit*>("ruleNewPayeeEdit");
+        auto* error = settings.findChild<QLabel*>("ruleError");
+        QVERIFY(setsCategory->isChecked());              // A new rule starts with the category ticked
+        QVERIFY(!renames->isChecked());
+
+        // Nothing ticked, or rename ticked without a name: not saved
+        setsCategory->setChecked(false);
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        QVERIFY(error->text().startsWith("Tick what the rule does"));
+        renames->setChecked(true);
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        QCOMPARE(error->text(), QString("Enter the new name for the payee."));
+        QVERIFY(RuleDAO(1).rules().isEmpty());
+
+        // Only renaming
+        newPayee->setText("  Rewe ");
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        const Rule saved = RuleDAO(1).rules().first();
+        QCOMPARE(saved.newPayee, QString("Rewe"));
+        QCOMPARE(saved.categoryId, -1);
+        QAbstractButton* row = rows(settings).first();
+        QCOMPARE(row->findChild<QLabel*>("ruleRename")->text(), QString("→ \"Rewe\""));
+
+        // Reopened: rename ticked, category not; then both
+        row->click();
+        QVERIFY(!setsCategory->isChecked());
+        QVERIFY(renames->isChecked());
+        QCOMPARE(newPayee->text(), QString("Rewe"));
+        setsCategory->setChecked(true);
+        select(settings.findChild<QComboBox*>("ruleCategoryCombo"), "Groceries");
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        QCOMPARE(RuleDAO(1).rules().first().categoryId, categoryId("Groceries"));
+        QCOMPARE(RuleDAO(1).rules().first().newPayee, QString("Rewe"));
     }
 
     void aRuleCanStartFromADraft() {
