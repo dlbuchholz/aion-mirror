@@ -594,13 +594,22 @@ void TransactionsPage::reload() {
     unassignedChip->setText(QString("Unassigned (%1)").arg(unassignedCount));
     unassignedChip->setVisible(unassignedCount > 0 || showingUnassigned);
 
-    const QSignalBlocker blocker(listView->selectionModel());
-    for (int transactionId : selectedIds) {
-        const QModelIndex index = model->indexForTransaction(transactionId);
-        if (index.isValid()) {
-            listView->selectionModel()->select(index, QItemSelectionModel::Select);
+    restoreSelection(selectedIds);
+}
+
+void TransactionsPage::restoreSelection(const QList<int>& transactionIds) {
+    // Rebuilding the model clears the selection without signalling it; transactions that are
+    // no longer listed drop out of it
+    {
+        const QSignalBlocker blocker(listView->selectionModel());
+        for (int transactionId : transactionIds) {
+            const QModelIndex index = model->indexForTransaction(transactionId);
+            if (index.isValid()) {
+                listView->selectionModel()->select(index, QItemSelectionModel::Select);
+            }
         }
     }
+    listView->viewport()->update();
     updateBulkBar();
 }
 
@@ -653,7 +662,9 @@ void TransactionsPage::applyFilter() {
         break;
     }
 
+    const QList<int> selectedIds = selectedTransactionIds();
     model->setFilter(filter);
+    restoreSelection(selectedIds);
 
     const bool empty = model->totals().count == 0;
     if (empty) {

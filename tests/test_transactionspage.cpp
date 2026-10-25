@@ -282,6 +282,72 @@ private slots:
         QVERIFY(!page.findChild<QFrame*>("bulkBar")->isHidden());
     }
 
+    void switchingTheAccountKeepsTheSelectionBarRight() {
+        TransactionDAO dao;
+        const int a = dao.addTransaction(Transaction(-1, firstId, "A", 100, QDate::currentDate(), "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, secondId, "B", 200, QDate::currentDate(), "", 0, "expense"));
+
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        auto* bar = page.findChild<QFrame*>("bulkBar");
+        list->selectionModel()->select(model->indexForTransaction(a), QItemSelectionModel::Select);
+        list->selectionModel()->select(model->indexForTransaction(b), QItemSelectionModel::Select);
+        QVERIFY(!bar->isHidden());
+
+        // An account with one of them: that one stays selected
+        page.showAccount(firstId);
+        QCOMPARE(list->selectionModel()->selectedIndexes().size(), 1);
+        QVERIFY(!bar->isHidden());
+        QVERIFY(bar->findChild<QLabel*>()->text().startsWith("1 transaction selected"));
+
+        // Clear selection hides the bar
+        for (QToolButton* button : bar->findChildren<QToolButton*>()) {
+            if (button->text() == "Clear selection") button->click();
+        }
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
+        QVERIFY(bar->isHidden());
+
+        // An account with none of the selected ones: no bar
+        page.showAccount(TransactionsPage::ALL_ACCOUNTS);
+        list->selectionModel()->select(model->indexForTransaction(a), QItemSelectionModel::Select);
+        page.showAccount(secondId);
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
+        QVERIFY(bar->isHidden());
+    }
+
+    void searchingKeepsTheSelectionBarRight() {
+        TransactionDAO dao;
+        const int a = dao.addTransaction(Transaction(-1, firstId, "Apples", 100, QDate::currentDate(), "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, firstId, "Bread", 200, QDate::currentDate(), "", 0, "expense"));
+
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        auto* bar = page.findChild<QFrame*>("bulkBar");
+        auto* search = page.findChild<QLineEdit*>("searchEdit");
+        auto* label = bar->findChild<QLabel*>();
+        list->selectionModel()->select(model->indexForTransaction(a), QItemSelectionModel::Select);
+        list->selectionModel()->select(model->indexForTransaction(b), QItemSelectionModel::Select);
+
+        // Hidden by the search: drops out of the selection, the bar counts what's left
+        search->setText("Apples");
+        QCOMPARE(list->selectionModel()->selectedIndexes().size(), 1);
+        QVERIFY(label->text().startsWith("1 transaction selected"));
+
+        // Clearing the search keeps the rest selected
+        search->clear();
+        QCOMPARE(list->selectionModel()->selectedIndexes().size(), 1);
+        QVERIFY(!bar->isHidden());
+
+        // Nothing left selected: no bar
+        search->setText("nothing matches this");
+        QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
+        QVERIFY(bar->isHidden());
+    }
+
     void ctrlAndShiftOnDayHeaderSelectTheDay() {
         TransactionDAO dao;
         const QDate today = QDate::currentDate();

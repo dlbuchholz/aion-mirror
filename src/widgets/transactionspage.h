@@ -78,6 +78,7 @@ private:
     void updateTotals();
     void updateBulkBar();
     QList<int> selectedTransactionIds() const;
+    void restoreSelection(const QList<int>& transactionIds);   // After the model was rebuilt
     void setCategoryForSelection(int categoryId);
     int defaultAccountForNew() const;
     void updateIcons();                              // Re-tint icons after a theme change
