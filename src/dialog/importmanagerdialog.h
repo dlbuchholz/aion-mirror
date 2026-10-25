@@ -122,6 +122,8 @@ private:
     QScrollArea *categoriesScroll = nullptr;
     QLabel *categorySummaryLabel = nullptr;
     QToolButton *newCategoriesButton = nullptr;
+    QCheckBox *useRulesCheck = nullptr;              // Rules give rows a category
+    QCheckBox *rulesOverrideCheck = nullptr;         // ... also rows the file has a category for
     QHash<QString, QComboBox *> categoryChoices;     // Lower-case file name -> choice (unknown names only)
     QHash<QString, QString> chosenCategories;        // Remembered while the table is rebuilt
     int matchedCategories = 0;
@@ -134,6 +136,7 @@ private:
     QLabel *failedCountLabel = nullptr;
     QLabel *problemsLabel = nullptr;
     QLabel *newCategoriesLabel = nullptr;
+    QLabel *rulesLabel = nullptr;
     QLabel *balanceAfterCaption = nullptr;
     QLabel *balanceAfterValue = nullptr;
     QLabel *balanceBreakdownLabel = nullptr;        // "Now … · from this file …"

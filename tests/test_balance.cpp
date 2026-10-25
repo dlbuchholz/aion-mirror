@@ -12,10 +12,12 @@
 #include "account.h"
 #include "balance.h"
 #include "budget.h"
+#include "category.h"
 #include "csvimport.h"
 #include "dashboard.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
+#include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
 
@@ -138,6 +140,43 @@ private slots:
         QVERIFY(!correction->isVisibleTo(&dialog));
         QVERIFY(status->text().startsWith("Matches"));
         QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(120410));    // Still nothing written
+    }
+
+    void importUsesTheRulesWhenTicked() {
+        int groceries = -1;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == "Groceries") groceries = category.getCategoryId();
+        }
+        Rule rule;
+        rule.categoryId = groceries;
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "rewe")};
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+        QTemporaryDir dir;
+        const QString path = dir.filePath("umsaetze.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name Zahlungsbeteiligter;Verwendungszweck\n"
+                   "17.10.2026;-31,20;Rewe;Wocheneinkauf\n"
+                   "03.10.2026;350,00;ACME;Gehalt\n");
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();                                                           // No category column: review
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        auto* useRules = dialog.findChild<QCheckBox*>("useRulesCheck");
+        auto* rulesLabel = dialog.findChild<QLabel*>("rulesLabel");
+        QVERIFY(useRules->isChecked());
+        QVERIFY(!dialog.findChild<QCheckBox*>("rulesOverrideCheck")->isVisibleTo(&dialog));   // Nothing to override
+        QCOMPARE(rulesLabel->text(), QString("1 new transaction gets its category from your rules."));
+        useRules->setChecked(false);
+        QVERIFY(!rulesLabel->isVisibleTo(&dialog));
+        useRules->setChecked(true);
+        QVERIFY(rulesLabel->isVisibleTo(&dialog));
+        // Importing itself shows a message box; test_csvimport checks the categories it writes
     }
 
     void importWizardChecksEachStep() {

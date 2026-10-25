@@ -9,6 +9,7 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include "rule.h"
 #include "transaction.h"
 
 // CSV import logic without UI: reading values, detecting the file's conventions,
@@ -56,6 +57,10 @@ struct Options {
         QString type;                                // "expense" or "income"
     };
     QHash<QString, NewCategory> categoriesToCreate;  // Lower-case name -> new category
+    // Rules give the rows a category (see rule.h). They only fill in rows without one, unless
+    // rulesOverrideFileCategories lets them replace the category from the file.
+    QList<Rule> rules;
+    bool rulesOverrideFileCategories = false;
 };
 
 // One CSV row as a transaction (rowNumber is the line in the file, for messages)
@@ -79,6 +84,7 @@ struct Result {
     Cents balanceAfterCents = 0;                     // ... and with them
     Cents correctionCents = 0;                       // Balance correction added (see RunOptions::correctTo)
     int categoriesCreated = 0;
+    int categorisedByRules = 0;                      // Imported rows whose category came from a rule
 };
 
 // The distinct values of the mapped Category column, most used first

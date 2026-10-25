@@ -2,6 +2,7 @@
 #include <QSqlQuery>
 
 #include "account.h"
+#include "category.h"
 #include "csvimport.h"
 #include "tests/test_db_fixture.h"
 
@@ -322,6 +323,43 @@ private slots:
         QCOMPARE(found[0].likelyType(), QString("expense"));
         QCOMPARE(found[1].likelyType(), QString("income"));
         QVERIFY(fileCategories(rows, basicMapping(), basicOptions()).isEmpty());
+    }
+
+    void rulesFillInCategoriesOrReplaceTheFilesWhenAllowed() {
+        const auto categoryId = [](const QString& name) {
+            for (const Category& category : CategoryDAO(1).getAllCategories()) {
+                if (category.getName() == name) return category.getCategoryId();
+            }
+            return -1;
+        };
+        Rule rewe;
+        rewe.categoryId = categoryId("Groceries");
+        rewe.conditions = {RuleCondition(RuleCondition::Field::PayeeOrDescription, RuleCondition::Operator::Contains, "REWE")};
+        Mapping mapping = basicMapping();
+        mapping.insert(FieldCategory, 4);
+        const QList<QStringList> rows = {{"01.10.2026", "-10,00", "REWE Markt", "", ""},
+                                         {"02.10.2026", "-20,00", "REWE City", "", "Entertainment"},
+                                         {"03.10.2026", "-30,00", "Aldi", "", ""}};
+        const auto categoryOf = [](const QString& payee) {
+            QSqlQuery query(DatabaseManager::instance().database());
+            query.prepare("SELECT COALESCE(category_id, 0) FROM transactions WHERE payee = :payee");
+            query.bindValue(":payee", payee);
+            return query.exec() && query.next() ? query.value(0).toInt() : -1;
+        };
+
+        Options options = basicOptions();
+        options.categoryIds.insert("entertainment", categoryId("Entertainment"));
+        options.rules = {rewe};
+        RunOptions dryRun;
+        dryRun.dryRun = true;
+        Result result = run(rows, mapping, options, dryRun);
+        QCOMPARE(result.categorisedByRules, 1);          // Only the row without a category
+        options.rulesOverrideFileCategories = true;
+        result = run(rows, mapping, options, {});
+        QCOMPARE(result.categorisedByRules, 2);
+        QCOMPARE(categoryOf("REWE Markt"), categoryId("Groceries"));
+        QCOMPARE(categoryOf("REWE City"), categoryId("Groceries"));
+        QCOMPARE(categoryOf("Aldi"), 0);                 // No rule matches
     }
 
     void createsNewCategoriesOnImportOnly() {

@@ -362,6 +362,21 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         }
     }
 
+    // Rules fill in rows without a category, or replace the file's when allowed
+    for (int i = 0; i < transactions.size() && !options.rules.isEmpty(); ++i) {
+        const int current = transactions[i].getCategoryId();
+        if (current > 0 && !options.rulesOverrideFileCategories) {
+            continue;
+        }
+        const std::optional<int> category = Rules::categoryFor(options.rules, transactions[i]);
+        if (category && *category != current) {
+            transactions[i].setCategoryId(*category);
+            if (!existing.contains(hashes[i])) {
+                result.categorisedByRules++;
+            }
+        }
+    }
+
     for (int i = 0; i < transactions.size(); ++i) {
         if (existing.contains(hashes[i])) {
             result.duplicates++;

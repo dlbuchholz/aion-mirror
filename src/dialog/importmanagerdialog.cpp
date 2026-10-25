@@ -630,6 +630,10 @@ CsvImport::Options ImportManagerDialog::importOptions() const
         options.categoryIds.insert(category.getName().simplified().toLower(), category.getCategoryId());
     }
     applyCategoryChoices(options);
+    if (useRulesCheck && useRulesCheck->isChecked()) {
+        options.rules = RuleDAO(userId).rules();
+        options.rulesOverrideFileCategories = rulesOverrideCheck->isChecked();
+    }
     return options;
 }
 
@@ -824,6 +828,32 @@ QWidget *ImportManagerDialog::buildReviewPage()
     newCategoriesLabel->setWordWrap(true);
     layout->addWidget(newCategoriesLabel);
 
+    // Rules (Settings > Rules) give rows a category. Here and not in the Categories step, which
+    // is skipped for files without a category column.
+    const bool hasRules = !RuleDAO(userId).rules().isEmpty();
+    useRulesCheck = new QCheckBox(hasRules ? QString("Use my rules") : QString("Use my rules (you have none yet)"), page);
+    useRulesCheck->setObjectName("useRulesCheck");
+    useRulesCheck->setChecked(hasRules);
+    useRulesCheck->setEnabled(hasRules);
+    useRulesCheck->setToolTip("Rows without a category get one from your rules (Settings > Rules)");
+    layout->addWidget(useRulesCheck);
+    rulesOverrideCheck = new QCheckBox("Also for rows the file already has a category for", page);
+    rulesOverrideCheck->setObjectName("rulesOverrideCheck");
+    rulesOverrideCheck->setEnabled(hasRules);
+    rulesOverrideCheck->setToolTip("A matching rule replaces the category from the file");
+    auto *overrideRow = new QHBoxLayout();
+    overrideRow->addSpacing(24);
+    overrideRow->addWidget(rulesOverrideCheck, 1);
+    layout->addLayout(overrideRow);
+    rulesLabel = new QLabel(page);
+    rulesLabel->setObjectName("rulesLabel");
+    rulesLabel->setWordWrap(true);
+    rulesLabel->setForegroundRole(QPalette::PlaceholderText);
+    layout->addWidget(rulesLabel);
+    connect(useRulesCheck, &QCheckBox::toggled, rulesOverrideCheck, &QWidget::setEnabled);
+    connect(useRulesCheck, &QCheckBox::toggled, this, &ImportManagerDialog::refreshReview);
+    connect(rulesOverrideCheck, &QCheckBox::toggled, this, &ImportManagerDialog::refreshReview);
+
     // Balance after the import compared with the bank's
     balanceBox = new QFrame(page);
     balanceBox->setObjectName("balanceGroupBox");
@@ -912,6 +942,11 @@ void ImportManagerDialog::refreshReview()
         : created.size() <= 3 ? QString("New categories: %1").arg(created.join(", "))
                               : QString("New categories: %1 and %2 more").arg(created.mid(0, 2).join(", ")).arg(created.size() - 2));
     newCategoriesLabel->setVisible(!created.isEmpty());
+    rulesLabel->setText(dryRun.categorisedByRules == 1 ? QString("1 new transaction gets its category from your rules.")
+                                                        : QString("%1 new transactions get their category from your rules.")
+                                                              .arg(dryRun.categorisedByRules));
+    rulesLabel->setVisible(dryRun.categorisedByRules > 0);
+    rulesOverrideCheck->setVisible(mapping().contains(CsvImport::FieldCategory));
 
     // Balance check on the newest day of the file (or the day of the bank's balance column)
     balanceBox->setVisible(dryRun.checkDate.isValid());
