@@ -587,6 +587,7 @@ void TransactionsPage::reload() {
     editor->setAccounts(accounts);
     editor->setCategories(categories);
     editor->setPayeeSuggestions(model->payees());
+    editor->setRules(RuleDAO(userId).rules());
 
     unassignedChip->setText(QString("Unassigned (%1)").arg(unassignedCount));
     unassignedChip->setVisible(unassignedCount > 0 || showingUnassigned);

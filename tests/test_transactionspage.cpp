@@ -2,6 +2,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFrame>
+#include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 #include <QMenu>
@@ -78,6 +79,49 @@ private slots:
         QCOMPARE(saved.first().getPayee(), QString("Bakery"));
         QCOMPARE(saved.first().getAmountCents(), Cents(1250));
         QCOMPARE(saved.first().getType(), QString("expense"));
+    }
+
+    void rulesSuggestTheCategoryOfNewTransactions() {
+        int groceries = -1;
+        int rent = -1;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == "Groceries") groceries = category.getCategoryId();
+            if (category.getName() == "Rent") rent = category.getCategoryId();
+        }
+        Rule rule;
+        rule.categoryId = groceries;
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "rewe")};
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(firstId);
+        QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
+        auto* editor = page.findChild<TransactionEditor*>();
+        auto* category = editor->findChild<QComboBox*>("categoryCombo");
+        auto* note = editor->findChild<QLabel*>("categorySuggestionLabel");
+        auto* payee = editor->findChild<QLineEdit*>("payeeEdit");
+
+        payee->setText("REWE Markt");
+        QCOMPARE(category->currentData().toInt(), groceries);
+        QVERIFY(!note->isHidden());
+        payee->setText("Aldi");                          // No longer matches: the suggestion goes
+        QVERIFY(category->currentData().toInt() <= 0);
+        QVERIFY(note->isHidden());
+
+        // A category chosen by hand stays
+        payee->setText("REWE");
+        category->setCurrentIndex(category->findData(rent));
+        emit category->activated(category->currentIndex());
+        payee->setText("REWE Markt");
+        QCOMPARE(category->currentData().toInt(), rent);
+        QVERIFY(note->isHidden());
+
+        // Existing transactions keep their category
+        const int id = TransactionDAO().addTransaction(Transaction(-1, firstId, "Kiosk", 300, QDate::currentDate(), "", rent, "expense"));
+        editor->editTransaction(TransactionDAO().getTransactionById(id));
+        payee->setText("REWE");
+        QCOMPARE(category->currentData().toInt(), rent);
     }
 
     void selectingOneTransactionOpensEditor() {

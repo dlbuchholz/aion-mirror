@@ -3,6 +3,7 @@
 
 #include <QFrame>
 #include "category.h"
+#include "rule.h"
 #include "transaction.h"
 
 class QButtonGroup;
@@ -26,6 +27,9 @@ public:
     void setAccounts(const QList<QPair<int, QString>>& accounts);
     void setCategories(const QList<Category>& categories);
     void setPayeeSuggestions(const QStringList& payees);
+    // New transactions get the category of the first matching rule while they're filled in,
+    // until a category is chosen by hand
+    void setRules(const QList<Rule>& rules);
     void applySettings();                            // Decimal separator for the amount field
 
     void newTransaction(const QDate& date, int accountId);
@@ -50,9 +54,12 @@ private:
     void populateCategories(int selectedCategoryId);
     void selectAccount(int accountId);
     void requestSave();
+    void suggestCategory();
 
     int transactionId = -1;
     QList<Category> categories;
+    QList<Rule> rules;
+    bool categoryChosenByHand = false;               // Then rules stop suggesting
 
     QLabel* titleLabel = nullptr;
     QButtonGroup* typeGroup = nullptr;
@@ -63,6 +70,7 @@ private:
     QCompleter* payeeCompleter = nullptr;
     QDateEdit* dateEdit = nullptr;
     QComboBox* categoryCombo = nullptr;
+    QLabel* suggestionLabel = nullptr;               // "Suggested by a rule"
     QComboBox* accountCombo = nullptr;
     QTextEdit* descriptionEdit = nullptr;
     QLabel* errorLabel = nullptr;

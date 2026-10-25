@@ -97,7 +97,19 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     form->addRow("Date", dateEdit);
 
     categoryCombo = new QComboBox(this);
+    categoryCombo->setObjectName("categoryCombo");
     form->addRow("Category", categoryCombo);
+    suggestionLabel = new QLabel("Suggested by a rule", this);
+    suggestionLabel->setObjectName("categorySuggestionLabel");
+    suggestionLabel->setForegroundRole(QPalette::PlaceholderText);
+    suggestionLabel->setToolTip("Choose another category to keep your own choice");
+    suggestionLabel->hide();
+    form->addRow(suggestionLabel);
+    // activated is only emitted for the user's own choice, not for suggestions
+    connect(categoryCombo, &QComboBox::activated, this, [this]() {
+        categoryChosenByHand = true;
+        suggestionLabel->hide();
+    });
 
     accountCombo = new QComboBox(this);
     accountCombo->setObjectName("accountCombo");
@@ -111,6 +123,13 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     descriptionEdit->installEventFilter(this);
     form->addRow("Description", descriptionEdit);
     layout->addLayout(form);
+
+    // What rules look at; the type also re-fills the category list first (connected above)
+    connect(payeeEdit, &QLineEdit::textChanged, this, &TransactionEditor::suggestCategory);
+    connect(descriptionEdit, &QTextEdit::textChanged, this, &TransactionEditor::suggestCategory);
+    connect(amountEdit, &QDoubleSpinBox::valueChanged, this, &TransactionEditor::suggestCategory);
+    connect(accountCombo, &QComboBox::currentIndexChanged, this, &TransactionEditor::suggestCategory);
+    connect(typeGroup, &QButtonGroup::buttonClicked, this, &TransactionEditor::suggestCategory);
 
     errorLabel = new QLabel(this);
     errorLabel->setWordWrap(true);
@@ -161,6 +180,28 @@ void TransactionEditor::setPayeeSuggestions(const QStringList& payees) {
     static_cast<QStringListModel*>(payeeCompleter->model())->setStringList(payees);
 }
 
+void TransactionEditor::setRules(const QList<Rule>& newRules) {
+    rules = newRules;
+}
+
+void TransactionEditor::suggestCategory() {
+    if (!isEditingNew() || categoryChosenByHand || !categoryCombo) {
+        return;
+    }
+    const Transaction draft(-1, accountCombo->currentData().toInt(), payeeEdit->text().trimmed(),
+                            Money::fromDouble(amountEdit->value()), dateEdit->date(),
+                            descriptionEdit->toPlainText().trimmed(), NO_CATEGORY, currentType());
+    const std::optional<int> suggested = Rules::categoryFor(rules, draft);
+    if (suggested) {
+        populateCategories(*suggested);
+        suggestionLabel->setVisible(categoryCombo->currentData().toInt() == *suggested);
+    } else if (!suggestionLabel->isHidden()) {
+        // The earlier suggestion doesn't fit anymore
+        populateCategories(NO_CATEGORY);
+        suggestionLabel->hide();
+    }
+}
+
 void TransactionEditor::applySettings() {
     const bool comma = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma;
     QLocale locale(comma ? QLocale::German : QLocale::English);
@@ -174,6 +215,8 @@ void TransactionEditor::newTransaction(const QDate& date, int accountId) {
     titleLabel->setText("New transaction");
     deleteButton->hide();
     errorLabel->hide();
+    categoryChosenByHand = false;
+    suggestionLabel->hide();
 
     setType("expense");
     populateCategories(NO_CATEGORY);
@@ -192,6 +235,7 @@ void TransactionEditor::editTransaction(const Transaction& transaction) {
     titleLabel->setText("Edit transaction");
     deleteButton->show();
     errorLabel->hide();
+    suggestionLabel->hide();                         // Existing transactions keep their category
 
     setType(transaction.getType());
     populateCategories(transaction.getCategoryId());
