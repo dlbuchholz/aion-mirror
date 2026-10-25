@@ -18,6 +18,7 @@ class QLineEdit;
 class QPushButton;
 class QVBoxLayout;
 class ConditionEditor;
+class RenamedPayeesDialog;
 
 // Settings → Rules: the user's rules in the order they're tried, with an inline editor.
 // Changes are saved right away.
@@ -36,6 +37,8 @@ public:
 
     // Asks before deleting (a message box; tests replace it)
     std::function<bool(const QString& title, const QString& text)> confirm;
+    // Shows the dialog offering to restore or update a rule's names (exec; tests replace it)
+    std::function<void(RenamedPayeesDialog& dialog)> reviewRenamedPayees;
 
 signals:
     void rulesChanged();
@@ -52,6 +55,9 @@ private:
     void updateMatchCount();
     std::optional<Rule> editedRule(QString* error) const;
     int matchCount(const Rule& rule) const;
+    // The rule's rename was removed or the rule deleted (newPayee empty), or its name changed:
+    // offers to do the same to the transactions it renamed
+    void offerToUpdateNames(const QList<Transaction>& renamed, const Rule& before, const QString& newPayee);
 
     int userId = -1;
     QList<Rule> rules;

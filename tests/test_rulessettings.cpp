@@ -11,6 +11,7 @@
 
 #include "account.h"
 #include "category.h"
+#include "dialog/renamedpayeesdialog.h"
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
@@ -219,6 +220,80 @@ private slots:
         settle();
         QCOMPARE(RuleDAO(1).rules().first().categoryId, categoryId("Groceries"));
         QCOMPARE(RuleDAO(1).rules().first().newPayee, QString("Rewe"));
+    }
+
+    void changingARulesRenameOffersToUpdateItsNames() {
+        TransactionDAO transactions;
+        transactions.addTransaction(Transaction(-1, giroId, "REWE City", 990, QDate(2026, 10, 4), "", 0, "expense"));
+        Rule rule;
+        rule.newPayee = "Rewe";
+        rule.conditions = {{Field::Payee, Operator::Contains, "REWE"}};
+        rule.id = RuleDAO(1).addRule(rule);
+        QVERIFY(Rules::apply(Rules::changesFor({rule}, transactions.getTransactionsForAccount(giroId), false, {})));
+        QCOMPARE(transactions.getTransactionsRenamedByRule(rule.id).size(), 2);
+        const auto payees = [&]() {
+            QStringList result;
+            for (const Transaction& transaction : transactions.getTransactionsForAccount(giroId)) {
+                result.append(transaction.getPayee());
+            }
+            result.sort();
+            return result;
+        };
+
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.confirm = [](const QString&, const QString&) { return true; };
+        QSignalSpy changed(&settings, &RulesSettings::transactionsChanged);
+        QString shownIntro;
+        std::function<void(RenamedPayeesDialog&)> answer;
+        settings.reviewRenamedPayees = [&](RenamedPayeesDialog& dialog) {
+            shownIntro = dialog.findChild<QLabel*>("renamedPayeesIntro")->text();
+            answer(dialog);
+        };
+        auto* renames = settings.findChild<QCheckBox*>("ruleRenamesCheck");
+        auto* newPayee = settings.findChild<QLineEdit*>("ruleNewPayeeEdit");
+
+        // A new name: both get it, the bank's names stay
+        answer = [](RenamedPayeesDialog& dialog) {
+            dialog.findChild<QPushButton*>("renamedPayeesApplyButton")->click();
+        };
+        rows(settings).first()->click();
+        newPayee->setText("Rewe Markt");
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        QCOMPARE(shownIntro, QString("This rule renamed 2 transactions to \"Rewe\". Give them the new name \"Rewe Markt\" too?"));
+        QCOMPARE(payees(), (QStringList{"Aldi", "Rewe Markt", "Rewe Markt", "Stadtwerke"}));
+        QCOMPARE(transactions.getTransactionsRenamedByRule(rule.id).first().getOriginalPayee(), QString("REWE City"));
+        QCOMPARE(changed.count(), 1);
+
+        // Rename turned off, names kept: nothing changes
+        answer = [](RenamedPayeesDialog& dialog) { dialog.findChild<QPushButton*>("keepNamesButton")->click(); };
+        rows(settings).first()->click();
+        renames->setChecked(false);
+        settings.findChild<QCheckBox*>("ruleSetsCategoryCheck")->setChecked(true);
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        QVERIFY(shownIntro.startsWith("This rule renamed 2 transactions to \"Rewe Markt\". Restore"));
+        QCOMPARE(payees(), (QStringList{"Aldi", "Rewe Markt", "Rewe Markt", "Stadtwerke"}));
+        QCOMPARE(changed.count(), 1);
+
+        // Deleted: still offered; only the ticked one gets its name back (the newest is listed first)
+        shownIntro.clear();
+        answer = [](RenamedPayeesDialog& dialog) {
+            dialog.findChildren<QCheckBox*>("renamedPayeeCheck").first()->setChecked(false);
+            QCOMPARE(dialog.findChild<QPushButton*>("renamedPayeesApplyButton")->text(), QString("Restore 1"));
+            dialog.findChild<QPushButton*>("renamedPayeesApplyButton")->click();
+        };
+        rows(settings).first()->click();
+        settings.findChild<QPushButton*>("deleteRuleButton")->click();
+        settle();
+        QCOMPARE(shownIntro, QString("This rule renamed 2 transactions. Restore their original names, or keep the names they have now?"));
+        QCOMPARE(payees(), (QStringList{"Aldi", "REWE Markt", "Rewe Markt", "Stadtwerke"}));
+        for (const Transaction& transaction : transactions.getTransactionsForAccount(giroId)) {
+            if (transaction.getPayee() == "REWE Markt") QVERIFY(transaction.getOriginalPayee().isEmpty());
+            QCOMPARE(transaction.getRenamedByRuleId(), -1);   // The rule is gone
+        }
+        QCOMPARE(changed.count(), 2);
     }
 
     void aRuleCanStartFromADraft() {

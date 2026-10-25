@@ -1,5 +1,6 @@
 #include "rulessettings.h"
 #include "dialog/applyrulesdialog.h"
+#include "dialog/renamedpayeesdialog.h"
 #include "account.h"
 #include "categorytag.h"
 #include "icons.h"
@@ -266,6 +267,7 @@ RulesSettings::RulesSettings(QWidget* parent)
         return QMessageBox::question(this, title, text, QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel)
                == QMessageBox::Yes;
     };
+    reviewRenamedPayees = [](RenamedPayeesDialog& dialog) { dialog.exec(); };
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
@@ -600,6 +602,10 @@ void RulesSettings::save() {
         errorLabel->show();
         return;
     }
+    Rule before;
+    for (const Rule& candidate : std::as_const(rules)) {
+        if (editedId > 0 && candidate.id == editedId) before = candidate;
+    }
     RuleDAO dao(userId);
     const bool saved = editedId > 0 ? dao.updateRule(*rule) : dao.addRule(*rule) > 0;
     if (!saved) {
@@ -610,6 +616,21 @@ void RulesSettings::save() {
     rules = dao.rules();
     closeEditor();
     emit rulesChanged();
+    if (before.id > 0 && before.newPayee != rule->newPayee) {
+        offerToUpdateNames(TransactionDAO().getTransactionsRenamedByRule(before.id), before, rule->newPayee);
+    }
+}
+
+void RulesSettings::offerToUpdateNames(const QList<Transaction>& renamed, const Rule& before, const QString& newPayee) {
+    if (renamed.isEmpty()) {
+        return;
+    }
+    RenamedPayeesDialog dialog(renamed, before.newPayee, newPayee, before.id, this);
+    reviewRenamedPayees(dialog);
+    if (dialog.result() == QDialog::Accepted) {
+        reload();                                    // Match counts look at the payees
+        emit transactionsChanged();
+    }
 }
 
 void RulesSettings::remove() {
@@ -621,6 +642,8 @@ void RulesSettings::remove() {
     if (!confirm("Delete rule", QString("Delete the rule \"%1\"?\n\nTransactions keep their categories.").arg(describe(rule)))) {
         return;
     }
+    // Read before deleting: the database then forgets which rule renamed them
+    const QList<Transaction> renamed = TransactionDAO().getTransactionsRenamedByRule(rule.id);
     RuleDAO dao(userId);
     if (!dao.deleteRule(editedId)) {
         errorLabel->setText("The rule couldn't be deleted.");
@@ -630,6 +653,8 @@ void RulesSettings::remove() {
     rules = dao.rules();
     closeEditor();
     emit rulesChanged();
+    // Also when its rename was turned off earlier and the names kept: they still point to the rule
+    offerToUpdateNames(renamed, rule, QString());
 }
 
 void RulesSettings::move(int ruleId, int offset) {

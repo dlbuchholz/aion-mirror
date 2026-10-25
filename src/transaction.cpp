@@ -97,6 +97,14 @@ void Transaction::renamePayee(const QString& newPayee, int ruleId) {
     renamedByRuleId = ruleId;
 }
 
+void Transaction::restoreOriginalPayee() {
+    if (!originalPayee.isEmpty()) {
+        payee = originalPayee;
+    }
+    originalPayee.clear();
+    renamedByRuleId = -1;
+}
+
 void Transaction::setAmountCents(Cents cents) {
     amountCents = cents;
 }
@@ -340,6 +348,23 @@ Transaction TransactionDAO::getTransactionById(int transactionId) {
         handleError(query);
         return Transaction();  // Return empty transaction on error
     }
+}
+
+QList<Transaction> TransactionDAO::getTransactionsRenamedByRule(int ruleId) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, renamed_by_rule, category_id, type "
+                  "FROM transactions WHERE renamed_by_rule = :rule ORDER BY date DESC, id DESC");
+    query.bindValue(":rule", ruleId);
+
+    QList<Transaction> transactions;
+    if (query.exec()) {
+        while (query.next()) {
+            transactions.append(fromRow(query, query.value("account_id").toInt()));
+        }
+    } else {
+        handleError(query);
+    }
+    return transactions;
 }
 
 bool TransactionDAO::transactionExistsByHash(const QString& hash)

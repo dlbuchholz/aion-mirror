@@ -42,6 +42,7 @@ public:
     void setRenamedByRuleId(int ruleId);
     // Renames the payee for a rule and keeps the first original (the bank's) in originalPayee
     void renamePayee(const QString& newPayee, int ruleId);
+    void restoreOriginalPayee();                     // Back to the original, as if never renamed
     void setAmountCents(Cents cents);
     void setType(const QString& transactionType);
 
@@ -73,6 +74,7 @@ public:
     QList<Transaction> getShadowedTransactions();
     bool hasShadowedTransactions();
     Transaction getTransactionById(int transactionId);
+    QList<Transaction> getTransactionsRenamedByRule(int ruleId);   // Newest first
 
     bool transactionExistsByHash(const QString& hash);
     QList<QString> getExistingHashes(const QList<QString>& hashes);
