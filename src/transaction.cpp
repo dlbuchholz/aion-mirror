@@ -157,11 +157,13 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
         return false;
     }
 
+    // The hash stays as it was when the transaction was added: it stands for the row the bank sent,
+    // so an import still recognises it after the payee or description was changed here
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
         "UPDATE transactions SET account_id = :account_id, amount = :amount, date = :date, "
-        "description = :description, payee = :payee, category_id = :category_id, type = :type, "
-        "hash = :hash WHERE id = :id"
+        "description = :description, payee = :payee, category_id = :category_id, type = :type "
+        "WHERE id = :id"
         );
     query.bindValue(":id", transaction.getTransactionId());
     query.bindValue(":account_id", transaction.getAccountId());
@@ -169,7 +171,6 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     query.bindValue(":date", transaction.getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
     query.bindValue(":payee", transaction.getPayee());
-    query.bindValue(":hash", transaction.calculateHash());
 
     // Handle NULL category_id
     if (transaction.getCategoryId() <= 0) {

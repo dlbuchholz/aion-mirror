@@ -325,6 +325,21 @@ private slots:
         QVERIFY(fileCategories(rows, basicMapping(), basicOptions()).isEmpty());
     }
 
+    void editedTransactionsAreStillRecognisedOnTheNextImport() {
+        const QList<QStringList> rows = {{"01.10.2026", "-32,40", "REWE MARKT GMBH 4711", "Kartenzahlung"}};
+        QCOMPARE(run(rows, basicMapping(), basicOptions(), {}).imported, 1);
+
+        TransactionDAO dao;
+        Transaction imported = dao.getTransactionsForAccount(accountId).first();
+        imported.setPayee("Rewe");
+        imported.setDescription("Wocheneinkauf");
+        QVERIFY(dao.updateTransaction(imported));
+
+        const Result again = run(rows, basicMapping(), basicOptions(), {});
+        QCOMPARE(again.imported, 0);
+        QCOMPARE(again.duplicates, 1);
+    }
+
     void rulesFillInCategoriesOrReplaceTheFilesWhenAllowed() {
         const auto categoryId = [](const QString& name) {
             for (const Category& category : CategoryDAO(1).getAllCategories()) {

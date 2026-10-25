@@ -395,27 +395,32 @@ private slots:
         }
 
 
-    void testUpdateTransaction_refreshesHash() {
+    void testUpdateTransaction_keepsTheHashForDuplicateDetection() {
+        // The hash stands for the row the bank sent: after renaming the payee here, importing the
+        // same row again must still be recognised as a duplicate
         AccountDAO accountDao;
         TransactionDAO transactionDao;
         const int accountId = accountDao.createAccount(1, "HashTest", "Checking", 0);
         QVERIFY(accountId > 0);
 
-        Transaction transaction(-1, accountId, "Before", 1000, QDate(2026, 1, 1), "Old", 0, "expense");
+        Transaction transaction(-1, accountId, "REWE MARKT GMBH 4711", 1000, QDate(2026, 1, 1), "Old", 0, "expense");
+        const QString original = transaction.calculateHash();
         const int transactionId = transactionDao.addTransaction(transaction);
         QVERIFY(transactionId > 0);
 
         transaction.setTransactionId(transactionId);
-        transaction.setPayee("After");
+        transaction.setPayee("Rewe");
         transaction.setDescription("New");
         QVERIFY(transactionDao.updateTransaction(transaction));
+        QCOMPARE(transactionDao.getTransactionById(transactionId).getPayee(), QString("Rewe"));
 
         QSqlQuery query(DatabaseManager::instance().database());
         query.prepare("SELECT hash FROM transactions WHERE id = :id");
         query.bindValue(":id", transactionId);
         QVERIFY(query.exec());
         QVERIFY(query.next());
-        QCOMPARE(query.value(0).toString(), transaction.calculateHash());
+        QCOMPARE(query.value(0).toString(), original);
+        QCOMPARE(transactionDao.getExistingHashes({original}), QList<QString>{original});
     }
 
     void testUpdateTransaction_rejectsTemporaryId() {
