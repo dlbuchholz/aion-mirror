@@ -170,7 +170,7 @@ private slots:
         editor->findChild<QToolButton*>("acceptRenameButton")->click();
         QCOMPARE(payee->text(), QString("Rewe"));
         QVERIFY(offer->isHidden());                      // Done; the rule still matches the original name
-        QCOMPARE(original->text(), QString("Originally: REWE MARKT GMBH 4711"));
+        QVERIFY(original->text().startsWith("Originally: REWE MARKT GMBH 4711 · renamed by a rule"));
         QVERIFY(!original->isHidden());
 
         editor->findChild<QDoubleSpinBox*>("amountEdit")->setValue(32.4);
@@ -182,7 +182,7 @@ private slots:
 
         // Opening it again shows the original, and offers nothing
         editor->editTransaction(saved);
-        QCOMPARE(original->text(), QString("Originally: REWE MARKT GMBH 4711"));
+        QVERIFY(original->text().startsWith("Originally: REWE MARKT GMBH 4711 · renamed by a rule"));
         QVERIFY(offer->isHidden());
 
         // Saved unchanged it stays the rule's name; typed by hand it's yours
@@ -194,6 +194,8 @@ private slots:
         const Transaction edited = TransactionDAO().getTransactionById(saved.getTransactionId());
         QCOMPARE(edited.getRenamedByRuleId(), -1);
         QCOMPARE(edited.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));   // The bank's name stays
+        editor->editTransaction(edited);
+        QVERIFY(!original->text().contains("renamed by a rule"));
 
         // Turned off: nothing offered
         Settings::instance().setCategorySuggestionEnabled(false);
@@ -202,6 +204,33 @@ private slots:
         payee->setText("REWE MARKT City");
         QVERIFY(offer->isHidden());
         Settings::instance().setCategorySuggestionEnabled(true);
+    }
+
+    void restoringGivesBackTheBanksName() {
+        TransactionDAO dao;
+        Transaction bankRow(-1, firstId, "AMZN Mktp DE*2K4LT0", 2399, QDate::currentDate(), "", 0, "expense");
+        const QString bankHash = bankRow.calculateHash();
+        bankRow.renamePayee("Amazon", -1);
+        const int id = dao.addTransaction(bankRow);
+
+        TransactionsPage page;
+        page.setUserId(1);
+        page.openTransaction(id);
+        auto* editor = page.findChild<TransactionEditor*>();
+        auto* original = editor->findChild<QLabel*>("originalPayeeLabel");
+        QVERIFY(!original->isHidden());
+        QVERIFY(original->text().contains("<a href=\"restore\">Restore</a>"));
+
+        emit original->linkActivated("restore");
+        QCOMPARE(editor->findChild<QLineEdit*>("payeeEdit")->text(), QString("AMZN Mktp DE*2K4LT0"));
+        QVERIFY(original->isHidden());
+
+        editor->findChild<QPushButton*>("saveButton")->click();
+        const Transaction saved = dao.getTransactionById(id);
+        QCOMPARE(saved.getPayee(), QString("AMZN Mktp DE*2K4LT0"));
+        QVERIFY(saved.getOriginalPayee().isEmpty());     // No longer renamed
+        QCOMPARE(saved.calculateHash(), bankHash);       // Imports still recognise it
+        QCOMPARE(dao.getExistingHashes({bankHash}).size(), 1);
     }
 
     void selectingOneTransactionOpensEditor() {

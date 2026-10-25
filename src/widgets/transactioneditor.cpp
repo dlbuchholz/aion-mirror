@@ -114,8 +114,10 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     originalPayeeLabel->setObjectName("originalPayeeLabel");
     originalPayeeLabel->setForegroundRole(QPalette::PlaceholderText);
     originalPayeeLabel->setWordWrap(true);
+    originalPayeeLabel->setTextFormat(Qt::RichText);
     originalPayeeLabel->hide();
     form->addRow(originalPayeeLabel);
+    connect(originalPayeeLabel, &QLabel::linkActivated, this, &TransactionEditor::restoreOriginalPayee);
 
     dateEdit = new QDateEdit(this);
     dateEdit->setCalendarPopup(true);
@@ -227,9 +229,38 @@ void TransactionEditor::setRules(const QList<Rule>& newRules) {
     rules = newRules;
 }
 
+QHash<int, QString> TransactionEditor::accountNames() const {
+    QHash<int, QString> names;
+    for (int i = 0; i < accountCombo->count(); ++i) {
+        names.insert(accountCombo->itemData(i).toInt(), accountCombo->itemText(i));
+    }
+    return names;
+}
+
 void TransactionEditor::showOriginalPayee() {
-    originalPayeeLabel->setText(QString("Originally: %1").arg(originalPayee));
+    // "Originally: AMZN Mktp DE · renamed by a rule · Restore"
+    QString text = QString("Originally: %1").arg(originalPayee.toHtmlEscaped());
+    QString tooltip;
+    for (const Rule& rule : std::as_const(rules)) {
+        if (rule.id == renamedByRuleId && renamedByRuleId > 0) {
+            text += " · renamed by a rule";
+            tooltip = Rules::describe(rule, accountNames());
+        }
+    }
+    text += " · <a href=\"restore\">Restore</a>";
+    originalPayeeLabel->setText(text);
+    originalPayeeLabel->setToolTip(tooltip);
     originalPayeeLabel->setVisible(!originalPayee.isEmpty());
+}
+
+void TransactionEditor::restoreOriginalPayee() {
+    // Back to the bank's name, as if it was never renamed; saved with the transaction
+    const QString original = originalPayee;
+    originalPayee.clear();
+    renamedByRuleId = -1;
+    ruleGivenPayee.clear();
+    payeeEdit->setText(original);
+    showOriginalPayee();
 }
 
 void TransactionEditor::acceptRename() {
@@ -273,11 +304,7 @@ void TransactionEditor::suggestFromRules() {
     const Rule* rule = Rules::categoryRule(rules, draft);
     if (rule) {
         populateCategories(rule->categoryId);
-        QHash<int, QString> accountNames;
-        for (int i = 0; i < accountCombo->count(); ++i) {
-            accountNames.insert(accountCombo->itemData(i).toInt(), accountCombo->itemText(i));
-        }
-        const QString description = Rules::describe(*rule, accountNames);
+        const QString description = Rules::describe(*rule, accountNames());
         suggestionLabel->setText(QString("✦ From your rule: %1").arg(description));
         suggestionLabel->setToolTip(description);
         QPalette palette = suggestionLabel->palette();

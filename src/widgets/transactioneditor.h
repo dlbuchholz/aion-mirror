@@ -57,6 +57,8 @@ private:
     void suggestFromRules();                         // Category and new payee name, for new transactions
     void acceptRename();
     void showOriginalPayee();
+    void restoreOriginalPayee();
+    QHash<int, QString> accountNames() const;        // For describing rules
 
     int transactionId = -1;
     QList<Category> categories;
@@ -80,7 +82,7 @@ private:
     QWidget* suggestionNote = nullptr;               // Which rule suggested the category, and Undo
     QWidget* renameNote = nullptr;                   // A rule's name for the payee, and Rename
     QLabel* renameLabel = nullptr;
-    QLabel* originalPayeeLabel = nullptr;            // "Originally: ..."
+    QLabel* originalPayeeLabel = nullptr;            // "Originally: ... · Restore"
     QLabel* suggestionLabel = nullptr;
     QComboBox* accountCombo = nullptr;
     QTextEdit* descriptionEdit = nullptr;
