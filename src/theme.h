@@ -135,6 +135,15 @@ private:
         }
 
         qApp->setPalette(darkPalette);
+        styleToolTips(QColor(56, 56, 62), QColor(236, 236, 238), QColor(255, 255, 255, 40));
+    }
+
+    // Fusion draws tooltips with a hard frame in the text colour; a soft one fits the app better
+    static void styleToolTips(const QColor& background, const QColor& text, const QColor& border) {
+        const QString borderColor = QString("rgba(%1, %2, %3, %4)")
+                                        .arg(border.red()).arg(border.green()).arg(border.blue()).arg(border.alpha());
+        qApp->setStyleSheet(QString("QToolTip { background-color: %1; color: %2; border: 1px solid %3; padding: 4px 6px; }")
+                                .arg(background.name(), text.name(), borderColor));
     }
 
     static void applyLightTheme() {
@@ -153,8 +162,11 @@ private:
         lightPalette.setColor(QPalette::Text, Qt::black);
         lightPalette.setColor(QPalette::Window, QColor(245, 245, 245));
         lightPalette.setColor(QPalette::WindowText, Qt::black);
+        lightPalette.setColor(QPalette::ToolTipBase, QColor(255, 255, 255));   // Not Qt's yellow
+        lightPalette.setColor(QPalette::ToolTipText, QColor(30, 30, 30));
 
         qApp->setPalette(lightPalette);
+        styleToolTips(QColor(255, 255, 255), QColor(30, 30, 30), QColor(0, 0, 0, 45));
     }
 
     static void applySystemTheme() {
