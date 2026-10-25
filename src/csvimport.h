@@ -85,6 +85,7 @@ struct Result {
     Cents correctionCents = 0;                       // Balance correction added (see RunOptions::correctTo)
     int categoriesCreated = 0;
     int categorisedByRules = 0;                      // Imported rows whose category came from a rule
+    int renamedByRules = 0;                          // Imported rows whose payee a rule renamed
 };
 
 // The distinct values of the mapped Category column, most used first

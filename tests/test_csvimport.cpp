@@ -340,6 +340,31 @@ private slots:
         QCOMPARE(again.duplicates, 1);
     }
 
+    void rulesRenamePayeesAndTheNextImportStillKnowsThem() {
+        Rule rename;
+        rename.newPayee = "Rewe";
+        rename.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE MARKT")};
+        Options options = basicOptions();
+        options.rules = {rename};
+        const QList<QStringList> rows = {{"01.10.2026", "-32,40", "REWE MARKT GMBH 4711", ""},
+                                         {"02.10.2026", "-5,00", "Aldi", ""}};
+        const Result result = run(rows, basicMapping(), options, {});
+        QCOMPARE(result.imported, 2);
+        QCOMPARE(result.renamedByRules, 1);
+
+        Transaction renamed;
+        for (const Transaction& transaction : TransactionDAO().getTransactionsForAccount(accountId)) {
+            if (transaction.getAmountCents() == 3240) renamed = transaction;
+        }
+        QCOMPARE(renamed.getPayee(), QString("Rewe"));
+        QCOMPARE(renamed.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+
+        const Result again = run(rows, basicMapping(), options, {});   // The same export once more
+        QCOMPARE(again.imported, 0);
+        QCOMPARE(again.duplicates, 2);
+        QCOMPARE(again.renamedByRules, 0);               // Duplicates don't count
+    }
+
     void rulesFillInCategoriesOrReplaceTheFilesWhenAllowed() {
         const auto categoryId = [](const QString& name) {
             for (const Category& category : CategoryDAO(1).getAllCategories()) {

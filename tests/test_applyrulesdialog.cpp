@@ -72,6 +72,22 @@ private slots:
         QCOMPARE(TransactionDAO().getTransactionById(city).getCategoryId(), categoryId("Entertainment"));   // Kept
     }
 
+    void previewsAndAppliesRenames() {
+        Rule rename;
+        rename.newPayee = "Rewe";
+        rename.conditions = {RuleCondition(Field::Payee, Operator::StartsWith, "REWE MARKT")};
+        QVERIFY(RuleDAO(1).addRule(rename) > 0);
+        const int id = add("REWE MARKT GMBH 4711", 3240, "Entertainment");   // Keeps its category
+
+        ApplyRulesDialog dialog(1);
+        QCOMPARE(payees(dialog), QStringList({"REWE MARKT GMBH 4711 → Rewe"}));
+        dialog.findChild<QPushButton*>("applyRulesButton")->click();
+        const Transaction saved = TransactionDAO().getTransactionById(id);
+        QCOMPARE(saved.getPayee(), QString("Rewe"));
+        QCOMPARE(saved.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+        QCOMPARE(saved.getCategoryId(), categoryId("Entertainment"));
+    }
+
     void saysSoWhenNothingWouldChange() {
         add("Aldi", 500);
         ApplyRulesDialog dialog(1);

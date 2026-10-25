@@ -362,18 +362,23 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         }
     }
 
-    // Rules fill in rows without a category, or replace the file's when allowed
+    // Rules fill in rows without a category (or replace the file's when allowed) and rename payees.
+    // The duplicate hashes above were taken before, from the bank's names, and a renamed transaction
+    // keeps the bank's name as its original payee, so its stored hash is the same.
     for (int i = 0; i < transactions.size() && !options.rules.isEmpty(); ++i) {
+        const bool isNew = !existing.contains(hashes[i]);
         const int current = transactions[i].getCategoryId();
-        if (current > 0 && !options.rulesOverrideFileCategories) {
-            continue;
-        }
-        const std::optional<int> category = Rules::categoryFor(options.rules, transactions[i]);
-        if (category && *category != current) {
-            transactions[i].setCategoryId(*category);
-            if (!existing.contains(hashes[i])) {
-                result.categorisedByRules++;
+        if (current <= 0 || options.rulesOverrideFileCategories) {
+            const std::optional<int> category = Rules::categoryFor(options.rules, transactions[i]);
+            if (category && *category != current) {
+                transactions[i].setCategoryId(*category);
+                if (isNew) result.categorisedByRules++;
             }
+        }
+        const Rule* rename = Rules::renameRule(options.rules, transactions[i]);
+        if (rename && rename->newPayee != transactions[i].getPayee()) {
+            transactions[i].renamePayee(rename->newPayee);
+            if (isNew) result.renamedByRules++;
         }
     }
 

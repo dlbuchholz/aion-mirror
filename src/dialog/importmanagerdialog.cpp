@@ -835,7 +835,7 @@ QWidget *ImportManagerDialog::buildReviewPage()
     useRulesCheck->setObjectName("useRulesCheck");
     useRulesCheck->setChecked(hasRules);
     useRulesCheck->setEnabled(hasRules);
-    useRulesCheck->setToolTip("Rows without a category get one from your rules (Settings > Rules)");
+    useRulesCheck->setToolTip("Your rules (Settings > Rules) give rows without a category one, and rename payees");
     layout->addWidget(useRulesCheck);
     rulesOverrideCheck = new QCheckBox("Also for rows the file already has a category for", page);
     rulesOverrideCheck->setObjectName("rulesOverrideCheck");
@@ -942,10 +942,18 @@ void ImportManagerDialog::refreshReview()
         : created.size() <= 3 ? QString("New categories: %1").arg(created.join(", "))
                               : QString("New categories: %1 and %2 more").arg(created.mid(0, 2).join(", ")).arg(created.size() - 2));
     newCategoriesLabel->setVisible(!created.isEmpty());
-    rulesLabel->setText(dryRun.categorisedByRules == 1 ? QString("1 new transaction gets its category from your rules.")
-                                                        : QString("%1 new transactions get their category from your rules.")
-                                                              .arg(dryRun.categorisedByRules));
-    rulesLabel->setVisible(dryRun.categorisedByRules > 0);
+    QStringList ruleEffects;
+    if (dryRun.categorisedByRules > 0) {
+        ruleEffects << (dryRun.categorisedByRules == 1 ? QString("1 new transaction gets its category from your rules.")
+                                                       : QString("%1 new transactions get their category from your rules.")
+                                                             .arg(dryRun.categorisedByRules));
+    }
+    if (dryRun.renamedByRules > 0) {
+        ruleEffects << (dryRun.renamedByRules == 1 ? QString("1 payee is renamed.")
+                                                   : QString("%1 payees are renamed.").arg(dryRun.renamedByRules));
+    }
+    rulesLabel->setText(ruleEffects.join(" "));
+    rulesLabel->setVisible(!ruleEffects.isEmpty());
     rulesOverrideCheck->setVisible(mapping().contains(CsvImport::FieldCategory));
 
     // Balance check on the newest day of the file (or the day of the bank's balance column)
