@@ -27,6 +27,7 @@ public:
 
     void setUserId(int userId);                      // Shows and edits that user's rules
     void reload();                                   // Rules, categories, accounts and transactions changed
+    void createRule(const Rule& draft);              // Opens the editor for a new rule filled with draft
 
     // "Payee or description contains REWE and amount between 40,00 € and 120,00 €"
     QString describe(const Rule& rule) const;
@@ -40,7 +41,7 @@ signals:
 
 private:
     void rebuildList();
-    void openEditor(int ruleId);                     // 0 = new rule
+    void openEditor(int ruleId, const Rule* draft = nullptr);   // 0 = new rule, filled with draft if given
     void closeEditor();
     void addConditionRow(const RuleCondition& condition);
     void save();

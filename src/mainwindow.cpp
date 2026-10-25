@@ -69,6 +69,12 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     });
     connect(dashboard, &DashboardPage::budgetRequested, this, [this]() { showPage(SidebarWidget::Page::Budget); });
 
+    // "Create rule from this…" on a transaction opens Settings > Rules with the rule filled in
+    connect(transactions, &TransactionsPage::createRuleRequested, this, [this](const Rule& draft) {
+        showPage(SidebarWidget::Page::Settings);
+        ui->settingsPage->createRule(draft);
+    });
+
     showPage(SidebarWidget::Page::Dashboard);
 }
 

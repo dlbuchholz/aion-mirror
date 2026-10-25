@@ -415,6 +415,8 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     };
     listView = transactionList;
     listView->setObjectName("transactionList");
+    listView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(listView, &QWidget::customContextMenuRequested, this, &TransactionsPage::showContextMenu);
     listView->setModel(model);
     delegate = new TransactionDelegate(listView);
     listView->setItemDelegate(delegate);
@@ -782,6 +784,20 @@ void TransactionsPage::openEditor(const QModelIndex& index) {
     editor->editTransaction(*transaction);
     editor->show();
     updateBulkBar();
+}
+
+void TransactionsPage::showContextMenu(const QPoint& position) {
+    const QModelIndex index = listView->indexAt(position);
+    const auto transaction = model->transaction(index.data(TransactionListModel::TransactionIdRole).toInt());
+    if (!index.isValid() || !transaction) {
+        return;                                      // Day headers and empty space have no menu
+    }
+    QMenu menu(this);
+    menu.addAction("Open", this, [this, index]() { openEditor(index); });
+    menu.addAction("Create rule from this…", this, [this, draft = Rules::draftFrom(*transaction)]() {
+        emit createRuleRequested(draft);
+    });
+    menu.exec(listView->viewport()->mapToGlobal(position));
 }
 
 void TransactionsPage::showCategoryThisMonth(int categoryId) {

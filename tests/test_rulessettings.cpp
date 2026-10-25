@@ -176,6 +176,24 @@ private slots:
         QCOMPARE(rows(settings).size(), 1);
     }
 
+    void aRuleCanStartFromADraft() {
+        RulesSettings settings;
+        settings.setUserId(1);
+        Rule draft;
+        draft.categoryId = categoryId("Utilities");
+        draft.conditions = {{Field::Payee, Operator::Contains, "Stadtwerke"}};
+        settings.createRule(draft);
+
+        QWidget* condition = firstCondition(settings);
+        QCOMPARE(condition->findChild<QLineEdit*>("conditionText")->text(), QString("Stadtwerke"));
+        QCOMPARE(settings.findChild<QComboBox*>("ruleCategoryCombo")->currentText(), QString("Utilities"));
+        QVERIFY(settings.findChild<QPushButton*>("deleteRuleButton")->isHidden());   // Not saved yet
+        QCOMPARE(settings.findChild<QLabel*>("ruleEditorMatchCount")->text(), QString("Matches 1 existing transaction"));
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        QCOMPARE(RuleDAO(1).rules().size(), 1);
+    }
+
     void describesEveryKindOfCondition() {
         RulesSettings settings;
         settings.setUserId(1);

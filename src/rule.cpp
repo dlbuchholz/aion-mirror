@@ -218,6 +218,22 @@ bool Rules::apply(const QList<RuleChange>& changes) {
     return db.commit();
 }
 
+Rule Rules::draftFrom(const Transaction& transaction) {
+    Rule rule;
+    rule.categoryId = transaction.getCategoryId() > 0 ? transaction.getCategoryId() : -1;
+    const QString payee = transaction.getPayee().simplified();
+    const QString description = transaction.getDescription().simplified();
+    if (!payee.isEmpty()) {
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, payee)};
+    } else if (!description.isEmpty()) {
+        rule.conditions = {RuleCondition(RuleCondition::Field::Description, RuleCondition::Operator::Contains, description)};
+    } else {
+        rule.conditions = {RuleCondition(RuleCondition::Field::Amount, RuleCondition::Operator::Is,
+                                         QString::number(transaction.getAmountCents()))};
+    }
+    return rule;
+}
+
 // --- RuleDAO ---
 
 RuleDAO::RuleDAO(int userId)

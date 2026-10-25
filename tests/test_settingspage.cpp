@@ -2,12 +2,14 @@
 #include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QListWidget>
 
 #include "category.h"
+#include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/settingspage.h"
@@ -161,6 +163,18 @@ private slots:
         child<QPushButton>(page, "applyButton")->click();
         QVERIFY(!Settings::instance().isCategorySuggestionEnabled());
         Settings::instance().setCategorySuggestionEnabled(true);
+    }
+
+    void createRuleShowsTheRulesSectionWithTheDraft() {
+        SettingsPage page;
+        page.setUserId(1);
+        Rule draft;
+        draft.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "Kiosk")};
+        page.createRule(draft);
+        auto* sections = page.findChild<QListWidget*>();
+        QCOMPARE(sections->currentItem()->text(), QString("Rules"));
+        QVERIFY(!page.findChild<QFrame*>("ruleEditor")->isHidden());
+        QCOMPARE(page.findChild<QLineEdit*>("conditionText")->text(), QString("Kiosk"));
     }
 
     void showsCategoriesAddedElsewhereAfterReload() {

@@ -312,6 +312,15 @@ void SettingsPage::setUserId(int userId)
     accountTypesSettings->setUserId(userId);
 }
 
+void SettingsPage::createRule(const Rule &draft)
+{
+    const QList<QListWidgetItem *> items = sectionList->findItems("Rules", Qt::MatchExactly);
+    if (!items.isEmpty()) {
+        sectionList->setCurrentItem(items.first());
+    }
+    rulesSettings->createRule(draft);
+}
+
 void SettingsPage::reloadData()
 {
     categoriesSettings->reload();

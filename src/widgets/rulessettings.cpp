@@ -458,7 +458,11 @@ void RulesSettings::rebuildList() {
     editor->setVisible(editedId >= 0);
 }
 
-void RulesSettings::openEditor(int ruleId) {
+void RulesSettings::createRule(const Rule& draft) {
+    openEditor(0, &draft);
+}
+
+void RulesSettings::openEditor(int ruleId, const Rule* draft) {
     editedId = ruleId;
     errorLabel->hide();
     for (ConditionEditor* conditionEditor : std::as_const(conditionEditors)) {
@@ -471,9 +475,9 @@ void RulesSettings::openEditor(int ruleId) {
         categoryCombo->addItem(category.getName(), category.getCategoryId());
     }
 
-    Rule rule;
+    Rule rule = draft ? *draft : Rule();
     for (const Rule& candidate : std::as_const(rules)) {
-        if (candidate.id == ruleId) rule = candidate;
+        if (ruleId > 0 && candidate.id == ruleId) rule = candidate;
     }
     matchCombo->setCurrentIndex(rule.matchAll ? 0 : 1);
     categoryCombo->setCurrentIndex(qMax(0, categoryCombo->findData(rule.categoryId)));

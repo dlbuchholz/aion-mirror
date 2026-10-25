@@ -118,6 +118,25 @@ private slots:
         QCOMPARE(dao.getTransactionById(id).getAmountCents(), Cents(3240));   // Nothing else changed
     }
 
+    void draftsStartFromThePayeeThenDescriptionThenAmount() {
+        Transaction rewe = transaction("  REWE   Markt ", "Wocheneinkauf", 3240);
+        rewe.setCategoryId(7);
+        Rule draft = Rules::draftFrom(rewe);
+        QCOMPARE(draft.categoryId, 7);
+        QCOMPARE(draft.conditions.size(), 1);
+        QCOMPARE(draft.conditions[0].field, Field::Payee);
+        QCOMPARE(draft.conditions[0].value, QString("REWE Markt"));
+        QVERIFY(draft.matches(rewe));
+
+        draft = Rules::draftFrom(transaction("", "Gehalt Oktober", 245000, "income"));
+        QCOMPARE(draft.conditions[0].field, Field::Description);
+        QCOMPARE(draft.categoryId, -1);                  // No category yet: chosen in the editor
+
+        draft = Rules::draftFrom(transaction("", "", 999));
+        QCOMPARE(draft.conditions[0].field, Field::Amount);
+        QCOMPARE(draft.conditions[0].value, QString("999"));
+    }
+
     void rulesAreStoredWithTheirConditionsAndOrder() {
         RuleDAO dao(1);
         Rule groceries;

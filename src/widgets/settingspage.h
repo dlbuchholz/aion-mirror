@@ -15,6 +15,7 @@ class QToolButton;
 class AccountTypesSettings;
 class CategoriesSettings;
 class RulesSettings;
+struct Rule;
 
 // Settings page of the main window: one section per settings group plus
 // categories and account types, saved together with Apply.
@@ -27,6 +28,7 @@ public:
 
     void setUserId(int userId);                      // Whose categories and account types to show
     void reloadData();                               // Categories and account types changed elsewhere (an import)
+    void createRule(const Rule& draft);              // Shows Rules with a new rule filled with draft
 
 signals:
     void settingsChanged();                          // Emitted after changes were applied

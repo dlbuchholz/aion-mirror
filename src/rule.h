@@ -71,6 +71,10 @@ QList<RuleChange> changesFor(const QList<Rule>& rules, const QList<Transaction>&
 // Saves the changes, all or none
 bool apply(const QList<RuleChange>& changes);
 
+// A first draft of a rule for transactions like this one: its payee (or description, or amount)
+// and its category
+Rule draftFrom(const Transaction& transaction);
+
 } // namespace Rules
 
 // A user's rules, in the order they're tried

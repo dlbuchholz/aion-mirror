@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <functional>
 #include "category.h"
+#include "rule.h"
 #include "transaction.h"
 
 class QAction;
@@ -47,6 +48,7 @@ public slots:
 
 signals:
     void transactionsChanged();
+    void createRuleRequested(const Rule& draft);     // "Create rule from this…" on a transaction
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -54,6 +56,7 @@ protected:
 private slots:
     void onSelectionChanged();
     void openEditor(const QModelIndex& index);
+    void showContextMenu(const QPoint& position);   // Right-click on a transaction
     void selectDay(const QModelIndex& header, bool extendRange);  // Ctrl/Shift-click on a day header
     void onSaveRequested(const Transaction& transaction);
     void deleteSelected();
