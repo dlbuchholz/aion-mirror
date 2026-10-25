@@ -50,11 +50,12 @@ bool textMatches(const QString& text, RuleCondition::Operator op, const QString&
 bool RuleCondition::matches(const Transaction& transaction) const {
     switch (field) {
     case Field::Payee:
-        return textMatches(transaction.getPayee(), op, value);
+        return textMatches(transaction.getPayee(), op, value) || textMatches(transaction.getOriginalPayee(), op, value);
     case Field::Description:
         return textMatches(transaction.getDescription(), op, value);
     case Field::PayeeOrDescription:
-        return textMatches(transaction.getPayee(), op, value) || textMatches(transaction.getDescription(), op, value);
+        return textMatches(transaction.getPayee(), op, value) || textMatches(transaction.getOriginalPayee(), op, value)
+               || textMatches(transaction.getDescription(), op, value);
     case Field::Amount: {
         bool ok = false;
         const Cents low = value.toLongLong(&ok);
@@ -137,9 +138,18 @@ bool Rule::matches(const Transaction& transaction) const {
     return matchAll;
 }
 
-const Rule* Rules::firstMatch(const QList<Rule>& rules, const Transaction& transaction) {
+const Rule* Rules::categoryRule(const QList<Rule>& rules, const Transaction& transaction) {
     for (const Rule& rule : rules) {
-        if (rule.matches(transaction)) {
+        if (rule.setsCategory() && rule.matches(transaction)) {
+            return &rule;
+        }
+    }
+    return nullptr;
+}
+
+const Rule* Rules::renameRule(const QList<Rule>& rules, const Transaction& transaction) {
+    for (const Rule& rule : rules) {
+        if (rule.renames() && rule.matches(transaction)) {
             return &rule;
         }
     }
@@ -147,7 +157,7 @@ const Rule* Rules::firstMatch(const QList<Rule>& rules, const Transaction& trans
 }
 
 std::optional<int> Rules::categoryFor(const QList<Rule>& rules, const Transaction& transaction) {
-    const Rule* rule = firstMatch(rules, transaction);
+    const Rule* rule = categoryRule(rules, transaction);
     return rule ? std::optional<int>(rule->categoryId) : std::nullopt;
 }
 
@@ -190,12 +200,21 @@ QList<RuleChange> Rules::changesFor(const QList<Rule>& rules, const QList<Transa
     QList<RuleChange> changes;
     for (const Transaction& transaction : transactions) {
         const int current = transaction.getCategoryId();
-        if (protectedCategories.contains(current) || (onlyUncategorised && current > 0)) {
+        if (protectedCategories.contains(current)) {
             continue;
         }
-        const std::optional<int> category = categoryFor(rules, transaction);
-        if (category && *category != current) {
-            changes.append({transaction, *category});
+        RuleChange change{transaction, -1, QString()};
+        if (!(onlyUncategorised && current > 0)) {
+            const std::optional<int> category = categoryFor(rules, transaction);
+            if (category && *category != current) {
+                change.categoryId = *category;
+            }
+        }
+        if (const Rule* rename = renameRule(rules, transaction); rename && rename->newPayee != transaction.getPayee()) {
+            change.payee = rename->newPayee;
+        }
+        if (change.categoryId > 0 || !change.payee.isEmpty()) {
+            changes.append(change);
         }
     }
     return changes;
@@ -209,7 +228,12 @@ bool Rules::apply(const QList<RuleChange>& changes) {
     TransactionDAO dao;
     for (const RuleChange& change : changes) {
         Transaction changed = change.transaction;
-        changed.setCategoryId(change.categoryId);
+        if (change.categoryId > 0) {
+            changed.setCategoryId(change.categoryId);
+        }
+        if (!change.payee.isEmpty()) {
+            changed.renamePayee(change.payee);        // Keeps the bank's name as the original
+        }
         if (!dao.updateTransaction(changed)) {
             db.rollback();
             return false;
@@ -244,7 +268,7 @@ QList<Rule> RuleDAO::rules() {
     QList<Rule> result;
     QHash<int, qsizetype> indexById;
     QSqlQuery query(db);
-    query.prepare("SELECT id, position, match_all, category_id FROM rules WHERE user_id = :user_id "
+    query.prepare("SELECT id, position, match_all, category_id, new_payee FROM rules WHERE user_id = :user_id "
                   "ORDER BY position, id");
     query.bindValue(":user_id", userId);
     if (!query.exec()) {
@@ -256,7 +280,8 @@ QList<Rule> RuleDAO::rules() {
         rule.id = query.value(0).toInt();
         rule.position = query.value(1).toInt();
         rule.matchAll = query.value(2).toBool();
-        rule.categoryId = query.value(3).toInt();
+        rule.categoryId = query.value(3).isNull() ? -1 : query.value(3).toInt();
+        rule.newPayee = query.value(4).toString();
         indexById.insert(rule.id, result.size());
         result.append(rule);
     }
@@ -320,8 +345,21 @@ bool RuleDAO::ownsCategory(int categoryId) {
     return query.exec() && query.next();
 }
 
+// A rule does something (a category of this user, a new payee, or both) when its conditions match
+bool RuleDAO::valid(const Rule& rule) {
+    if (!rule.setsCategory() && !rule.renames()) {
+        return false;
+    }
+    return !rule.setsCategory() || ownsCategory(rule.categoryId);
+}
+
+void RuleDAO::bindActions(QSqlQuery& query, const Rule& rule) {
+    query.bindValue(":category_id", rule.setsCategory() ? QVariant(rule.categoryId) : QVariant(QMetaType(QMetaType::Int)));
+    query.bindValue(":new_payee", rule.renames() ? QVariant(rule.newPayee) : QVariant(QMetaType(QMetaType::QString)));
+}
+
 int RuleDAO::addRule(const Rule& rule) {
-    if (!ownsCategory(rule.categoryId)) {
+    if (!valid(rule)) {
         return -1;
     }
     QSqlDatabase db = DatabaseManager::instance().database();
@@ -329,13 +367,13 @@ int RuleDAO::addRule(const Rule& rule) {
         return -1;
     }
     QSqlQuery query(db);
-    query.prepare("INSERT INTO rules (user_id, position, match_all, category_id) "
+    query.prepare("INSERT INTO rules (user_id, position, match_all, category_id, new_payee) "
                   "VALUES (:user_id, (SELECT COALESCE(MAX(position), -1) + 1 FROM rules WHERE user_id = :user_id2), "
-                  ":match_all, :category_id)");
+                  ":match_all, :category_id, :new_payee)");
     query.bindValue(":user_id", userId);
     query.bindValue(":user_id2", userId);
     query.bindValue(":match_all", rule.matchAll ? 1 : 0);
-    query.bindValue(":category_id", rule.categoryId);
+    bindActions(query, rule);
     if (!query.exec()) {
         qWarning() << "RuleDAO::addRule:" << query.lastError().text();
         db.rollback();
@@ -350,7 +388,7 @@ int RuleDAO::addRule(const Rule& rule) {
 }
 
 bool RuleDAO::updateRule(const Rule& rule) {
-    if (!owns(rule.id) || !ownsCategory(rule.categoryId)) {
+    if (!owns(rule.id) || !valid(rule)) {
         return false;
     }
     QSqlDatabase db = DatabaseManager::instance().database();
@@ -358,9 +396,9 @@ bool RuleDAO::updateRule(const Rule& rule) {
         return false;
     }
     QSqlQuery query(db);
-    query.prepare("UPDATE rules SET match_all = :match_all, category_id = :category_id WHERE id = :id");
+    query.prepare("UPDATE rules SET match_all = :match_all, category_id = :category_id, new_payee = :new_payee WHERE id = :id");
     query.bindValue(":match_all", rule.matchAll ? 1 : 0);
-    query.bindValue(":category_id", rule.categoryId);
+    bindActions(query, rule);
     query.bindValue(":id", rule.id);
     if (!query.exec() || !writeConditions(rule.id, rule.conditions) || !db.commit()) {
         db.rollback();

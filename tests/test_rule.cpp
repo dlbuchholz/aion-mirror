@@ -112,7 +112,7 @@ private slots:
         const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
         TransactionDAO dao;
         const int id = dao.addTransaction(Transaction(-1, account, "REWE", 3240, QDate(2026, 10, 1), "", 0, "expense"));
-        RuleChange change{dao.getTransactionById(id), categoryId(1, "Groceries")};
+        RuleChange change{dao.getTransactionById(id), categoryId(1, "Groceries"), QString()};
         QVERIFY(Rules::apply({change}));
         QCOMPARE(dao.getTransactionById(id).getCategoryId(), categoryId(1, "Groceries"));
         QCOMPARE(dao.getTransactionById(id).getAmountCents(), Cents(3240));   // Nothing else changed
@@ -135,6 +135,85 @@ private slots:
         draft = Rules::draftFrom(transaction("", "", 999));
         QCOMPARE(draft.conditions[0].field, Field::Amount);
         QCOMPARE(draft.conditions[0].value, QString("999"));
+    }
+
+    void renamingKeepsTheBanksNameForMatchingAndDuplicates() {
+        Transaction rewe = transaction("REWE MARKT GMBH 4711", "", 3240);
+        const QString bankHash = rewe.calculateHash();
+        rewe.renamePayee("Rewe");
+        rewe.renamePayee("REWE");                        // A second rename keeps the first original
+        QCOMPARE(rewe.getPayee(), QString("REWE"));
+        QCOMPARE(rewe.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+        QCOMPARE(rewe.calculateHash(), bankHash);
+        QVERIFY((RuleCondition(Field::Payee, Operator::Contains, "markt gmbh").matches(rewe)));
+        QVERIFY((RuleCondition(Field::PayeeOrDescription, Operator::StartsWith, "rewe markt").matches(rewe)));
+    }
+
+    void eachActionTakesTheFirstRuleThatHasIt() {
+        Rule rename;
+        rename.newPayee = "Rewe";
+        rename.conditions = {{Field::Payee, Operator::Contains, "REWE"}};
+        Rule category;
+        category.categoryId = 10;
+        category.conditions = {{Field::Payee, Operator::Contains, "REWE"}};
+        const QList<Rule> rules = {rename, category};
+        const Transaction rewe = transaction("REWE MARKT", "", 100);
+        QCOMPARE(Rules::categoryFor(rules, rewe), std::optional<int>(10));   // The rename rule doesn't block it
+        QCOMPARE(Rules::renameRule(rules, rewe)->newPayee, QString("Rewe"));
+
+        const QList<RuleChange> changes = Rules::changesFor(rules, {rewe}, true, {});
+        QCOMPARE(changes.size(), 1);
+        QCOMPARE(changes.first().categoryId, 10);
+        QCOMPARE(changes.first().payee, QString("Rewe"));
+
+        Transaction categorised = rewe;
+        categorised.setCategoryId(20);                   // Keeps its category, still renamed
+        const RuleChange onlyRename = Rules::changesFor(rules, {categorised}, true, {}).first();
+        QCOMPARE(onlyRename.categoryId, -1);
+        QCOMPARE(onlyRename.payee, QString("Rewe"));
+        Transaction renamed = rewe;
+        renamed.renamePayee("Rewe");
+        renamed.setCategoryId(10);
+        QVERIFY(Rules::changesFor(rules, {renamed}, false, {}).isEmpty());   // Nothing left to do
+    }
+
+    void applyingRenamesAndKeepsTheOriginal() {
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        TransactionDAO dao;
+        const Transaction bankRow(-1, account, "REWE MARKT GMBH 4711", 3240, QDate(2026, 10, 1), "", 0, "expense");
+        const int id = dao.addTransaction(bankRow);
+        QVERIFY(Rules::apply({RuleChange{dao.getTransactionById(id), -1, "Rewe"}}));
+        const Transaction saved = dao.getTransactionById(id);
+        QCOMPARE(saved.getPayee(), QString("Rewe"));
+        QCOMPARE(saved.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+        QCOMPARE(dao.getExistingHashes({bankRow.calculateHash()}).size(), 1);   // Still a duplicate of the bank's row
+    }
+
+    void rulesNeedAnActionAndKeepTheirRenameWithoutACategory() {
+        RuleDAO dao(1);
+        Rule nothing;
+        nothing.conditions = {{Field::Payee, Operator::Contains, "REWE"}};
+        QVERIFY(dao.addRule(nothing) <= 0);              // Neither category nor rename
+
+        CategoryDAO categories(1);
+        const int travel = categories.addCategory(Category(-1, "Travel", "expense"));
+        Rule onlyCategory = nothing;
+        onlyCategory.categoryId = travel;
+        Rule both = onlyCategory;
+        both.newPayee = "Deutsche Bahn";
+        Rule onlyRename = nothing;
+        onlyRename.newPayee = "Rewe";
+        QVERIFY(dao.addRule(onlyCategory) > 0);
+        QVERIFY(dao.addRule(both) > 0);
+        QVERIFY(dao.addRule(onlyRename) > 0);
+        QCOMPARE(dao.rules()[2].categoryId, -1);
+        QCOMPARE(dao.rules()[2].newPayee, QString("Rewe"));
+
+        QVERIFY(categories.deleteCategory(travel));      // Unused category
+        const QList<Rule> left = dao.rules();
+        QCOMPARE(left.size(), 2);                        // The category-only rule is gone
+        QCOMPARE(left[0].newPayee, QString("Deutsche Bahn"));
+        QCOMPARE(left[0].categoryId, -1);                // The other one keeps renaming
     }
 
     void rulesAreStoredWithTheirConditionsAndOrder() {

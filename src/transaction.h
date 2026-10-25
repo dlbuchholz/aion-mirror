@@ -27,6 +27,7 @@ public:
     QDate getDate() const;
     QString getDescription() const;
     QString getPayee() const;
+    QString getOriginalPayee() const;                // Before a rule renamed it; empty = never renamed
     QString getType() const;
 
     // Setters
@@ -36,9 +37,13 @@ public:
     void setDate(const QDate& date);
     void setDescription(const QString& desc);
     void setPayee(const QString& payee);
+    void setOriginalPayee(const QString& payee);
+    // Renames the payee and keeps the first original (the bank's) in originalPayee
+    void renamePayee(const QString& newPayee);
     void setAmountCents(Cents cents);
     void setType(const QString& transactionType);
 
+    // For duplicate detection: built from the bank's data, so the original payee if renamed
     QString calculateHash() const;
 
 private:
@@ -50,6 +55,7 @@ private:
     QString description;
     QString payee;
     QString type;
+    QString originalPayee;
 };
 
 // Transaction DAO
@@ -70,6 +76,7 @@ public:
 
 private:
     void handleError(const QSqlQuery& query);
+    static Transaction fromRow(const QSqlQuery& query, int accountId);
 };
 
 #endif // TRANSACTION_H

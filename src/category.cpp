@@ -120,16 +120,32 @@ bool CategoryDAO::editCategory(int id, const QString& newName, const QString& ne
 }
 
 bool CategoryDAO::deleteCategory(int categoryId) {
-    QSqlQuery query(DatabaseManager::instance().database());
+    if (!owns(categoryId)) {
+        return false;
+    }
+    // Rules that only set this category would do nothing afterwards; rules that also rename
+    // keep that part (the database clears their category)
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        return false;
+    }
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM rules WHERE category_id = :id AND new_payee IS NULL");
+    query.bindValue(":id", categoryId);
+    if (!query.exec()) {
+        handleError(query);
+        db.rollback();
+        return false;
+    }
     query.prepare("DELETE FROM categories WHERE id = :id AND user_id = :user_id");
     query.bindValue(":id", categoryId);
     query.bindValue(":user_id", userId);
-
-    if (!query.exec()) {
+    if (!query.exec() || query.numRowsAffected() != 1) {
         handleError(query);
+        db.rollback();                               // Still used by transactions or budgets
         return false;
     }
-    return query.numRowsAffected() == 1;
+    return db.commit();
 }
 
 bool CategoryDAO::editCategory(int id, const QString& newName, const QString& newType, const QString& newColor) {
@@ -222,6 +238,7 @@ bool CategoryDAO::deleteCategoryKeepingTransactions(int categoryId) {
     return runAll({
         {"UPDATE transactions SET category_id = NULL WHERE category_id = :id", id},
         {"DELETE FROM budgets WHERE category_id = :id", id},
+        {"DELETE FROM rules WHERE category_id = :id AND new_payee IS NULL", id},   // Would do nothing anymore
         {"DELETE FROM categories WHERE id = :id", id},
     });
 }

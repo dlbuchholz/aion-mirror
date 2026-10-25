@@ -209,7 +209,7 @@ void TransactionEditor::suggestCategory() {
     const Transaction draft(-1, accountCombo->currentData().toInt(), payeeEdit->text().trimmed(),
                             Money::fromDouble(amountEdit->value()), dateEdit->date(),
                             descriptionEdit->toPlainText().trimmed(), NO_CATEGORY, currentType());
-    const Rule* rule = Rules::firstMatch(rules, draft);
+    const Rule* rule = Rules::categoryRule(rules, draft);
     if (rule) {
         populateCategories(rule->categoryId);
         QHash<int, QString> accountNames;

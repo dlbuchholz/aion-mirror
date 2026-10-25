@@ -38,24 +38,32 @@ struct Rule {
     int id = -1;
     int position = 0;                                // Lower is tried first
     bool matchAll = true;                            // false: any condition is enough
-    int categoryId = -1;
+    // What the rule does, at least one of them
+    int categoryId = -1;                             // Sets this category; -1 = doesn't
+    QString newPayee;                                // Renames the payee to this; empty = doesn't
     QList<RuleCondition> conditions;
 
-    bool matches(const Transaction& transaction) const;   // A rule without conditions never matches
+    // A rule without conditions never matches. Payee conditions also look at the original payee,
+    // so a renamed transaction still matches rules written for the bank's name.
+    bool matches(const Transaction& transaction) const;
+    bool setsCategory() const { return categoryId > 0; }
+    bool renames() const { return !newPayee.isEmpty(); }
 };
 
-// A transaction a rule would give another category
+// What applying the rules would change on a transaction
 struct RuleChange {
     Transaction transaction;                         // As it is now
-    int categoryId = -1;                             // What the rules give it
+    int categoryId = -1;                             // New category; -1 = unchanged
+    QString payee;                                   // New payee; empty = unchanged
 };
 
 namespace Rules {
 
-// The first rule (in list order) that matches, or nullptr
-const Rule* firstMatch(const QList<Rule>& rules, const Transaction& transaction);
+// For each action, the first rule (in list order) that matches and has that action, or nullptr
+const Rule* categoryRule(const QList<Rule>& rules, const Transaction& transaction);
+const Rule* renameRule(const QList<Rule>& rules, const Transaction& transaction);
 
-// The category of the first rule (in list order) that matches, if any
+// The category the rules give the transaction, if any
 std::optional<int> categoryFor(const QList<Rule>& rules, const Transaction& transaction);
 
 // "Payee or description contains "REWE" and amount is between 40,00 € and 120,00 €", in the
@@ -63,8 +71,8 @@ std::optional<int> categoryFor(const QList<Rule>& rules, const Transaction& tran
 QString describe(const Rule& rule, const QHash<int, QString>& accountNames);
 
 // What applying the rules to these transactions would change. Transactions in a protected
-// category (the balance adjustments) keep theirs; with onlyUncategorised, so does every
-// transaction that has a category.
+// category (the balance adjustments) are left alone; with onlyUncategorised, transactions that
+// have a category keep it (their payee can still be renamed).
 QList<RuleChange> changesFor(const QList<Rule>& rules, const QList<Transaction>& transactions,
                              bool onlyUncategorised, const QList<int>& protectedCategories);
 
@@ -84,7 +92,7 @@ public:
 
     QList<Rule> rules();                             // Ordered by position
     int addRule(const Rule& rule);                   // Added at the end; returns the id, -1 on failure
-    bool updateRule(const Rule& rule);               // Conditions, category and match mode; not the position
+    bool updateRule(const Rule& rule);               // Conditions, actions and match mode; not the position
     bool deleteRule(int ruleId);
     bool setOrder(const QList<int>& ruleIds);        // New positions, first is tried first
 
@@ -92,6 +100,8 @@ private:
     bool writeConditions(int ruleId, const QList<RuleCondition>& conditions);
     bool owns(int ruleId);
     bool ownsCategory(int categoryId);
+    bool valid(const Rule& rule);
+    static void bindActions(QSqlQuery& query, const Rule& rule);
 
     int userId;
 };

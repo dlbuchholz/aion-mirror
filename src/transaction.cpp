@@ -41,6 +41,10 @@ QString Transaction::getPayee() const {
     return payee;
 }
 
+QString Transaction::getOriginalPayee() const {
+    return originalPayee;
+}
+
 QString Transaction:: getType() const {
     return type;
 }
@@ -70,6 +74,20 @@ void Transaction::setPayee(const QString& p) {
     payee = p;
 }
 
+void Transaction::setOriginalPayee(const QString& p) {
+    originalPayee = p;
+}
+
+void Transaction::renamePayee(const QString& newPayee) {
+    if (newPayee == payee) {
+        return;
+    }
+    if (originalPayee.isEmpty()) {
+        originalPayee = payee;                       // The first name is the bank's; later renames keep it
+    }
+    payee = newPayee;
+}
+
 void Transaction::setAmountCents(Cents cents) {
     amountCents = cents;
 }
@@ -87,7 +105,7 @@ QString Transaction::calculateHash() const
                              .arg(date.toString(Qt::ISODate))
                              .arg(Money::toPlainString(amountCents))  // Same text as the old 2-decimal format, so hashes stay stable
                              .arg(type. toLower().trimmed())
-                             .arg(payee.toLower().trimmed())  // Normalized payee
+                             .arg((originalPayee.isEmpty() ? payee : originalPayee).toLower().trimmed())  // The bank's payee
                              .arg(description.toLower().trimmed()); // Normalized description
 
     // Calculate SHA-256 hash
@@ -107,6 +125,18 @@ QString Transaction::calculateHash() const
 // TransactionDAO Implementation
 TransactionDAO::TransactionDAO() {}
 
+// The transaction in the query's current row (id, amount, date, description, payee,
+// original_payee, category_id, type)
+Transaction TransactionDAO::fromRow(const QSqlQuery& query, int accountId) {
+    const int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
+    Transaction transaction(query.value("id").toInt(), accountId, query.value("payee").toString(),
+                            query.value("amount").toLongLong(),
+                            QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
+                            query.value("description").toString(), categoryId, query.value("type").toString());
+    transaction.setOriginalPayee(query.value("original_payee").toString());
+    return transaction;
+}
+
 int TransactionDAO::addTransaction(const Transaction& transaction) {
     QSqlQuery query(DatabaseManager::instance().database());
 
@@ -120,8 +150,8 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
     }*/
 
     query.prepare(
-        "INSERT INTO transactions (account_id, amount, date, description, payee, category_id, type, hash) "
-        "VALUES (:account_id, :amount, :date, :description, :payee, :category_id, :type, :hash)"
+        "INSERT INTO transactions (account_id, amount, date, description, payee, original_payee, category_id, type, hash) "
+        "VALUES (:account_id, :amount, :date, :description, :payee, :original_payee, :category_id, :type, :hash)"
         );
 
     query.bindValue(":account_id", transaction.getAccountId());
@@ -129,6 +159,8 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
     query.bindValue(":date", transaction. getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
     query.bindValue(":payee", transaction.getPayee());
+    query.bindValue(":original_payee", transaction.getOriginalPayee().isEmpty() ? QVariant(QMetaType(QMetaType::QString))
+                                                                               : QVariant(transaction.getOriginalPayee()));
     query.bindValue(":hash", hash);
 
     // Handle NULL category_id
@@ -162,7 +194,7 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
         "UPDATE transactions SET account_id = :account_id, amount = :amount, date = :date, "
-        "description = :description, payee = :payee, category_id = :category_id, type = :type "
+        "description = :description, payee = :payee, original_payee = :original_payee, category_id = :category_id, type = :type "
         "WHERE id = :id"
         );
     query.bindValue(":id", transaction.getTransactionId());
@@ -171,6 +203,8 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     query.bindValue(":date", transaction.getDate().toString("yyyy-MM-dd"));
     query.bindValue(":description", transaction.getDescription());
     query.bindValue(":payee", transaction.getPayee());
+    query.bindValue(":original_payee", transaction.getOriginalPayee().isEmpty() ? QVariant(QMetaType(QMetaType::QString))
+                                                                               : QVariant(transaction.getOriginalPayee()));
 
     // Handle NULL category_id
     if (transaction.getCategoryId() <= 0) {
@@ -216,24 +250,13 @@ bool TransactionDAO::deleteTransaction(int transactionId) {
 
 QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, amount, date, description, payee, category_id, type FROM transactions WHERE account_id = :account_id");
+    query.prepare("SELECT id, amount, date, description, payee, original_payee, category_id, type FROM transactions WHERE account_id = :account_id");
     query.bindValue(":account_id", accountId);
 
     QList<Transaction> transactions;
     if (query.exec()) {
         while (query.next()) {
-            int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
-
-            transactions.append(Transaction(
-                query.value("id").toInt(),
-                accountId,
-                query.value("payee").toString(),
-                query.value("amount").toLongLong(),
-                QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
-                query.value("description").toString(),
-                categoryId,
-                query. value("type").toString()
-                ));
+            transactions.append(fromRow(query, accountId));
         }
     } else {
         handleError(query);
@@ -243,7 +266,7 @@ QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
 
 QList<Transaction> TransactionDAO:: getShadowedTransactions() {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, account_id, amount, date, description, payee, category_id, type FROM transactions WHERE account_id <= 0 OR account_id IS NULL");
+    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, category_id, type FROM transactions WHERE account_id <= 0 OR account_id IS NULL");
 
     qDebug() << "=== getShadowedTransactions called ===";
 
@@ -252,22 +275,12 @@ QList<Transaction> TransactionDAO:: getShadowedTransactions() {
         int count = 0;
         while (query. next()) {
             count++;
-            int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
             int accountId = query.value("account_id").isNull() ? 0 : query.value("account_id").toInt();
 
             qDebug() << "  Found shadowed transaction ID:" << query.value("id").toInt()
                      << "with account_id:" << accountId;
 
-            transactions.append(Transaction(
-                query.value("id").toInt(),
-                accountId,
-                query.value("payee").toString(),
-                query.value("amount").toLongLong(),
-                QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
-                query.value("description").toString(),
-                categoryId,
-                query.value("type").toString()
-                ));
+            transactions.append(fromRow(query, accountId));
         }
         qDebug() << "  Total shadowed transactions found:" << count;
     } else {
@@ -296,22 +309,11 @@ bool TransactionDAO::hasShadowedTransactions() {
 
 Transaction TransactionDAO::getTransactionById(int transactionId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, account_id, amount, date, description, payee, category_id, type FROM transactions WHERE id = :id");
+    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, category_id, type FROM transactions WHERE id = :id");
     query.bindValue(":id", transactionId);
 
     if (query.exec() && query.next()) {
-        int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
-
-        return Transaction(
-            query.value("id").toInt(),
-            query.value("account_id").toInt(),
-            query.value("payee").toString(),
-            query.value("amount").toLongLong(),
-            QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
-            query.value("description").toString(),
-            categoryId,
-            query.value("type").toString()
-            );
+        return fromRow(query, query.value("account_id").toInt());
     } else {
         handleError(query);
         return Transaction();  // Return empty transaction on error

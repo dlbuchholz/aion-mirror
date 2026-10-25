@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY,
     account_id INTEGER NOT NULL,
     payee TEXT,
+    original_payee TEXT,                 -- The payee before a rule renamed it, NULL = never renamed
     amount INTEGER NOT NULL,             -- In cents
     date TEXT NOT NULL,
     description TEXT,
@@ -70,17 +71,19 @@ CREATE TABLE IF NOT EXISTS budgets (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_unique ON budgets(user_id, category_id, start_month, repeats);
 
--- Rules give transactions a category: when all (or any) of a rule's conditions match, it sets
--- the category. A user's rules are tried in position order; the first match wins. Deleting the
--- category deletes its rules.
+-- Rules give transactions a category and/or rename their payee: when all (or any) of a rule's
+-- conditions match. A user's rules are tried in position order; for each action the first
+-- matching rule that has it wins. Deleting a category takes it out of its rules (the app deletes
+-- rules that then do nothing).
 CREATE TABLE IF NOT EXISTS rules (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
     position INTEGER NOT NULL,
     match_all INTEGER NOT NULL DEFAULT 1 CHECK (match_all IN (0, 1)),
-    category_id INTEGER NOT NULL,
+    category_id INTEGER,                 -- NULL = the rule doesn't set a category
+    new_payee TEXT,                      -- NULL = the rule doesn't rename the payee
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
+    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL
 );
 
 -- One condition of a rule. Text is compared without case; amounts are positive cents. "between"
