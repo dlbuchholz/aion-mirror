@@ -41,10 +41,25 @@ struct Rule {
     bool matches(const Transaction& transaction) const;   // A rule without conditions never matches
 };
 
+// A transaction a rule would give another category
+struct RuleChange {
+    Transaction transaction;                         // As it is now
+    int categoryId = -1;                             // What the rules give it
+};
+
 namespace Rules {
 
 // The category of the first rule (in list order) that matches, if any
 std::optional<int> categoryFor(const QList<Rule>& rules, const Transaction& transaction);
+
+// What applying the rules to these transactions would change. Transactions in a protected
+// category (the balance adjustments) keep theirs; with onlyUncategorised, so does every
+// transaction that has a category.
+QList<RuleChange> changesFor(const QList<Rule>& rules, const QList<Transaction>& transactions,
+                             bool onlyUncategorised, const QList<int>& protectedCategories);
+
+// Saves the changes, all or none
+bool apply(const QList<RuleChange>& changes);
 
 } // namespace Rules
 

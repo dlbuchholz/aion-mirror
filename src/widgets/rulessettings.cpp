@@ -1,4 +1,5 @@
 #include "rulessettings.h"
+#include "dialog/applyrulesdialog.h"
 #include "account.h"
 #include "categorytag.h"
 #include "icons.h"
@@ -316,6 +317,21 @@ RulesSettings::RulesSettings(QWidget* parent)
     contentLayout->addStretch();
     scroll->setWidget(content);
     root->addWidget(scroll, 1);
+
+    auto* applyRow = new QHBoxLayout();
+    applyRow->addStretch();
+    auto* applyButton = new QPushButton("Apply to existing transactions…", this);
+    applyButton->setObjectName("applyRulesToExistingButton");
+    applyButton->setToolTip("Shows which transactions your rules would change, before anything changes");
+    connect(applyButton, &QPushButton::clicked, this, [this]() {
+        ApplyRulesDialog dialog(userId, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            reload();                                // Match counts don't change, but categories did
+            emit transactionsChanged();
+        }
+    });
+    applyRow->addWidget(applyButton);
+    root->addLayout(applyRow);
 
     // The inline editor
     editor = new QFrame(content);

@@ -123,6 +123,39 @@ std::optional<int> Rules::categoryFor(const QList<Rule>& rules, const Transactio
     return std::nullopt;
 }
 
+QList<RuleChange> Rules::changesFor(const QList<Rule>& rules, const QList<Transaction>& transactions,
+                                   bool onlyUncategorised, const QList<int>& protectedCategories) {
+    QList<RuleChange> changes;
+    for (const Transaction& transaction : transactions) {
+        const int current = transaction.getCategoryId();
+        if (protectedCategories.contains(current) || (onlyUncategorised && current > 0)) {
+            continue;
+        }
+        const std::optional<int> category = categoryFor(rules, transaction);
+        if (category && *category != current) {
+            changes.append({transaction, *category});
+        }
+    }
+    return changes;
+}
+
+bool Rules::apply(const QList<RuleChange>& changes) {
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        return false;
+    }
+    TransactionDAO dao;
+    for (const RuleChange& change : changes) {
+        Transaction changed = change.transaction;
+        changed.setCategoryId(change.categoryId);
+        if (!dao.updateTransaction(changed)) {
+            db.rollback();
+            return false;
+        }
+    }
+    return db.commit();
+}
+
 // --- RuleDAO ---
 
 RuleDAO::RuleDAO(int userId)

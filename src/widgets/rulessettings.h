@@ -36,6 +36,7 @@ public:
 
 signals:
     void rulesChanged();
+    void transactionsChanged();                      // Rules were applied to existing transactions
 
 private:
     void rebuildList();

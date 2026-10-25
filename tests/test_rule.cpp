@@ -85,6 +85,39 @@ private slots:
         QCOMPARE(Rules::categoryFor({groceries}, transaction("Aldi", "", 100)), std::nullopt);
     }
 
+    void changesSkipProtectedAndUnchangedTransactions() {
+        Rule groceries;
+        groceries.categoryId = 10;
+        groceries.conditions = {{Field::PayeeOrDescription, Operator::Contains, "REWE"}};
+        Transaction uncategorised = transaction("REWE", "", 100);
+        Transaction other = transaction("REWE", "", 200);
+        other.setCategoryId(20);
+        Transaction already = transaction("REWE", "", 300);
+        already.setCategoryId(10);
+        Transaction start = transaction("REWE", "Start", 400);
+        start.setCategoryId(99);                         // A balance adjustment
+        Transaction unmatched = transaction("Aldi", "", 500);
+        const QList<Transaction> all = {uncategorised, other, already, start, unmatched};
+
+        QList<RuleChange> changes = Rules::changesFor({groceries}, all, true, {99});
+        QCOMPARE(changes.size(), 1);
+        QCOMPARE(changes.first().transaction.getAmountCents(), Cents(100));
+        changes = Rules::changesFor({groceries}, all, false, {99});
+        QCOMPARE(changes.size(), 2);                     // Also the one in category 20, not 10 or 99
+        QCOMPARE(changes.last().transaction.getAmountCents(), Cents(200));
+        QCOMPARE(changes.last().categoryId, 10);
+    }
+
+    void applyingSavesTheNewCategories() {
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        TransactionDAO dao;
+        const int id = dao.addTransaction(Transaction(-1, account, "REWE", 3240, QDate(2026, 10, 1), "", 0, "expense"));
+        RuleChange change{dao.getTransactionById(id), categoryId(1, "Groceries")};
+        QVERIFY(Rules::apply({change}));
+        QCOMPARE(dao.getTransactionById(id).getCategoryId(), categoryId(1, "Groceries"));
+        QCOMPARE(dao.getTransactionById(id).getAmountCents(), Cents(3240));   // Nothing else changed
+    }
+
     void rulesAreStoredWithTheirConditionsAndOrder() {
         RuleDAO dao(1);
         Rule groceries;

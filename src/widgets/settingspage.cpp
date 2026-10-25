@@ -328,6 +328,7 @@ void SettingsPage::buildCategoriesSection()
     // Rules point to categories, so they reload when categories change (a merge moves rules along)
     rulesSettings = new RulesSettings(this);
     connect(rulesSettings, &RulesSettings::rulesChanged, this, &SettingsPage::dataChanged);
+    connect(rulesSettings, &RulesSettings::transactionsChanged, this, &SettingsPage::dataChanged);
     connect(categoriesSettings, &CategoriesSettings::categoriesChanged, rulesSettings, &RulesSettings::reload);
     addSection("Rules", "search", rulesSettings);
 
