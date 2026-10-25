@@ -344,6 +344,8 @@ private slots:
         Rule rename;
         rename.newPayee = "Rewe";
         rename.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE MARKT")};
+        rename.id = RuleDAO(1).addRule(rename);
+        QVERIFY(rename.id > 0);
         Options options = basicOptions();
         options.rules = {rename};
         const QList<QStringList> rows = {{"01.10.2026", "-32,40", "REWE MARKT GMBH 4711", ""},
@@ -358,6 +360,7 @@ private slots:
         }
         QCOMPARE(renamed.getPayee(), QString("Rewe"));
         QCOMPARE(renamed.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+        QCOMPARE(renamed.getRenamedByRuleId(), rename.id);
 
         const Result again = run(rows, basicMapping(), options, {});   // The same export once more
         QCOMPARE(again.imported, 0);

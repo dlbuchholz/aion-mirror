@@ -64,6 +64,9 @@ private:
     bool categoryChosenByHand = false;               // Then rules stop suggesting
     QString originalPayee;                           // Before a rename; saved with the transaction
     QString suggestedPayee;                          // What the rename note offers
+    int suggestedRuleId = -1;                        // ... and from which rule
+    int renamedByRuleId = -1;                        // The rule that gave the payee its name
+    QString ruleGivenPayee;                          // That name; typing another one drops the rule
 
     QLabel* titleLabel = nullptr;
     QButtonGroup* typeGroup = nullptr;

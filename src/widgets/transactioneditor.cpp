@@ -237,6 +237,8 @@ void TransactionEditor::acceptRename() {
         originalPayee = payeeEdit->text().trimmed();  // Kept, so rules for that name keep matching
     }
     renameNote->hide();
+    renamedByRuleId = suggestedRuleId;
+    ruleGivenPayee = suggestedPayee;
     payeeEdit->setText(suggestedPayee);
     showOriginalPayee();
 }
@@ -255,6 +257,7 @@ void TransactionEditor::suggestFromRules() {
     const Rule* rename = Rules::renameRule(rules, draft);
     if (rename && rename->newPayee != draft.getPayee()) {
         suggestedPayee = rename->newPayee;
+        suggestedRuleId = rename->id;
         renameLabel->setText(QString("✦ Your rule suggests the name \"%1\"").arg(suggestedPayee));
         QPalette palette = renameLabel->palette();
         palette.setColor(QPalette::WindowText, Theme::colors().accent);
@@ -305,6 +308,8 @@ void TransactionEditor::newTransaction(const QDate& date, int accountId) {
     suggestionNote->hide();
     renameNote->hide();
     originalPayee.clear();
+    renamedByRuleId = -1;
+    ruleGivenPayee.clear();
     showOriginalPayee();
 
     setType("expense");
@@ -327,6 +332,8 @@ void TransactionEditor::editTransaction(const Transaction& transaction) {
     suggestionNote->hide();                          // Existing transactions keep their category
     renameNote->hide();                              // ... and their payee
     originalPayee = transaction.getOriginalPayee();
+    renamedByRuleId = transaction.getRenamedByRuleId();
+    ruleGivenPayee = transaction.getPayee();
     showOriginalPayee();
 
     setType(transaction.getType());
@@ -407,6 +414,8 @@ void TransactionEditor::requestSave() {
                             dateEdit->date(), descriptionEdit->toPlainText().trimmed(),
                             categoryCombo->currentData().toInt(), currentType());
     transaction.setOriginalPayee(originalPayee);
+    // A name typed by hand is yours, not the rule's
+    transaction.setRenamedByRuleId(transaction.getPayee() == ruleGivenPayee.trimmed() ? renamedByRuleId : -1);
     emit saveRequested(transaction);
 }
 

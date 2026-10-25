@@ -203,7 +203,7 @@ QList<RuleChange> Rules::changesFor(const QList<Rule>& rules, const QList<Transa
         if (protectedCategories.contains(current)) {
             continue;
         }
-        RuleChange change{transaction, -1, QString()};
+        RuleChange change{transaction, -1, QString(), -1};
         if (!(onlyUncategorised && current > 0)) {
             const std::optional<int> category = categoryFor(rules, transaction);
             if (category && *category != current) {
@@ -212,6 +212,7 @@ QList<RuleChange> Rules::changesFor(const QList<Rule>& rules, const QList<Transa
         }
         if (const Rule* rename = renameRule(rules, transaction); rename && rename->newPayee != transaction.getPayee()) {
             change.payee = rename->newPayee;
+            change.renameRuleId = rename->id;
         }
         if (change.categoryId > 0 || !change.payee.isEmpty()) {
             changes.append(change);
@@ -232,7 +233,7 @@ bool Rules::apply(const QList<RuleChange>& changes) {
             changed.setCategoryId(change.categoryId);
         }
         if (!change.payee.isEmpty()) {
-            changed.renamePayee(change.payee);        // Keeps the bank's name as the original
+            changed.renamePayee(change.payee, change.renameRuleId);  // Keeps the bank's name as the original
         }
         if (!dao.updateTransaction(changed)) {
             db.rollback();

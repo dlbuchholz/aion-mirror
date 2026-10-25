@@ -45,6 +45,10 @@ QString Transaction::getOriginalPayee() const {
     return originalPayee;
 }
 
+int Transaction::getRenamedByRuleId() const {
+    return renamedByRuleId;
+}
+
 QString Transaction:: getType() const {
     return type;
 }
@@ -78,7 +82,11 @@ void Transaction::setOriginalPayee(const QString& p) {
     originalPayee = p;
 }
 
-void Transaction::renamePayee(const QString& newPayee) {
+void Transaction::setRenamedByRuleId(int ruleId) {
+    renamedByRuleId = ruleId;
+}
+
+void Transaction::renamePayee(const QString& newPayee, int ruleId) {
     if (newPayee == payee) {
         return;
     }
@@ -86,6 +94,7 @@ void Transaction::renamePayee(const QString& newPayee) {
         originalPayee = payee;                       // The first name is the bank's; later renames keep it
     }
     payee = newPayee;
+    renamedByRuleId = ruleId;
 }
 
 void Transaction::setAmountCents(Cents cents) {
@@ -126,7 +135,7 @@ QString Transaction::calculateHash() const
 TransactionDAO::TransactionDAO() {}
 
 // The transaction in the query's current row (id, amount, date, description, payee,
-// original_payee, category_id, type)
+// original_payee, renamed_by_rule, category_id, type)
 Transaction TransactionDAO::fromRow(const QSqlQuery& query, int accountId) {
     const int categoryId = query.value("category_id").isNull() ? 0 : query.value("category_id").toInt();
     Transaction transaction(query.value("id").toInt(), accountId, query.value("payee").toString(),
@@ -134,7 +143,17 @@ Transaction TransactionDAO::fromRow(const QSqlQuery& query, int accountId) {
                             QDate::fromString(query.value("date").toString(), "yyyy-MM-dd"),
                             query.value("description").toString(), categoryId, query.value("type").toString());
     transaction.setOriginalPayee(query.value("original_payee").toString());
+    transaction.setRenamedByRuleId(query.value("renamed_by_rule").isNull() ? -1 : query.value("renamed_by_rule").toInt());
     return transaction;
+}
+
+namespace {
+
+QVariant ruleIdValue(const Transaction& transaction) {
+    return transaction.getRenamedByRuleId() > 0 ? QVariant(transaction.getRenamedByRuleId())
+                                                : QVariant(QMetaType(QMetaType::Int));  // NULL
+}
+
 }
 
 int TransactionDAO::addTransaction(const Transaction& transaction) {
@@ -150,8 +169,8 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
     }*/
 
     query.prepare(
-        "INSERT INTO transactions (account_id, amount, date, description, payee, original_payee, category_id, type, hash) "
-        "VALUES (:account_id, :amount, :date, :description, :payee, :original_payee, :category_id, :type, :hash)"
+        "INSERT INTO transactions (account_id, amount, date, description, payee, original_payee, renamed_by_rule, category_id, type, hash) "
+        "VALUES (:account_id, :amount, :date, :description, :payee, :original_payee, :renamed_by_rule, :category_id, :type, :hash)"
         );
 
     query.bindValue(":account_id", transaction.getAccountId());
@@ -161,6 +180,7 @@ int TransactionDAO::addTransaction(const Transaction& transaction) {
     query.bindValue(":payee", transaction.getPayee());
     query.bindValue(":original_payee", transaction.getOriginalPayee().isEmpty() ? QVariant(QMetaType(QMetaType::QString))
                                                                                : QVariant(transaction.getOriginalPayee()));
+    query.bindValue(":renamed_by_rule", ruleIdValue(transaction));
     query.bindValue(":hash", hash);
 
     // Handle NULL category_id
@@ -194,7 +214,8 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
         "UPDATE transactions SET account_id = :account_id, amount = :amount, date = :date, "
-        "description = :description, payee = :payee, original_payee = :original_payee, category_id = :category_id, type = :type "
+        "description = :description, payee = :payee, original_payee = :original_payee, renamed_by_rule = :renamed_by_rule, "
+        "category_id = :category_id, type = :type "
         "WHERE id = :id"
         );
     query.bindValue(":id", transaction.getTransactionId());
@@ -205,6 +226,7 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     query.bindValue(":payee", transaction.getPayee());
     query.bindValue(":original_payee", transaction.getOriginalPayee().isEmpty() ? QVariant(QMetaType(QMetaType::QString))
                                                                                : QVariant(transaction.getOriginalPayee()));
+    query.bindValue(":renamed_by_rule", ruleIdValue(transaction));
 
     // Handle NULL category_id
     if (transaction.getCategoryId() <= 0) {
@@ -250,7 +272,7 @@ bool TransactionDAO::deleteTransaction(int transactionId) {
 
 QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, amount, date, description, payee, original_payee, category_id, type FROM transactions WHERE account_id = :account_id");
+    query.prepare("SELECT id, amount, date, description, payee, original_payee, renamed_by_rule, category_id, type FROM transactions WHERE account_id = :account_id");
     query.bindValue(":account_id", accountId);
 
     QList<Transaction> transactions;
@@ -266,7 +288,7 @@ QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
 
 QList<Transaction> TransactionDAO:: getShadowedTransactions() {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, category_id, type FROM transactions WHERE account_id <= 0 OR account_id IS NULL");
+    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, renamed_by_rule, category_id, type FROM transactions WHERE account_id <= 0 OR account_id IS NULL");
 
     qDebug() << "=== getShadowedTransactions called ===";
 
@@ -309,7 +331,7 @@ bool TransactionDAO::hasShadowedTransactions() {
 
 Transaction TransactionDAO::getTransactionById(int transactionId) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, category_id, type FROM transactions WHERE id = :id");
+    query.prepare("SELECT id, account_id, amount, date, description, payee, original_payee, renamed_by_rule, category_id, type FROM transactions WHERE id = :id");
     query.bindValue(":id", transactionId);
 
     if (query.exec() && query.next()) {

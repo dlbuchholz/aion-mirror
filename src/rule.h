@@ -55,6 +55,7 @@ struct RuleChange {
     Transaction transaction;                         // As it is now
     int categoryId = -1;                             // New category; -1 = unchanged
     QString payee;                                   // New payee; empty = unchanged
+    int renameRuleId = -1;                           // The rule that gives the new payee
 };
 
 namespace Rules {

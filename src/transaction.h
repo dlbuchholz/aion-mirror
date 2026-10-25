@@ -28,6 +28,7 @@ public:
     QString getDescription() const;
     QString getPayee() const;
     QString getOriginalPayee() const;                // Before a rule renamed it; empty = never renamed
+    int getRenamedByRuleId() const;                  // The rule that gave the payee its name; -1 = none
     QString getType() const;
 
     // Setters
@@ -38,8 +39,9 @@ public:
     void setDescription(const QString& desc);
     void setPayee(const QString& payee);
     void setOriginalPayee(const QString& payee);
-    // Renames the payee and keeps the first original (the bank's) in originalPayee
-    void renamePayee(const QString& newPayee);
+    void setRenamedByRuleId(int ruleId);
+    // Renames the payee for a rule and keeps the first original (the bank's) in originalPayee
+    void renamePayee(const QString& newPayee, int ruleId);
     void setAmountCents(Cents cents);
     void setType(const QString& transactionType);
 
@@ -56,6 +58,7 @@ private:
     QString payee;
     QString type;
     QString originalPayee;
+    int renamedByRuleId = -1;
 };
 
 // Transaction DAO

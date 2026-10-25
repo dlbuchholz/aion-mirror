@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     account_id INTEGER NOT NULL,
     payee TEXT,
     original_payee TEXT,                 -- The payee before a rule renamed it, NULL = never renamed
+    renamed_by_rule INTEGER,             -- The rule that gave the payee its name, NULL = none (or changed by hand since)
     amount INTEGER NOT NULL,             -- In cents
     date TEXT NOT NULL,
     description TEXT,
@@ -52,7 +53,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
     hash TEXT,
     FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE,
-	FOREIGN KEY (category_id) REFERENCES categories (id)
+	FOREIGN KEY (category_id) REFERENCES categories (id),
+    FOREIGN KEY (renamed_by_rule) REFERENCES rules (id) ON DELETE SET NULL
 );
 
 -- Monthly spending limits per category. A repeating row applies to every month from

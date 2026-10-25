@@ -150,7 +150,8 @@ private slots:
         Rule rule;
         rule.newPayee = "Rewe";
         rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::StartsWith, "rewe markt")};
-        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+        rule.id = RuleDAO(1).addRule(rule);
+        QVERIFY(rule.id > 0);
 
         TransactionsPage page;
         page.setUserId(1);
@@ -177,11 +178,22 @@ private slots:
         const Transaction saved = TransactionDAO().getTransactionsForAccount(firstId).first();
         QCOMPARE(saved.getPayee(), QString("Rewe"));
         QCOMPARE(saved.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));
+        QCOMPARE(saved.getRenamedByRuleId(), rule.id);
 
         // Opening it again shows the original, and offers nothing
         editor->editTransaction(saved);
         QCOMPARE(original->text(), QString("Originally: REWE MARKT GMBH 4711"));
         QVERIFY(offer->isHidden());
+
+        // Saved unchanged it stays the rule's name; typed by hand it's yours
+        editor->findChild<QPushButton*>("saveButton")->click();
+        QCOMPARE(TransactionDAO().getTransactionById(saved.getTransactionId()).getRenamedByRuleId(), rule.id);
+        editor->editTransaction(TransactionDAO().getTransactionById(saved.getTransactionId()));
+        payee->setText("Rewe Markt Hauptstraße");
+        editor->findChild<QPushButton*>("saveButton")->click();
+        const Transaction edited = TransactionDAO().getTransactionById(saved.getTransactionId());
+        QCOMPARE(edited.getRenamedByRuleId(), -1);
+        QCOMPARE(edited.getOriginalPayee(), QString("REWE MARKT GMBH 4711"));   // The bank's name stays
 
         // Turned off: nothing offered
         Settings::instance().setCategorySuggestionEnabled(false);

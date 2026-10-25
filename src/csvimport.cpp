@@ -377,7 +377,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         }
         const Rule* rename = Rules::renameRule(options.rules, transactions[i]);
         if (rename && rename->newPayee != transactions[i].getPayee()) {
-            transactions[i].renamePayee(rename->newPayee);
+            transactions[i].renamePayee(rename->newPayee, rename->id);
             if (isNew) result.renamedByRules++;
         }
     }
