@@ -18,6 +18,7 @@
 .#*
 *.*#
 build/
+build-*/
 core
 !core/
 tags
@@ -41,6 +42,7 @@ Thumbs.db
 # qtcreator generated files
 *.pro.user*
 CMakeLists.txt.user*
+CMakeUserPresets.json
 
 # xemacs temporary files
 *.flc
@@ -74,4 +76,3 @@ CMakeLists.txt.user*
 # --------
 *.dll
 *.exe
-
