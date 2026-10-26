@@ -63,5 +63,6 @@ logo.
 | What | License |
 |---|---|
 | Interface icons in `assets/icons/`, based on [Tabler Icons](https://tabler.io/icons) | MIT, see [assets/icons/LICENSE](assets/icons/LICENSE) |
+| [miniz](https://github.com/richgel999/miniz) in `thirdparty/miniz/`, for reading spreadsheets | MIT, see [thirdparty/miniz/LICENSE](thirdparty/miniz/LICENSE) |
 | [Qt](https://www.qt.io) (used, not included) | LGPL-3.0 or a commercial license |
 | [SQLite](https://sqlite.org) (used through Qt, not included) | Public domain |

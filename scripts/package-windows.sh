@@ -106,12 +106,16 @@ fi
 # with them (libstdc++ is 28 MB with, 2 MB without).
 find "$stage" -type f \( -iname '*.exe' -o -iname '*.dll' \) -exec "$strip" --strip-unneeded {} +
 
-# Licenses: Aion's own, the icons built into Aion.exe, and where each bundled library comes from
+# Licenses: Aion's own, what's built into Aion.exe, and where each bundled library comes from
 cp "$source_dir/LICENSE" "$stage/LICENSE.txt"
 cp "$source_dir/assets/icons/LICENSE" "$stage/LICENSE-icons.txt"
+cp "$source_dir/thirdparty/miniz/LICENSE" "$stage/LICENSE-miniz.txt"
 {
     echo "Aion.exe contains interface icons based on Tabler Icons (https://tabler.io/icons),"
     echo "under the MIT license in LICENSE-icons.txt."
+    echo
+    echo "Aion.exe contains miniz (https://github.com/richgel999/miniz), under the MIT license"
+    echo "in LICENSE-miniz.txt."
     echo
     echo "Aion bundles these libraries. Each is the Fedora MinGW build named next to it; its"
     echo "source is available from Fedora (https://src.fedoraproject.org/rpms/<package>) and"

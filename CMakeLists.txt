@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(Aion VERSION 0.1.0 LANGUAGES CXX)
+project(Aion VERSION 0.1.0 LANGUAGES C CXX)          # C for thirdparty/miniz
 
 include(CTest)
 
@@ -66,8 +66,15 @@ if(MSVC)
     endforeach()
 endif()
 
+# miniz reads the zip archives spreadsheets are (thirdparty/miniz/README.md). Its own target, so
+# Aion's warnings don't apply to it; zlib-style names off, since Qt brings zlib.
+add_library(miniz STATIC thirdparty/miniz/miniz.c)
+target_include_directories(miniz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/miniz)
+target_compile_definitions(miniz PUBLIC MINIZ_NO_ZLIB_COMPATIBLE_NAMES MINIZ_NO_STDIO MINIZ_NO_TIME)
+
 add_library(AionLib STATIC ${SRC_FILES})
 target_link_libraries(AionLib PUBLIC aion_warnings)   # The app and the tests get the same warnings
+target_link_libraries(AionLib PRIVATE miniz)
 target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(AionLib PUBLIC
     Qt::Core

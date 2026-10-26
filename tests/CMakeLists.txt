@@ -11,6 +11,7 @@ foreach(test_source IN LISTS TEST_SOURCES)
     target_link_libraries(${test_name}
         PRIVATE
             AionLib
+            miniz                                    # test_spreadsheet writes sample spreadsheets
             Qt6::Core
             Qt6::Widgets
             Qt6::Sql
