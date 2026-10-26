@@ -1,28 +1,15 @@
 #include <QtTest>
 
-#include <miniz.h>
-
 #include "spreadsheet.h"
+#include "tests/test_spreadsheet_files.h"
 
 using Spreadsheet::Format;
 using Rows = QList<QStringList>;
 
 namespace {
 
-// A zip archive with these files, the way spreadsheets are packed
 QByteArray zip(const QList<QPair<QString, QByteArray>>& files) {
-    mz_zip_archive archive{};
-    if (!mz_zip_writer_init_heap(&archive, 0, 0)) return {};
-    for (const auto& [name, contents] : files) {
-        mz_zip_writer_add_mem(&archive, name.toUtf8().constData(), contents.constData(), size_t(contents.size()),
-                              mz_uint(MZ_DEFAULT_LEVEL));
-    }
-    void* buffer = nullptr;
-    size_t size = 0;
-    mz_zip_writer_finalize_heap_archive(&archive, &buffer, &size);
-    QByteArray result(static_cast<const char*>(buffer), qsizetype(size));
-    mz_zip_writer_end(&archive);                     // Frees the buffer too
-    return result;
+    return zipFiles(files);
 }
 
 const QByteArray PackageRels =
@@ -119,8 +106,10 @@ private slots:
             {"2026-10-01", "REWE Markt", "-32.4", "", "inline"},                 // Gaps stay; the empty row 3 is left out
             {"2026-10-02", "Lohn", "2450", "TRUE", "0.5", "7", "1234.5", "#DIV/0!"},   // Times alone aren't dates
         }));
+        QCOMPARE(sheets[0].rowNumbers, (QList<int>{1, 2, 4}));                      // As in Excel
         QCOMPARE(sheets[1].name, QString("Februar"));
         QCOMPARE(sheets[1].rows, (Rows{{"Buchungstag"}, {"2026-11-01", "Lohn"}}));
+        QCOMPARE(sheets[1].rowNumbers, (QList<int>{1, 2}));
     }
 
     void excelDatesCanCountFrom1904() {
@@ -174,8 +163,10 @@ private slots:
             {"2026-10-02", "", "", "5"},
             {"2026-10-02", "", "", "5"},                                            // Repeated; the empty filler rows aren't
         }));
+        QCOMPARE(sheets[0].rowNumbers, (QList<int>{1, 2, 3, 4}));
         QVERIFY(sheets[1].rows.isEmpty());
         QCOMPARE(sheets[2].rows, (Rows{{"TRUE", "", "a\nb"}}));
+        QCOMPARE(sheets[2].rowNumbers, (QList<int>{1}));
     }
 
     void explainsWhatCantBeRead() {

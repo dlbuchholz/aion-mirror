@@ -113,6 +113,7 @@ struct RunOptions {
     bool correct = false;                            // Add a balance correction so the balance on checkDate ...
     Cents correctTo = 0;                             // ... becomes this
     QString correctionNote;
+    QStringList rowLabels;                           // Where each row is, for messages ("Februar, row 3"); empty: "Row 2" on
 };
 
 // Imports all rows in one database transaction

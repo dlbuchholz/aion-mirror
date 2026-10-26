@@ -250,6 +250,20 @@ private slots:
         stated = statedBalance(newestFirst, mapping, ',');
         QCOMPARE(stated.cents, Cents(9400));
 
+        // Sheets of a workbook, each month newest first, the months oldest first: still the
+        // first row of the newest day
+        const QList<QStringList> monthsInOrder = {
+            {"30.09.2026", "-1,00", "A", "", "120,00"},
+            {"02.09.2026", "-1,00", "B", "", "121,00"},
+            {"01.09.2026", "-1,00", "C", "", "122,00"},
+            {"17.10.2026", "-3,00", "D", "", "94,00"},
+            {"17.10.2026", "-2,00", "E", "", "97,00"},
+            {"01.10.2026", "-1,00", "F", "", "99,00"},
+        };
+        stated = statedBalance(monthsInOrder, mapping, ',');
+        QCOMPARE(stated.date, QDate(2026, 10, 17));
+        QCOMPARE(stated.cents, Cents(9400));
+
         // Without the column (or values) there is nothing to compare with
         QVERIFY(!statedBalance(oldestFirst, basicMapping(), ',').found);
         QVERIFY(!statedBalance({{"01.10.2026", "-1,00", "A", "", ""}}, mapping, ',').found);
@@ -450,6 +464,14 @@ private slots:
         QCOMPARE(lenient.failed, 1);
         QCOMPARE(lenient.errors, QStringList({"Row 3: Invalid date 'not a date'"}));
         QCOMPARE(transactionCount(accountId), 2);
+
+        // Rows from a workbook's sheets say where they are
+        RunOptions labelled;
+        labelled.allowPartialImport = true;
+        labelled.dryRun = true;
+        labelled.rowLabels = {"Januar, row 2", "Februar, row 5", "Februar, row 6"};
+        QCOMPARE(run(rows, basicMapping(), basicOptions(), labelled).errors,
+                 QStringList({"Februar, row 5: Invalid date 'not a date'"}));
     }
 
     void databaseErrorsRollBack() {

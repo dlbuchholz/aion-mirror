@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QMap>
 #include "csvimport.h"
+#include "spreadsheet.h"
 
 class QCheckBox;
 class QComboBox;
@@ -17,8 +18,9 @@ class QScrollArea;
 class QStackedWidget;
 class QToolButton;
 
-// Import wizard for CSV bank exports: file and account, which column is what, the file's
-// categories, then a review with a balance check. The import logic lives in CsvImport.
+// Import wizard for bank exports (CSV, Excel or LibreOffice): file and account, which column is
+// what, the file's categories, then a review with a balance check. The import logic lives in
+// CsvImport; spreadsheets become the same rows as a CSV file.
 class ImportManagerDialog : public QDialog
 {
     Q_OBJECT
@@ -58,7 +60,10 @@ private:
     void loadAccounts(int selectAccountId);
     void createAccount();
     void chooseFile();
-    void parseFile();
+    void parseFile();                                // Rows and headers from the CSV text or the ticked sheets
+    void rebuildSheetList();                         // A spreadsheet was loaded
+    void updateSheetList();                          // Which sheets have the first ticked sheet's columns
+    void showFormatBox(bool show);
     void updateFormatSummary();
     void applyMapping(const CsvImport::Mapping &mapping);
     CsvImport::Mapping mapping() const;
@@ -84,7 +89,10 @@ private:
     QChar delimiter = ',';
     QChar decimalSeparator = '.';
     QList<QStringList> rows;                         // Without the header
+    QStringList rowLabels;                           // Spreadsheets: "Februar, row 3" per row, for messages
     QStringList headers;
+    Spreadsheet::Format spreadsheetFormat = Spreadsheet::Format::None;   // None: a CSV file
+    QList<Spreadsheet::Sheet> sheets;
 
     QStackedWidget *pages = nullptr;
     QList<QLabel *> stepLabels;
@@ -104,6 +112,10 @@ private:
     QFrame *formatBox = nullptr;
     QComboBox *delimiterCombo = nullptr;
     QComboBox *decimalCombo = nullptr;
+    QFrame *sheetsBox = nullptr;                     // Instead of formatBox for spreadsheets
+    QGridLayout *sheetsGrid = nullptr;
+    QList<QCheckBox *> sheetChecks;                  // One per sheet, in order
+    QList<QLabel *> sheetStatusLabels;
     QLabel *fileErrorLabel = nullptr;
 
     // Columns page

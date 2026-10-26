@@ -16,6 +16,7 @@ enum class Format { None, Xlsx, Ods };
 struct Sheet {
     QString name;
     QList<QStringList> rows;
+    QList<int> rowNumbers;                           // Each row's number in the sheet (from 1), for messages
 };
 
 Format formatOf(const QString& path);                // By the file name; None for anything else

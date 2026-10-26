@@ -74,11 +74,14 @@ QString dateText(const QDate& date) {
     return date.toString("yyyy-MM-dd");
 }
 
-// Rows end at their last value; rows without any are left out
-void addRow(QList<QStringList>& rows, QStringList row, int times = 1) {
+// Rows end at their last value; rows without any are left out. number is the row's in the sheet.
+void addRow(Sheet& sheet, QStringList row, int number, int times = 1) {
     while (!row.isEmpty() && row.last().trimmed().isEmpty()) row.removeLast();
     if (row.isEmpty()) return;
-    for (int i = 0; i < qMin(times, MaxRepeats); ++i) rows.append(row);
+    for (int i = 0; i < qMin(times, MaxRepeats); ++i) {
+        sheet.rows.append(row);
+        sheet.rowNumbers.append(number + i);
+    }
 }
 
 // --- Excel (.xlsx) ---
@@ -172,17 +175,19 @@ int columnIndex(QStringView reference) {
     return column - 1;
 }
 
-QList<QStringList> readXlsxSheet(const QByteArray& xmlData, const QStringList& strings, const QList<bool>& dateStyles,
-                                 const QDate& epoch, QString* error) {
-    QList<QStringList> rows;
+void readXlsxSheet(Sheet& sheet, const QByteArray& xmlData, const QStringList& strings, const QList<bool>& dateStyles,
+                   const QDate& epoch, QString* error) {
     QStringList row;
+    int rowNumber = 0;
     QXmlStreamReader xml(xmlData);
     while (!xml.atEnd()) {
         xml.readNext();
         if (xml.isStartElement() && xml.name() == u"row") {
             row.clear();
+            const int number = xml.attributes().value("r").toInt();
+            rowNumber = number > 0 ? number : rowNumber + 1;
         } else if (xml.isEndElement() && xml.name() == u"row") {
-            addRow(rows, row);
+            addRow(sheet, row, rowNumber);
         } else if (xml.isStartElement() && xml.name() == u"c") {
             const QXmlStreamAttributes attributes = xml.attributes();
             const QString reference = attributes.value("r").toString();
@@ -227,9 +232,7 @@ QList<QStringList> readXlsxSheet(const QByteArray& xmlData, const QStringList& s
     }
     if (xml.hasError()) {
         *error = QString("The file is damaged: %1").arg(xml.errorString());
-        return {};
     }
-    return rows;
 }
 
 QList<Sheet> readXlsx(Zip& zip, QString* error) {
@@ -272,7 +275,8 @@ QList<Sheet> readXlsx(Zip& zip, QString* error) {
     for (const auto& [name, path] : std::as_const(sheetFiles)) {
         const auto sheetData = zip.file(path);
         if (!sheetData) continue;                    // Chart sheets and the like have no cells
-        Sheet sheet{name, readXlsxSheet(*sheetData, strings, dateStyles, epoch, error)};
+        Sheet sheet{name, {}, {}};
+        readXlsxSheet(sheet, *sheetData, strings, dateStyles, epoch, error);
         if (!error->isEmpty()) return {};
         sheets.append(sheet);
     }
@@ -328,6 +332,7 @@ QList<Sheet> readOds(Zip& zip, QString* error) {
 
     QList<Sheet> sheets;
     QStringList row;
+    int rowNumber = 0;                               // Of the row's first repeat
     int rowRepeats = 1;
     int pendingEmpty = 0;                            // Empty cells, added only if a value follows
     QXmlStreamReader xml(*content);
@@ -336,10 +341,13 @@ QList<Sheet> readOds(Zip& zip, QString* error) {
         if (xml.isStartElement() && xml.namespaceUri() == TableNs) {
             const QXmlStreamAttributes attributes = xml.attributes();
             if (xml.name() == u"table") {
-                sheets.append(Sheet{attributes.value(TableNs, "name").toString(), {}});
+                sheets.append(Sheet{attributes.value(TableNs, "name").toString(), {}, {}});
+                rowNumber = 0;
+                rowRepeats = 1;
             } else if (xml.name() == u"table-row") {
                 row.clear();
                 pendingEmpty = 0;
+                rowNumber += rowRepeats;                 // After the rows (and repeats) before
                 rowRepeats = qMax(1, attributes.value(TableNs, "number-rows-repeated").toInt());
             } else if (xml.name() == u"table-cell" || xml.name() == u"covered-table-cell") {
                 const int repeats = qMax(1, attributes.value(TableNs, "number-columns-repeated").toInt());
@@ -363,7 +371,7 @@ QList<Sheet> readOds(Zip& zip, QString* error) {
                 }
             }
         } else if (xml.isEndElement() && xml.name() == u"table-row" && xml.namespaceUri() == TableNs && !sheets.isEmpty()) {
-            addRow(sheets.last().rows, row, rowRepeats);
+            addRow(sheets.last(), row, rowNumber, rowRepeats);
         }
     }
     if (xml.hasError()) {

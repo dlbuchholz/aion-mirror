@@ -221,7 +221,9 @@ StatedBalance statedBalance(const QList<QStringList>& rows, const Mapping& mappi
         return result;
     }
     // Banks list newest first or oldest first. On the newest day, the row furthest in that
-    // direction carries the balance after all of the day's bookings.
+    // direction carries the balance after all of the day's bookings. The direction comes from
+    // all neighbouring rows, not just the first and last: sheets of a workbook, each newest
+    // first, can follow each other oldest first.
     QList<QPair<QDate, Cents>> balances;
     for (const QStringList& row : rows) {
         bool ok = false;
@@ -235,7 +237,13 @@ StatedBalance statedBalance(const QList<QStringList>& rows, const Mapping& mappi
     if (balances.isEmpty()) {
         return result;
     }
-    const bool newestFirst = balances.first().first > balances.last().first;
+    int steppingBack = 0;
+    int steppingForward = 0;
+    for (qsizetype i = 1; i < balances.size(); ++i) {
+        if (balances[i].first < balances[i - 1].first) ++steppingBack;
+        else if (balances[i].first > balances[i - 1].first) ++steppingForward;
+    }
+    const bool newestFirst = steppingBack > steppingForward;
     result.found = true;
     result.date = balances.first().first;
     result.cents = balances.first().second;
@@ -249,9 +257,11 @@ StatedBalance statedBalance(const QList<QStringList>& rows, const Mapping& mappi
     return result;
 }
 
-RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping& mapping, const Options& options) {
+namespace {
+
+// prefix says where the row is, for the messages ("Row 3: ")
+RowResult buildTransactionAt(const QStringList& row, const QString& prefix, const Mapping& mapping, const Options& options) {
     RowResult result;
-    const QString prefix = QString("Row %1: ").arg(rowNumber);
 
     if (!hasColumn(row, mapping, FieldDate)) {
         result.error = prefix + "Date column not mapped or out of range";
@@ -296,6 +306,12 @@ RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping&
     return result;
 }
 
+} // namespace
+
+RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping& mapping, const Options& options) {
+    return buildTransactionAt(row, QString("Row %1: ").arg(rowNumber), mapping, options);
+}
+
 Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options& options, const RunOptions& runOptions) {
     Result result;
 
@@ -304,7 +320,9 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
     QStringList hashes;
     QStringList categoryKeys;                        // Lower-case category of each transaction, for new categories
     for (int i = 0; i < rows.size(); ++i) {
-        const RowResult row = buildTransaction(rows[i], i + 2, mapping, options);
+        const QString location = runOptions.rowLabels.value(i);
+        const RowResult row = buildTransactionAt(rows[i], location.isEmpty() ? QString("Row %1: ").arg(i + 2) : location + ": ",
+                                                 mapping, options);
         if (!row.ok) {
             result.failed++;
             result.errors << row.error;

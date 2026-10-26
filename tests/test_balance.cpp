@@ -20,6 +20,7 @@
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
+#include "tests/test_spreadsheet_files.h"
 
 class TestBalance : public QObject {
     Q_OBJECT
@@ -177,6 +178,98 @@ private slots:
         useRules->setChecked(true);
         QVERIFY(rulesLabel->isVisibleTo(&dialog));
         // Importing itself shows a message box; test_csvimport checks the categories it writes
+    }
+
+    void importReadsTheTickedSheetsOfASpreadsheet() {
+        const QStringList header = {"Buchungstag", "Betrag", "Name Zahlungsbeteiligter"};
+        QTemporaryDir dir;
+        const QString path = dir.filePath("umsaetze.xlsx");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(xlsxFile({
+            {"Januar", {header, {"17.01.2026", "-31.2", "Rewe"}, {"03.01.2026", "350", "ACME"}}},
+            {"Februar", {header, {"02.02.2026", "-9.99", "Netflix"}}},
+            {"Leer", {}},
+            {"Notizen", {{"Was", "Wann"}, {"Steuer", "März"}}},
+        }));
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* summary = dialog.findChild<QLabel*>("formatSummaryLabel");
+        QCOMPARE(summary->text(), QString("Excel · 2 of 4 sheets · 3 rows"));   // Februar's header row is skipped
+
+        // Same columns ticked, different ones and empty sheets not
+        const QList<QCheckBox*> checks = dialog.findChildren<QCheckBox*>("sheetCheck");
+        QCOMPARE(checks.size(), 4);
+        QVERIFY(checks[0]->isChecked() && checks[1]->isChecked());
+        QVERIFY(!checks[2]->isChecked() && !checks[2]->isEnabled());
+        QVERIFY(!checks[3]->isChecked());
+        QStringList statuses;
+        for (QLabel* status : dialog.findChildren<QLabel*>("sheetStatus")) statuses << status->text();
+        QCOMPARE(statuses, (QStringList{"Buchungstag · Betrag · Name Zahlungsbeteiligter", "same columns", "empty",
+                                        "different columns"}));
+
+        // Without Januar, Februar names the columns
+        checks[0]->setChecked(false);
+        QCOMPARE(summary->text(), QString("Excel · 1 of 4 sheets · 1 row"));
+        QCOMPARE(dialog.findChildren<QLabel*>("sheetStatus").at(1)->text(), QString("Buchungstag · Betrag · Name Zahlungsbeteiligter"));
+        checks[0]->setChecked(true);
+
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();                                                           // Columns, guessed from the header
+        QCOMPARE(dialog.findChild<QComboBox*>("map_Amount")->currentText(), QString("Betrag"));
+        next->click();                                                           // No category column: review
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QCOMPARE(dialog.findChild<QLabel*>("newCountLabel")->text(), QString("3"));
+        QCOMPARE(dialog.findChild<QLabel*>("failedCountLabel")->text(), QString("0"));
+        QCOMPARE(dialog.findChild<QLabel*>("balanceAfterValue")->text(), Settings::instance().formatCurrency(30881));   // 350 − 31.20 − 9.99
+
+        // A sheet with other columns ticked anyway: its rows can't be read, and say where they are
+        auto* back = dialog.findChild<QPushButton*>("backButton");
+        back->click();
+        back->click();
+        checks[3]->setChecked(true);
+        next->click();
+        next->click();
+        QCOMPARE(dialog.findChild<QLabel*>("failedCountLabel")->text(), QString("2"));
+        QVERIFY2(dialog.findChild<QLabel*>("problemsLabel")->text().contains("Notizen, row 1: Invalid date 'Was'"),
+                 qPrintable(dialog.findChild<QLabel*>("problemsLabel")->text()));
+    }
+
+    void aSpreadsheetWithOneSheetHasNothingToChoose() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("konto.xlsx");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(xlsxFile({{"Konto", {{"Datum", "Betrag"}, {"2026-10-01", "12.5"}, {"2026-10-02", "-3"}}}}));
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        QCOMPARE(dialog.findChild<QLabel*>("formatSummaryLabel")->text(), QString("Excel · 2 rows"));
+        QVERIFY(!dialog.findChild<QFrame*>("sheetsBox")->isVisibleTo(&dialog));
+    }
+
+    void aDamagedSpreadsheetKeepsTheFileBefore() {
+        QTemporaryDir dir;
+        const QString csv = dir.filePath("umsaetze.csv");
+        QFile csvFile(csv);
+        QVERIFY(csvFile.open(QIODevice::WriteOnly | QIODevice::Text));
+        csvFile.write("Datum;Betrag\n01.10.2026;-3,00\n");
+        csvFile.close();
+        const QString broken = dir.filePath("kaputt.xlsx");
+        QFile brokenFile(broken);
+        QVERIFY(brokenFile.open(QIODevice::WriteOnly));
+        brokenFile.write("not a zip");
+        brokenFile.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(csv);
+        dialog.loadFile(broken);
+        QVERIFY(dialog.findChild<QLineEdit*>("filePathEdit")->text().endsWith("umsaetze.csv"));
+        QCOMPARE(dialog.findChild<QLabel*>("formatSummaryLabel")->text(), QString("1 row · semicolon separated · decimal comma"));
     }
 
     void importWizardChecksEachStep() {

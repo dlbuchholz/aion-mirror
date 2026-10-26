@@ -186,8 +186,8 @@ QWidget *ImportManagerDialog::buildFilePage()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(10);
     layout->addWidget(pageTitle("Choose a file", page));
-    layout->addWidget(hintLabel("A CSV export from your bank. Aion reads it first and shows you everything before "
-                                "anything is saved.", page));
+    layout->addWidget(hintLabel("A CSV, Excel or LibreOffice export from your bank. Aion reads it first and shows "
+                                "you everything before anything is saved.", page));
 
     auto *fileRow = new QHBoxLayout();
     filePathEdit = new QLineEdit(page);
@@ -236,7 +236,20 @@ QWidget *ImportManagerDialog::buildFilePage()
     formatForm->addRow("Decimal separator", decimalCombo);
     formatBox->hide();
     layout->addWidget(formatBox);
-    connect(changeFormatButton, &QToolButton::toggled, formatBox, &QWidget::setVisible);
+
+    // For spreadsheets: which sheets to import
+    sheetsBox = new QFrame(page);
+    sheetsBox->setObjectName("sheetsBox");
+    sheetsBox->setFrameShape(QFrame::StyledPanel);
+    auto *sheetsLayout = new QVBoxLayout(sheetsBox);
+    sheetsLayout->addWidget(hintLabel("Sheets to import. The first row of the first ticked sheet names the columns; "
+                                      "the same row in the others is skipped.", sheetsBox));
+    sheetsGrid = new QGridLayout();
+    sheetsGrid->setHorizontalSpacing(12);
+    sheetsLayout->addLayout(sheetsGrid);
+    sheetsBox->hide();
+    layout->addWidget(sheetsBox);
+    connect(changeFormatButton, &QToolButton::toggled, this, &ImportManagerDialog::showFormatBox);
     connect(delimiterCombo, &QComboBox::currentIndexChanged, this, [this]() {
         delimiter = delimiterCombo->currentData().toString().at(0);
         parseFile();
@@ -353,7 +366,8 @@ void ImportManagerDialog::createAccount()
 void ImportManagerDialog::chooseFile()
 {
     const QString chosen = QFileDialog::getOpenFileName(this, "Choose a file to import", QDir::homePath(),
-                                                        "CSV files (*.csv);;All files (*.*)");
+                                                        "Bank exports (*.csv *.xlsx *.ods);;CSV files (*.csv);;"
+                                                        "Spreadsheets (*.xlsx *.ods);;All files (*.*)");
     if (!chosen.isEmpty()) {
         loadFile(chosen);
     }
@@ -361,64 +375,192 @@ void ImportManagerDialog::chooseFile()
 
 void ImportManagerDialog::loadFile(const QString &path)
 {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        showError(fileErrorLabel, QString("The file couldn't be opened: %1").arg(file.errorString()));
-        return;
+    // Spreadsheets are read whole; a damaged one keeps the file loaded before
+    const Spreadsheet::Format format = Spreadsheet::formatOf(path);
+    QString text;
+    QList<Spreadsheet::Sheet> workbook;
+    if (format != Spreadsheet::Format::None) {
+        QString error;
+        workbook = Spreadsheet::readFile(path, &error);
+        if (!error.isEmpty()) {
+            showError(fileErrorLabel, error);
+            return;
+        }
+    } else {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            showError(fileErrorLabel, QString("The file couldn't be opened: %1").arg(file.errorString()));
+            return;
+        }
+        text = QTextStream(&file).readAll();
     }
     filePath = path;
-    fileText = QTextStream(&file).readAll();
+    fileText = text;
+    spreadsheetFormat = format;
+    sheets = workbook;
+    headers.clear();                                 // A new file: guess the columns afresh
     filePathEdit->setText(QDir::toNativeSeparators(path));
     expectedEditedByUser = false;
 
-    // Detect the delimiter (or use the default from Settings), then read the rows
     const Settings &settings = Settings::instance();
-    delimiter = settings.isAutoDetectCsvDelimiter() ? CsvImport::detectDelimiter(fileText) : settings.getDefaultCsvDelimiter();
-    {
-        const QSignalBlocker blocker(delimiterCombo);
-        delimiterCombo->setCurrentIndex(qMax(0, delimiterCombo->findData(QString(delimiter))));
-    }
-    parseFile();
+    if (spreadsheetFormat != Spreadsheet::Format::None) {
+        rebuildSheetList();
+        parseFile();
+        // Numbers come with a point; amounts a bank wrote into the sheet as text may have a comma
+        decimalSeparator = CsvImport::detectDecimalSeparator(rows, mapping().value(CsvImport::FieldAmount, -1), '.');
+    } else {
+        // Detect the delimiter (or use the default from Settings), then read the rows
+        delimiter = settings.isAutoDetectCsvDelimiter() ? CsvImport::detectDelimiter(fileText) : settings.getDefaultCsvDelimiter();
+        {
+            const QSignalBlocker blocker(delimiterCombo);
+            delimiterCombo->setCurrentIndex(qMax(0, delimiterCombo->findData(QString(delimiter))));
+        }
+        parseFile();
 
-    // The decimal separator follows the amount column if detection is on
-    const QChar appSeparator = settings.getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
-    decimalSeparator = settings.isAutoDetectDecimalSeparator()
-        ? CsvImport::detectDecimalSeparator(rows, mapping().value(CsvImport::FieldAmount, -1), appSeparator)
-        : appSeparator;
+        // The decimal separator follows the amount column if detection is on
+        const QChar appSeparator = settings.getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
+        decimalSeparator = settings.isAutoDetectDecimalSeparator()
+            ? CsvImport::detectDecimalSeparator(rows, mapping().value(CsvImport::FieldAmount, -1), appSeparator)
+            : appSeparator;
+    }
     {
         const QSignalBlocker blocker(decimalCombo);
         decimalCombo->setCurrentIndex(qMax(0, decimalCombo->findData(QString(decimalSeparator))));
     }
+    showFormatBox(changeFormatButton->isChecked());
     updateFormatSummary();
     updateExamples();
 }
 
 void ImportManagerDialog::parseFile()
 {
+    const QStringList previousHeaders = headers;
+    const CsvImport::Mapping previousMapping = mapping();
     rows.clear();
+    rowLabels.clear();
     headers.clear();
-    QString parseError;
-    const QList<QStringList> records = CsvParser::parse(fileText, delimiter, &parseError);
-    if (!parseError.isEmpty()) {
-        showError(fileErrorLabel, QString("This file can't be read as CSV: %1").arg(parseError));
-    } else {
+    if (spreadsheetFormat != Spreadsheet::Format::None) {
+        // The ticked sheets one after another, under the first one's header row
         fileErrorLabel->hide();
-    }
-    if (!records.isEmpty()) {
-        headers = records.first();
-        rows = records.mid(1);
+        for (int i = 0; i < sheets.size() && i < sheetChecks.size(); ++i) {
+            const Spreadsheet::Sheet &sheet = sheets[i];
+            if (!sheetChecks[i]->isChecked() || sheet.rows.isEmpty()) continue;
+            qsizetype start = 0;
+            if (headers.isEmpty()) {
+                headers = sheet.rows.first();
+                start = 1;
+            } else if (sheet.rows.first() == headers) {
+                start = 1;
+            }
+            for (qsizetype row = start; row < sheet.rows.size(); ++row) {
+                rows.append(sheet.rows[row]);
+                rowLabels.append(QString("%1, row %2").arg(sheet.name).arg(sheet.rowNumbers.value(row)));
+            }
+        }
+    } else {
+        QString parseError;
+        const QList<QStringList> records = CsvParser::parse(fileText, delimiter, &parseError);
+        if (!parseError.isEmpty()) {
+            showError(fileErrorLabel, QString("This file can't be read as CSV: %1").arg(parseError));
+        } else {
+            fileErrorLabel->hide();
+        }
+        if (!records.isEmpty()) {
+            headers = records.first();
+            rows = records.mid(1);
+        }
     }
 
-    // Offer the file's columns and guess which is which from the headers
+    // Offer the file's columns and guess which is which from the headers; the same columns as
+    // before (other sheets ticked) keep what was chosen
     for (QComboBox *combo : std::as_const(mappingCombos)) {
         const QSignalBlocker blocker(combo);
         combo->clear();
         combo->addItem("(Not in the file)", -1);
         for (int i = 0; i < headers.size(); ++i) combo->addItem(headers[i], i);
     }
-    applyMapping(CsvImport::autoMapColumns(headers));
+    applyMapping(!headers.isEmpty() && headers == previousHeaders ? previousMapping : CsvImport::autoMapColumns(headers));
     updateFormatSummary();
     updateExamples();
+}
+
+void ImportManagerDialog::rebuildSheetList()
+{
+    while (QLayoutItem *item = sheetsGrid->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    sheetChecks.clear();
+    sheetStatusLabels.clear();
+
+    // Ticked: the first sheet with rows, and those with the same header row
+    const QStringList *firstHeader = nullptr;
+    for (int i = 0; i < sheets.size(); ++i) {
+        const Spreadsheet::Sheet &sheet = sheets[i];
+        auto *check = new QCheckBox(sheet.name, sheetsBox);
+        check->setObjectName("sheetCheck");
+        const bool hasRows = !sheet.rows.isEmpty();
+        if (hasRows && !firstHeader) firstHeader = &sheet.rows.first();
+        check->setChecked(hasRows && sheet.rows.first() == *firstHeader);
+        check->setEnabled(hasRows);
+        connect(check, &QCheckBox::toggled, this, [this]() {
+            updateSheetList();
+            parseFile();
+        });
+        const qsizetype count = sheet.rows.size();
+        auto *countLabel = new QLabel(count == 1 ? QString("1 row") : QString("%1 rows").arg(count), sheetsBox);
+        countLabel->setForegroundRole(QPalette::PlaceholderText);
+        auto *status = new QLabel(sheetsBox);
+        status->setObjectName("sheetStatus");
+        sheetsGrid->addWidget(check, i, 0);
+        sheetsGrid->addWidget(countLabel, i, 1);
+        sheetsGrid->addWidget(status, i, 2);
+        sheetChecks.append(check);
+        sheetStatusLabels.append(status);
+    }
+    sheetsGrid->setColumnStretch(2, 1);
+    updateSheetList();
+}
+
+void ImportManagerDialog::updateSheetList()
+{
+    // Compared with the first ticked sheet, whose first row names the columns
+    QStringList header;
+    int headerSheet = -1;
+    for (int i = 0; i < sheetChecks.size(); ++i) {
+        if (sheetChecks[i]->isChecked()) {
+            header = sheets[i].rows.first();
+            headerSheet = i;
+            break;
+        }
+    }
+    for (int i = 0; i < sheetStatusLabels.size(); ++i) {
+        QLabel *status = sheetStatusLabels[i];
+        const QList<QStringList> &sheetRows = sheets[i].rows;
+        bool muted = true;
+        if (sheetRows.isEmpty()) {
+            status->setText("empty");
+        } else if (i == headerSheet) {
+            status->setText(header.join(" · "));
+        } else if (headerSheet < 0) {
+            status->clear();
+        } else if (sheetRows.first() == header) {
+            status->setText("same columns");
+        } else {
+            status->setText("different columns");
+            muted = false;
+        }
+        status->setForegroundRole(muted ? QPalette::PlaceholderText : QPalette::WindowText);
+        status->setToolTip(status->text());
+    }
+}
+
+void ImportManagerDialog::showFormatBox(bool show)
+{
+    // "Change": a CSV file's separators, or a workbook's sheets
+    const bool spreadsheet = spreadsheetFormat != Spreadsheet::Format::None;
+    formatBox->setVisible(show && !spreadsheet);
+    sheetsBox->setVisible(show && spreadsheet && sheets.size() > 1);
 }
 
 void ImportManagerDialog::updateFormatSummary()
@@ -428,10 +570,22 @@ void ImportManagerDialog::updateFormatSummary()
         changeFormatButton->hide();
         return;
     }
-    formatSummaryLabel->setText(QString("%1 %2 · %3 · decimal %4")
-                                    .arg(rows.size()).arg(rows.size() == 1 ? "row" : "rows")
-                                    .arg(delimiterName(delimiter), decimalSeparator == ',' ? "comma" : "point"));
-    changeFormatButton->show();
+    const QString rowCount = QString("%1 %2").arg(rows.size()).arg(rows.size() == 1 ? "row" : "rows");
+    if (spreadsheetFormat != Spreadsheet::Format::None) {
+        // "Excel · 3 of 4 sheets · 412 rows"; one sheet leaves nothing to change
+        QString text = Spreadsheet::formatName(spreadsheetFormat);
+        if (sheets.size() > 1) {
+            const auto ticked = std::count_if(sheetChecks.cbegin(), sheetChecks.cend(),
+                                              [](const QCheckBox *check) { return check->isChecked(); });
+            text += QString(" · %1 of %2 sheets").arg(ticked).arg(sheets.size());
+        }
+        formatSummaryLabel->setText(text + " · " + rowCount);
+        changeFormatButton->setVisible(sheets.size() > 1);
+    } else {
+        formatSummaryLabel->setText(QString("%1 · %2 · decimal %3")
+                                        .arg(rowCount, delimiterName(delimiter), decimalSeparator == ',' ? "comma" : "point"));
+        changeFormatButton->show();
+    }
     if (columnsSubtitle) {
         columnsSubtitle->setText(QFileInfo(filePath).fileName() + " · " + formatSummaryLabel->text());
     }
@@ -1054,6 +1208,7 @@ CsvImport::Result ImportManagerDialog::runImport(bool dry)
     // The review counts rows one by one; whether unreadable rows stop the import is shown separately
     runOptions.allowPartialImport = dry || allowPartialCheck->isChecked();
     runOptions.dryRun = dry;
+    runOptions.rowLabels = rowLabels;
 
     // Check the balance on the day the bank's balance column refers to, if it is mapped
     const CsvImport::StatedBalance stated = CsvImport::statedBalance(rows, mapping(), decimalSeparator);
