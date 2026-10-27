@@ -424,6 +424,49 @@ QList<Sheet> read(const QByteArray& data, Format format, QString* error) {
     return {};
 }
 
+ColumnMatch matchColumns(const QStringList& header, const QStringList& sheetHeader) {
+    const auto key = [](const QString& name) { return name.simplified().toCaseFolded(); };
+    ColumnMatch match;
+    QList<bool> used(sheetHeader.size(), false);
+    int named = 0;
+    int found = 0;
+    for (qsizetype i = 0; i < header.size(); ++i) {
+        const QString name = key(header[i]);
+        int column = -1;
+        if (!name.isEmpty()) {
+            ++named;
+            for (qsizetype j = 0; j < sheetHeader.size() && column < 0; ++j) {
+                if (!used[j] && key(sheetHeader[j]) == name) column = int(j);
+            }
+            if (column >= 0) ++found;
+        }
+        // Not found by name: a column without a name in the same place is taken to be it
+        if (column < 0 && i < sheetHeader.size() && !used[i] && key(sheetHeader[i]).isEmpty()) {
+            column = int(i);
+        }
+        if (column >= 0) {
+            used[column] = true;
+            match.sameOrder = match.sameOrder && column == i;
+        } else if (!name.isEmpty()) {
+            match.missing.append(header[i].simplified());
+        }
+        match.columns.append(column);
+    }
+    // A header row shares most of its names; a first row of data shares none
+    match.hasHeader = named > 0 && found * 2 >= named;
+    return match;
+}
+
+QStringList arrange(const QStringList& row, const ColumnMatch& match) {
+    QStringList arranged;
+    for (int column : match.columns) {
+        arranged.append(column >= 0 ? row.value(column) : QString());
+    }
+    // Trailing empty cells, as the reader leaves them out
+    while (!arranged.isEmpty() && arranged.last().trimmed().isEmpty()) arranged.removeLast();
+    return arranged;
+}
+
 QList<Sheet> readFile(const QString& path, QString* error) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {

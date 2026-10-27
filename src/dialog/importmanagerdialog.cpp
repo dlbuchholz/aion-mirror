@@ -243,7 +243,7 @@ QWidget *ImportManagerDialog::buildFilePage()
     sheetsBox->setFrameShape(QFrame::StyledPanel);
     auto *sheetsLayout = new QVBoxLayout(sheetsBox);
     sheetsLayout->addWidget(hintLabel("Sheets to import. The first row of the first ticked sheet names the columns; "
-                                      "the same row in the others is skipped.", sheetsBox));
+                                      "the other sheets' columns are matched to it by name.", sheetsBox));
     sheetsGrid = new QGridLayout();
     sheetsGrid->setHorizontalSpacing(12);
     sheetsLayout->addLayout(sheetsGrid);
@@ -445,15 +445,13 @@ void ImportManagerDialog::parseFile()
         for (int i = 0; i < sheets.size() && i < sheetChecks.size(); ++i) {
             const Spreadsheet::Sheet &sheet = sheets[i];
             if (!sheetChecks[i]->isChecked() || sheet.rows.isEmpty()) continue;
-            qsizetype start = 0;
-            if (headers.isEmpty()) {
-                headers = sheet.rows.first();
-                start = 1;
-            } else if (sheet.rows.first() == headers) {
-                start = 1;
-            }
-            for (qsizetype row = start; row < sheet.rows.size(); ++row) {
-                rows.append(sheet.rows[row]);
+            // The others' columns are put in the first one's order, by their names
+            const bool first = headers.isEmpty();
+            if (first) headers = sheet.rows.first();
+            const Spreadsheet::ColumnMatch match = Spreadsheet::matchColumns(headers, sheet.rows.first());
+            const bool arrange = !first && match.hasHeader;
+            for (qsizetype row = first || match.hasHeader ? 1 : 0; row < sheet.rows.size(); ++row) {
+                rows.append(arrange ? Spreadsheet::arrange(sheet.rows[row], match) : sheet.rows[row]);
                 rowLabels.append(QString("%1, row %2").arg(sheet.name).arg(sheet.rowNumbers.value(row)));
             }
         }
@@ -493,7 +491,8 @@ void ImportManagerDialog::rebuildSheetList()
     sheetChecks.clear();
     sheetStatusLabels.clear();
 
-    // Ticked: the first sheet with rows, and those with the same header row
+    // Ticked: the first sheet with rows, and those that have its columns, or at least those the
+    // import uses (a missing "Steuerrelevant" doesn't matter)
     const QStringList *firstHeader = nullptr;
     for (int i = 0; i < sheets.size(); ++i) {
         const Spreadsheet::Sheet &sheet = sheets[i];
@@ -501,7 +500,7 @@ void ImportManagerDialog::rebuildSheetList()
         check->setObjectName("sheetCheck");
         const bool hasRows = !sheet.rows.isEmpty();
         if (hasRows && !firstHeader) firstHeader = &sheet.rows.first();
-        check->setChecked(hasRows && sheet.rows.first() == *firstHeader);
+        check->setChecked(hasRows && (&sheet.rows.first() == firstHeader || missingUsedColumns(*firstHeader, sheet).isEmpty()));
         check->setEnabled(hasRows);
         connect(check, &QCheckBox::toggled, this, [this]() {
             updateSheetList();
@@ -544,15 +543,39 @@ void ImportManagerDialog::updateSheetList()
             status->setText(header.join(" · "));
         } else if (headerSheet < 0) {
             status->clear();
-        } else if (sheetRows.first() == header) {
-            status->setText("same columns");
         } else {
-            status->setText("different columns");
-            muted = false;
+            const Spreadsheet::ColumnMatch match = Spreadsheet::matchColumns(header, sheetRows.first());
+            if (!match.hasHeader) {
+                status->setText("different columns");
+                muted = false;
+            } else if (match.missing.isEmpty()) {
+                status->setText(match.sameOrder ? "same columns" : "same columns, other order");
+            } else {
+                // "without Steuerrelevant"; stands out if the import needs one of them
+                QStringList names = match.missing.mid(0, 3);
+                if (match.missing.size() > 3) names.append(QString("%1 more").arg(match.missing.size() - 3));
+                status->setText("without " + names.join(", "));
+                muted = missingUsedColumns(header, sheets[i]).isEmpty();
+            }
         }
         status->setForegroundRole(muted ? QPalette::PlaceholderText : QPalette::WindowText);
         status->setToolTip(status->text());
     }
+}
+
+QStringList ImportManagerDialog::missingUsedColumns(const QStringList &header, const Spreadsheet::Sheet &sheet) const
+{
+    // The columns chosen on the Columns step, or those it will guess for a new header row
+    const CsvImport::Mapping used = header == headers ? mapping() : CsvImport::autoMapColumns(header);
+    const Spreadsheet::ColumnMatch match = Spreadsheet::matchColumns(header, sheet.rows.first());
+    if (!match.hasHeader) {
+        return {"all"};
+    }
+    QStringList missing;
+    for (int column : used) {
+        if (column >= 0 && match.columns.value(column, -1) < 0) missing.append(header.value(column));
+    }
+    return missing;
 }
 
 void ImportManagerDialog::showFormatBox(bool show)

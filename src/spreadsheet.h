@@ -26,6 +26,19 @@ QString formatName(Format format);                   // "Excel", "LibreOffice"
 QList<Sheet> read(const QByteArray& data, Format format, QString* error);
 QList<Sheet> readFile(const QString& path, QString* error);
 
+// How another sheet's columns line up with the header row of the first: by name, ignoring case
+// and spaces; a column without a name falls back to its position
+struct ColumnMatch {
+    bool hasHeader = false;                          // Its first row names columns of the header
+    QList<int> columns;                              // For each header column, the sheet's column; -1 = none
+    QStringList missing;                             // Header names the sheet doesn't have
+    bool sameOrder = true;
+};
+ColumnMatch matchColumns(const QStringList& header, const QStringList& sheetHeader);
+
+// A row of that sheet, in the header's column order
+QStringList arrange(const QStringList& row, const ColumnMatch& match);
+
 } // namespace Spreadsheet
 
 #endif // SPREADSHEET_H

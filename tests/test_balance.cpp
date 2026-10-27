@@ -238,6 +238,45 @@ private slots:
                  qPrintable(dialog.findChild<QLabel*>("problemsLabel")->text()));
     }
 
+    void sheetsWithSlightlyOtherHeadersAreMatchedByName() {
+        // Like a real bank's yearly workbook: one month without the "Monat" heading, one with a
+        // renamed column the import doesn't use, one in another order
+        const QStringList header = {"Monat", "Buchungstag", "Name Zahlungsbeteiligter", "Betrag", "Saldo nach Buchung", "Steuerrelevant"};
+        QTemporaryDir dir;
+        const QString path = dir.filePath("jahr.xlsx");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(xlsxFile({
+            {"Januar", {header, {"Jan", "17.01.2026", "Rewe", "-31.2", "68.8", "nein"}, {"Jan", "03.01.2026", "ACME", "100", "100", "nein"}}},
+            {"Februar", {{"", "Buchungstag", "Name Zahlungsbeteiligter", "Betrag", "Saldo nach Buchung", "Steuerrelevant"},
+                         {"Feb", "02.02.2026", "Netflix", "-9.99", "58.81", "nein"}}},
+            {"März", {{"Monat", "Buchungstag", "Name Zahlungsbeteiligter", "Betrag", "Saldo nach Buchung", "Gekennzeichneter Umsatz"},
+                      {"Mär", "05.03.2026", "Stadtwerke", "-50", "8.81", ""}}},
+            {"April", {{"Betrag", "Buchungstag", "Name Zahlungsbeteiligter", "Saldo nach Buchung"},
+                       {"-8.81", "01.04.2026", "Bäcker", "0"}}},
+        }));
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        QCOMPARE(dialog.findChild<QLabel*>("formatSummaryLabel")->text(), QString("Excel · 4 of 4 sheets · 5 rows"));
+        QStringList statuses;
+        for (QLabel* status : dialog.findChildren<QLabel*>("sheetStatus")) statuses << status->text();
+        QCOMPARE(statuses, (QStringList{header.join(" · "), "same columns", "without Steuerrelevant",
+                                        "without Monat, Steuerrelevant"}));
+
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QCOMPARE(dialog.findChild<QLabel*>("newCountLabel")->text(), QString("5"));
+        QCOMPARE(dialog.findChild<QLabel*>("failedCountLabel")->text(), QString("0"));
+        // The bank's balance after the last booking matches: nothing to correct
+        QCOMPARE(dialog.findChild<QLabel*>("balanceAfterValue")->text(), Settings::instance().formatCurrency(0));
+        QVERIFY(!dialog.findChild<QCheckBox*>("correctionCheckBox")->isVisibleTo(&dialog));
+    }
+
     void aSpreadsheetWithOneSheetHasNothingToChoose() {
         QTemporaryDir dir;
         const QString path = dir.filePath("konto.xlsx");

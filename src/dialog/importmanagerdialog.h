@@ -63,6 +63,8 @@ private:
     void parseFile();                                // Rows and headers from the CSV text or the ticked sheets
     void rebuildSheetList();                         // A spreadsheet was loaded
     void updateSheetList();                          // Which sheets have the first ticked sheet's columns
+    // Columns the import uses (by header) that the sheet doesn't have; {"all"} if it has no header row
+    QStringList missingUsedColumns(const QStringList &header, const Spreadsheet::Sheet &sheet) const;
     void showFormatBox(bool show);
     void updateFormatSummary();
     void applyMapping(const CsvImport::Mapping &mapping);

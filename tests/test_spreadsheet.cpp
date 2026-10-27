@@ -169,6 +169,37 @@ private slots:
         QCOMPARE(sheets[2].rowNumbers, (QList<int>{1}));
     }
 
+    void matchesOtherSheetsColumnsByName() {
+        using Spreadsheet::matchColumns;
+        const QStringList header = {"Monat", "Buchungstag", "Name Zahlungsbeteiligter", "Betrag", "Steuerrelevant"};
+
+        // The same, apart from case and spaces
+        auto match = matchColumns(header, {"monat", "Buchungstag ", "Name  Zahlungsbeteiligter", "BETRAG", "Steuerrelevant"});
+        QVERIFY(match.hasHeader && match.sameOrder && match.missing.isEmpty());
+
+        // A column without a name stands in for the one in its place (the bank left out "Monat")
+        match = matchColumns(header, {"", "Buchungstag", "Name Zahlungsbeteiligter", "Betrag", "Steuerrelevant"});
+        QCOMPARE(match.columns, (QList<int>{0, 1, 2, 3, 4}));
+        QVERIFY(match.missing.isEmpty());
+
+        // A renamed column is missing; the others still match
+        match = matchColumns(header, {"Monat", "Buchungstag", "Name Zahlungsbeteiligter", "Betrag", "Gekennzeichneter Umsatz"});
+        QVERIFY(match.hasHeader);
+        QCOMPARE(match.columns, (QList<int>{0, 1, 2, 3, -1}));
+        QCOMPARE(match.missing, QStringList{"Steuerrelevant"});
+        QCOMPARE(Spreadsheet::arrange({"Okt", "01.10.2026", "Rewe", "-32.4", "ja"}, match),
+                 (QStringList{"Okt", "01.10.2026", "Rewe", "-32.4"}));
+
+        // Another order is put back in the header's
+        match = matchColumns(header, {"Betrag", "Buchungstag", "Monat", "Name Zahlungsbeteiligter"});
+        QVERIFY(match.hasHeader && !match.sameOrder);
+        QCOMPARE(Spreadsheet::arrange({"-32.4", "01.10.2026", "Okt", "Rewe"}, match),
+                 (QStringList{"Okt", "01.10.2026", "Rewe", "-32.4"}));
+
+        // A first row of data isn't a header
+        QVERIFY(!matchColumns(header, {"Okt", "01.10.2026", "Rewe", "-32.4", "nein"}).hasHeader);
+    }
+
     void explainsWhatCantBeRead() {
         QString error;
         QVERIFY(Spreadsheet::read("Datum;Betrag\n", Format::Xlsx, &error).isEmpty());
