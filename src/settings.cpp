@@ -377,6 +377,18 @@ void Settings::setSidebarShowingAllBudgets(bool showAll) {
     settings.setValue("appearance/sidebarAllBudgets", showAll);
 }
 
+// Stored by name, so the value stays readable in the advanced settings
+static const QStringList BUDGET_SORT_NAMES = {"percentage", "spent", "budgeted", "name"};
+
+Settings::BudgetSort Settings::getSidebarBudgetSort() const {
+    const int index = BUDGET_SORT_NAMES.indexOf(settings.value("appearance/sidebarBudgetSort").toString());
+    return index < 0 ? BudgetSort::Percentage : static_cast<BudgetSort>(index);
+}
+
+void Settings::setSidebarBudgetSort(BudgetSort sort) {
+    settings.setValue("appearance/sidebarBudgetSort", BUDGET_SORT_NAMES.value(static_cast<int>(sort)));
+}
+
 // Sidebar state
 bool Settings::isSidebarCollapsed() const {
     return settings.value("ui/sidebarCollapsed", false).toBool();

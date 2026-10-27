@@ -282,9 +282,26 @@ void SettingsPage::buildAppearanceSection()
 
     allBudgetsCheck = new QCheckBox("Show all budgets in the sidebar", this);
     allBudgetsCheck->setObjectName("allBudgetsCheck");
-    allBudgetsCheck->setToolTip("Otherwise the sidebar shows the five most used ones and links to the Budget page for the rest");
+    allBudgetsCheck->setToolTip("Otherwise the sidebar shows the first five in the order below and links to the Budget page for the rest");
     form->addRow(allBudgetsCheck);
     watch(allBudgetsCheck);
+
+    budgetSortCombo = new QComboBox(this);
+    budgetSortCombo->setObjectName("budgetSortCombo");
+    budgetSortCombo->addItem("Percentage used", int(Settings::BudgetSort::Percentage));
+    budgetSortCombo->addItem("Amount spent", int(Settings::BudgetSort::Spent));
+    budgetSortCombo->addItem("Budgeted amount", int(Settings::BudgetSort::Budgeted));
+    budgetSortCombo->addItem("Name", int(Settings::BudgetSort::Name));
+    budgetSortCombo->setToolTip("Also in the right-click menu of the sidebar's Budget header");
+    form->addRow("Sort sidebar budgets by", budgetSortCombo);
+    watch(budgetSortCombo);
+}
+
+void SettingsPage::reloadSidebarBudgetSort()
+{
+    loading = true;
+    budgetSortCombo->setCurrentIndex(budgetSortCombo->findData(int(Settings::instance().getSidebarBudgetSort())));
+    loading = false;
 }
 
 void SettingsPage::buildImportSection()
@@ -407,6 +424,7 @@ void SettingsPage::loadSettings()
     suggestCategoriesCheck->setChecked(settings.isCategorySuggestionEnabled());
     categoryColorsCheck->setChecked(settings.isCategoryColorsInOverviewsEnabled());
     allBudgetsCheck->setChecked(settings.isSidebarShowingAllBudgets());
+    budgetSortCombo->setCurrentIndex(budgetSortCombo->findData(int(settings.getSidebarBudgetSort())));
 
     // Stored values are case-insensitive, matching Theme::fromName()
     const QString theme = settings.getTheme().toLower();
@@ -447,6 +465,7 @@ void SettingsPage::saveSettings()
     settings.setTheme(themeCombo->currentData().toString());
     settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());
     settings.setSidebarShowingAllBudgets(allBudgetsCheck->isChecked());
+    settings.setSidebarBudgetSort(static_cast<Settings::BudgetSort>(budgetSortCombo->currentData().toInt()));
 
     settings.setAutoDetectCsvDelimiter(autoDetectDelimiterCheck->isChecked());
     settings.setDefaultCsvDelimiter(defaultDelimiterCombo->currentData().toString().at(0));

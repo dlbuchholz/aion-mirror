@@ -29,6 +29,7 @@ public:
     void setUserId(int userId);                      // Whose categories and account types to show
     void reloadData();                               // Categories and account types changed elsewhere (an import)
     void createRule(const Rule& draft);              // Shows Rules with a new rule filled with draft
+    void reloadSidebarBudgetSort();                  // Changed from the sidebar; other unsaved edits stay
 
 signals:
     void settingsChanged();                          // Emitted after changes were applied
@@ -86,6 +87,7 @@ private:
     QCheckBox *suggestCategoriesCheck = nullptr;
     QCheckBox *categoryColorsCheck = nullptr;
     QCheckBox *allBudgetsCheck = nullptr;
+    QComboBox *budgetSortCombo = nullptr;
 
     // Appearance
     QComboBox *themeCombo = nullptr;

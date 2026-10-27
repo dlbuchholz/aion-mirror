@@ -254,6 +254,8 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     connect(budgetSection.header, &QAbstractButton::clicked, this, [this]() {
         setSectionExpanded(budgetSection, !budgetSection.expanded);
     });
+    budgetSection.header->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(budgetSection.header, &QWidget::customContextMenuRequested, this, &SidebarWidget::showBudgetSortMenu);
 
     // Bottom: settings, user, collapse
     addNavItem(root, "settings", "Settings", Page::Settings);
@@ -455,14 +457,23 @@ void SidebarWidget::loadBudgets() {
         emit pageRequested(Page::Budget);
     };
 
-    // The most used first, and only the first few unless all are wanted; the Budget page has the rest
+    // In the chosen order, and only the first few unless all are wanted; the Budget page has the rest
     QList<MonthBudget> budgets = budgetDao.budgetsForMonth(userId, today);
     const bool showAll = settings.isSidebarShowingAllBudgets();
-    if (!showAll) {
-        std::stable_sort(budgets.begin(), budgets.end(), [](const MonthBudget& a, const MonthBudget& b) {
-            return double(a.spentCents) / double(a.limitCents) > double(b.spentCents) / double(b.limitCents);
-        });
-    }
+    const Settings::BudgetSort sort = settings.getSidebarBudgetSort();
+    std::stable_sort(budgets.begin(), budgets.end(), [sort](const MonthBudget& a, const MonthBudget& b) {
+        switch (sort) {
+        case Settings::BudgetSort::Spent:
+            return a.spentCents > b.spentCents;
+        case Settings::BudgetSort::Budgeted:
+            return a.limitCents > b.limitCents;
+        case Settings::BudgetSort::Name:
+            return QString::compare(a.categoryName, b.categoryName, Qt::CaseInsensitive) < 0;
+        case Settings::BudgetSort::Percentage:
+            break;
+        }
+        return double(a.spentCents) / double(a.limitCents) > double(b.spentCents) / double(b.limitCents);
+    });
     for (int i = 0; i < budgets.size(); ++i) {
         const MonthBudget& budget = budgets[i];
         totalSpent += budget.spentCents;
@@ -505,6 +516,27 @@ void SidebarWidget::showUserMenu() {
     QMenu menu(this);
     menu.addAction("Switch user…", this, &SidebarWidget::switchUserRequested);
     menu.exec(userItem->mapToGlobal(QPoint(0, -menu.sizeHint().height())));
+}
+
+void SidebarWidget::showBudgetSortMenu(const QPoint& position) {
+    using Sort = Settings::BudgetSort;
+    const QList<QPair<Sort, QString>> sorts = {{Sort::Percentage, "Sort by percentage used"},
+                                               {Sort::Spent, "Sort by amount spent"},
+                                               {Sort::Budgeted, "Sort by budgeted amount"},
+                                               {Sort::Name, "Sort by name"}};
+    QMenu menu(this);
+    const Sort current = Settings::instance().getSidebarBudgetSort();
+    for (const auto& [sort, text] : sorts) {
+        QAction* action = menu.addAction(text, this, [this, sort]() {
+            Settings::instance().setSidebarBudgetSort(sort);
+            loadBudgets();
+            emit budgetSortChanged();
+        });
+        action->setObjectName("budgetSortAction");
+        action->setCheckable(true);
+        action->setChecked(sort == current);
+    }
+    menu.exec(budgetSection.header->mapToGlobal(position));
 }
 
 void SidebarWidget::styleScrollBar() {

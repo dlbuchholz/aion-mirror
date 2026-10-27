@@ -42,6 +42,7 @@ signals:
     void addAccountRequested();
     void correctBalanceRequested(int accountId);     // From an account's right-click menu
     void switchUserRequested();
+    void budgetSortChanged();                        // Chosen from the Budget header's right-click menu
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -68,6 +69,7 @@ private:
     void loadAccounts();
     void loadBudgets();
     void showUserMenu();
+    void showBudgetSortMenu(const QPoint& position);
 
     int userId = -1;
     bool collapsed = false;

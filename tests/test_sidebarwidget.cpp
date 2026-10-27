@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <QAbstractButton>
 #include <QLabel>
+#include <QMenu>
 
 #include "account.h"
 #include "budget.h"
@@ -59,6 +60,7 @@ private slots:
         s.setDecimalSeparator(Settings::DecimalSeparator::Comma);
         s.setThousandsSeparator(Settings::ThousandsSeparator::Point);
         s.setCurrencySymbolPrefix(false);
+        s.setSidebarBudgetSort(Settings::BudgetSort::Percentage);
         s.getQSettings().remove("ui");                   // Expanded sidebar, open sections
 
         giroId = AccountDAO::createAccount(1, "Girokonto", "Checking", 210000);
@@ -175,6 +177,58 @@ private slots:
         QCOMPARE(shown(sidebar).size(), 7);
         QVERIFY(!sidebar.findChild<QAbstractButton*>("moreBudgetsItem"));
         Settings::instance().setSidebarShowingAllBudgets(false);
+    }
+
+    void budgetsFollowTheChosenSort() {
+        const QDate today = QDate::currentDate();
+        const QDate monthStart(today.year(), today.month(), 1);
+        // Limit and spent: Rent 900/450 (50%), Groceries 400/380 (95%), Utilities 200/50 (25%),
+        // Entertainment 50/60 (120%)
+        const QList<std::tuple<const char*, Cents, Cents>> budgets = {{"Rent", 90000, 45000},
+                                                                      {"Groceries", 40000, 38000},
+                                                                      {"Utilities", 20000, 5000},
+                                                                      {"Entertainment", 5000, 6000}};
+        for (const auto& [name, limit, spent] : budgets) {
+            QVERIFY(BudgetDAO().setMonthlyLimit(1, categoryId(name), monthStart, limit));
+            QVERIFY(TransactionDAO().addTransaction(Transaction(-1, giroId, name, spent, today, "", categoryId(name), "expense")) > 0);
+        }
+        const auto shown = [](SidebarWidget& sidebar) {
+            QStringList names;
+            for (QAbstractButton* budget : sidebar.findChildren<QAbstractButton*>("budgetItem")) names << budget->text();
+            return names;
+        };
+        Settings& settings = Settings::instance();
+        SidebarWidget sidebar;
+        sidebar.setUserId(1);
+        QCOMPARE(shown(sidebar), (QStringList{"Entertainment", "Groceries", "Rent", "Utilities"}));   // Percentage
+
+        settings.setSidebarBudgetSort(Settings::BudgetSort::Spent);
+        sidebar.refresh();
+        QCOMPARE(shown(sidebar), (QStringList{"Rent", "Groceries", "Entertainment", "Utilities"}));
+        settings.setSidebarBudgetSort(Settings::BudgetSort::Budgeted);
+        sidebar.refresh();
+        QCOMPARE(shown(sidebar), (QStringList{"Rent", "Groceries", "Utilities", "Entertainment"}));
+
+        // The Budget header's right-click menu changes it too, and the sort holds when all are shown
+        settings.setSidebarShowingAllBudgets(true);
+        QSignalSpy changed(&sidebar, &SidebarWidget::budgetSortChanged);
+        QTimer::singleShot(0, &sidebar, [&sidebar]() {
+            QMenu* menu = sidebar.findChild<QMenu*>();
+            QVERIFY(menu);
+            QList<QAction*> actions = menu->actions();
+            QCOMPARE(actions.size(), 4);
+            QVERIFY(actions[2]->isChecked());                // Budgeted amount, the current one
+            actions[3]->trigger();                           // Sort by name
+            menu->close();
+        });
+        auto* header = sidebar.findChild<QAbstractButton*>("budgetHeader");
+        emit header->customContextMenuRequested(QPoint(4, 4));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(settings.getSidebarBudgetSort(), Settings::BudgetSort::Name);
+        QCOMPARE(shown(sidebar), (QStringList{"Entertainment", "Groceries", "Rent", "Utilities"}));
+
+        settings.setSidebarShowingAllBudgets(false);
+        settings.setSidebarBudgetSort(Settings::BudgetSort::Percentage);
     }
 
     void showsWhenThereAreNoBudgets() {

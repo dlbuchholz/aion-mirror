@@ -91,6 +91,16 @@ public:
     bool isSidebarShowingAllBudgets() const;
     void setSidebarShowingAllBudgets(bool showAll);
 
+    // Order of the sidebar's budgets, which also picks the five shown: amounts largest first, names A–Z
+    enum class BudgetSort {
+        Percentage,     // Share of the limit spent (default)
+        Spent,
+        Budgeted,
+        Name
+    };
+    BudgetSort getSidebarBudgetSort() const;
+    void setSidebarBudgetSort(BudgetSort sort);
+
     // User opened automatically at start, -1 for none. Remembered per database file, since user
     // IDs mean different people in different databases.
     int getDefaultUserId(const QString& databasePath) const;

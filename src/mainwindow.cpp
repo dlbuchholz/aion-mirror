@@ -26,6 +26,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->sidebar, &SidebarWidget::addAccountRequested, this, &MainWindow::onAddAccountClicked);
     connect(ui->sidebar, &SidebarWidget::correctBalanceRequested, ui->transactionsPage, &TransactionsPage::correctBalance);
     connect(ui->sidebar, &SidebarWidget::switchUserRequested, this, &MainWindow::switchUserRequested);
+    connect(ui->sidebar, &SidebarWidget::budgetSortChanged, ui->settingsPage, &SettingsPage::reloadSidebarBudgetSort);
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
     connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {
         // Category names, colours and merges show up everywhere

@@ -165,6 +165,26 @@ private slots:
         Settings::instance().setCategorySuggestionEnabled(true);
     }
 
+    void sidebarBudgetSortIsChosenHereOrInTheSidebar() {
+        QCOMPARE(Settings::instance().getSidebarBudgetSort(), Settings::BudgetSort::Percentage);   // Default
+        SettingsPage page;
+        page.setUserId(1);
+        auto* sort = child<QComboBox>(page, "budgetSortCombo");
+        QCOMPARE(sort->currentData().toInt(), int(Settings::BudgetSort::Percentage));
+        select(sort, int(Settings::BudgetSort::Name));
+        child<QPushButton>(page, "applyButton")->click();
+        QCOMPARE(Settings::instance().getSidebarBudgetSort(), Settings::BudgetSort::Name);
+
+        // Chosen in the sidebar: the page follows without counting it as an unsaved change of its own
+        child<QCheckBox>(page, "selectionCheckboxesCheck")->setChecked(true);
+        Settings::instance().setSidebarBudgetSort(Settings::BudgetSort::Spent);
+        page.reloadSidebarBudgetSort();
+        QCOMPARE(sort->currentData().toInt(), int(Settings::BudgetSort::Spent));
+        QVERIFY(child<QCheckBox>(page, "selectionCheckboxesCheck")->isChecked());   // Kept, still unsaved
+        child<QPushButton>(page, "applyButton")->click();
+        QCOMPARE(Settings::instance().getSidebarBudgetSort(), Settings::BudgetSort::Spent);
+    }
+
     void createRuleShowsTheRulesSectionWithTheDraft() {
         SettingsPage page;
         page.setUserId(1);
