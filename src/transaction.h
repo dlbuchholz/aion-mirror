@@ -70,6 +70,10 @@ public:
     int addTransaction(const Transaction& transaction);
     bool updateTransaction(const Transaction& transaction);
     bool deleteTransaction(int transactionId);
+    // Many at once, in one database transaction: all or none. Far quicker than one at a time,
+    // which writes each change to disk separately.
+    bool updateTransactions(const QList<Transaction>& transactions);
+    bool deleteTransactions(const QList<int>& transactionIds);
     QList<Transaction> getTransactionsForAccount(int accountId);
     QList<Transaction> getShadowedTransactions();
     bool hasShadowedTransactions();

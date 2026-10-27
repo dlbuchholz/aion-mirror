@@ -278,6 +278,34 @@ bool TransactionDAO::deleteTransaction(int transactionId) {
     return deleted;
 }
 
+bool TransactionDAO::updateTransactions(const QList<Transaction>& transactions) {
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        return false;
+    }
+    for (const Transaction& transaction : transactions) {
+        if (!updateTransaction(transaction)) {
+            db.rollback();
+            return false;
+        }
+    }
+    return db.commit();
+}
+
+bool TransactionDAO::deleteTransactions(const QList<int>& transactionIds) {
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        return false;
+    }
+    for (int transactionId : transactionIds) {
+        if (!deleteTransaction(transactionId)) {
+            db.rollback();
+            return false;
+        }
+    }
+    return db.commit();
+}
+
 QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare("SELECT id, amount, date, description, payee, original_payee, renamed_by_rule, category_id, type FROM transactions WHERE account_id = :account_id");

@@ -934,9 +934,9 @@ void TransactionsPage::deleteTransactions(const QList<int>& transactionIds) {
         return;
     }
 
-    TransactionDAO transactionDao;
-    for (int transactionId : transactionIds) {
-        transactionDao.deleteTransaction(transactionId);
+    if (!TransactionDAO().deleteTransactions(transactionIds)) {
+        QMessageBox::warning(this, "Delete transactions", "The transactions couldn't be deleted. Nothing was changed.");
+        return;
     }
     {
         const QSignalBlocker blocker(listView->selectionModel());
@@ -948,12 +948,16 @@ void TransactionsPage::deleteTransactions(const QList<int>& transactionIds) {
 }
 
 void TransactionsPage::setCategoryForSelection(int categoryId) {
-    TransactionDAO transactionDao;
+    QList<Transaction> changed;
     for (int transactionId : selectedTransactionIds()) {
         if (auto transaction = model->transaction(transactionId)) {
             transaction->setCategoryId(categoryId);
-            transactionDao.updateTransaction(*transaction);
+            changed.append(*transaction);
         }
+    }
+    if (!TransactionDAO().updateTransactions(changed)) {
+        QMessageBox::warning(this, "Change category", "The category couldn't be changed. Nothing was changed.");
+        return;
     }
     reload();
     emit transactionsChanged();

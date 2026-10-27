@@ -521,6 +521,71 @@ private slots:
         }
     }
 
+    void bulkChangesStayQuick() {
+        // Each change written to disk on its own took about 6 ms, so 1000 took seconds. Measured
+        // against 25 single deletes, the old way, so a slow disk or build doesn't matter.
+        QSqlDatabase database = DatabaseManager::instance().database();
+        QVERIFY(database.transaction());
+        QList<int> ids;
+        for (int i = 0; i < 2025; ++i) {
+            ids.append(TransactionDAO().addTransaction(Transaction(-1, firstId, QString("Payee %1").arg(i), 100 + i,
+                                                                   QDate(2025, 1, 1).addDays(i % 600), "", 0, "expense")));
+        }
+        QVERIFY(database.commit());
+        QElapsedTimer timer;
+        timer.start();
+        for (int id : ids.mid(2000)) QVERIFY(TransactionDAO().deleteTransaction(id));
+        const qint64 oneByOne = timer.restart();
+
+        TransactionsPage page;
+        page.setUserId(1);
+        page.confirm = [](const QString&, const QString&) { return true; };
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        const auto selectAll = [&](const QList<int>& chosen) {
+            QItemSelection selection;
+            for (int id : chosen) {
+                const QModelIndex index = model->indexForTransaction(id);
+                selection.select(index, index);
+            }
+            list->selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect);
+        };
+        QSqlQuery query(database);
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+
+        selectAll(ids.mid(0, 1000));
+        timer.restart();
+        for (QAction* candidate : page.findChild<QToolButton*>("bulkCategoryButton")->menu()->actions()) {
+            if (candidate->data().toInt() == groceries || candidate->text() == "Groceries") {
+                candidate->trigger();
+                break;
+            }
+        }
+        const qint64 categorising = timer.restart();
+        selectAll(ids.mid(0, 1000));
+        timer.restart();
+        QVERIFY(QMetaObject::invokeMethod(&page, "deleteSelected"));
+        const qint64 deleting = timer.restart();
+
+        const QList<Transaction> left = TransactionDAO().getTransactionsForAccount(firstId);
+        QCOMPARE(left.size(), 1000);
+        QCOMPARE(left.first().getCategoryId(), 0);           // The categorised ones were the deleted ones
+        const QByteArray times = QString("25 one by one %1 ms, categorising 1000 %2 ms, deleting 1000 %3 ms")
+                                     .arg(oneByOne).arg(categorising).arg(deleting).toUtf8();
+        QVERIFY2(categorising < oneByOne * 10, times.constData());
+        QVERIFY2(deleting < oneByOne * 10, times.constData());
+    }
+
+    void aFailedBulkDeleteChangesNothing() {
+        const int first = addExpense("A", 100);
+        const int second = addExpense("B", 200);
+        QVERIFY(!TransactionDAO().deleteTransactions({first, 9999, second}));   // 9999 doesn't exist
+        QCOMPARE(TransactionDAO().getTransactionsForAccount(firstId).size(), 2);
+        QVERIFY(TransactionDAO().deleteTransactions({first, second}));
+        QVERIFY(TransactionDAO().getTransactionsForAccount(firstId).isEmpty());
+    }
+
     void deletingAsksFirst() {
         const int transactionId = addExpense("Bakery", 420);
         TransactionsPage page;
