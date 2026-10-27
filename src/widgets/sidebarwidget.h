@@ -6,6 +6,7 @@
 #include <QVariantAnimation>
 
 class QLabel;
+class QScrollArea;
 class QVBoxLayout;
 class SidebarItem;
 
@@ -44,6 +45,7 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void changeEvent(QEvent* event) override;        // The scroll bar follows the theme
 
 private:
     struct Section {
@@ -52,6 +54,7 @@ private:
         QVBoxLayout* bodyLayout = nullptr;
         QString key;
         QString summary;                             // Shown in the header while the section is folded
+        bool summaryWhenExpanded = false;            // ... and while it's open
         bool expanded = true;
     };
 
@@ -59,6 +62,7 @@ private:
     Section createSection(QVBoxLayout* layout, const QString& key, const QString& title);
     void setSectionExpanded(Section& section, bool expanded);
     void clearSection(Section& section);
+    void styleScrollBar();                           // Thin, without arrows, in the theme's colours
 
     void loadUser();
     void loadAccounts();
@@ -69,7 +73,7 @@ private:
     bool collapsed = false;
 
     QButtonGroup navGroup;
-    QWidget* sectionsArea = nullptr;
+    QScrollArea* sectionsArea = nullptr;
     Section accountsSection;
     Section budgetSection;
     SidebarItem* userItem = nullptr;

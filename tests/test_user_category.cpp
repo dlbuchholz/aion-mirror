@@ -147,6 +147,21 @@ private slots:
         QVERIFY(AccountDAO().getAllAccountTypes(2).first().first != AccountDAO().getAllAccountTypes(1).first().first);
     }
 
+    void defaultCategoriesHaveTheirOwnColours() {
+        QHash<QString, QString> colours;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            colours.insert(category.getName(), category.getColor());
+        }
+        QCOMPARE(colours.value("Groceries"), QString("amber"));
+        QCOMPARE(colours.value("Rent"), QString("blue"));
+        QCOMPARE(colours.value("Utilities"), QString("coral"));
+        QCOMPARE(colours.value("Entertainment"), QString("purple"));
+        QCOMPARE(colours.value("Salary"), QString("teal"));
+        QCOMPARE(colours.value("Bonus"), QString("green"));
+        QCOMPARE(colours.value(InitialBalanceCategory), QString("gray"));
+        QCOMPARE(colours.value(BalanceCorrectionCategory), QString("gray"));
+    }
+
     void usersDontSeeOrChangeEachOthersCategories() {
         QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
         CategoryDAO mine(1);

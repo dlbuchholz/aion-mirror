@@ -30,15 +30,16 @@ CategoryDAO::CategoryDAO(int userId)
     : userId(userId) {}
 
 bool CategoryDAO::addDefaultCategories(int userId) {
+    // Each with its own colour; the built-in ones grey. Red and pink are left for the user's own.
     const QList<Category> defaults = {
-        Category(-1, InitialBalanceCategory, "income"),
-        Category(-1, "Salary", "income"),
-        Category(-1, "Bonus", "income"),
-        Category(-1, "Groceries", "expense"),
-        Category(-1, "Rent", "expense"),
-        Category(-1, "Utilities", "expense"),
-        Category(-1, "Entertainment", "expense"),
-        Category(-1, BalanceCorrectionCategory, "income"),
+        Category(-1, InitialBalanceCategory, "income", "gray"),
+        Category(-1, "Salary", "income", "teal"),
+        Category(-1, "Bonus", "income", "green"),
+        Category(-1, "Groceries", "expense", "amber"),
+        Category(-1, "Rent", "expense", "blue"),
+        Category(-1, "Utilities", "expense", "coral"),
+        Category(-1, "Entertainment", "expense", "purple"),
+        Category(-1, BalanceCorrectionCategory, "income", "gray"),
     };
     CategoryDAO dao(userId);
     for (const Category& category : defaults) {

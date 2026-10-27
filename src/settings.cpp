@@ -369,6 +369,14 @@ void Settings::setCategoryColorsInOverviewsEnabled(bool enabled) {
     settings.setValue("appearance/categoryColorsInOverviews", enabled);
 }
 
+bool Settings::isSidebarShowingAllBudgets() const {
+    return settings.value("appearance/sidebarAllBudgets", false).toBool();
+}
+
+void Settings::setSidebarShowingAllBudgets(bool showAll) {
+    settings.setValue("appearance/sidebarAllBudgets", showAll);
+}
+
 // Sidebar state
 bool Settings::isSidebarCollapsed() const {
     return settings.value("ui/sidebarCollapsed", false).toBool();

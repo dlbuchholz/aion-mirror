@@ -87,6 +87,10 @@ public:
     bool isCategoryColorsInOverviewsEnabled() const;
     void setCategoryColorsInOverviewsEnabled(bool enabled);
 
+    // Every budget in the sidebar, instead of the five most used (off by default)
+    bool isSidebarShowingAllBudgets() const;
+    void setSidebarShowingAllBudgets(bool showAll);
+
     // User opened automatically at start, -1 for none. Remembered per database file, since user
     // IDs mean different people in different databases.
     int getDefaultUserId(const QString& databasePath) const;

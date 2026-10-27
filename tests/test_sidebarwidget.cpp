@@ -4,6 +4,7 @@
 
 #include "account.h"
 #include "budget.h"
+#include "category.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/sidebarwidget.h"
@@ -130,6 +131,50 @@ private slots:
         QCOMPARE(sidebar.findChild<QAbstractButton*>("budgetHeader")->text(), budgetHeaderTitle());
         QCOMPARE(valueOf(sidebar, "Groceries"), QString("312 € / 400 €"));
         QVERIFY(!item(sidebar, "Rent"));                 // Only budgets covering today
+    }
+
+    void showsTheMostUsedBudgetsUnlessAllAreWanted() {
+        const QDate today = QDate::currentDate();
+        const QDate monthStart(today.year(), today.month(), 1);
+        CategoryDAO categories(1);
+        for (const char* name : {"Transport", "Travel", "Gifts"}) {
+            QVERIFY(categories.addCategory(Category(-1, name, "expense")) > 0);
+        }
+        // Each 100 € a month; spent: Rent 95, Travel 120 (over), Gifts 10, Groceries 60, Utilities 30,
+        // Entertainment 0, Transport 80
+        const QList<QPair<const char*, Cents>> spending = {{"Rent", 9500}, {"Travel", 12000}, {"Gifts", 1000},
+                                                          {"Groceries", 6000}, {"Utilities", 3000},
+                                                          {"Entertainment", 0}, {"Transport", 8000}};
+        for (const auto& [name, cents] : spending) {
+            QVERIFY(BudgetDAO().setMonthlyLimit(1, categoryId(name), monthStart, 10000));
+            if (cents > 0) {
+                QVERIFY(TransactionDAO().addTransaction(Transaction(-1, giroId, name, cents, today, "", categoryId(name), "expense")) > 0);
+            }
+        }
+        const auto shown = [](SidebarWidget& sidebar) {
+            QStringList names;
+            for (QAbstractButton* budget : sidebar.findChildren<QAbstractButton*>("budgetItem")) names << budget->text();
+            return names;
+        };
+
+        SidebarWidget sidebar;
+        sidebar.setUserId(1);
+        QCOMPARE(shown(sidebar), (QStringList{"Travel", "Rent", "Transport", "Groceries", "Utilities"}));
+        auto* more = sidebar.findChild<QAbstractButton*>("moreBudgetsItem");
+        QVERIFY(more);
+        QCOMPARE(more->text(), QString("+ 2 more on the Budget page"));
+        QSignalSpy pages(&sidebar, &SidebarWidget::pageRequested);
+        more->click();
+        QCOMPARE(pages.count(), 1);
+        QCOMPARE(pages.first().first().value<SidebarWidget::Page>(), SidebarWidget::Page::Budget);
+        // The month's total counts every budget, also while the section is open: 395 of 700 €
+        QCOMPARE(sidebar.findChild<QAbstractButton*>("budgetHeader")->accessibleDescription(), QString("56%"));
+
+        Settings::instance().setSidebarShowingAllBudgets(true);
+        sidebar.refresh();
+        QCOMPARE(shown(sidebar).size(), 7);
+        QVERIFY(!sidebar.findChild<QAbstractButton*>("moreBudgetsItem"));
+        Settings::instance().setSidebarShowingAllBudgets(false);
     }
 
     void showsWhenThereAreNoBudgets() {

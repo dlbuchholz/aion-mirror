@@ -273,12 +273,18 @@ void SettingsPage::buildAppearanceSection()
     form->addRow("Theme", themeCombo);
     watch(themeCombo);
 
-    categoryColorsCheck = new QCheckBox("Use category colours on the Dashboard and Budget page", this);
+    categoryColorsCheck = new QCheckBox("Use category colours on the Dashboard, the Budget page and in the sidebar", this);
     categoryColorsCheck->setObjectName("categoryColorsCheck");
     categoryColorsCheck->setToolTip("Coloured spending bars and dots before budget names. "
                                     "Without it they stay neutral; category tags are always coloured.");
     form->addRow(categoryColorsCheck);
     watch(categoryColorsCheck);
+
+    allBudgetsCheck = new QCheckBox("Show all budgets in the sidebar", this);
+    allBudgetsCheck->setObjectName("allBudgetsCheck");
+    allBudgetsCheck->setToolTip("Otherwise the sidebar shows the five most used ones and links to the Budget page for the rest");
+    form->addRow(allBudgetsCheck);
+    watch(allBudgetsCheck);
 }
 
 void SettingsPage::buildImportSection()
@@ -400,6 +406,7 @@ void SettingsPage::loadSettings()
     selectionCheckboxesCheck->setChecked(settings.isSelectionCheckboxesEnabled());
     suggestCategoriesCheck->setChecked(settings.isCategorySuggestionEnabled());
     categoryColorsCheck->setChecked(settings.isCategoryColorsInOverviewsEnabled());
+    allBudgetsCheck->setChecked(settings.isSidebarShowingAllBudgets());
 
     // Stored values are case-insensitive, matching Theme::fromName()
     const QString theme = settings.getTheme().toLower();
@@ -439,6 +446,7 @@ void SettingsPage::saveSettings()
 
     settings.setTheme(themeCombo->currentData().toString());
     settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());
+    settings.setSidebarShowingAllBudgets(allBudgetsCheck->isChecked());
 
     settings.setAutoDetectCsvDelimiter(autoDetectDelimiterCheck->isChecked());
     settings.setDefaultCsvDelimiter(defaultDelimiterCombo->currentData().toString().at(0));

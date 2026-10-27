@@ -85,6 +85,7 @@ private:
     QCheckBox *selectionCheckboxesCheck = nullptr;
     QCheckBox *suggestCategoriesCheck = nullptr;
     QCheckBox *categoryColorsCheck = nullptr;
+    QCheckBox *allBudgetsCheck = nullptr;
 
     // Appearance
     QComboBox *themeCombo = nullptr;

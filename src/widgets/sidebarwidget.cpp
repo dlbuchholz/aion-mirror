@@ -1,6 +1,7 @@
 #include "sidebarwidget.h"
 #include "account.h"
 #include "budget.h"
+#include "categorycolors.h"
 #include "settings.h"
 #include "theme.h"
 #include "user.h"
@@ -13,6 +14,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QVBoxLayout>
 
 namespace {
@@ -22,6 +24,7 @@ constexpr int COLLAPSED_WIDTH = 52;
 constexpr int ICON_X = 9;                            // Left edge of the icon column
 constexpr int TEXT_X = 38;                           // Left edge of the label column
 constexpr int PADDING_RIGHT = 9;
+constexpr int SIDEBAR_BUDGETS = 5;                   // Budgets shown unless all are wanted
 
 QString initialsFor(const QString& name) {
     const QStringList parts = name.split(' ', Qt::SkipEmptyParts);
@@ -61,6 +64,7 @@ public:
         update();
     }
     void setTrailingIcon(const QString& name) { trailingIcon = name; update(); }
+    void setDotColor(const QColor& color) { dotColor = color; update(); }   // Before the label; invalid = none
     void setProgress(double fraction) { progress = fraction; updateGeometry(); update(); }
     void setAvatarInitials(const QString& initials) { avatarInitials = initials; update(); }
     void setMuted(bool isMuted) {
@@ -144,8 +148,14 @@ protected:
             right -= textWidth + 8;
         }
 
-        // Label (section headers start in the icon column)
-        const int textX = (kind == Kind::SectionHeader) ? ICON_X : TEXT_X;
+        // Category colour dot, then the label (section headers start in the icon column)
+        int textX = (kind == Kind::SectionHeader) ? ICON_X : TEXT_X;
+        if (dotColor.isValid()) {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(dotColor);
+            painter.drawEllipse(QRectF(textX, (lineHeight - 8) / 2.0, 8, 8));
+            textX += 16;
+        }
         const int available = right - textX;
         if (available > 12) {
             painter.setPen(textColor);
@@ -172,6 +182,7 @@ private:
     QString trailingText;
     QString trailingIcon;
     QString avatarInitials;
+    QColor dotColor;
     double progress = -1.0;
     bool trailingNegative = false;
     bool muted = false;
@@ -227,6 +238,7 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     accountsSection = createSection(sectionsLayout, "accounts", "Accounts");
     sectionsLayout->addSpacing(10);
     budgetSection = createSection(sectionsLayout, "budget", "Budget");
+    budgetSection.summaryWhenExpanded = true;        // The month's total, while only some budgets show
     sectionsLayout->addStretch();
 
     scrollArea->setWidget(sectionsWidget);
@@ -234,6 +246,7 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     root->addWidget(scrollArea, 1);
     root->addStretch(0);                             // Keeps the rail items packed while the sections are hidden
     sectionsArea = scrollArea;
+    styleScrollBar();
 
     connect(accountsSection.header, &QAbstractButton::clicked, this, [this]() {
         setSectionExpanded(accountsSection, !accountsSection.expanded);
@@ -307,7 +320,7 @@ void SidebarWidget::setSectionExpanded(Section& section, bool expanded) {
     section.expanded = expanded;
     section.body->setVisible(expanded);
     section.header->setTrailingIcon(expanded ? "chevron-down" : "chevron-right");
-    section.header->setTrailingText(expanded ? QString() : section.summary);
+    section.header->setTrailingText(expanded && !section.summaryWhenExpanded ? QString() : section.summary);
     Settings::instance().setSidebarSectionExpanded(section.key, expanded);
 }
 
@@ -437,21 +450,43 @@ void SidebarWidget::loadBudgets() {
     const Settings& settings = Settings::instance();
     Cents totalSpent = 0;
     Cents totalLimit = 0;
+    const auto showBudgetPage = [this]() {
+        setCurrentPage(Page::Budget);
+        emit pageRequested(Page::Budget);
+    };
 
-    for (const MonthBudget& budget : budgetDao.budgetsForMonth(userId, today)) {
+    // The most used first, and only the first few unless all are wanted; the Budget page has the rest
+    QList<MonthBudget> budgets = budgetDao.budgetsForMonth(userId, today);
+    const bool showAll = settings.isSidebarShowingAllBudgets();
+    if (!showAll) {
+        std::stable_sort(budgets.begin(), budgets.end(), [](const MonthBudget& a, const MonthBudget& b) {
+            return double(a.spentCents) / double(a.limitCents) > double(b.spentCents) / double(b.limitCents);
+        });
+    }
+    for (int i = 0; i < budgets.size(); ++i) {
+        const MonthBudget& budget = budgets[i];
         totalSpent += budget.spentCents;
         totalLimit += budget.limitCents;
+        if (!showAll && i >= SIDEBAR_BUDGETS) continue;
 
         auto* item = new SidebarItem(SidebarItem::Kind::Row);
+        item->setObjectName("budgetItem");
         item->setText(budget.categoryName);
         item->setTrailingText(QString("%1 / %2").arg(settings.formatCurrency(budget.spentCents, false, 0),
                                                      settings.formatCurrency(budget.limitCents, false, 0)));
         item->setProgress(double(budget.spentCents) / double(budget.limitCents));   // Limits are positive
+        if (settings.isCategoryColorsInOverviewsEnabled() && !budget.categoryColor.isEmpty()) {
+            item->setDotColor(CategoryColors::swatch(budget.categoryColor).solid);
+        }
         budgetSection.bodyLayout->addWidget(item);
-        connect(item, &QAbstractButton::clicked, this, [this]() {
-            setCurrentPage(Page::Budget);
-            emit pageRequested(Page::Budget);
-        });
+        connect(item, &QAbstractButton::clicked, this, showBudgetPage);
+    }
+    if (!showAll && budgets.size() > SIDEBAR_BUDGETS) {
+        auto* moreItem = new SidebarItem(SidebarItem::Kind::Row);
+        moreItem->setObjectName("moreBudgetsItem");
+        moreItem->setText(QString("+ %1 more on the Budget page").arg(budgets.size() - SIDEBAR_BUDGETS));
+        budgetSection.bodyLayout->addWidget(moreItem);
+        connect(moreItem, &QAbstractButton::clicked, this, showBudgetPage);
     }
 
     if (totalLimit <= 0) {
@@ -470,6 +505,29 @@ void SidebarWidget::showUserMenu() {
     QMenu menu(this);
     menu.addAction("Switch user…", this, &SidebarWidget::switchUserRequested);
     menu.exec(userItem->mapToGlobal(QPoint(0, -menu.sizeHint().height())));
+}
+
+void SidebarWidget::styleScrollBar() {
+    // Fusion's scroll bar, with its track and arrows, is too heavy for the narrow sidebar
+    const Theme::Colors colors = Theme::colors();
+    QColor handle = colors.textMuted;
+    handle.setAlpha(110);
+    QColor hovered = colors.textMuted;
+    hovered.setAlpha(200);
+    sectionsArea->verticalScrollBar()->setStyleSheet(
+        QString("QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
+                "QScrollBar::handle:vertical { background: %1; border-radius: 3px; min-height: 24px; }"
+                "QScrollBar::handle:vertical:hover, QScrollBar::handle:vertical:pressed { background: %2; }"
+                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; border: none; }"
+                "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }")
+            .arg(handle.name(QColor::HexArgb), hovered.name(QColor::HexArgb)));
+}
+
+void SidebarWidget::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::PaletteChange && sectionsArea) {
+        styleScrollBar();
+    }
+    QWidget::changeEvent(event);
 }
 
 void SidebarWidget::paintEvent(QPaintEvent*) {
