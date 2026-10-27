@@ -66,6 +66,10 @@ void Settings::setFormatValue(const QString& key, const QVariant& value) {
         return;
     }
     loadDatabaseValues();
+    const auto stored = databaseValues.constFind(key);
+    if (stored != databaseValues.constEnd() && *stored == value.toString()) {
+        return;                                      // Unchanged: spares a write to disk (Apply saves every value)
+    }
     QSqlQuery query(database);
     query.prepare("INSERT OR REPLACE INTO database_settings (key, value) VALUES (:key, :value)");
     query.bindValue(":key", key);

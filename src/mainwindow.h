@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "theme.h"
 #include "widgets/sidebarwidget.h"
 
 QT_BEGIN_NAMESPACE
@@ -32,5 +33,6 @@ private:
 
     Ui::MainWindow *ui;
     int userId;
+    Theme::Type appliedTheme;                        // The theme setting last applied
 };
 #endif // MAINWINDOW_H

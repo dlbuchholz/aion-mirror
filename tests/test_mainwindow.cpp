@@ -1,5 +1,7 @@
 #include <QtTest>
+#include <QCheckBox>
 #include <QComboBox>
+#include <QPushButton>
 #include <QLabel>
 #include <QListView>
 #include <QSqlQuery>
@@ -10,6 +12,7 @@
 #include "mainwindow.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
+#include "theme.h"
 #include "transactionlistmodel.h"
 #include "widgets/budgetpage.h"
 #include "widgets/dashboardpage.h"
@@ -60,6 +63,43 @@ private slots:
         groceries = query.value(0).toInt();
     }
     void cleanup() { db.close(); }
+
+    void applyingOnlyRedoesWhatChanged() {
+        // Apply used to write every number format to disk and restyle every widget, whatever changed
+        const auto databaseChanges = []() {
+            QSqlQuery query(DatabaseManager::instance().database());
+            return query.exec("SELECT total_changes()") && query.next() ? query.value(0).toLongLong() : -1;
+        };
+        const QString originalTheme = Settings::instance().getTheme();
+        MainWindow window(1);
+        auto* settings = window.findChild<SettingsPage*>();
+        auto* apply = settings->findChild<QPushButton*>("applyButton");
+        auto* check = settings->findChild<QCheckBox*>("selectionCheckboxesCheck");
+        check->setChecked(!check->isChecked());
+        apply->click();                                  // A new database stores its number formats once
+        const QStyle* style = qApp->style();
+        const qint64 changesBefore = databaseChanges();
+
+        check->setChecked(!check->isChecked());
+        apply->click();
+        QCOMPARE(databaseChanges(), changesBefore);      // Formats unchanged: nothing written
+        QCOMPARE(qApp->style(), style);                  // Theme unchanged: not restyled
+        QCOMPARE(Settings::instance().isSelectionCheckboxesEnabled(), check->isChecked());
+
+        auto* decimal = settings->findChild<QComboBox*>("decimalSeparatorCombo");
+        decimal->setCurrentIndex(decimal->currentIndex() == 0 ? 1 : 0);
+        apply->click();
+        QCOMPARE(databaseChanges(), changesBefore + 1);  // Just the changed format
+
+        auto* theme = settings->findChild<QComboBox*>("themeCombo");
+        theme->setCurrentIndex(theme->findData(Theme::isDark() ? "Light" : "Dark"));
+        const bool wasDark = Theme::isDark();
+        apply->click();
+        QCOMPARE(Theme::isDark(), !wasDark);             // A new theme still applies
+
+        Settings::instance().setTheme(originalTheme);
+        Theme::applyTheme(Theme::fromName(originalTheme));
+    }
 
     void startsOnTheDashboard() {
         MainWindow window(1);

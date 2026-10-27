@@ -12,7 +12,8 @@
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(int userId, QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow), userId(userId)
+    : QMainWindow(parent), ui(new Ui::MainWindow), userId(userId),
+      appliedTheme(Theme::fromName(Settings::instance().getTheme()))   // Applied at start, before the window
 {
     ui->setupUi(this);
     ui->sidebar->setUserId(userId);
@@ -124,7 +125,12 @@ void MainWindow::reloadAccounts() {
 
 void MainWindow::onSettingsChanged() {
     qDebug() << "Settings changed, refreshing UI";
-    Theme::applyTheme(Theme::fromName(Settings::instance().getTheme()));
+    // Restyling every widget is the slow part of Apply, so only when the theme changed
+    const Theme::Type theme = Theme::fromName(Settings::instance().getTheme());
+    if (theme != appliedTheme) {
+        Theme::applyTheme(theme);
+        appliedTheme = theme;
+    }
 
     // Number formats and categories may have changed
     ui->transactionsPage->applySettings();
