@@ -7,6 +7,7 @@
 #include "settings.h"
 #include "theme.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -452,6 +453,12 @@ int RulesSettings::matchCount(const Rule& rule) const {
 }
 
 void RulesSettings::rebuildList() {
+    // A clicked row (or its ▲▼) has the focus. Hiding it would pass the focus on, and the scroll
+    // area would jump to wherever it lands.
+    if (QWidget* focused = QApplication::focusWidget(); focused && listLayout->parentWidget()->isAncestorOf(focused)
+                                                        && focused != editor && !editor->isAncestorOf(focused)) {
+        focused->clearFocus();
+    }
     // The editor isn't a row; take it out before the rows go
     listLayout->removeWidget(editor);
     while (QLayoutItem* item = listLayout->takeAt(0)) {

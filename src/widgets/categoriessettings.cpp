@@ -5,6 +5,7 @@
 #include "theme.h"
 
 #include <QAbstractButton>
+#include <QApplication>
 #include <QButtonGroup>
 #include <QComboBox>
 #include <QEvent>
@@ -287,6 +288,12 @@ const Category* CategoriesSettings::category(int categoryId) const {
 }
 
 void CategoriesSettings::rebuildList() {
+    // A clicked row has the focus. Hiding it would pass the focus on, and the scroll area would
+    // jump to wherever it lands.
+    if (QWidget* focused = QApplication::focusWidget(); focused && listLayout->parentWidget()->isAncestorOf(focused)
+                                                        && focused != editor && !editor->isAncestorOf(focused)) {
+        focused->clearFocus();
+    }
     // Replace the rows but keep the editor. deleteLater: this can run from a row's own click.
     while (QLayoutItem* item = listLayout->takeAt(0)) {
         if (QWidget* widget = item->widget(); widget && widget != editor) {

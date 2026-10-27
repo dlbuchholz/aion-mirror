@@ -5,6 +5,8 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QToolButton>
 
 #include "account.h"
@@ -50,6 +52,39 @@ private slots:
         QStringList groups;
         for (QLabel* label : settings.findChildren<QLabel*>("categoryGroupLabel")) groups << label->text();
         QCOMPARE(groups, QStringList({"Expenses", "Income", "Built in"}));
+    }
+
+    void openingACategoryKeepsTheListWhereItIs() {
+        CategoryDAO dao(1);
+        for (int i = 0; i < 25; ++i) {
+            QVERIFY(dao.addCategory(Category(-1, QString("Extra %1").arg(i, 2, 10, QChar('0')), "expense")) > 0);
+        }
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        settings.resize(600, 400);
+        settings.show();
+        settings.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&settings));
+        auto* scrollBar = settings.findChild<QScrollArea*>()->verticalScrollBar();
+        QVERIFY(scrollBar->maximum() > 0);
+        scrollBar->setValue(scrollBar->maximum() / 2);
+        const int scrolled = scrollBar->value();
+
+        // A row in view, clicked like with the mouse (which also gives it the focus)
+        QAbstractButton* clicked = nullptr;
+        QWidget* viewport = settings.findChild<QScrollArea*>()->viewport();
+        for (QAbstractButton* candidate : settings.findChildren<QAbstractButton*>("categoryRow")) {
+            const QPoint top = candidate->mapTo(viewport, QPoint(0, 0));
+            if (candidate->isVisible() && top.y() > 40 && top.y() < viewport->height() - 80) {
+                clicked = candidate;
+                break;
+            }
+        }
+        QVERIFY(clicked);
+        QTest::mouseClick(clicked, Qt::LeftButton);
+        settle();
+        QVERIFY(settings.findChild<QFrame*>("categoryEditor")->isVisible());
+        QCOMPARE(scrollBar->value(), scrolled);
     }
 
     void addsACategoryWithAColour() {

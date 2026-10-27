@@ -7,6 +7,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QToolButton>
 
 #include "account.h"
@@ -294,6 +296,37 @@ private slots:
             QCOMPARE(transaction.getRenamedByRuleId(), -1);   // The rule is gone
         }
         QCOMPARE(changed.count(), 2);
+    }
+
+    void openingARuleKeepsTheListWhereItIs() {
+        for (int i = 0; i < 25; ++i) {
+            QVERIFY(addRule(QString("Shop %1").arg(i), "Groceries") > 0);
+        }
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.resize(700, 400);
+        settings.show();
+        settings.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&settings));
+        auto* scrollArea = settings.findChild<QScrollArea*>();
+        auto* scrollBar = scrollArea->verticalScrollBar();
+        QVERIFY(scrollBar->maximum() > 0);
+        scrollBar->setValue(scrollBar->maximum() / 2);
+        const int scrolled = scrollBar->value();
+
+        QAbstractButton* clicked = nullptr;
+        for (QAbstractButton* candidate : rows(settings)) {
+            const QPoint top = candidate->mapTo(scrollArea->viewport(), QPoint(0, 0));
+            if (top.y() > 40 && top.y() < scrollArea->viewport()->height() - 80) {
+                clicked = candidate;
+                break;
+            }
+        }
+        QVERIFY(clicked);
+        QTest::mouseClick(clicked, Qt::LeftButton, {}, QPoint(20, clicked->height() / 2));
+        settle();
+        QVERIFY(settings.findChild<QFrame*>("ruleEditor")->isVisible());
+        QCOMPARE(scrollBar->value(), scrolled);
     }
 
     void aRuleCanStartFromADraft() {
