@@ -30,3 +30,4 @@ see `LICENSE` in this folder):
 | `search.svg`        | `search`                |
 | `database.svg`      | `database`              |
 | `info.svg`          | `info-circle`           |
+| `x.svg`             | `x`                     |

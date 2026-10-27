@@ -1,5 +1,7 @@
 #include "icons.h"
 
+#include <QAbstractButton>
+#include <QEvent>
 #include <QGuiApplication>
 #include <QHash>
 #include <QPainter>
@@ -20,6 +22,9 @@ QPixmap tinted(const QString& name, const QColor& color, int size, qreal deviceP
     pixmap.fill(Qt::transparent);
 
     QSvgRenderer renderer(QString(":/icons/%1.svg").arg(name));
+    if (!renderer.isValid()) {
+        qWarning("Icon \"%s\" is missing from the resources; rerun CMake if it was just added", qPrintable(name));
+    }
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
     renderer.render(&painter, QRectF(0, 0, size, size));
@@ -33,6 +38,40 @@ QPixmap tinted(const QString& name, const QColor& color, int size, qreal deviceP
 
 QIcon icon(const QString& name, const QColor& color, int size) {
     return QIcon(tinted(name, color, size, qApp->devicePixelRatio()));
+}
+
+namespace {
+
+// Re-tints its button's icon when the palette changes
+class ThemedIcon : public QObject {
+public:
+    ThemedIcon(QAbstractButton* button, const QString& name, int size) : QObject(button), name(name), size(size) {
+        update(button);
+        button->installEventFilter(this);
+    }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override {
+        if (event->type() == QEvent::PaletteChange) {
+            update(static_cast<QAbstractButton*>(watched));
+        }
+        return false;
+    }
+
+private:
+    void update(QAbstractButton* button) const {
+        button->setIcon(icon(name, button->palette().color(QPalette::ButtonText), size));
+        button->setIconSize(QSize(size, size));
+    }
+
+    QString name;
+    int size;
+};
+
+} // namespace
+
+void setThemedIcon(QAbstractButton* button, const QString& name, int size) {
+    new ThemedIcon(button, name, size);
 }
 
 QPixmap logo(int size, qreal devicePixelRatio) {

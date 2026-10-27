@@ -1,4 +1,5 @@
 #include "budgeteditor.h"
+#include "icons.h"
 #include "settings.h"
 #include "theme.h"
 
@@ -39,7 +40,8 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     titleLabel->setFont(titleFont);
     header->addWidget(titleLabel, 1);
     auto* closeButton = new QToolButton(this);
-    closeButton->setText("✕");
+    closeButton->setText("Close");                   // For screen readers; the button shows only the icon
+    Icons::setThemedIcon(closeButton, "x");
     closeButton->setAutoRaise(true);
     closeButton->setToolTip("Close (Esc)");
     connect(closeButton, &QToolButton::clicked, this, &BudgetEditor::closed);

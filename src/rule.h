@@ -50,6 +50,25 @@ struct Rule {
     bool renames() const { return !newPayee.isEmpty(); }
 };
 
+// Many transactions with their texts tidied once (spacing and case), so rules can be counted over
+// them quickly, e.g. on each key press while a rule is edited. Counts the way Rule::matches matches.
+class RuleMatchIndex {
+public:
+    RuleMatchIndex() = default;
+    explicit RuleMatchIndex(const QList<Transaction>& transactions);
+
+    int count(const Rule& rule) const;               // How many of the transactions the rule matches
+
+private:
+    struct Entry {
+        Transaction transaction;
+        QString payee;                               // Simplified and case-folded
+        QString originalPayee;
+        QString description;
+    };
+    QList<Entry> entries;
+};
+
 // What applying the rules would change on a transaction
 struct RuleChange {
     Transaction transaction;                         // As it is now

@@ -37,6 +37,48 @@ private slots:
         QVERIFY((RuleCondition{Field::Description, Operator::Contains, "karte"}.matches(rewe)));
         QVERIFY(!(RuleCondition{Field::Description, Operator::Contains, "rewe"}.matches(rewe)));
         QVERIFY(!(RuleCondition{Field::Payee, Operator::Contains, "  "}.matches(rewe)));   // Empty matches nothing
+
+        // Umlauts ignore case too; tabs, line breaks and spaces at the ends count as single spaces
+        const Transaction doctor = transaction("Ärztehaus Mitte", "Rechnung\n04/2026 \t Praxis", 9000);
+        QVERIFY((RuleCondition{Field::Payee, Operator::StartsWith, "ärzte"}.matches(doctor)));
+        QVERIFY((RuleCondition{Field::Payee, Operator::Is, " ärztehaus\tmitte "}.matches(doctor)));
+        QVERIFY((RuleCondition{Field::Description, Operator::Contains, "rechnung 04/2026 praxis"}.matches(doctor)));
+        QVERIFY(!(RuleCondition{Field::Description, Operator::Contains, "rechnung  04"}.matches(transaction("x", "Rechnung04", 1))));
+    }
+
+    void theMatchIndexCountsLikeTheRulesMatch() {
+        // The quick counter of the Rules page has to agree with matching one transaction at a time
+        Transaction renamed = transaction("REWE  City 0815", "", 990);
+        renamed.renamePayee("Rewe", -1);
+        const QList<Transaction> transactions = {
+            transaction("REWE  Markt GmbH", "Kartenzahlung", 3240), transaction("Aldi Süd", "Einkauf\tbei REWE", 1500),
+            transaction("Ärztehaus Mitte", "Rechnung 04/2026", 9000, "expense", 2), transaction("Arbeitgeber", "Gehalt", 300000, "income"),
+            renamed, transaction("", "", 100)};
+        QList<Rule> rules;
+        for (const QList<RuleCondition>& conditions : QList<QList<RuleCondition>>{
+                 {{Field::Payee, Operator::Contains, "rewe"}},
+                 {{Field::Payee, Operator::Is, "rewe city 0815"}},
+                 {{Field::PayeeOrDescription, Operator::Contains, "bei  rewe"}},
+                 {{Field::Description, Operator::StartsWith, "RECHNUNG"}},
+                 {{Field::Payee, Operator::StartsWith, "ärzte"}, {Field::Account, Operator::Is, "2"}},
+                 {{Field::Type, Operator::Is, "income"}, {Field::Amount, Operator::Between, "100000", "500000"}},
+                 {{Field::Payee, Operator::Contains, "  "}},
+             }) {
+            for (const bool matchAll : {true, false}) {
+                Rule rule;
+                rule.matchAll = matchAll;
+                rule.conditions = conditions;
+                rules.append(rule);
+            }
+        }
+        rules.append(Rule());                            // No conditions: matches nothing
+        const RuleMatchIndex index(transactions);
+        for (const Rule& rule : std::as_const(rules)) {
+            int expected = 0;
+            for (const Transaction& candidate : transactions) expected += rule.matches(candidate) ? 1 : 0;
+            QCOMPARE(index.count(rule), expected);
+        }
+        QCOMPARE(index.count(rules[2]), 1);              // The renamed one, by its original name
     }
 
     void payeeOrDescriptionLooksAtBoth() {

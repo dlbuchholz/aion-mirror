@@ -24,15 +24,45 @@ const QList<QPair<RuleCondition::Operator, QString>> OperatorKeys = {
     {RuleCondition::Operator::Between, "between"},
 };
 
-QString normalized(const QString& text) {
-    return text.simplified().toCaseFolded();
+// Already as simplified() would leave it: single spaces between words, none at the ends
+bool isSimplified(QStringView text) {
+    bool previousSpace = true;                       // A leading space isn't simplified
+    for (const QChar c : text) {
+        if (c.isSpace()) {
+            if (previousSpace || c != u' ') return false;
+            previousSpace = true;
+        } else {
+            previousSpace = false;
+        }
+    }
+    return !previousSpace || text.isEmpty();
 }
 
 bool textMatches(const QString& text, RuleCondition::Operator op, const QString& value) {
-    const QString haystack = normalized(text);
-    const QString needle = normalized(value);
+    // Rules run over every transaction, so most texts are compared in place, ignoring case,
+    // and only copied when their spacing needs tidying
+    const bool simpleNeedle = isSimplified(value);
+    const QString needleCopy = simpleNeedle ? QString() : value.simplified();
+    const QStringView needle = simpleNeedle ? QStringView(value) : QStringView(needleCopy);
     if (needle.isEmpty()) {
         return false;                                // An empty search text would match everything
+    }
+    const bool simpleHaystack = isSimplified(text);
+    const QString haystackCopy = simpleHaystack ? QString() : text.simplified();
+    const QStringView haystack = simpleHaystack ? QStringView(text) : QStringView(haystackCopy);
+    switch (op) {
+    case RuleCondition::Operator::Contains: return haystack.contains(needle, Qt::CaseInsensitive);
+    case RuleCondition::Operator::Is: return haystack.compare(needle, Qt::CaseInsensitive) == 0;
+    case RuleCondition::Operator::StartsWith: return haystack.startsWith(needle, Qt::CaseInsensitive);
+    case RuleCondition::Operator::Between: return false;
+    }
+    return false;
+}
+
+// For RuleMatchIndex: both texts already simplified and case-folded
+bool tidiedTextMatches(const QString& haystack, RuleCondition::Operator op, const QString& needle) {
+    if (needle.isEmpty()) {
+        return false;
     }
     switch (op) {
     case RuleCondition::Operator::Contains: return haystack.contains(needle);
@@ -43,6 +73,41 @@ bool textMatches(const QString& text, RuleCondition::Operator op, const QString&
     return false;
 }
 
+QString tidied(const QString& text) {
+    return text.simplified().toCaseFolded();
+}
+
+bool isTextField(RuleCondition::Field field) {
+    return field == RuleCondition::Field::Payee || field == RuleCondition::Field::Description
+           || field == RuleCondition::Field::PayeeOrDescription;
+}
+
+// Whether one of the field's texts passes the test; the payee is also tried by its original name
+template <typename Test>
+bool anyFieldText(RuleCondition::Field field, const QString& payee, const QString& originalPayee,
+                  const QString& description, Test test) {
+    switch (field) {
+    case RuleCondition::Field::Payee: return test(payee) || test(originalPayee);
+    case RuleCondition::Field::Description: return test(description);
+    case RuleCondition::Field::PayeeOrDescription: return test(payee) || test(originalPayee) || test(description);
+    default: return false;
+    }
+}
+
+// All (or any) of the rule's conditions pass the test, which gets each condition and its index
+template <typename Test>
+bool conditionsMatch(const Rule& rule, Test test) {
+    if (rule.conditions.isEmpty()) {
+        return false;
+    }
+    for (qsizetype i = 0; i < rule.conditions.size(); ++i) {
+        const bool hit = test(rule.conditions[i], i);
+        if (rule.matchAll && !hit) return false;
+        if (!rule.matchAll && hit) return true;
+    }
+    return rule.matchAll;
+}
+
 } // namespace
 
 // --- RuleCondition ---
@@ -50,12 +115,10 @@ bool textMatches(const QString& text, RuleCondition::Operator op, const QString&
 bool RuleCondition::matches(const Transaction& transaction) const {
     switch (field) {
     case Field::Payee:
-        return textMatches(transaction.getPayee(), op, value) || textMatches(transaction.getOriginalPayee(), op, value);
     case Field::Description:
-        return textMatches(transaction.getDescription(), op, value);
     case Field::PayeeOrDescription:
-        return textMatches(transaction.getPayee(), op, value) || textMatches(transaction.getOriginalPayee(), op, value)
-               || textMatches(transaction.getDescription(), op, value);
+        return anyFieldText(field, transaction.getPayee(), transaction.getOriginalPayee(), transaction.getDescription(),
+                            [this](const QString& text) { return textMatches(text, op, value); });
     case Field::Amount: {
         bool ok = false;
         const Cents low = value.toLongLong(&ok);
@@ -127,15 +190,38 @@ std::optional<RuleCondition::Operator> RuleCondition::operatorFromKey(const QStr
 // --- Rule ---
 
 bool Rule::matches(const Transaction& transaction) const {
-    if (conditions.isEmpty()) {
-        return false;
+    return conditionsMatch(*this, [&transaction](const RuleCondition& condition, qsizetype) {
+        return condition.matches(transaction);
+    });
+}
+
+// --- RuleMatchIndex ---
+
+RuleMatchIndex::RuleMatchIndex(const QList<Transaction>& transactions) {
+    entries.reserve(transactions.size());
+    for (const Transaction& transaction : transactions) {
+        entries.append({transaction, tidied(transaction.getPayee()), tidied(transaction.getOriginalPayee()),
+                        tidied(transaction.getDescription())});
     }
-    for (const RuleCondition& condition : conditions) {
-        const bool hit = condition.matches(transaction);
-        if (matchAll && !hit) return false;
-        if (!matchAll && hit) return true;
+}
+
+int RuleMatchIndex::count(const Rule& rule) const {
+    QStringList needles;                             // Each condition's text, tidied once
+    for (const RuleCondition& condition : rule.conditions) {
+        needles.append(isTextField(condition.field) ? tidied(condition.value) : QString());
     }
-    return matchAll;
+    int count = 0;
+    for (const Entry& entry : entries) {
+        const bool hit = conditionsMatch(rule, [&](const RuleCondition& condition, qsizetype index) {
+            if (!isTextField(condition.field)) {
+                return condition.matches(entry.transaction);
+            }
+            return anyFieldText(condition.field, entry.payee, entry.originalPayee, entry.description,
+                                [&](const QString& text) { return tidiedTextMatches(text, condition.op, needles[index]); });
+        });
+        if (hit) ++count;
+    }
+    return count;
 }
 
 const Rule* Rules::categoryRule(const QList<Rule>& rules, const Transaction& transaction) {

@@ -85,6 +85,48 @@ private slots:
     }
     void cleanup() { db.close(); }
 
+    void staysQuickWithManyTransactionsAndRules() {
+        // Thousands of transactions and long rules, like a few years of bank exports
+        QSqlDatabase database = DatabaseManager::instance().database();
+        QVERIFY(database.transaction());
+        TransactionDAO transactions;
+        const QStringList payees = {"REWE Markt 4711", "Aldi Sued", "Stadtwerke Hannover", "Amazon EU", "DB Vertrieb GmbH",
+                                    "Telekom Deutschland", "McFit", "Netflix", "Hetzner Online", "Trade Republic"};
+        for (int i = 0; i < 5000; ++i) {
+            transactions.addTransaction(Transaction(-1, giroId, payees[i % payees.size()], 1000 + i, QDate(2024, 1, 1).addDays(i % 900),
+                                                    QString("Kartenzahlung %1 Lastschrift").arg(i), 0, "expense"));
+        }
+        QVERIFY(database.commit());
+        for (int r = 0; r < 15; ++r) {
+            Rule rule;
+            rule.categoryId = categoryId("Groceries");
+            rule.matchAll = false;
+            for (int c = 0; c < 5; ++c) {
+                rule.conditions.append({Field::PayeeOrDescription, Operator::Contains, QString("Shop%1-%2").arg(r).arg(c)});
+            }
+            QVERIFY(RuleDAO(1).addRule(rule) > 0);
+        }
+
+        QElapsedTimer timer;
+        timer.start();
+        RulesSettings settings;
+        settings.setUserId(1);
+        const qint64 loading = timer.restart();
+        rows(settings).first()->click();                 // Opening a rule
+        const qint64 opening = timer.restart();
+        QTest::keyClicks(firstCondition(settings)->findChild<QLineEdit*>("conditionText"), "abcdefghij");
+        const qint64 typing = timer.restart();
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        const qint64 saving = timer.restart();
+        // Loading counts every rule's matches once. Opening a rule and saving it mustn't count them
+        // all again (they took longer than loading before), whatever the build's speed.
+        const QByteArray times = QString("loading %1 ms, opening %2 ms, typing 10 keys %3 ms, saving %4 ms")
+                                     .arg(loading).arg(opening).arg(typing).arg(saving).toUtf8();
+        QVERIFY2(opening * 3 < loading, times.constData());
+        QVERIFY2(saving * 3 < loading, times.constData());
+    }
+
     void startsEmptyAndCreatesARule() {
         RulesSettings settings;
         settings.setUserId(1);
@@ -109,6 +151,22 @@ private slots:
         QCOMPARE(rows(settings).size(), 1);
         QCOMPARE(rows(settings).first()->accessibleName(), QString("Payee or description contains \"rewe\""));
         QCOMPARE(rows(settings).first()->findChild<QLabel*>("ruleMatchCount")->text(), QString("2 matches"));
+    }
+
+    void removingAConditionShowsAnIcon() {
+        // An icon, not a ✕ in text (Windows searched its fonts for that for over half a second).
+        // A missing SVG gives a blank icon, so look at the pixels.
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        auto* remove = firstCondition(settings)->findChild<QToolButton*>("removeConditionButton");
+        QCOMPARE(remove->toolButtonStyle(), Qt::ToolButtonIconOnly);
+        const QImage image = remove->icon().pixmap(remove->iconSize()).toImage();
+        bool drawn = false;
+        for (int y = 0; y < image.height() && !drawn; ++y) {
+            for (int x = 0; x < image.width() && !drawn; ++x) drawn = qAlpha(image.pixel(x, y)) > 0;
+        }
+        QVERIFY2(drawn, "The x icon is blank: is assets/icons/x.svg in the resources?");
     }
 
     void incompleteRulesAreNotSaved() {

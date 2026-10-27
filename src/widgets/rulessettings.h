@@ -63,7 +63,8 @@ private:
     QList<Rule> rules;
     QList<Category> categories;
     QHash<int, QString> accountNames;
-    QList<Transaction> transactions;                 // The user's, for the match counts
+    RuleMatchIndex matchIndex;                       // The user's transactions, for the match counts
+    QHash<int, int> matchCounts;                     // By rule ID; counted when a rule is first listed or saved
     int editedId = -1;                               // -1 = editor closed, 0 = new rule
 
     QPushButton* addButton = nullptr;

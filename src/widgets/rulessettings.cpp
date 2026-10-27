@@ -146,7 +146,8 @@ public:
         accountCombo->model()->sort(0);
         removeButton = new QToolButton(this);
         removeButton->setObjectName("removeConditionButton");
-        removeButton->setText("✕");
+        removeButton->setText("Remove");             // For screen readers; the button shows only the icon
+        Icons::setThemedIcon(removeButton, "x");
         removeButton->setAutoRaise(true);
         removeButton->setToolTip("Remove this condition");
         layout->addWidget(fieldCombo);
@@ -426,7 +427,8 @@ void RulesSettings::reload() {
     rules = userId > 0 ? RuleDAO(userId).rules() : QList<Rule>();
     categories.clear();
     accountNames.clear();
-    transactions.clear();
+    matchCounts.clear();
+    QList<Transaction> transactions;
     if (userId > 0) {
         for (const Category& category : CategoryDAO(userId).getAllCategories()) {
             if (!category.isBuiltIn()) categories.append(category);
@@ -437,6 +439,7 @@ void RulesSettings::reload() {
             transactions += transactionDao.getTransactionsForAccount(account.getAccountId());
         }
     }
+    matchIndex = RuleMatchIndex(transactions);
     closeEditor();
 }
 
@@ -445,11 +448,7 @@ QString RulesSettings::describe(const Rule& rule) const {
 }
 
 int RulesSettings::matchCount(const Rule& rule) const {
-    int count = 0;
-    for (const Transaction& transaction : transactions) {
-        if (rule.matches(transaction)) ++count;
-    }
-    return count;
+    return matchIndex.count(rule);
 }
 
 void RulesSettings::rebuildList() {
@@ -476,7 +475,8 @@ void RulesSettings::rebuildList() {
         for (const Category& candidate : categories) {
             if (candidate.getCategoryId() == rule.categoryId) category = &candidate;
         }
-        auto* row = new RuleRow(describe(rule), category, rule.newPayee, matchCount(rule), listLayout->parentWidget());
+        if (!matchCounts.contains(rule.id)) matchCounts.insert(rule.id, matchCount(rule));
+        auto* row = new RuleRow(describe(rule), category, rule.newPayee, matchCounts.value(rule.id), listLayout->parentWidget());
         row->open = rule.id == editedId;
         row->up->setEnabled(i > 0);
         row->down->setEnabled(i < rules.size() - 1);
@@ -621,6 +621,7 @@ void RulesSettings::save() {
         return;
     }
     rules = dao.rules();
+    matchCounts.remove(editedId);                    // Its conditions may have changed; a new rule has no count yet
     closeEditor();
     emit rulesChanged();
     if (before.id > 0 && before.newPayee != rule->newPayee) {

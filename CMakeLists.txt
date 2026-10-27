@@ -83,8 +83,10 @@ target_link_libraries(AionLib PUBLIC
     Qt::Svg
 )
 
-# Bundle the monochrome UI icons into the library as Qt resources (:/icons/<name>.svg)
-file(GLOB ICON_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
+# Bundle the monochrome UI icons into the library as Qt resources (:/icons/<name>.svg).
+# CONFIGURE_DEPENDS picks up new icons.
+file(GLOB ICON_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
 list(APPEND ICON_FILES assets/aion-logo.svg)             # :/aion-logo.svg
 qt_add_resources(AionLib "icons"
     PREFIX "/"
