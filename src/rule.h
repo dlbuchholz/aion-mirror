@@ -37,6 +37,7 @@ struct RuleCondition {
 struct Rule {
     int id = -1;
     int position = 0;                                // Lower is tried first
+    QString name;                                    // Optional label; empty = shown by its conditions
     bool matchAll = true;                            // false: any condition is enough
     // What the rule does, at least one of them
     int categoryId = -1;                             // Sets this category; -1 = doesn't
@@ -90,6 +91,9 @@ std::optional<int> categoryFor(const QList<Rule>& rules, const Transaction& tran
 // current currency format; accountNames names the accounts of account conditions
 QString describe(const Rule& rule, const QHash<int, QString>& accountNames);
 
+// The rule's name, or its description when it has none: for messages and short references
+QString title(const Rule& rule, const QHash<int, QString>& accountNames);
+
 // What applying the rules to these transactions would change. Transactions in a protected
 // category (the balance adjustments) are left alone; with onlyUncategorised, transactions that
 // have a category keep it (their payee can still be renamed).
@@ -122,6 +126,7 @@ private:
     bool ownsCategory(int categoryId);
     bool valid(const Rule& rule);
     static void bindActions(QSqlQuery& query, const Rule& rule);
+    static void bindName(QSqlQuery& query, const Rule& rule);   // Spaces tidied; empty is stored as NULL
 
     int userId;
 };

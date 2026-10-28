@@ -246,7 +246,9 @@ void TransactionEditor::showOriginalPayee() {
     for (const Rule& rule : std::as_const(rules)) {
         if (rule.id == renamedByRuleId && renamedByRuleId > 0) {
             text += " · renamed by a rule";
-            tooltip = Rules::describe(rule, accountNames());
+            const QString description = Rules::describe(rule, accountNames());
+            const QString title = Rules::title(rule, accountNames());
+            tooltip = title == description ? description : QString("%1: %2").arg(title, description);
         }
     }
     text += " · <a href=\"restore\">Restore</a>";
@@ -306,9 +308,8 @@ void TransactionEditor::suggestFromRules() {
     const Rule* rule = Rules::categoryRule(rules, draft);
     if (rule) {
         populateCategories(rule->categoryId);
-        const QString description = Rules::describe(*rule, accountNames());
-        suggestionLabel->setText(QString("✦ From your rule: %1").arg(description));
-        suggestionLabel->setToolTip(description);
+        suggestionLabel->setText(QString("✦ From your rule: %1").arg(Rules::title(*rule, accountNames())));
+        suggestionLabel->setToolTip(Rules::describe(*rule, accountNames()));
         QPalette palette = suggestionLabel->palette();
         palette.setColor(QPalette::WindowText, Theme::colors().accent);
         suggestionLabel->setPalette(palette);

@@ -206,6 +206,59 @@ private slots:
         QCOMPARE(rows(settings).first()->accessibleName(), QString("Amount is between 40,00 € and 120,00 €"));
     }
 
+    void namedRulesShowTheirNameAndLongRulesFitTheList() {
+        Rule rule;
+        rule.categoryId = categoryId("Groceries");
+        rule.matchAll = false;
+        for (const char* shop : {"Aldi", "Rewe", "Lidl", "Edeka", "Netto", "Penny", "Wucherpfennig", "E-Center",
+                                 "Kaufland", "Real", "Globus", "Famila"}) {
+            rule.conditions.append({Field::PayeeOrDescription, Operator::Contains, shop});
+        }
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+        RulesSettings settings;
+        settings.resize(700, 500);
+        settings.show();
+        settings.setUserId(1);
+        QString asked;
+        settings.confirm = [&](const QString&, const QString& text) { asked = text; return false; };
+        QCoreApplication::processEvents();               // Rows added to a shown page appear on the next turn
+        QCOMPARE(rows(settings).size(), 1);
+        const QString conditions = rows(settings).first()->accessibleName();
+        QVERIFY(conditions.startsWith("Payee or description contains \"Aldi\""));   // Unnamed: its conditions
+
+        // However long the rule, the list doesn't scroll sideways
+        auto* scroll = settings.findChild<QScrollArea*>();
+        QVERIFY(scroll);
+        const auto noSideways = [scroll]() {
+            QCoreApplication::processEvents();
+            return scroll->horizontalScrollBar()->maximum() == 0;
+        };
+        QVERIFY(noSideways());
+
+        rows(settings).first()->click();
+        auto* nameEdit = settings.findChild<QLineEdit*>("ruleNameEdit");
+        QVERIFY(nameEdit);
+        nameEdit->setText(" Supermarkets ");
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        QCoreApplication::processEvents();
+        QCOMPARE(RuleDAO(1).rules().first().name, QString("Supermarkets"));
+        QCOMPARE(rows(settings).size(), 1);
+        QAbstractButton* row = rows(settings).first();
+        QCOMPARE(row->accessibleName(), QString("Supermarkets"));
+        QCOMPARE(row->accessibleDescription(), conditions);              // Still there, below the name
+        QCOMPARE(row->toolTip(), conditions);
+        QVERIFY(noSideways());
+
+        // Opening it shows the name; deleting asks by name
+        row->click();
+        QCOMPARE(nameEdit->text(), QString("Supermarkets"));
+        auto* deleteButton = settings.findChild<QPushButton*>("deleteRuleButton");
+        QVERIFY(deleteButton);
+        deleteButton->click();
+        QVERIFY(asked.startsWith("Delete the rule \"Supermarkets\"?"));
+    }
+
     void rulesCanBeEditedReorderedAndDeleted() {
         const int rewe = addRule("REWE", "Groceries");
         const int netflix = addRule("Netflix", "Entertainment");

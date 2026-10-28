@@ -20,6 +20,7 @@
 #include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QTextLayout>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -43,13 +44,69 @@ QList<Operator> operatorsFor(Field field) {
     return {};
 }
 
-// One rule: its description, its category and how many transactions it matches; ▲▼ move it
+// Text wrapped to at most maxLines lines, the last ending in "…" when the rest doesn't fit. Takes
+// any width it's given, so a long rule never widens the list.
+class ElidedText : public QWidget {
+public:
+    ElidedText(const QString& text, int maxLines, QWidget* parent) : QWidget(parent), text(text), maxLines(maxLines) {
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Maximum);
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+    }
+
+    bool hasHeightForWidth() const override { return true; }
+    int heightForWidth(int width) const override {
+        return qMax<qsizetype>(1, layoutLines(width).size()) * fontMetrics().lineSpacing();
+    }
+    QSize sizeHint() const override {
+        return {fontMetrics().horizontalAdvance(text), heightForWidth(qMax(width(), 200))};
+    }
+    QSize minimumSizeHint() const override { return {40, fontMetrics().lineSpacing()}; }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter painter(this);
+        painter.setPen(palette().color(foregroundRole()));
+        int y = 0;
+        for (const QString& line : layoutLines(width())) {
+            painter.drawText(QRect(0, y, width(), fontMetrics().lineSpacing()), Qt::AlignLeft | Qt::AlignVCenter, line);
+            y += fontMetrics().lineSpacing();
+        }
+    }
+
+private:
+    QStringList layoutLines(int width) const {
+        QStringList lines;
+        if (width <= 0) return lines;
+        QTextLayout layout(text, font());
+        layout.beginLayout();
+        for (QTextLine line = layout.createLine(); line.isValid(); line = layout.createLine()) {
+            line.setLineWidth(width);
+            const int start = line.textStart();
+            if (lines.size() == maxLines - 1) {          // The last one gets everything left, cut short
+                lines.append(fontMetrics().elidedText(text.mid(start), Qt::ElideRight, width));
+                break;
+            }
+            lines.append(text.mid(start, line.textLength()).trimmed());
+        }
+        layout.endLayout();
+        return lines;
+    }
+
+    QString text;
+    int maxLines;
+};
+
+// One rule: its name and conditions (or only the conditions), its category and how many
+// transactions it matches; ▲▼ move it
 class RuleRow : public QAbstractButton {
 public:
-    RuleRow(const QString& text, const Category* category, const QString& newPayee, int matches, QWidget* parent)
+    RuleRow(const QString& name, const QString& description, const Category* category, const QString& newPayee,
+            int matches, QWidget* parent)
         : QAbstractButton(parent) {
         setObjectName("ruleRow");
-        setAccessibleName(text);
+        setAccessibleName(name.isEmpty() ? description : name);
+        setAccessibleDescription(description);
+        setToolTip(description);
         setCursor(Qt::PointingHandCursor);
         setAttribute(Qt::WA_Hover);
         setMinimumHeight(38);
@@ -68,10 +125,24 @@ public:
         down->setToolTip("Try this rule later");
         layout->addWidget(up);
         layout->addWidget(down);
-        auto* label = new QLabel(text, this);
-        label->setWordWrap(true);
-        label->setAttribute(Qt::WA_TransparentForMouseEvents);
-        layout->addWidget(label, 1);
+        // Named: the name, then the conditions on one line. Unnamed: the conditions on up to two.
+        auto* texts = new QVBoxLayout();
+        texts->setSpacing(0);
+        texts->addStretch();                             // Centred in the row, also when one line is short
+        if (!name.isEmpty()) {
+            auto* nameText = new ElidedText(name, 1, this);
+            nameText->setObjectName("ruleName");
+            QFont bold = nameText->font();
+            bold.setBold(true);
+            nameText->setFont(bold);
+            texts->addWidget(nameText);
+        }
+        auto* conditions = new ElidedText(description, name.isEmpty() ? 2 : 1, this);
+        conditions->setObjectName("ruleConditions");
+        if (!name.isEmpty()) conditions->setForegroundRole(QPalette::PlaceholderText);
+        texts->addWidget(conditions);
+        texts->addStretch();
+        layout->addLayout(texts, 1);
         // What it does: renames (→ "Rewe") and/or sets a category
         if (!newPayee.isEmpty()) {
             auto* rename = new QLabel(QString("→ \"%1\"").arg(newPayee), this);
@@ -337,6 +408,16 @@ RulesSettings::RulesSettings(QWidget* parent)
     editorLayout->setContentsMargins(12, 10, 12, 10);
     editorLayout->setSpacing(8);
 
+    auto* nameRow = new QHBoxLayout();
+    nameRow->addWidget(new QLabel("Name", editor));
+    nameEdit = new QLineEdit(editor);
+    nameEdit->setObjectName("ruleNameEdit");
+    nameEdit->setPlaceholderText("(Optional name. Without one, the list shows the conditions.)");
+    nameEdit->setMaxLength(100);
+    connect(nameEdit, &QLineEdit::returnPressed, this, &RulesSettings::save);
+    nameRow->addWidget(nameEdit, 1);
+    editorLayout->addLayout(nameRow);
+
     auto* matchRow = new QHBoxLayout();
     matchRow->addWidget(new QLabel("When", editor));
     matchCombo = new QComboBox(editor);
@@ -476,7 +557,8 @@ void RulesSettings::rebuildList() {
             if (candidate.getCategoryId() == rule.categoryId) category = &candidate;
         }
         if (!matchCounts.contains(rule.id)) matchCounts.insert(rule.id, matchCount(rule));
-        auto* row = new RuleRow(describe(rule), category, rule.newPayee, matchCounts.value(rule.id), listLayout->parentWidget());
+        auto* row = new RuleRow(rule.name.simplified(), describe(rule), category, rule.newPayee, matchCounts.value(rule.id),
+                                listLayout->parentWidget());
         row->open = rule.id == editedId;
         row->up->setEnabled(i > 0);
         row->down->setEnabled(i < rules.size() - 1);
@@ -516,6 +598,7 @@ void RulesSettings::openEditor(int ruleId, const Rule* draft) {
     for (const Rule& candidate : std::as_const(rules)) {
         if (ruleId > 0 && candidate.id == ruleId) rule = candidate;
     }
+    nameEdit->setText(rule.name);
     matchCombo->setCurrentIndex(rule.matchAll ? 0 : 1);
     categoryCombo->setCurrentIndex(qMax(0, categoryCombo->findData(rule.categoryId)));
     // A rule that only renames has the category unticked; anything else starts with it ticked
@@ -566,6 +649,7 @@ void RulesSettings::addConditionRow(const RuleCondition& condition) {
 std::optional<Rule> RulesSettings::editedRule(QString* error) const {
     Rule rule;
     rule.id = editedId;
+    rule.name = nameEdit->text().simplified();
     rule.matchAll = matchCombo->currentData().toBool();
     rule.categoryId = setsCategoryCheck->isChecked() ? categoryCombo->currentData().toInt() : -1;
     rule.newPayee = renamesCheck->isChecked() ? newPayeeEdit->text().simplified() : QString();
@@ -647,7 +731,8 @@ void RulesSettings::remove() {
     for (const Rule& candidate : std::as_const(rules)) {
         if (candidate.id == editedId) rule = candidate;
     }
-    if (!confirm("Delete rule", QString("Delete the rule \"%1\"?\n\nTransactions keep their categories.").arg(describe(rule)))) {
+    if (!confirm("Delete rule", QString("Delete the rule \"%1\"?\n\nTransactions keep their categories.")
+                                    .arg(Rules::title(rule, accountNames)))) {
         return;
     }
     // Read before deleting: the database then forgets which rule renamed them

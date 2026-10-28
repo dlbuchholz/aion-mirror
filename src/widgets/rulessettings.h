@@ -32,7 +32,7 @@ public:
     void reload();                                   // Rules, categories, accounts and transactions changed
     void createRule(const Rule& draft);              // Opens the editor for a new rule filled with draft
 
-    // "Payee or description contains REWE and amount between 40,00 € and 120,00 €"
+    // "Payee or description contains REWE and amount between 40,00 € and 120,00 €", whether or not it has a name
     QString describe(const Rule& rule) const;
 
     // Asks before deleting (a message box; tests replace it)
@@ -72,6 +72,7 @@ private:
     QLabel* emptyLabel = nullptr;
 
     QFrame* editor = nullptr;
+    QLineEdit* nameEdit = nullptr;
     QComboBox* matchCombo = nullptr;
     QVBoxLayout* conditionsLayout = nullptr;
     QList<ConditionEditor*> conditionEditors;

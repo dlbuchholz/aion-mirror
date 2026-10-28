@@ -247,6 +247,11 @@ std::optional<int> Rules::categoryFor(const QList<Rule>& rules, const Transactio
     return rule ? std::optional<int>(rule->categoryId) : std::nullopt;
 }
 
+QString Rules::title(const Rule& rule, const QHash<int, QString>& accountNames) {
+    const QString name = rule.name.simplified();
+    return name.isEmpty() ? describe(rule, accountNames) : name;
+}
+
 QString Rules::describe(const Rule& rule, const QHash<int, QString>& accountNames) {
     using Field = RuleCondition::Field;
     using Operator = RuleCondition::Operator;
@@ -355,7 +360,7 @@ QList<Rule> RuleDAO::rules() {
     QList<Rule> result;
     QHash<int, qsizetype> indexById;
     QSqlQuery query(db);
-    query.prepare("SELECT id, position, match_all, category_id, new_payee FROM rules WHERE user_id = :user_id "
+    query.prepare("SELECT id, position, match_all, category_id, new_payee, name FROM rules WHERE user_id = :user_id "
                   "ORDER BY position, id");
     query.bindValue(":user_id", userId);
     if (!query.exec()) {
@@ -369,6 +374,7 @@ QList<Rule> RuleDAO::rules() {
         rule.matchAll = query.value(2).toBool();
         rule.categoryId = query.value(3).isNull() ? -1 : query.value(3).toInt();
         rule.newPayee = query.value(4).toString();
+        rule.name = query.value(5).toString();
         indexById.insert(rule.id, result.size());
         result.append(rule);
     }
@@ -445,6 +451,11 @@ void RuleDAO::bindActions(QSqlQuery& query, const Rule& rule) {
     query.bindValue(":new_payee", rule.renames() ? QVariant(rule.newPayee) : QVariant(QMetaType(QMetaType::QString)));
 }
 
+void RuleDAO::bindName(QSqlQuery& query, const Rule& rule) {
+    const QString name = rule.name.simplified();
+    query.bindValue(":name", name.isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : QVariant(name));
+}
+
 int RuleDAO::addRule(const Rule& rule) {
     if (!valid(rule)) {
         return -1;
@@ -454,12 +465,13 @@ int RuleDAO::addRule(const Rule& rule) {
         return -1;
     }
     QSqlQuery query(db);
-    query.prepare("INSERT INTO rules (user_id, position, match_all, category_id, new_payee) "
+    query.prepare("INSERT INTO rules (user_id, position, name, match_all, category_id, new_payee) "
                   "VALUES (:user_id, (SELECT COALESCE(MAX(position), -1) + 1 FROM rules WHERE user_id = :user_id2), "
-                  ":match_all, :category_id, :new_payee)");
+                  ":name, :match_all, :category_id, :new_payee)");
     query.bindValue(":user_id", userId);
     query.bindValue(":user_id2", userId);
     query.bindValue(":match_all", rule.matchAll ? 1 : 0);
+    bindName(query, rule);
     bindActions(query, rule);
     if (!query.exec()) {
         qWarning() << "RuleDAO::addRule:" << query.lastError().text();
@@ -483,8 +495,10 @@ bool RuleDAO::updateRule(const Rule& rule) {
         return false;
     }
     QSqlQuery query(db);
-    query.prepare("UPDATE rules SET match_all = :match_all, category_id = :category_id, new_payee = :new_payee WHERE id = :id");
+    query.prepare("UPDATE rules SET name = :name, match_all = :match_all, category_id = :category_id, "
+                  "new_payee = :new_payee WHERE id = :id");
     query.bindValue(":match_all", rule.matchAll ? 1 : 0);
+    bindName(query, rule);
     bindActions(query, rule);
     query.bindValue(":id", rule.id);
     if (!query.exec() || !writeConditions(rule.id, rule.conditions) || !db.commit()) {

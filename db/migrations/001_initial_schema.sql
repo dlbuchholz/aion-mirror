@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS rules (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
     position INTEGER NOT NULL,
+    name TEXT,                           -- NULL = the rule is shown by its conditions
     match_all INTEGER NOT NULL DEFAULT 1 CHECK (match_all IN (0, 1)),
     category_id INTEGER,                 -- NULL = the rule doesn't set a category
     new_payee TEXT,                      -- NULL = the rule doesn't rename the payee

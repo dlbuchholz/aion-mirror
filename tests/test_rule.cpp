@@ -312,6 +312,29 @@ private slots:
         QCOMPARE(dao.rules().size(), 1);
     }
 
+    void rulesCanHaveANameOrBeShownByTheirConditions() {
+        RuleDAO dao(1);
+        Rule rule;
+        rule.categoryId = categoryId(1, "Groceries");
+        rule.name = "  Super   markets ";
+        rule.conditions = {{Field::Payee, Operator::Contains, "Aldi"}};
+        rule.id = dao.addRule(rule);
+        QVERIFY(rule.id > 0);
+        QCOMPARE(dao.rules().first().name, QString("Super markets"));       // Spaces tidied
+        QCOMPARE(Rules::title(dao.rules().first(), {}), QString("Super markets"));
+
+        rule.name = "Supermarkets";
+        QVERIFY(dao.updateRule(rule));
+        QCOMPARE(dao.rules().first().name, QString("Supermarkets"));
+
+        rule.name = "   ";
+        QVERIFY(dao.updateRule(rule));
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT name IS NULL FROM rules") && query.next());
+        QVERIFY(query.value(0).toBool());                                   // No name is stored as none
+        QCOMPARE(Rules::title(dao.rules().first(), {}), QString("Payee contains \"Aldi\""));
+    }
+
     void usersDontSeeOrChangeEachOthersRules() {
         QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
         Rule rule;
