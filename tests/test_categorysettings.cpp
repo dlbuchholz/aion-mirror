@@ -11,6 +11,7 @@
 
 #include "account.h"
 #include "category.h"
+#include "categorycolors.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/accounttypessettings.h"
 #include "widgets/categoriessettings.h"
@@ -103,6 +104,40 @@ private slots:
         QCOMPARE(travel.getColor(), QString("teal"));
         QCOMPARE(travel.getType(), QString("expense"));
         QVERIFY(row(settings, "Travel"));
+    }
+
+    void eighteenColoursInHueOrderAndTwoRows() {
+        const QStringList names = CategoryColors::names();
+        QCOMPARE(names, (QStringList{"red", "coral", "orange", "amber", "yellow", "lime", "green", "olive", "teal",
+                                     "sky", "blue", "indigo", "purple", "magenta", "pink", "brown", "slate", "gray"}));
+        // No two solid tones (dots, bars, the picker) so close they'd pass for each other
+        for (int i = 0; i < names.size(); ++i) {
+            for (int j = i + 1; j < names.size(); ++j) {
+                const QColor a = CategoryColors::swatch(names[i]).solid;
+                const QColor b = CategoryColors::swatch(names[j]).solid;
+                const double distance = std::hypot(a.red() - b.red(), a.green() - b.green(), a.blue() - b.blue());
+                QVERIFY2(distance > 30, qPrintable(QString("%1 and %2 look alike").arg(names[i], names[j])));
+            }
+        }
+
+        CategoriesSettings settings;
+        settings.resize(700, 600);
+        settings.setUserId(1);
+        settings.show();
+        settings.findChild<QPushButton*>("addCategoryButton")->click();
+        QCoreApplication::processEvents();
+        // No colour and nine colours in the first row, the other nine below
+        const auto position = [&settings](const char* name) {
+            return settings.findChild<QAbstractButton*>(name)->mapTo(&settings, QPoint(0, 0));
+        };
+        QCOMPARE(position("swatch_teal").y(), position("swatch_none").y());
+        QVERIFY(position("swatch_sky").y() > position("swatch_teal").y());
+        QCOMPARE(position("swatch_sky").x(), position("swatch_none").x());
+
+        settings.findChild<QLineEdit*>("categoryNameEdit")->setText("Hobby");
+        settings.findChild<QAbstractButton*>("swatch_indigo")->click();        settings.findChild<QPushButton*>("saveCategoryButton")->click();
+        settle();
+        QCOMPARE(named("Hobby").getColor(), QString("indigo"));
     }
 
     void rejectsDuplicateAndEmptyNames() {

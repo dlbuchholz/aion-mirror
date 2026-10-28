@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QEvent>
 #include <QFrame>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
@@ -201,18 +202,23 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     nameRow->addWidget(typeCombo);
     editorLayout->addLayout(nameRow);
 
+    // No colour, then the palette in hue order: two rows of ten
     auto* colorRow = new QHBoxLayout();
-    colorRow->setSpacing(4);
     auto* colorCaption = new QLabel("Colour", editor);
     colorCaption->setMinimumWidth(56);
-    colorRow->addWidget(colorCaption);
+    colorRow->addWidget(colorCaption, 0, Qt::AlignTop);
+    auto* swatches = new QGridLayout();
+    swatches->setSpacing(4);
     colorGroup = new QButtonGroup(this);
     colorGroup->setExclusive(true);
-    for (const QString& color : QStringList{QString()} + CategoryColors::names()) {
-        auto* swatch = new SwatchButton(color, editor);
+    const QStringList colors = QStringList{QString()} + CategoryColors::names();
+    constexpr int SWATCHES_PER_ROW = 10;
+    for (int i = 0; i < colors.size(); ++i) {
+        auto* swatch = new SwatchButton(colors[i], editor);
         colorGroup->addButton(swatch);
-        colorRow->addWidget(swatch);
+        swatches->addWidget(swatch, i / SWATCHES_PER_ROW, i % SWATCHES_PER_ROW);
     }
+    colorRow->addLayout(swatches);
     colorRow->addStretch();
     editorLayout->addLayout(colorRow);
 
