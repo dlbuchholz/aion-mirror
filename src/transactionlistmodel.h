@@ -46,7 +46,8 @@ public:
     };
 
     struct Totals {
-        int count = 0;
+        int count = 0;                               // All shown transactions
+        // Income and spending only: without balance adjustments and transfers
         Cents income = 0;
         Cents expenses = 0;                          // Positive sum of expense amounts
         Cents net() const { return income - expenses; }

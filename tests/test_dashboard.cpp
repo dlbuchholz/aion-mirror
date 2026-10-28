@@ -134,6 +134,25 @@ private slots:
         QCOMPARE(Dashboard::load(1, today).lastMonthToDateExpenseCents, Cents(0));
     }
 
+    void transfersMoveMoneyButArentIncomeOrSpending() {
+        const int transfer = categoryId("Transfer");
+        QVERIFY(transfer > 0);
+        add(giro, 50000, QDate(2026, 10, 5), transfer, "expense", "To savings");
+        add(savings, 50000, QDate(2026, 10, 5), transfer, "income", "From Girokonto");
+        add(giro, 3600, QDate(2026, 10, 6), groceries, "expense");
+        add(giro, 20000, QDate(2026, 9, 10), transfer, "expense", "Last month");
+
+        const DashboardData data = Dashboard::load(1, today);
+        QCOMPARE(data.totalBalanceCents, Cents(-50000 + 50000 - 3600 - 20000));   // Balances still move
+        QCOMPARE(data.thisMonth.incomeCents, Cents(0));
+        QCOMPARE(data.thisMonth.expenseCents, Cents(3600));
+        QCOMPARE(data.lastMonth.expenseCents, Cents(0));
+        QCOMPARE(data.lastMonthToDateExpenseCents, Cents(0));
+        QCOMPARE(data.spendingByCategory.size(), 1);
+        QCOMPARE(data.spendingByCategory[0].categoryId, groceries);
+        QCOMPARE(data.recent.size(), 4);                            // Real payments, so they're recent ones
+    }
+
     void otherUsersDontCount() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);

@@ -184,6 +184,14 @@ private slots:
         QCOMPARE(rest[0].spentCents, Cents(4640));
     }
 
+    void transfersArentSpending() {
+        spend(50000, QDate(2026, 10, 2), categoryId("Transfer"));   // To the savings account
+        spend(4640, QDate(2026, 10, 4), 0);
+        const QList<UnbudgetedSpending> rest = BudgetDAO().unbudgetedSpending(1, oct());
+        QCOMPARE(rest.size(), 1);
+        QCOMPARE(rest[0].categoryId, 0);
+    }
+
     void budgetsBelongToTheirUser() {
         db.seedDefaultUser(2, "other", "Other");
         BudgetDAO dao;

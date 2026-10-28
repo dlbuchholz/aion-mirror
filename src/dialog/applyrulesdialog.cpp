@@ -37,7 +37,7 @@ ApplyRulesDialog::ApplyRulesDialog(int userId, QWidget* parent)
     rules = RuleDAO(userId).rules();
     for (const Category& category : CategoryDAO(userId).getAllCategories()) {
         categoryById.insert(category.getCategoryId(), category);
-        if (category.isBuiltIn()) protectedCategories.append(category.getCategoryId());
+        if (category.isBalanceAdjustment()) protectedCategories.append(category.getCategoryId());
     }
     TransactionDAO transactionDao;
     for (const Account& account : AccountDAO().getAllAccountsForUser(userId)) {

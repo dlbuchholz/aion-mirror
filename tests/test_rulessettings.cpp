@@ -169,6 +169,16 @@ private slots:
         QVERIFY2(drawn, "The x icon is blank: is assets/icons/x.svg in the resources?");
     }
 
+    void rulesCanSetTransferButNotBalanceAdjustments() {
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        auto* category = settings.findChild<QComboBox*>("ruleCategoryCombo");
+        QVERIFY(category->findText("Transfer") >= 0);
+        QCOMPARE(category->findText("Balance correction"), -1);
+        QCOMPARE(category->findText("Initial balance"), -1);
+    }
+
     void incompleteRulesAreNotSaved() {
         RulesSettings settings;
         settings.setUserId(1);

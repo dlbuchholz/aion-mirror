@@ -71,6 +71,23 @@ private slots:
         QVERIFY(!model.indexForTransaction(4).isValid());
     }
 
+    void totalsLeaveOutTransfersAndBalanceAdjustments() {
+        // Like the Dashboard: the sums are income and spending; the count is every shown transaction
+        TransactionListModel model;
+        QList<Transaction> transactions = sample();
+        transactions << Transaction(5, 10, "To savings", 50000, QDate(2026, 10, 6), "", 7, "expense")
+                     << Transaction(6, 20, "From Girokonto", 50000, QDate(2026, 10, 6), "", 7, "income")
+                     << Transaction(7, 10, "Start", 100000, QDate(2026, 9, 1), "", 8, "income")
+                     << Transaction(8, 10, "Correction", 300, QDate(2026, 10, 7), "", 9, "expense");
+        model.setTransactions(transactions, {{10, "Girokonto"}, {20, "Kreditkarte"}},
+                              {{2, "Salary"}, {4, "Groceries"}, {7, "Transfer"}, {8, "Initial balance"},
+                               {9, "Balance correction"}});
+        QCOMPARE(model.totals().count, 8);
+        QCOMPARE(model.totals().income, Cents(200000));
+        QCOMPARE(model.totals().expenses, Cents(7250));
+        QCOMPARE(model.indexForTransaction(5).data(TransactionListModel::SignedAmountRole).toLongLong(), -50000);
+    }
+
     void searchMatchesPayeeCategoryAndAccount() {
         TransactionListModel model;
         load(model);

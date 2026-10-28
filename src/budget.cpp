@@ -65,13 +65,13 @@ QString previousMonth(const QString& month) {
     return BudgetDAO::monthKey(QDate::fromString(month + "-01", "yyyy-MM-dd").addMonths(-1));
 }
 
-// Expenses per category (0 = no category) of the user's accounts in a month, without balance adjustments
+// Expenses per category (0 = no category) of the user's accounts in a month, without balance adjustments and transfers
 QHash<int, Cents> spendingByCategory(int userId, const QDate& month) {
     const QDate first(month.year(), month.month(), 1);
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare("SELECT COALESCE(t.category_id, 0), SUM(t.amount) FROM transactions t "
                   "JOIN accounts a ON a.id = t.account_id "
-                  "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + NotBalanceAdjustmentSql + " "
+                  "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql + " "
                   "GROUP BY COALESCE(t.category_id, 0)");
     query.bindValue(":user_id", userId);
     query.bindValue(":first", first.toString("yyyy-MM-dd"));

@@ -512,7 +512,7 @@ void RulesSettings::reload() {
     QList<Transaction> transactions;
     if (userId > 0) {
         for (const Category& category : CategoryDAO(userId).getAllCategories()) {
-            if (!category.isBuiltIn()) categories.append(category);
+            if (!category.isBalanceAdjustment()) categories.append(category);   // Rules may set Transfer
         }
         TransactionDAO transactionDao;
         for (const Account& account : AccountDAO().getAllAccountsForUser(userId)) {

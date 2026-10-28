@@ -9,16 +9,28 @@
 #include <QDebug>
 
 // Balance adjustments count towards balances but aren't income or spending:
-// the starting balances of accounts, and corrections to match the bank's balance
+// the starting balances of accounts, and corrections to match the bank's balance.
+// Only the app sets them; rules and imports leave them alone.
 inline const QString InitialBalanceCategory = "Initial balance";
 inline const QString BalanceCorrectionCategory = "Balance correction";
 inline bool isBalanceAdjustmentCategory(const QString& name) {
     return name == InitialBalanceCategory || name == BalanceCorrectionCategory;
 }
-// SQL condition on transactions "t" that leaves out balance adjustments
+// Money moved between the user's own accounts: not income or spending either, but set like any
+// category, by hand, rules and imports
+inline const QString TransferCategory = "Transfer";
+// Neither income nor spending: balance adjustments and transfers
+inline bool isUncountedCategory(const QString& name) {
+    return isBalanceAdjustmentCategory(name) || name == TransferCategory;
+}
+// SQL condition on transactions "t" that leaves out balance adjustments (transfers stay: they're real payments)
 inline const QString NotBalanceAdjustmentSql =
     "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name IN ('" + InitialBalanceCategory + "', '"
     + BalanceCorrectionCategory + "'))";
+// SQL condition on transactions "t" that leaves out what isn't income or spending, for totals
+inline const QString CountedAsIncomeOrSpendingSql =
+    "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name IN ('" + InitialBalanceCategory + "', '"
+    + BalanceCorrectionCategory + "', '" + TransferCategory + "'))";
 
 // Category Object
 class Category {
@@ -29,7 +41,8 @@ public:
     QString getName() const;
     QString getType() const; // "income" or "expense"
     QString getColor() const; // Palette name (see CategoryColors), empty = neutral
-    bool isBuiltIn() const;  // Balance adjustments other features rely on
+    bool isBuiltIn() const;  // Balance adjustments and Transfer, which other features rely on: can't be renamed or deleted
+    bool isBalanceAdjustment() const;   // Only the app sets these
 
 private:
     int categoryId;

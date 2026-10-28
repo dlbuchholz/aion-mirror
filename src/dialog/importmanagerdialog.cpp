@@ -868,7 +868,7 @@ void ImportManagerDialog::refreshFileCategories()
     QList<Category> choosable;
     for (const Category &category : CategoryDAO(userId).getAllCategories()) {
         existing.insert(category.getName().simplified().toLower(), category);
-        if (!category.isBuiltIn()) choosable.append(category);
+        if (!category.isBalanceAdjustment()) choosable.append(category);
     }
 
     auto *table = new QWidget();

@@ -160,6 +160,20 @@ private slots:
         QCOMPARE(colours.value("Bonus"), QString("green"));
         QCOMPARE(colours.value(InitialBalanceCategory), QString("gray"));
         QCOMPARE(colours.value(BalanceCorrectionCategory), QString("gray"));
+        QCOMPARE(colours.value(TransferCategory), QString("slate"));
+    }
+
+    void transferIsBuiltInButNotABalanceAdjustment() {
+        // Locked like the balance adjustments, but set by hand, rules and imports like any category
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == TransferCategory) {
+                QVERIFY(category.isBuiltIn());
+                QVERIFY(!category.isBalanceAdjustment());
+                QCOMPARE(category.getType(), QString("income"));   // Never offered for a budget
+                return;
+            }
+        }
+        QFAIL("New users have no Transfer category");
     }
 
     void usersDontSeeOrChangeEachOthersCategories() {

@@ -1,4 +1,5 @@
 #include "transactionlistmodel.h"
+#include "category.h"
 
 #include <QSet>
 #include <algorithm>
@@ -193,6 +194,10 @@ void TransactionListModel::rebuild() {
         }
 
         currentTotals.count++;
+        // The sums are income and spending, like the Dashboard's: balance adjustments and transfers stay out
+        if (isUncountedCategory(categoryNames.value(transaction.getCategoryId()))) {
+            continue;
+        }
         if (income) {
             currentTotals.income += transaction.getAmountCents();
         } else {

@@ -22,6 +22,10 @@ QString Category::getColor() const {
 }
 
 bool Category::isBuiltIn() const {
+    return isUncountedCategory(name);
+}
+
+bool Category::isBalanceAdjustment() const {
     return isBalanceAdjustmentCategory(name);
 }
 
@@ -30,7 +34,8 @@ CategoryDAO::CategoryDAO(int userId)
     : userId(userId) {}
 
 bool CategoryDAO::addDefaultCategories(int userId) {
-    // Each with its own colour; the built-in ones grey. Red and pink are left for the user's own.
+    // Each with its own colour; the balance adjustments grey, Transfer slate. Red and pink are
+    // left for the user's own.
     const QList<Category> defaults = {
         Category(-1, InitialBalanceCategory, "income", "gray"),
         Category(-1, "Salary", "income", "teal"),
@@ -40,6 +45,7 @@ bool CategoryDAO::addDefaultCategories(int userId) {
         Category(-1, "Utilities", "expense", "coral"),
         Category(-1, "Entertainment", "expense", "purple"),
         Category(-1, BalanceCorrectionCategory, "income", "gray"),
+        Category(-1, TransferCategory, "income", "slate"),
     };
     CategoryDAO dao(userId);
     for (const Category& category : defaults) {
