@@ -58,6 +58,7 @@ private:
     void acceptRename();
     void showOriginalPayee();
     void restoreOriginalPayee();
+    void showRuleIcon(QLabel* icon);                 // The sparkle before a rule's suggestion
     QHash<int, QString> accountNames() const;        // For describing rules
 
     int transactionId = -1;
@@ -81,8 +82,10 @@ private:
     QComboBox* categoryCombo = nullptr;
     QWidget* suggestionNote = nullptr;               // Which rule suggested the category, and Undo
     QWidget* renameNote = nullptr;                   // A rule's name for the payee, and Rename
+    QLabel* renameIcon = nullptr;
     QLabel* renameLabel = nullptr;
     QLabel* originalPayeeLabel = nullptr;            // "Originally: ... · Restore"
+    QLabel* suggestionIcon = nullptr;
     QLabel* suggestionLabel = nullptr;
     QComboBox* accountCombo = nullptr;
     QTextEdit* descriptionEdit = nullptr;

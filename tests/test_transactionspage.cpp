@@ -26,6 +26,18 @@ class TestTransactionsPage : public QObject {
     int firstId = -1;
     int secondId = -1;
 
+    // The rule hints show a sparkle as an icon (a ✦ in text made Windows search its fonts). A
+    // missing SVG gives a blank pixmap, so look at the pixels.
+    static bool drawsSomething(const QPixmap& pixmap) {
+        const QImage image = pixmap.toImage();
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (qAlpha(image.pixel(x, y)) > 0) return true;
+            }
+        }
+        return false;
+    }
+
 private slots:
     void initTestCase() {
         db.init();
@@ -107,7 +119,8 @@ private slots:
         QCOMPARE(category->currentData().toInt(), groceries);
         QVERIFY(!note->isHidden());
         QCOMPARE(editor->findChild<QLabel*>("categorySuggestionLabel")->text(),
-                 QString("✦ From your rule: Payee contains \"rewe\""));
+                 QString("From your rule: Payee contains \"rewe\""));
+        QVERIFY(drawsSomething(editor->findChild<QLabel*>("categorySuggestionIcon")->pixmap()));
         payee->setText("Aldi");                          // No longer matches: the suggestion goes
         QVERIFY(category->currentData().toInt() <= 0);
         QVERIFY(note->isHidden());
@@ -165,7 +178,8 @@ private slots:
         payee->setText("REWE MARKT GMBH 4711");
         QVERIFY(!offer->isHidden());
         QCOMPARE(payee->text(), QString("REWE MARKT GMBH 4711"));    // Only offered
-        QCOMPARE(editor->findChild<QLabel*>("payeeRenameLabel")->text(), QString("✦ Your rule suggests the name \"Rewe\""));
+        QCOMPARE(editor->findChild<QLabel*>("payeeRenameLabel")->text(), QString("Your rule suggests the name \"Rewe\""));
+        QVERIFY(drawsSomething(editor->findChild<QLabel*>("payeeRenameIcon")->pixmap()));
 
         editor->findChild<QToolButton*>("acceptRenameButton")->click();
         QCOMPARE(payee->text(), QString("Rewe"));

@@ -31,3 +31,4 @@ see `LICENSE` in this folder):
 | `database.svg`      | `database`              |
 | `info.svg`          | `info-circle`           |
 | `x.svg`             | `x`                     |
+| `sparkle.svg`       | `sparkles` (its big star, filled) |

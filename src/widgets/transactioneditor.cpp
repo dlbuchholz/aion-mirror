@@ -92,12 +92,15 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     payeeCompleter->setModel(new QStringListModel(payeeCompleter));
     payeeEdit->setCompleter(payeeCompleter);
     form->addRow("Payee", payeeEdit);
-    // "✦ Your rule suggests the name "Rewe"   Rename": offered, never changed under the fingers
+    // "(sparkle) Your rule suggests the name "Rewe"   Rename": offered, never changed under the fingers
     renameNote = new QWidget(this);
     renameNote->setObjectName("payeeRenameSuggestion");
     auto* renameLayout = new QHBoxLayout(renameNote);
     renameLayout->setContentsMargins(0, 0, 0, 0);
     renameLayout->setSpacing(6);
+    renameIcon = new QLabel(renameNote);
+    renameIcon->setObjectName("payeeRenameIcon");
+    renameLayout->addWidget(renameIcon, 0, Qt::AlignTop);
     renameLabel = new QLabel(renameNote);
     renameLabel->setObjectName("payeeRenameLabel");
     renameLabel->setWordWrap(true);
@@ -129,12 +132,15 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     categoryCombo = new QComboBox(this);
     categoryCombo->setObjectName("categoryCombo");
     form->addRow("Category", categoryCombo);
-    // "✦ From your rule: Payee contains "REWE"   Undo", in the accent colour so it's noticed
+    // "(sparkle) From your rule: Supermarkets   Undo", in the accent colour so it's noticed
     suggestionNote = new QWidget(this);
     suggestionNote->setObjectName("categorySuggestion");
     auto* noteLayout = new QHBoxLayout(suggestionNote);
     noteLayout->setContentsMargins(0, 0, 0, 0);
     noteLayout->setSpacing(6);
+    suggestionIcon = new QLabel(suggestionNote);
+    suggestionIcon->setObjectName("categorySuggestionIcon");
+    noteLayout->addWidget(suggestionIcon, 0, Qt::AlignTop);
     suggestionLabel = new QLabel(suggestionNote);
     suggestionLabel->setObjectName("categorySuggestionLabel");
     suggestionLabel->setWordWrap(true);
@@ -267,6 +273,12 @@ void TransactionEditor::restoreOriginalPayee() {
     showOriginalPayee();
 }
 
+void TransactionEditor::showRuleIcon(QLabel* icon) {
+    // A sparkle in the accent colour of the current theme, as tall as a line of the hint's text
+    const int size = fontMetrics().height();
+    icon->setPixmap(Icons::tinted("sparkle", Theme::colors().accent, size, devicePixelRatioF()));
+}
+
 void TransactionEditor::acceptRename() {
     if (originalPayee.isEmpty()) {
         originalPayee = payeeEdit->text().trimmed();  // Kept, so rules for that name keep matching
@@ -293,10 +305,11 @@ void TransactionEditor::suggestFromRules() {
     if (rename && rename->newPayee != draft.getPayee()) {
         suggestedPayee = rename->newPayee;
         suggestedRuleId = rename->id;
-        renameLabel->setText(QString("✦ Your rule suggests the name \"%1\"").arg(suggestedPayee));
+        renameLabel->setText(QString("Your rule suggests the name \"%1\"").arg(suggestedPayee));
         QPalette palette = renameLabel->palette();
         palette.setColor(QPalette::WindowText, Theme::colors().accent);
         renameLabel->setPalette(palette);
+        showRuleIcon(renameIcon);
         renameNote->show();
     } else {
         renameNote->hide();
@@ -308,11 +321,12 @@ void TransactionEditor::suggestFromRules() {
     const Rule* rule = Rules::categoryRule(rules, draft);
     if (rule) {
         populateCategories(rule->categoryId);
-        suggestionLabel->setText(QString("✦ From your rule: %1").arg(Rules::title(*rule, accountNames())));
+        suggestionLabel->setText(QString("From your rule: %1").arg(Rules::title(*rule, accountNames())));
         suggestionLabel->setToolTip(Rules::describe(*rule, accountNames()));
         QPalette palette = suggestionLabel->palette();
         palette.setColor(QPalette::WindowText, Theme::colors().accent);
         suggestionLabel->setPalette(palette);
+        showRuleIcon(suggestionIcon);
         suggestionNote->setVisible(categoryCombo->currentData().toInt() == rule->categoryId);
     } else if (!suggestionNote->isHidden()) {
         // The earlier suggestion doesn't fit anymore
