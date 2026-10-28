@@ -17,6 +17,7 @@ struct Swatch {
 QStringList names();                                 // In picker order, without the neutral default
 QString label(const QString& name);                  // "Teal", or "No colour" for an empty name
 Swatch swatch(const QString& name);                  // Unknown or empty names give the neutral look
+Swatch swatch(const QString& name, bool dark);       // In the given theme rather than the active one
 
 } // namespace CategoryColors
 

@@ -34,6 +34,36 @@ QString usageText(const CategoryUsage& usage) {
     return parts.join(" · ");
 }
 
+// A patch of one theme's page with the category's tag on it, to preview a colour in that theme
+class ThemePreview : public QWidget {
+public:
+    ThemePreview(bool dark, QWidget* parent) : QWidget(parent), dark(dark) {
+        setObjectName(dark ? "darkThemePreview" : "lightThemePreview");
+        setToolTip(dark ? "In the dark theme" : "In the light theme");
+        auto* layout = new QHBoxLayout(this);
+        layout->setContentsMargins(10, 6, 10, 6);
+        tag = new CategoryTag(this);
+        tag->setTheme(dark);
+        layout->addWidget(tag);
+    }
+
+    CategoryTag* tag = nullptr;
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPainterPath path;
+        path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 6, 6);
+        painter.fillPath(path, Theme::pageBackground(dark));
+        painter.setPen(Theme::colors().sidebarBorder);   // Keeps the patch of the own theme visible
+        painter.drawPath(path);
+    }
+
+private:
+    bool dark;
+};
+
 // Round colour choice; the neutral one shows a slash
 class SwatchButton : public QAbstractButton {
 public:
@@ -47,6 +77,7 @@ public:
     }
 
     const QString color;
+    std::function<void(const QString& color, bool entered)> hovered;   // For previewing it
 
 protected:
     void paintEvent(QPaintEvent*) override {
@@ -66,8 +97,16 @@ protected:
             painter.drawLine(dot.topRight() + QPointF(-3, 3), dot.bottomLeft() + QPointF(3, -3));
         }
     }
-    void enterEvent(QEnterEvent* event) override { update(); QAbstractButton::enterEvent(event); }
-    void leaveEvent(QEvent* event) override { update(); QAbstractButton::leaveEvent(event); }
+    void enterEvent(QEnterEvent* event) override {
+        update();
+        if (hovered) hovered(color, true);
+        QAbstractButton::enterEvent(event);
+    }
+    void leaveEvent(QEvent* event) override {
+        update();
+        if (hovered) hovered(color, false);
+        QAbstractButton::leaveEvent(event);
+    }
 };
 
 // One category: its tag, how much it is used, and a lock for built-in ones
@@ -215,12 +254,30 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     constexpr int SWATCHES_PER_ROW = 10;
     for (int i = 0; i < colors.size(); ++i) {
         auto* swatch = new SwatchButton(colors[i], editor);
+        swatch->hovered = [this](const QString& color, bool entered) {
+            updatePreview(entered ? color : selectedColor());
+        };
         colorGroup->addButton(swatch);
         swatches->addWidget(swatch, i / SWATCHES_PER_ROW, i % SWATCHES_PER_ROW);
     }
     colorRow->addLayout(swatches);
     colorRow->addStretch();
     editorLayout->addLayout(colorRow);
+
+    // The tag as it will look in both themes; follows the name, the chosen colour and the hovered one
+    auto* previewRow = new QHBoxLayout();
+    auto* previewCaption = new QLabel("Preview", editor);
+    previewCaption->setMinimumWidth(56);
+    previewRow->addWidget(previewCaption);
+    for (const bool dark : {false, true}) {
+        auto* preview = new ThemePreview(dark, editor);
+        previewTags.append(preview->tag);
+        previewRow->addWidget(preview);
+    }
+    previewRow->addStretch();
+    editorLayout->addLayout(previewRow);
+    connect(nameEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(selectedColor()); });
+    connect(colorGroup, &QButtonGroup::buttonToggled, this, [this]() { updatePreview(selectedColor()); });
 
     errorLabel = new QLabel(editor);
     errorLabel->setObjectName("categoryError");
@@ -378,6 +435,7 @@ void CategoriesSettings::openEditor(int categoryId) {
     }
     mergeButton->setVisible(edited);
     deleteButton->setVisible(edited);
+    updatePreview(selectedColor());
     rebuildList();
     nameEdit->setFocus();
     nameEdit->selectAll();
@@ -397,6 +455,13 @@ void CategoriesSettings::selectColor(const QString& color) {
 QString CategoriesSettings::selectedColor() const {
     auto* checked = static_cast<SwatchButton*>(colorGroup->checkedButton());
     return checked ? checked->color : QString();
+}
+
+void CategoriesSettings::updatePreview(const QString& color) {
+    const QString name = nameEdit->text().simplified();
+    for (CategoryTag* tag : std::as_const(previewTags)) {
+        tag->setCategory(name.isEmpty() ? QString("Name") : name, color);
+    }
 }
 
 void CategoriesSettings::save() {

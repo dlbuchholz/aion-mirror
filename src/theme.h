@@ -78,7 +78,12 @@ public:
     }
 
     static Colors colors() {
-        if (darkActive) {
+        return colors(darkActive);
+    }
+
+    // Of either theme, whichever is active: for previews of the other one
+    static Colors colors(bool dark) {
+        if (dark) {
             return {
                 QColor(30, 30, 34),          // sidebarBackground
                 QColor(255, 255, 255, 22),   // sidebarBorder
@@ -110,6 +115,11 @@ public:
         };
     }
 
+    // The window background of either theme
+    static QColor pageBackground(bool dark) {
+        return dark ? QColor(38, 38, 42) : QColor(245, 245, 245);
+    }
+
 private:
     static inline bool darkActive = true;
 
@@ -117,7 +127,7 @@ private:
         darkActive = true;
         QApplication::setStyle(QStyleFactory::create("Fusion"));
         // Built from button and window colours so Qt derives matching bevel shades
-        QPalette darkPalette(QColor(56, 56, 62), QColor(38, 38, 42));
+        QPalette darkPalette(QColor(56, 56, 62), pageBackground(true));
         darkPalette.setColor(QPalette::Base, QColor(46, 46, 51));
         darkPalette.setColor(QPalette::AlternateBase, QColor(52, 52, 58));
         darkPalette.setColor(QPalette::Text, QColor(236, 236, 238));
@@ -160,7 +170,7 @@ private:
         lightPalette.setColor(QPalette::Light, QColor(255, 255, 255));
         lightPalette.setColor(QPalette::Link, QColor(42, 130, 218));
         lightPalette.setColor(QPalette::Text, Qt::black);
-        lightPalette.setColor(QPalette::Window, QColor(245, 245, 245));
+        lightPalette.setColor(QPalette::Window, pageBackground(false));
         lightPalette.setColor(QPalette::WindowText, Qt::black);
         lightPalette.setColor(QPalette::ToolTipBase, QColor(255, 255, 255));   // Not Qt's yellow
         lightPalette.setColor(QPalette::ToolTipText, QColor(30, 30, 30));

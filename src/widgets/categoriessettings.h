@@ -5,6 +5,7 @@
 #include <functional>
 #include "category.h"
 
+class CategoryTag;
 class QButtonGroup;
 class QComboBox;
 class QFrame;
@@ -40,6 +41,7 @@ private:
     void closeEditor();
     void selectColor(const QString& color);
     QString selectedColor() const;
+    void updatePreview(const QString& color);        // The preview tags in this colour, with the typed name
     void save();
     void mergeInto(int intoId);
     void remove();
@@ -61,6 +63,7 @@ private:
     QLineEdit* nameEdit = nullptr;
     QComboBox* typeCombo = nullptr;
     QButtonGroup* colorGroup = nullptr;
+    QList<CategoryTag*> previewTags;                 // Light theme, dark theme
     QLabel* usageLabel = nullptr;
     QLabel* errorLabel = nullptr;
     QToolButton* mergeButton = nullptr;

@@ -140,6 +140,41 @@ private slots:
         QCOMPARE(named("Hobby").getColor(), QString("indigo"));
     }
 
+    void previewShowsTheTagInBothThemes() {
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addCategoryButton")->click();
+        // Each theme's patch holds the tag; its accessible description is the colour's name
+        const auto preview = [&settings](const char* theme) {
+            for (QWidget* child : settings.findChild<QWidget*>(theme)->findChildren<QWidget*>()) {
+                if (!child->accessibleName().isEmpty()) return QStringList{child->accessibleName(), child->accessibleDescription()};
+            }
+            return QStringList();
+        };
+        QCOMPARE(preview("lightThemePreview"), (QStringList{"Name", "No colour"}));   // Nothing typed yet
+
+        settings.findChild<QLineEdit*>("categoryNameEdit")->setText("Hobby");
+        auto* teal = settings.findChild<QAbstractButton*>("swatch_teal");
+        teal->click();
+        QCOMPARE(preview("lightThemePreview"), (QStringList{"Hobby", "Teal"}));
+        QCOMPARE(preview("darkThemePreview"), (QStringList{"Hobby", "Teal"}));
+        // Hovering another colour previews it without choosing it
+        auto* red = settings.findChild<QAbstractButton*>("swatch_red");
+        QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5));
+        QCoreApplication::sendEvent(red, &enter);
+        QCOMPARE(preview("darkThemePreview"), (QStringList{"Hobby", "Red"}));
+        QVERIFY(teal->isChecked());
+        QEvent leave(QEvent::Leave);
+        QCoreApplication::sendEvent(red, &leave);
+        QCOMPARE(preview("darkThemePreview"), (QStringList{"Hobby", "Teal"}));
+
+        // An existing category opens with its own name and colour
+        settings.findChild<QPushButton*>("saveCategoryButton")->click();
+        settle();
+        row(settings, "Hobby")->click();
+        QCOMPARE(preview("lightThemePreview"), (QStringList{"Hobby", "Teal"}));
+    }
+
     void rejectsDuplicateAndEmptyNames() {
         CategoriesSettings settings;
         settings.setUserId(1);

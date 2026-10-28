@@ -13,7 +13,13 @@ void CategoryTag::setCategory(const QString& newName, const QString& newColor) {
     name = newName;
     color = newColor;
     setAccessibleName(name);
+    setAccessibleDescription(CategoryColors::label(color));   // "Teal", or "No colour"
     updateGeometry();
+    update();
+}
+
+void CategoryTag::setTheme(bool forDark) {
+    dark = forDark;
     update();
 }
 
@@ -28,7 +34,7 @@ QSize CategoryTag::sizeHint() const {
 }
 
 void CategoryTag::paintEvent(QPaintEvent*) {
-    const CategoryColors::Swatch swatch = CategoryColors::swatch(color);
+    const CategoryColors::Swatch swatch = dark ? CategoryColors::swatch(color, *dark) : CategoryColors::swatch(color);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     const QRectF pill = QRectF(rect()).adjusted(0, 1, 0, -1);

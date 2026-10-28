@@ -54,11 +54,15 @@ QString label(const QString& name) {
 }
 
 Swatch swatch(const QString& name) {
-    const Theme::Colors colors = Theme::colors();
+    return swatch(name, Theme::isDark());
+}
+
+Swatch swatch(const QString& name, bool dark) {
+    const Theme::Colors colors = Theme::colors(dark);
     for (const auto& ramp : ramps()) {
         if (ramp.first == name) {
             const Ramp& r = ramp.second;
-            return Theme::isDark() ? Swatch{r.dark, r.softer, r.mid} : Swatch{r.light, r.dark, r.mid};
+            return dark ? Swatch{r.dark, r.softer, r.mid} : Swatch{r.light, r.dark, r.mid};
         }
     }
     return {colors.track, colors.textSecondary, colors.textMuted};
