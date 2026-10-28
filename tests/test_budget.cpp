@@ -141,15 +141,28 @@ private slots:
         spend(4640, QDate(2026, 10, 31), groceries);
         spend(9900, QDate(2026, 11, 1), groceries);              // Next month
         Transaction refund(-1, accountId, "Shop", 5500, QDate(2026, 10, 10), "", groceries, "income");
-        QVERIFY(TransactionDAO().addTransaction(refund) > 0);    // Income doesn't count
+        QVERIFY(TransactionDAO().addTransaction(refund) > 0);    // Money back lowers the spending
 
         db.seedDefaultUser(2, "other", "Other");
         const int otherAccount = AccountDAO::createAccount(2, "Theirs", "Checking", 0);
         QVERIFY(TransactionDAO().addTransaction(Transaction(-1, otherAccount, "X", 3300, QDate(2026, 10, 5), "", groceries, "expense")) > 0);
 
         const MonthBudget budget = dao.budgetsForMonth(1, oct()).first();
-        QCOMPARE(budget.spentCents, Cents(35840));
-        QCOMPARE(budget.leftCents(), Cents(4160));
+        QCOMPARE(budget.spentCents, Cents(35840 - 5500));
+        QCOMPARE(budget.leftCents(), Cents(40000 - 35840 + 5500));
+    }
+
+    void moreBackThanSpentGoesBelowZero() {
+        // A reimbursement in November for October's costs
+        BudgetDAO dao;
+        const int work = CategoryDAO(1).addCategory(Category(-1, "Dienstliche Ausgaben", "expense"));
+        QVERIFY(work > 0);
+        QVERIFY(dao.setMonthlyLimit(1, work, nov(), 10000));
+        spend(20000, QDate(2026, 10, 20), work);
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, accountId, "Arbeitgeber", 15000, QDate(2026, 11, 3), "",
+                                                            work, "income")) > 0);
+        QCOMPARE(dao.budgetsForMonth(1, nov()).first().spentCents, Cents(-15000));
+        QVERIFY(dao.unbudgetedSpending(1, oct()).first().spentCents == 20000);   // October as it was
     }
 
     void unbudgetedSpendingListsTheRest() {

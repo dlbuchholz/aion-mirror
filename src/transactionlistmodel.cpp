@@ -34,6 +34,11 @@ void TransactionListModel::setCategoryColors(const QHash<int, QString>& colors) 
     if (!rows.isEmpty()) emit dataChanged(index(0), index(int(rows.size()) - 1));
 }
 
+void TransactionListModel::setCategoryTypes(const QHash<int, QString>& types) {
+    categoryTypes = types;
+    rebuild();                                       // The totals depend on them
+}
+
 const TransactionFilter& TransactionListModel::filter() const {
     return currentFilter;
 }
@@ -198,7 +203,9 @@ void TransactionListModel::rebuild() {
         if (isUncountedCategory(categoryNames.value(transaction.getCategoryId()))) {
             continue;
         }
-        if (income) {
+        if (isRefund(transaction.getType(), categoryTypes.value(transaction.getCategoryId()))) {
+            currentTotals.expenses -= transaction.getAmountCents();
+        } else if (income) {
             currentTotals.income += transaction.getAmountCents();
         } else {
             currentTotals.expenses += transaction.getAmountCents();

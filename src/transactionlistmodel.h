@@ -47,9 +47,10 @@ public:
 
     struct Totals {
         int count = 0;                               // All shown transactions
-        // Income and spending only: without balance adjustments and transfers
+        // Income and spending only: without balance adjustments and transfers. Refunds (income in an
+        // expense category) lower the spending rather than add to the income.
         Cents income = 0;
-        Cents expenses = 0;                          // Positive sum of expense amounts
+        Cents expenses = 0;                          // Expense amounts less refunds
         Cents net() const { return income - expenses; }
     };
 
@@ -59,6 +60,7 @@ public:
                          const QHash<int, QString>& accountNames,
                          const QHash<int, QString>& categoryNames);
     void setCategoryColors(const QHash<int, QString>& colors);   // Category ID -> palette name
+    void setCategoryTypes(const QHash<int, QString>& types);     // Category ID -> "income" or "expense", for refunds
     void setFilter(const TransactionFilter& filter);
     const TransactionFilter& filter() const;
 
@@ -90,6 +92,7 @@ private:
     QHash<int, QString> accountNames;
     QHash<int, QString> categoryNames;
     QHash<int, QString> categoryColors;
+    QHash<int, QString> categoryTypes;
     TransactionFilter currentFilter;
     QSet<QDate> collapsedDays;
     QList<Row> rows;

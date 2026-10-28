@@ -88,6 +88,17 @@ private slots:
         QCOMPARE(model.indexForTransaction(5).data(TransactionListModel::SignedAmountRole).toLongLong(), -50000);
     }
 
+    void refundsLowerTheSpendingInsteadOfAddingIncome() {
+        TransactionListModel model;
+        QList<Transaction> transactions = sample();
+        transactions << Transaction(9, 10, "Rewe", 1500, QDate(2026, 10, 8), "Pfand", 4, "income")    // Groceries refund
+                     << Transaction(10, 10, "Unknown", 700, QDate(2026, 10, 8), "", 0, "income");     // No category
+        model.setCategoryTypes({{2, "income"}, {4, "expense"}});
+        model.setTransactions(transactions, {{10, "Girokonto"}, {20, "Kreditkarte"}}, {{2, "Salary"}, {4, "Groceries"}});
+        QCOMPARE(model.totals().income, Cents(200000 + 700));
+        QCOMPARE(model.totals().expenses, Cents(7250 - 1500));
+    }
+
     void searchMatchesPayeeCategoryAndAccount() {
         TransactionListModel model;
         load(model);

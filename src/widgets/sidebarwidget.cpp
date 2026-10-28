@@ -485,7 +485,8 @@ void SidebarWidget::loadBudgets() {
         item->setText(budget.categoryName);
         item->setTrailingText(QString("%1 / %2").arg(settings.formatCurrency(budget.spentCents, false, 0),
                                                      settings.formatCurrency(budget.limitCents, false, 0)));
-        item->setProgress(double(budget.spentCents) / double(budget.limitCents));   // Limits are positive
+        // Limits are positive; refunds can take the spending below zero, which shows an empty bar
+        item->setProgress(qMax(0.0, double(budget.spentCents) / double(budget.limitCents)));
         if (settings.isCategoryColorsInOverviewsEnabled() && !budget.categoryColor.isEmpty()) {
             item->setDotColor(CategoryColors::swatch(budget.categoryColor).solid);
         }

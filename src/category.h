@@ -32,6 +32,16 @@ inline const QString CountedAsIncomeOrSpendingSql =
     "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name IN ('" + InitialBalanceCategory + "', '"
     + BalanceCorrectionCategory + "', '" + TransferCategory + "'))";
 
+// Income in an expense category is money coming back (a refund, a return, a reimbursement): it
+// lowers that category's spending instead of counting as income. For queries on transactions "t"
+// joined with their category as "c" (LEFT JOIN, so uncategorised ones stay in).
+inline const QString IsSpendingSql = "(t.type = 'expense' OR c.type = 'expense')";
+inline const QString IsIncomeSql = "(t.type = 'income' AND COALESCE(c.type, '') <> 'expense')";
+inline const QString SpendingCentsSql = "(CASE WHEN t.type = 'expense' THEN t.amount ELSE -t.amount END)";   // With IsSpendingSql
+inline bool isRefund(const QString& transactionType, const QString& categoryType) {
+    return transactionType == "income" && categoryType == "expense";
+}
+
 // Category Object
 class Category {
 public:

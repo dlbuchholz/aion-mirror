@@ -1,6 +1,8 @@
 #include <QtTest>
 #include "account.h"
+#include "category.h"
 #include "dashboard.h"
+#include "settings.h"
 #include "tests/test_db_fixture.h"
 
 class TestDashboard : public QObject {
@@ -84,12 +86,12 @@ private slots:
         add(giro, 89000, QDate(2026, 10, 3), rent, "expense");
         add(giro, 1250, QDate(2026, 10, 4), 0, "expense");
         add(giro, 9999, QDate(2026, 9, 30), rent, "expense");       // Last month
-        add(giro, 5000, QDate(2026, 10, 5), groceries, "income");   // Refunds aren't spending
+        add(giro, 5000, QDate(2026, 10, 5), groceries, "income");   // A refund lowers the spending
 
         const QList<CategorySpending> spending = Dashboard::load(1, today).spendingByCategory;
         QCOMPARE(spending.size(), 3);
         QCOMPARE(spending[0].categoryName, QString("Rent"));
-        QCOMPARE(spending[1].spentCents, Cents(35840));
+        QCOMPARE(spending[1].spentCents, Cents(35840 - 5000));
         QCOMPARE(spending[2].categoryId, 0);
         QCOMPARE(spending[2].categoryName, QString("No category"));
     }
@@ -151,6 +153,29 @@ private slots:
         QCOMPARE(data.spendingByCategory.size(), 1);
         QCOMPARE(data.spendingByCategory[0].categoryId, groceries);
         QCOMPARE(data.recent.size(), 4);                            // Real payments, so they're recent ones
+    }
+
+    void moneyBackInAnExpenseCategoryIsntIncome() {
+        const int work = CategoryDAO(1).addCategory(Category(-1, "Dienstliche Ausgaben", "expense"));
+        QVERIFY(work > 0);
+        add(giro, 20000, QDate(2026, 10, 2), work, "expense", "Hotel");
+        add(giro, 15000, QDate(2026, 10, 12), work, "income", "Arbeitgeber");     // Reimbursed
+        add(giro, 285000, QDate(2026, 10, 15), categoryId("Salary"), "income");
+        add(giro, 1000, QDate(2026, 10, 16), 0, "income", "Unknown");             // No category: income
+        add(giro, 4000, QDate(2026, 9, 10), groceries, "expense");
+        add(giro, 6000, QDate(2026, 10, 1), groceries, "income", "Return");      // More back than spent
+
+        const DashboardData data = Dashboard::load(1, today);
+        QCOMPARE(data.thisMonth.incomeCents, Cents(285000 + 1000));
+        QCOMPARE(data.thisMonth.incomeCount, 2);
+        QCOMPARE(data.thisMonth.expenseCents, Cents(20000 - 15000 - 6000));
+        QCOMPARE(data.lastMonth.expenseCents, Cents(4000));
+        QCOMPARE(data.lastMonthToDateExpenseCents, Cents(4000));
+        QCOMPARE(data.spendingByCategory.size(), 2);
+        QCOMPARE(data.spendingByCategory[0].spentCents, Cents(5000));            // Dienstliche Ausgaben
+        QCOMPARE(data.spendingByCategory[1].categoryId, groceries);              // Below zero, last
+        QCOMPARE(data.spendingByCategory[1].spentCents, Cents(-6000));
+        QCOMPARE(Settings::instance().formatSpending(-6000).endsWith("(refunded)"), true);
     }
 
     void otherUsersDontCount() {

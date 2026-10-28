@@ -56,11 +56,15 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
         flow.month = month;
         flows.insert(month.toString("yyyy-MM"), flow);
     }
+    // Refunds (income in an expense category) lower the spending instead of counting as income
     QSqlQuery flowQuery = prepared(
-        "SELECT substr(t.date, 1, 7), t.type, SUM(t.amount), COUNT(*) FROM transactions t "
-        "JOIN accounts a ON a.id = t.account_id "
+        "SELECT substr(t.date, 1, 7), "
+        "SUM(CASE WHEN " + IsIncomeSql + " THEN t.amount ELSE 0 END), SUM(CASE WHEN " + IsIncomeSql + " THEN 1 ELSE 0 END), "
+        "SUM(CASE WHEN " + IsSpendingSql + " THEN " + SpendingCentsSql + " ELSE 0 END), "
+        "SUM(CASE WHEN " + IsSpendingSql + " THEN 1 ELSE 0 END) "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
         "WHERE a.user_id = :user_id AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql + " "
-        "GROUP BY substr(t.date, 1, 7), t.type");
+        "GROUP BY substr(t.date, 1, 7)");
     flowQuery.bindValue(":user_id", userId);
     flowQuery.bindValue(":first", first.toString("yyyy-MM-dd"));
     flowQuery.bindValue(":last", last.toString("yyyy-MM-dd"));
@@ -68,13 +72,10 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
         while (flowQuery.next()) {
             auto it = flows.find(flowQuery.value(0).toString());
             if (it == flows.end()) continue;
-            if (flowQuery.value(1).toString() == "income") {
-                it->incomeCents = flowQuery.value(2).toLongLong();
-                it->incomeCount = flowQuery.value(3).toInt();
-            } else {
-                it->expenseCents = flowQuery.value(2).toLongLong();
-                it->expenseCount = flowQuery.value(3).toInt();
-            }
+            it->incomeCents = flowQuery.value(1).toLongLong();
+            it->incomeCount = flowQuery.value(2).toInt();
+            it->expenseCents = flowQuery.value(3).toLongLong();
+            it->expenseCount = flowQuery.value(4).toInt();
         }
     }
     for (QDate month = first; month <= last; month = month.addMonths(1)) {
@@ -86,8 +87,10 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
 
     const QDate lastMonthStart = monthStart(today).addMonths(-1);
     QSqlQuery toDateQuery = prepared(
-        "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t JOIN accounts a ON a.id = t.account_id "
-        "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql);
+        "SELECT COALESCE(SUM(" + SpendingCentsSql + "), 0) FROM transactions t JOIN accounts a ON a.id = t.account_id "
+        "LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND " + IsSpendingSql + " AND t.date BETWEEN :first AND :last AND "
+        + CountedAsIncomeOrSpendingSql);
     toDateQuery.bindValue(":user_id", userId);
     toDateQuery.bindValue(":first", lastMonthStart.toString("yyyy-MM-dd"));
     toDateQuery.bindValue(":last", lastMonthStart.addDays(qMin(today.day(), lastMonthStart.daysInMonth()) - 1).toString("yyyy-MM-dd"));
@@ -98,11 +101,11 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
     data.dailyAverageCents = data.thisMonth.expenseCents / today.day();
     data.daysLeftInMonth = today.daysInMonth() - today.day();
 
-    // This month's expenses per category
+    // This month's expenses per category, less what came back; below zero when more came back
     QSqlQuery categoryQuery = prepared(
-        "SELECT COALESCE(t.category_id, 0), c.name, SUM(t.amount), c.color FROM transactions t "
+        "SELECT COALESCE(t.category_id, 0), c.name, SUM(" + SpendingCentsSql + "), c.color FROM transactions t "
         "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
-        "WHERE a.user_id = :user_id AND t.type = 'expense' AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql + " "
+        "WHERE a.user_id = :user_id AND " + IsSpendingSql + " AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql + " "
         "GROUP BY COALESCE(t.category_id, 0)");
     categoryQuery.bindValue(":user_id", userId);
     categoryQuery.bindValue(":first", monthStart(today).toString("yyyy-MM-dd"));

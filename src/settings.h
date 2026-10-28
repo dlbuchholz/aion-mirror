@@ -78,6 +78,8 @@ public:
     // Formatting methods
     QString formatCurrency(Cents amount, bool showSign = false, int decimals = 2) const;   // Sign shown for negatives (and + if showSign)
     QString formatNumber(Cents cents, int decimals = 2) const;          // Absolute value; decimals is 2 or 0
+    // A category's spending: below zero when more came back than was spent, "-150,00 € (refunded)"
+    QString formatSpending(Cents cents, int decimals = 2) const;
 
     // Other app settings (expandable)
     QString getTheme() const;

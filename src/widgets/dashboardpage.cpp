@@ -629,9 +629,10 @@ void DashboardPage::updateCategories() {
         categoryLayout->addWidget(empty);
         return;
     }
-    const Cents largest = data.spendingByCategory.first().spentCents;
+    // Refunded categories (below zero) come last and get no bar
+    const Cents largest = qMax<Cents>(1, data.spendingByCategory.first().spentCents);
     for (const CategorySpending& spending : data.spendingByCategory.mid(0, 5)) {
-        auto* row = new ProgressRow(spending.categoryName, Settings::instance().formatCurrency(spending.spentCents),
+        auto* row = new ProgressRow(spending.categoryName, Settings::instance().formatSpending(spending.spentCents),
                                     double(spending.spentCents) / double(largest), this);
         row->setObjectName("categoryRow");
         if (Settings::instance().isCategoryColorsInOverviewsEnabled()) {

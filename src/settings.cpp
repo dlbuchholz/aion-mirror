@@ -265,6 +265,11 @@ QString Settings::formatCurrency(Cents amount, bool showSign, int decimals) cons
 }
 
 // Format Number
+QString Settings::formatSpending(Cents cents, int decimals) const {
+    const QString amount = formatCurrency(cents, false, decimals);
+    return cents < 0 ? QString("%1 (refunded)").arg(amount) : amount;
+}
+
 QString Settings::formatNumber(Cents cents, int decimals) const {
     // Integer arithmetic only: whole units, plus two decimals unless decimals == 0 (rounded half up)
     const Cents absolute = qAbs(cents);

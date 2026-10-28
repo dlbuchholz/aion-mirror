@@ -558,9 +558,11 @@ void TransactionsPage::reload() {
     categories = categoryDao.getAllCategories();
     QHash<int, QString> categoryNames;
     QHash<int, QString> categoryColors;
+    QHash<int, QString> categoryTypes;
     for (const Category& category : categories) {
         categoryNames.insert(category.getCategoryId(), category.getName());
         categoryColors.insert(category.getCategoryId(), category.getColor());
+        categoryTypes.insert(category.getCategoryId(), category.getType());
     }
 
     const QList<Transaction> unassigned = transactionDao.getShadowedTransactions();
@@ -582,6 +584,7 @@ void TransactionsPage::reload() {
 
     delegate->showAccountColumn = showingUnassigned || accountId == ALL_ACCOUNTS;
     model->setCategoryColors(categoryColors);
+    model->setCategoryTypes(categoryTypes);
     model->setTransactions(transactions, accountNames, categoryNames);
     populateCategoryFilter();
     applyFilter();

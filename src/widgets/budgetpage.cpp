@@ -55,7 +55,7 @@ public:
         setAttribute(Qt::WA_Hover);
         setFixedHeight(62);
         setAccessibleName(budget.categoryName);
-        setAccessibleDescription(QString("%1 of %2 · %3").arg(Settings::instance().formatCurrency(budget.spentCents),
+        setAccessibleDescription(QString("%1 of %2 · %3").arg(Settings::instance().formatSpending(budget.spentCents),
                                                               Settings::instance().formatCurrency(budget.limitCents),
                                                               leftText(budget.leftCents())));
         setToolTip(budget.repeats ? QString("Regular limit since %1").arg(QLocale(QLocale::English).toString(budget.validFrom, "MMMM yyyy"))
@@ -89,7 +89,7 @@ protected:
         const QFontMetrics smallMetrics(smallFont);
         const QRect topLine(content.left(), content.top(), content.width(), 22);
 
-        const QString amounts = QString("%1 of %2").arg(settings.formatCurrency(budget.spentCents),
+        const QString amounts = QString("%1 of %2").arg(settings.formatSpending(budget.spentCents),
                                                         settings.formatCurrency(budget.limitCents));
         painter.setFont(smallFont);
         painter.setPen(colors.textSecondary);
