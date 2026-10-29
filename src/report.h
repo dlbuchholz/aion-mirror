@@ -84,7 +84,27 @@ struct FlowReport {
     std::optional<int> keptPercent() const;
 };
 
+struct BalancePoint {
+    QDate date;
+    Cents balanceCents = 0;                          // At the end of the day
+};
+
+struct BalanceReport {
+    ReportRange range;
+    Cents startCents = 0;                            // At the end of the day before the range
+    // Every day from the first to today, or to the last day if the range is over (or all in the future)
+    QList<BalancePoint> days;
+    Cents endCents() const { return days.isEmpty() ? startCents : days.last().balanceCents; }
+    Cents changeCents() const { return endCents() - startCents; }
+    // The balance at the end of the given day, or the latest one before it
+    Cents balanceOn(const QDate& date) const;
+};
+
 namespace Reports {
+
+// The balance day by day, with everything that moves it: transfers and balance adjustments too.
+// accountId < 0 means all accounts together.
+BalanceReport balanceOverTime(int userId, int accountId, const ReportRange& range, const QDate& today);
 
 // Income and spending per week or month, without transfers and balance adjustments.
 // accountId < 0 means all accounts.

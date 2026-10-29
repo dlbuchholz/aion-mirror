@@ -299,6 +299,150 @@ private:
     int hovered = -1;
 };
 
+// The balance as a line over the whole range (so a running range stops at today); hovering
+// shows the day's balance. Compact is the card's preview: just the line.
+class BalanceChart : public QWidget {
+public:
+    BalanceChart(bool compactChart, QWidget* parent) : QWidget(parent), compact(compactChart) {
+        setObjectName(compact ? "balancePreview" : "balanceChart");
+        setMouseTracking(!compact);
+        if (compact) {
+            setFixedHeight(40);
+        } else {
+            setMinimumHeight(220);
+        }
+    }
+
+    void setReport(const BalanceReport& newReport) {
+        report = newReport;
+        low = high = report.days.isEmpty() ? 0 : report.days.first().balanceCents;
+        for (const BalancePoint& point : std::as_const(report.days)) {
+            low = qMin(low, point.balanceCents);
+            high = qMax(high, point.balanceCents);
+        }
+        hovered = -1;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        const Theme::Colors colors = Theme::colors();
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        if (report.days.isEmpty()) return;
+
+        const QRect plot = plotRect();
+        QFont labelFont = font();
+        labelFont.setPointSizeF(font().pointSizeF() * 0.9);
+        painter.setFont(labelFont);
+
+        // Lines across with amounts, and zero when the balance goes below it
+        if (!compact) {
+            QList<Cents> marks = {highest(), (highest() + lowest()) / 2, lowest()};
+            if (lowest() < 0 && highest() > 0) marks = {highest(), 0, lowest()};
+            for (const Cents mark : std::as_const(marks)) {
+                const double y = yFor(mark);
+                painter.setPen(QPen(mark == 0 ? colors.textMuted : colors.sidebarBorder, 1));
+                painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
+                painter.setPen(colors.textSecondary);
+                painter.drawText(QRect(0, int(y) - 9, plot.left() - 8, 18), Qt::AlignRight | Qt::AlignVCenter,
+                                 Settings::instance().formatCurrency(mark, false, 0));
+            }
+            // Where each week or month starts
+            painter.setPen(colors.textSecondary);
+            const QList<ReportRange> periods = report.range.periods(report.range.flowUnit());
+            const QFontMetrics metrics(labelFont);
+            int nextFree = plot.left();
+            for (const ReportRange& period : periods) {
+                const QString label = report.range.flowUnit() == ReportRange::Unit::Week ? QString("W%1").arg(period.first.weekNumber())
+                                                                                        : english.toString(period.first, "MMM");
+                const int x = int(xFor(period.first));
+                if (x < nextFree) continue;
+                painter.drawText(QRect(x, plot.bottom() + 6, metrics.horizontalAdvance(label) + 2, 18), Qt::AlignLeft | Qt::AlignVCenter, label);
+                nextFree = x + metrics.horizontalAdvance(label) + 12;
+            }
+        }
+
+        // The line, with a light fill below
+        QPainterPath line;
+        for (int i = 0; i < report.days.size(); ++i) {
+            const QPointF point(xFor(report.days[i].date) + dayWidth() / 2, yFor(report.days[i].balanceCents));
+            if (i == 0) {
+                line.moveTo(point);
+            } else {
+                line.lineTo(point);
+            }
+        }
+        QPainterPath area = line;
+        area.lineTo(line.currentPosition().x(), plot.bottom());
+        area.lineTo(line.elementAt(0).x, plot.bottom());
+        area.closeSubpath();
+        QColor fill = colors.accent;
+        fill.setAlpha(30);
+        painter.fillPath(area, fill);
+        painter.setPen(QPen(colors.accent, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawPath(line);
+
+        if (hovered >= 0) {
+            const BalancePoint& point = report.days[hovered];
+            const QPointF dot(xFor(point.date) + dayWidth() / 2, yFor(point.balanceCents));
+            painter.setPen(QPen(colors.textMuted, 1, Qt::DashLine));
+            painter.drawLine(QPointF(dot.x(), plot.top()), QPointF(dot.x(), plot.bottom()));
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(colors.accent);
+            painter.drawEllipse(dot, 4, 4);
+        }
+    }
+
+    void mouseMoveEvent(QMouseEvent* event) override {
+        int index = -1;
+        const QRect plot = plotRect();
+        if (!report.days.isEmpty() && event->position().x() >= plot.left() - 4 && event->position().x() <= plot.right() + 4) {
+            const int day = int((event->position().x() - plot.left()) / dayWidth());
+            index = qBound(0, day, int(report.days.size()) - 1);
+        }
+        if (index != hovered) {
+            hovered = index;
+            update();
+        }
+        if (index >= 0) {
+            const BalancePoint& point = report.days[index];
+            QToolTip::showText(event->globalPosition().toPoint(),
+                               QString("%1\n%2").arg(english.toString(point.date, "d MMMM yyyy"),
+                                                     Settings::instance().formatCurrency(point.balanceCents)),
+                               this);
+        } else {
+            QToolTip::hideText();
+        }
+    }
+
+    void leaveEvent(QEvent* event) override {
+        hovered = -1;
+        update();
+        QWidget::leaveEvent(event);
+    }
+
+private:
+    // Amounts on the left, period names below
+    QRect plotRect() const { return compact ? rect().adjusted(1, 2, -1, -2) : rect().adjusted(84, 10, -4, -26); }
+    double dayWidth() const { return double(plotRect().width()) / double(qMax<qint64>(1, report.range.days())); }
+    double xFor(const QDate& date) const { return plotRect().left() + report.range.first.daysTo(date) * dayWidth(); }
+    Cents highest() const { return high; }
+    Cents lowest() const { return low; }
+    double yFor(Cents cents) const {
+        const QRect plot = plotRect();
+        if (high == low) return plot.center().y();
+        return plot.bottom() - double(cents - low) / double(high - low) * plot.height();
+    }
+
+    bool compact = false;
+    BalanceReport report;
+    Cents low = 0;
+    Cents high = 0;
+    int hovered = -1;
+};
+
 namespace {
 
 bool askWithDialog(QWidget* parent, QDate& from, QDate& to) {
@@ -526,6 +670,10 @@ ReportsPage::ReportsPage(QWidget* parent)
     flowPreview = new FlowChart(true, flowCard->preview());
     flowCard->preview()->layout()->addWidget(flowPreview);
     flowCard->preview()->layout()->setAlignment(flowPreview, Qt::AlignTop);
+    ReportCard* balanceCard = cards[static_cast<int>(Report::Balance)];
+    balancePreview = new BalanceChart(true, balanceCard->preview());
+    balanceCard->preview()->layout()->addWidget(balancePreview);
+    balanceCard->preview()->layout()->setAlignment(balancePreview, Qt::AlignTop);
     grid->setRowStretch(int(AllReports.size() + 2) / 3, 1);
     overviewScroll->setWidget(overview);
     stack->addWidget(overviewScroll);
@@ -639,6 +787,7 @@ void ReportsPage::refresh() {
     if (userId <= 0) return;
     spending = Reports::spendingByCategory(userId, shownAccountId, shownRange, QDate::currentDate());
     flow = Reports::incomeVsSpending(userId, shownAccountId, shownRange);
+    balance = Reports::balanceOverTime(userId, shownAccountId, shownRange, QDate::currentDate());
     updateCards();
     updateDetail();
 }
@@ -687,6 +836,16 @@ void ReportsPage::updateCards() {
                            QString("%1 of %2 income").arg(settings.formatCurrency(net), settings.formatCurrency(flow.incomeCents)));
     }
     flowPreview->setReport(flow);
+
+    // Balance over time: where it ended up, and how far it moved
+    ReportCard* balanceCard = cards[static_cast<int>(Report::Balance)];
+    const Cents moved = balance.changeCents();
+    const QDate since = balance.range.first;
+    balanceCard->setValue(settings.formatCurrency(balance.endCents()),
+                          QString("%1 since %2").arg(settings.formatCurrency(moved, true),
+                                                     english.toString(since, since.year() == QDate::currentDate().year() ? "d MMMM" : "d MMMM yyyy")),
+                          moved > 0 ? Theme::colors().positive : moved < 0 ? Theme::colors().danger : QColor());
+    balancePreview->setReport(balance);
 }
 
 void ReportsPage::updateDetail() {
@@ -698,6 +857,8 @@ void ReportsPage::updateDetail() {
         detailContent = spendingDetail(parent);
     } else if (*opened == Report::IncomeVsSpending) {
         detailContent = flowDetail(parent);
+    } else if (*opened == Report::Balance) {
+        detailContent = balanceDetail(parent);
     } else {
         auto* placeholder = new QLabel("This report isn't built yet.", parent);
         placeholder->setObjectName("reportsDetailPlaceholder");
@@ -808,6 +969,53 @@ QWidget* ReportsPage::flowDetail(QWidget* parent) const {
                                         settings.formatCurrency(net, true), net < 0, kept(flow.incomeCents, net)),
                                 false, widget);
     total->setObjectName("flowTotal");
+    layout->addWidget(total);
+    return widget;
+}
+
+QWidget* ReportsPage::balanceDetail(QWidget* parent) const {
+    auto* widget = new QWidget(parent);
+    widget->setObjectName("balanceDetail");
+    widget->setMaximumWidth(960);
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 4, 0, 0);
+    layout->setSpacing(0);
+    auto* chart = new BalanceChart(false, widget);
+    chart->setReport(balance);
+    layout->addWidget(chart);
+    layout->addSpacing(16);
+
+    using Column = ReportRow::Column;
+    using Tone = ReportRow::Tone;
+    const Settings& settings = Settings::instance();
+    const auto columns = [](const QString& amount, const QString& change) {
+        return QList<Column>{{amount, 140, Tone::Normal}, {change, 140, Tone::Change}};
+    };
+    // A higher balance is the good direction
+    const auto direction = [](Cents change) { return change > 0 ? -1 : change < 0 ? 1 : 0; };
+    const ReportRange::Unit unit = balance.range.flowUnit();
+    auto* heading = new ReportRow(ReportRow::Kind::Heading, unit == ReportRange::Unit::Week ? "Week" : "Month",
+                                  columns("Balance at the end", "Change"), false, widget);
+    heading->setObjectName("balanceHeading");
+    layout->addWidget(heading);
+    const QDate lastShown = balance.days.isEmpty() ? balance.range.last : balance.days.last().date;
+    for (const ReportRange& period : balance.range.periods(unit)) {
+        if (period.first > lastShown) break;                 // Still to come
+        const Cents end = balance.balanceOn(period.last);
+        const Cents change = end - balance.balanceOn(period.first.addDays(-1));
+        auto* row = new ReportRow(ReportRow::Kind::Item, periodTitle(period, balance.range),
+                                  columns(settings.formatCurrency(end), settings.formatCurrency(change, true)), false, widget);
+        row->setObjectName("balanceRow");
+        row->direction = direction(change);
+        row->setAccessibleDescription(QString("%1, %2").arg(settings.formatCurrency(end), settings.formatCurrency(change, true)));
+        layout->addWidget(row);
+    }
+    auto* total = new ReportRow(ReportRow::Kind::Total, "Whole range",
+                                columns(settings.formatCurrency(balance.endCents()), settings.formatCurrency(balance.changeCents(), true)),
+                                false, widget);
+    total->setObjectName("balanceTotal");
+    total->direction = direction(balance.changeCents());
+    total->setToolTip(QString("%1 at the start").arg(settings.formatCurrency(balance.startCents)));
     layout->addWidget(total);
     return widget;
 }

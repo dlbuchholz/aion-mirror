@@ -11,6 +11,7 @@ class QLabel;
 class QStackedWidget;
 class QToolButton;
 class QVBoxLayout;
+class BalanceChart;
 class CategoryBars;
 class FlowChart;
 class ReportCard;
@@ -63,6 +64,7 @@ private:
     void updateDetail();
     QWidget* spendingDetail(QWidget* parent) const;
     QWidget* flowDetail(QWidget* parent) const;
+    QWidget* balanceDetail(QWidget* parent) const;
 
     int userId = -1;
     ReportRange::Preset preset = ReportRange::Preset::SixMonths;
@@ -79,11 +81,13 @@ private:
     QList<ReportCard*> cards;                        // In Report order
     CategoryBars* spendingPreview = nullptr;
     FlowChart* flowPreview = nullptr;
+    BalanceChart* balancePreview = nullptr;
     QVBoxLayout* detailLayout = nullptr;
     QWidget* detailContent = nullptr;                // The opened report's, rebuilt when the numbers change
 
     SpendingReport spending;
     FlowReport flow;
+    BalanceReport balance;
 };
 
 #endif // REPORTSPAGE_H

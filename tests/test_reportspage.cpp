@@ -209,6 +209,31 @@ private slots:
         page.reload();
         QVERIFY(card->accessibleDescription().startsWith("Spent more, "));
     }
+
+    void balanceOverTimeOnTheCardAndInDetail() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Start", 100000, today.addMonths(-4), "", 0, "income"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", 25000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        QAbstractButton* card = cards(page)[2];
+        const Settings& settings = Settings::instance();
+        QCOMPARE(card->accessibleDescription(),
+                 QString("%1, %2 since %3").arg(settings.formatCurrency(75000), settings.formatCurrency(-25000, true),
+                                                QLocale(QLocale::English).toString(QDate(today.year(), today.month(), 1), "d MMMM")));
+
+        card->click();
+        QVERIFY(page.findChild<QWidget*>("balanceChart"));
+        int weeksSoFar = 0;                              // Weeks still to come aren't listed
+        for (const ReportRange& week : ReportRange::forPreset(Preset::Month, today).periods(ReportRange::Unit::Week)) {
+            if (week.first <= today) ++weeksSoFar;
+        }
+        QCOMPARE(page.findChildren<QWidget*>("balanceRow").size(), weeksSoFar);
+        QCOMPARE(page.findChild<QWidget*>("balanceTotal")->accessibleName(), QString("Whole range"));
+    }
 };
 
 QTEST_MAIN(TestReportsPage)

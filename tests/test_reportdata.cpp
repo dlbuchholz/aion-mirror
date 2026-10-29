@@ -151,6 +151,36 @@ private slots:
         QVERIFY(!Reports::keptPercent(0, -4268));
     }
 
+    void balanceDayByDayUpToToday() {
+        add(giro, 100000, QDate(2026, 7, 1), categoryId(InitialBalanceCategory), "income");   // Before the range
+        add(giro, 20000, QDate(2026, 10, 3), groceries, "expense");
+        add(giro, 5000, QDate(2026, 10, 3), groceries, "income");
+        add(giro, 30000, QDate(2026, 10, 10), categoryId(TransferCategory), "expense");      // Transfers move it too
+        add(savings, 30000, QDate(2026, 10, 10), categoryId(TransferCategory), "income");
+        add(giro, 7000, QDate(2026, 10, 30), rent, "expense");           // Planned, after today
+
+        const ReportRange month = ReportRange::forPreset(Preset::Month, today);
+        const BalanceReport all = Reports::balanceOverTime(1, -1, month, today);
+        QCOMPARE(all.startCents, Cents(100000));
+        QCOMPARE(all.days.size(), 29);                                   // 1 to 29 October
+        QCOMPARE(all.days.first().balanceCents, Cents(100000));
+        QCOMPARE(all.days[2].date, QDate(2026, 10, 3));
+        QCOMPARE(all.days[2].balanceCents, Cents(85000));
+        QCOMPARE(all.endCents(), Cents(85000));                          // The transfer evens out
+        QCOMPARE(all.changeCents(), Cents(-15000));
+        QCOMPARE(all.balanceOn(QDate(2026, 10, 9)), Cents(85000));
+        QCOMPARE(all.balanceOn(QDate(2026, 9, 30)), Cents(100000));
+
+        const BalanceReport giroOnly = Reports::balanceOverTime(1, giro, month, today);
+        QCOMPARE(giroOnly.endCents(), Cents(55000));
+        QCOMPARE(Reports::balanceOverTime(1, savings, month, today).endCents(), Cents(30000));
+
+        // A range that's over runs to its end
+        const BalanceReport september = Reports::balanceOverTime(1, -1, {QDate(2026, 9, 1), QDate(2026, 9, 30)}, today);
+        QCOMPARE(september.days.size(), 30);
+        QCOMPARE(september.changeCents(), Cents(0));
+    }
+
     void otherUsersAreLeftOut() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);

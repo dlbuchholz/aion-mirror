@@ -2,6 +2,7 @@
 #include "category.h"
 #include "db/databasemanager.h"
 
+#include <QHash>
 #include <QLocale>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -136,7 +137,60 @@ std::optional<int> FlowReport::keptPercent() const {
     return Reports::keptPercent(incomeCents, netCents());
 }
 
+Cents BalanceReport::balanceOn(const QDate& date) const {
+    Cents balance = startCents;
+    for (const BalancePoint& point : days) {
+        if (point.date > date) break;
+        balance = point.balanceCents;
+    }
+    return balance;
+}
+
 namespace Reports {
+
+BalanceReport balanceOverTime(int userId, int accountId, const ReportRange& range, const QDate& today) {
+    BalanceReport report;
+    report.range = range;
+    if (!range.isValid()) return report;
+    const QDate lastShown = range.first <= today ? qMin(range.last, today) : range.last;
+
+    // Everything before the range, then each day's change
+    const QString signedAmount = "CASE WHEN t.type = 'income' THEN t.amount WHEN t.type = 'expense' THEN -t.amount ELSE 0 END";
+    const QString accounts = accountId >= 0 ? " AND t.account_id = :account_id " : " ";
+    QSqlQuery startQuery(DatabaseManager::instance().database());
+    startQuery.prepare("SELECT COALESCE(SUM(" + signedAmount + "), 0) FROM transactions t JOIN accounts a ON a.id = t.account_id "
+                       "WHERE a.user_id = :user_id AND t.date < :first" + accounts);
+    startQuery.bindValue(":user_id", userId);
+    startQuery.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    if (accountId >= 0) startQuery.bindValue(":account_id", accountId);
+    if (!startQuery.exec() || !startQuery.next()) {
+        qWarning() << "Reports:" << startQuery.lastError().text();
+        return report;
+    }
+    report.startCents = startQuery.value(0).toLongLong();
+
+    QSqlQuery dayQuery(DatabaseManager::instance().database());
+    dayQuery.prepare("SELECT t.date, SUM(" + signedAmount + ") FROM transactions t JOIN accounts a ON a.id = t.account_id "
+                     "WHERE a.user_id = :user_id AND t.date BETWEEN :first AND :last" + accounts + "GROUP BY t.date");
+    dayQuery.bindValue(":user_id", userId);
+    dayQuery.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    dayQuery.bindValue(":last", lastShown.toString("yyyy-MM-dd"));
+    if (accountId >= 0) dayQuery.bindValue(":account_id", accountId);
+    if (!dayQuery.exec()) {
+        qWarning() << "Reports:" << dayQuery.lastError().text();
+        return report;
+    }
+    QHash<QDate, Cents> changes;
+    while (dayQuery.next()) {
+        changes.insert(QDate::fromString(dayQuery.value(0).toString(), "yyyy-MM-dd"), dayQuery.value(1).toLongLong());
+    }
+    Cents balance = report.startCents;
+    for (QDate day = range.first; day <= lastShown; day = day.addDays(1)) {
+        balance += changes.value(day);
+        report.days.append({day, balance});
+    }
+    return report;
+}
 
 SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& range, const QDate& today) {
     SpendingReport report;
