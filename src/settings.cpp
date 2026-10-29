@@ -414,3 +414,25 @@ bool Settings::isSidebarSectionExpanded(const QString& section) const {
 void Settings::setSidebarSectionExpanded(const QString& section, bool expanded) {
     settings.setValue(QString("ui/sidebarSection/%1").arg(section), expanded);
 }
+
+// Reports page
+QString Settings::getReportsRange() const {
+    return settings.value("ui/reportsRange", "6months").toString();
+}
+
+void Settings::setReportsRange(const QString& key) {
+    settings.setValue("ui/reportsRange", key);
+}
+
+QDate Settings::getReportsFrom() const {
+    return QDate::fromString(settings.value("ui/reportsFrom").toString(), Qt::ISODate);
+}
+
+QDate Settings::getReportsTo() const {
+    return QDate::fromString(settings.value("ui/reportsTo").toString(), Qt::ISODate);
+}
+
+void Settings::setReportsCustomDays(const QDate& from, const QDate& to) {
+    settings.setValue("ui/reportsFrom", from.toString(Qt::ISODate));
+    settings.setValue("ui/reportsTo", to.toString(Qt::ISODate));
+}

@@ -1,6 +1,7 @@
 #include "widgets/addaccountwidget.h"
 #include "widgets/budgetpage.h"
 #include "widgets/dashboardpage.h"
+#include "widgets/reportspage.h"
 #include "widgets/settingspage.h"
 #include "widgets/transactionspage.h"
 #include "mainwindow.h"
@@ -20,6 +21,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     ui->transactionsPage->setUserId(userId);
     ui->budgetPage->setUserId(userId);
     ui->dashboardPage->setUserId(userId);
+    ui->reportsPage->setUserId(userId);
     ui->settingsPage->setUserId(userId);
 
     connect(ui->sidebar, &SidebarWidget::pageRequested, this, &MainWindow::showPage);
@@ -89,6 +91,8 @@ MainWindow::~MainWindow()
 void MainWindow::showPage(SidebarWidget::Page page) {
     if (page == SidebarWidget::Page::Dashboard) {
         ui->dashboardPage->reload();               // Greeting and "days left" follow the clock
+    } else if (page == SidebarWidget::Page::Reports) {
+        ui->reportsPage->reload();                 // Transactions and accounts may have changed elsewhere
     }
     ui->pageStack->setCurrentIndex(static_cast<int>(page));
     ui->sidebar->setCurrentPage(page);
@@ -137,6 +141,7 @@ void MainWindow::onSettingsChanged() {
     ui->transactionsPage->applySettings();
     ui->budgetPage->applySettings();
     ui->dashboardPage->applySettings();
+    ui->reportsPage->applySettings();
     ui->transactionsPage->reload();
     ui->sidebar->refresh();
 }

@@ -1,6 +1,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include <QDate>
 #include <QHash>
 #include <QSettings>
 #include <QStringList>
@@ -125,6 +126,14 @@ public:
 
     bool isSidebarSectionExpanded(const QString& section) const;
     void setSidebarSectionExpanded(const QString& section, bool expanded);
+
+    // The range the Reports page shows: a ReportRange::key ("6months" by default), and for
+    // "custom" its days
+    QString getReportsRange() const;
+    void setReportsRange(const QString& key);
+    QDate getReportsFrom() const;
+    QDate getReportsTo() const;
+    void setReportsCustomDays(const QDate& from, const QDate& to);
 
 private:
     Settings();  // Private constructor for singleton
