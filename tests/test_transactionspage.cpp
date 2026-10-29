@@ -526,6 +526,41 @@ private slots:
         QCOMPARE(model->totals().count, 1);
     }
 
+    void showCategoryInRangeShowsTheDaysAsAChip() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Rewe", 1000, QDate(2026, 5, 4), "", groceries, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Rewe", 1000, QDate(2026, 6, 30), "", groceries, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, secondId, "Aldi", 2000, QDate(2026, 6, 1), "", groceries, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Rewe", 500, QDate(2026, 7, 1), "", groceries, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Kiosk", 300, QDate(2026, 6, 2), "", 0, "expense")) > 0);
+
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* model = static_cast<TransactionListModel*>(page.findChild<QListView*>("transactionList")->model());
+        auto* chip = page.findChild<QToolButton*>("rangeChip");
+        QVERIFY(chip->isHidden());
+
+        page.showCategoryInRange(groceries, firstId, QDate(2026, 5, 1), QDate(2026, 6, 30));
+        QCOMPARE(model->totals().count, 2);                       // That account, those days
+        QVERIFY(!chip->isHidden());
+        QVERIFY(chip->isChecked());
+        QCOMPARE(chip->text(), QString("May – June 2026"));
+
+        page.showCategoryInRange(0, TransactionsPage::ALL_ACCOUNTS, QDate(2026, 6, 1), QDate(2026, 6, 30));
+        QCOMPARE(model->totals().count, 1);                       // 0 is no category
+
+        // Another period leaves the days
+        const QList<QToolButton*> chips = page.findChildren<QToolButton*>();
+        for (QToolButton* other : chips) {
+            if (other->text() == "All time") other->click();
+        }
+        QVERIFY(chip->isHidden());
+        QCOMPARE(model->totals().count, 1);                       // Still no category, all time
+    }
+
     // --- Deleting and bulk changes ---
 
     int addExpense(const char* payee, Cents cents) {

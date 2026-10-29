@@ -100,7 +100,29 @@ struct BalanceReport {
     Cents balanceOn(const QDate& date) const;
 };
 
+// One category's spending in a week or month of a report
+struct PeriodSpent {
+    ReportRange period;
+    Cents spentCents = 0;                            // Less refunds
+    int count = 0;                                   // Transactions
+};
+
+struct CategoryTrend {
+    ReportRange range;
+    int categoryId = 0;                              // 0 = no category
+    QString categoryName;
+    QString categoryColor;
+    QList<PeriodSpent> periods;                      // In order, weeks or months by range.flowUnit()
+    Cents totalCents = 0;
+    int count = 0;
+    Cents averageCents = 0;                          // Per week or month, over those that have begun
+};
+
 namespace Reports {
+
+// How one category's spending went, week by week or month by month. Without transfers and
+// balance adjustments; accountId < 0 means all accounts.
+CategoryTrend categoryTrend(int userId, int accountId, int categoryId, const ReportRange& range, const QDate& today);
 
 // The balance day by day, with everything that moves it: transfers and balance adjustments too.
 // accountId < 0 means all accounts together.

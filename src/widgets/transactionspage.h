@@ -39,6 +39,9 @@ public:
     void reload();                                   // Re-read accounts, categories and transactions
     void applySettings();                            // Number formats changed
     void showCategoryThisMonth(int categoryId);      // One category's transactions this month (0 = no category)
+    // One category's transactions in an account (or ALL_ACCOUNTS) from one day to another, as
+    // a report counted them. The days show as a chip until another period is chosen.
+    void showCategoryInRange(int categoryId, int accountId, const QDate& from, const QDate& to);
     void openTransaction(int transactionId);         // Shows all transactions and opens this one in the editor
 
 public slots:
@@ -69,7 +72,8 @@ private:
         AllTime,
         ThisMonth,
         LastMonth,
-        ThisYear
+        ThisYear,
+        Range                                        // From a report: rangeFrom to rangeTo
     };
 
     QToolButton* addChip(const QString& text, QLayout* layout);
@@ -101,6 +105,9 @@ private:
     QLineEdit* searchEdit = nullptr;
     QAction* searchAction = nullptr;
     QButtonGroup* periodGroup = nullptr;
+    QToolButton* rangeChip = nullptr;                // Shown only for Period::Range
+    QDate rangeFrom;
+    QDate rangeTo;
     QComboBox* categoryFilter = nullptr;
     QToolButton* unassignedChip = nullptr;
     QFrame* bulkBar = nullptr;

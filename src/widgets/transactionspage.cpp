@@ -1,4 +1,5 @@
 #include "transactionspage.h"
+#include "report.h"
 #include "account.h"
 #include "categorycolors.h"
 #include "dialog/balancecorrectiondialog.h"
@@ -357,6 +358,11 @@ TransactionsPage::TransactionsPage(QWidget* parent)
         QToolButton* chip = addChip(period.first, filters);
         periodGroup->addButton(chip, static_cast<int>(period.second));
     }
+    rangeChip = addChip(QString(), filters);
+    rangeChip->setObjectName("rangeChip");
+    rangeChip->setToolTip("The days of the report you came from. Choose another period to leave them.");
+    rangeChip->hide();
+    periodGroup->addButton(rangeChip, static_cast<int>(Period::Range));
     periodGroup->button(static_cast<int>(Period::AllTime))->setChecked(true);
     connect(periodGroup, &QButtonGroup::idClicked, this, &TransactionsPage::applyFilter);
 
@@ -666,9 +672,14 @@ void TransactionsPage::applyFilter() {
         filter.from = QDate(today.year(), 1, 1);
         filter.to = QDate(today.year(), 12, 31);
         break;
+    case Period::Range:
+        filter.from = rangeFrom;
+        filter.to = rangeTo;
+        break;
     case Period::AllTime:
         break;
     }
+    rangeChip->setVisible(periodGroup->checkedId() == static_cast<int>(Period::Range));
 
     const QList<int> selectedIds = selectedTransactionIds();
     model->setFilter(filter);
@@ -871,6 +882,22 @@ void TransactionsPage::showCategoryThisMonth(int categoryId) {
         categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
     }
     periodGroup->button(static_cast<int>(Period::ThisMonth))->setChecked(true);
+    applyFilter();
+}
+
+void TransactionsPage::showCategoryInRange(int categoryId, int newAccountId, const QDate& from, const QDate& to) {
+    showAccount(newAccountId);
+    {
+        const QSignalBlocker searchBlocker(searchEdit);
+        const QSignalBlocker categoryBlocker(categoryFilter);
+        searchEdit->clear();
+        const int index = categoryFilter->findData(categoryId == 0 ? TransactionFilter::NO_CATEGORY : categoryId);
+        categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
+    }
+    rangeFrom = qMin(from, to);
+    rangeTo = qMax(from, to);
+    rangeChip->setText(ReportRange{rangeFrom, rangeTo}.label());
+    rangeChip->setChecked(true);
     applyFilter();
 }
 

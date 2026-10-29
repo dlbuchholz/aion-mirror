@@ -73,6 +73,13 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     });
     connect(dashboard, &DashboardPage::budgetRequested, this, [this]() { showPage(SidebarWidget::Page::Budget); });
 
+    // Reports lead on to the transactions they counted
+    connect(ui->reportsPage, &ReportsPage::transactionsRequested, this,
+            [this, transactions](int categoryId, int accountId, const QDate& from, const QDate& to) {
+        transactions->showCategoryInRange(categoryId, accountId < 0 ? TransactionsPage::ALL_ACCOUNTS : accountId, from, to);
+        showPage(SidebarWidget::Page::Transactions);
+    });
+
     // "Create rule from this…" and "Add to rule" on transactions open Settings > Rules with the rule filled in
     connect(transactions, &TransactionsPage::ruleDraftRequested, this,
             [this](const Rule& draft, const QList<Transaction>& examples) {

@@ -148,6 +148,62 @@ Cents BalanceReport::balanceOn(const QDate& date) const {
 
 namespace Reports {
 
+CategoryTrend categoryTrend(int userId, int accountId, int categoryId, const ReportRange& range, const QDate& today) {
+    CategoryTrend trend;
+    trend.range = range;
+    trend.categoryId = categoryId;
+    trend.categoryName = "No category";
+    if (!range.isValid()) return trend;
+    if (categoryId != 0) {
+        QSqlQuery categoryQuery(DatabaseManager::instance().database());
+        categoryQuery.prepare("SELECT name, color FROM categories WHERE id = :id");
+        categoryQuery.bindValue(":id", categoryId);
+        if (categoryQuery.exec() && categoryQuery.next()) {
+            trend.categoryName = categoryQuery.value(0).toString();
+            trend.categoryColor = categoryQuery.value(1).toString();
+        }
+    }
+    for (const ReportRange& period : range.periods(range.flowUnit())) {
+        PeriodSpent spent;
+        spent.period = period;
+        trend.periods.append(spent);
+    }
+
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT t.date, SUM(" + SpendingCentsSql + "), COUNT(*) "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND COALESCE(t.category_id, 0) = :category_id AND " + IsSpendingSql + " "
+        "AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql
+        + (accountId >= 0 ? " AND t.account_id = :account_id " : " ") + "GROUP BY t.date ORDER BY t.date");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":category_id", categoryId);
+    query.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", range.last.toString("yyyy-MM-dd"));
+    if (accountId >= 0) query.bindValue(":account_id", accountId);
+    if (!query.exec()) {
+        qWarning() << "Reports:" << query.lastError().text();
+        return trend;
+    }
+    int index = 0;
+    while (query.next()) {
+        const QDate date = QDate::fromString(query.value(0).toString(), "yyyy-MM-dd");
+        while (index < trend.periods.size() && trend.periods[index].period.last < date) ++index;
+        if (index >= trend.periods.size()) break;
+        trend.periods[index].spentCents += query.value(1).toLongLong();
+        trend.periods[index].count += query.value(2).toInt();
+        trend.totalCents += query.value(1).toLongLong();
+        trend.count += query.value(2).toInt();
+    }
+    // Weeks or months still to come would pull the average down
+    int begun = 0;
+    for (const PeriodSpent& spent : std::as_const(trend.periods)) {
+        if (spent.period.first <= today) ++begun;
+    }
+    trend.averageCents = trend.totalCents / qMax(1, begun);
+    return trend;
+}
+
 BalanceReport balanceOverTime(int userId, int accountId, const ReportRange& range, const QDate& today) {
     BalanceReport report;
     report.range = range;

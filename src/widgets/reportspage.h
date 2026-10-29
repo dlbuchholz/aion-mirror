@@ -14,6 +14,7 @@ class QVBoxLayout;
 class BalanceChart;
 class CategoryBars;
 class FlowChart;
+class TrendChart;
 class ReportCard;
 
 // Reports: an overview with a card per report, and one report at a time in detail. The range
@@ -50,6 +51,14 @@ public:
 
     static QString title(Report report);             // "Spending by category"
 
+    // The category trend for this category (0 = no category), instead of the largest one
+    void openCategoryTrend(int categoryId);
+    std::optional<int> trendCategory() const;        // The one shown; none without any spending
+
+signals:
+    // A category's transactions in an account (or ALL_ACCOUNTS) from one day to another
+    void transactionsRequested(int categoryId, int accountId, const QDate& from, const QDate& to);
+
 protected:
     void changeEvent(QEvent* event) override;
 
@@ -62,9 +71,10 @@ private:
     void updateIcons();
     void updateCards();
     void updateDetail();
-    QWidget* spendingDetail(QWidget* parent) const;
+    QWidget* spendingDetail(QWidget* parent);
     QWidget* flowDetail(QWidget* parent) const;
-    QWidget* balanceDetail(QWidget* parent) const;
+    QWidget* balanceDetail(QWidget* parent);
+    QWidget* trendDetail(QWidget* parent);
 
     int userId = -1;
     ReportRange::Preset preset = ReportRange::Preset::SixMonths;
@@ -82,12 +92,15 @@ private:
     CategoryBars* spendingPreview = nullptr;
     FlowChart* flowPreview = nullptr;
     BalanceChart* balancePreview = nullptr;
+    TrendChart* trendPreview = nullptr;
     QVBoxLayout* detailLayout = nullptr;
     QWidget* detailContent = nullptr;                // The opened report's, rebuilt when the numbers change
 
     SpendingReport spending;
     FlowReport flow;
     BalanceReport balance;
+    std::optional<int> chosenTrendCategory;          // Picked by the user; otherwise the largest
+    std::optional<CategoryTrend> trend;
 };
 
 #endif // REPORTSPAGE_H

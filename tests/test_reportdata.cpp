@@ -181,6 +181,44 @@ private slots:
         QCOMPARE(september.changeCents(), Cents(0));
     }
 
+    void oneCategoryMonthByMonth() {
+        const ReportRange threeMonths = ReportRange::forPreset(Preset::ThreeMonths, today);   // August – October
+        add(giro, 40000, QDate(2026, 8, 3), groceries, "expense");
+        add(giro, 2000, QDate(2026, 8, 20), groceries, "expense");
+        add(savings, 38000, QDate(2026, 10, 5), groceries, "expense");
+        add(giro, 3000, QDate(2026, 10, 6), groceries, "income");        // A refund lowers it
+        add(giro, 89000, QDate(2026, 10, 3), rent, "expense");           // Another category
+        add(giro, 9999, QDate(2026, 7, 30), groceries, "expense");       // Before the range
+
+        const CategoryTrend trend = Reports::categoryTrend(1, -1, groceries, threeMonths, today);
+        QCOMPARE(trend.categoryName, QString("Groceries"));
+        QCOMPARE(trend.periods.size(), 3);
+        QCOMPARE(trend.periods[0].spentCents, Cents(42000));
+        QCOMPARE(trend.periods[0].count, 2);
+        QCOMPARE(trend.periods[1].spentCents, Cents(0));
+        QCOMPARE(trend.periods[2].spentCents, Cents(35000));
+        QCOMPARE(trend.totalCents, Cents(77000));
+        QCOMPARE(trend.count, 4);
+        QCOMPARE(trend.averageCents, Cents(77000 / 3));
+
+        QCOMPARE(Reports::categoryTrend(1, giro, groceries, threeMonths, today).totalCents, Cents(42000 - 3000));
+
+        // Uncategorised ones are a category of their own
+        add(giro, 1250, QDate(2026, 9, 4), 0, "expense");
+        const CategoryTrend none = Reports::categoryTrend(1, -1, 0, threeMonths, today);
+        QCOMPARE(none.categoryName, QString("No category"));
+        QCOMPARE(none.totalCents, Cents(1250));
+    }
+
+    void trendAveragesOnlyOverWhatHasBegun() {
+        // Four weeks from Monday 26 October; by the 29th only the first has begun
+        const ReportRange later{QDate(2026, 10, 26), QDate(2026, 11, 22)};
+        add(giro, 4000, QDate(2026, 10, 27), groceries, "expense");
+        const CategoryTrend trend = Reports::categoryTrend(1, -1, groceries, later, today);
+        QCOMPARE(trend.periods.size(), 4);
+        QCOMPARE(trend.averageCents, Cents(4000));
+    }
+
     void otherUsersAreLeftOut() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);

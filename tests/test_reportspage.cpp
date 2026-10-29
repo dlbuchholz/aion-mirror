@@ -2,6 +2,8 @@
 #include <QAbstractButton>
 #include <QComboBox>
 #include <QLabel>
+#include <QPushButton>
+#include <QSignalSpy>
 #include <QStackedWidget>
 #include <QToolButton>
 
@@ -233,6 +235,55 @@ private slots:
         }
         QCOMPARE(page.findChildren<QWidget*>("balanceRow").size(), weeksSoFar);
         QCOMPARE(page.findChild<QWidget*>("balanceTotal")->accessibleName(), QString("Whole range"));
+    }
+
+    void categoryTrendFollowsTheLargestOrTheChosenCategory() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 3000, today, "", groceries, "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Kiosk", 1000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::ThreeMonths)->click();
+        QAbstractButton* card = cards(page)[3];
+        QVERIFY(card->accessibleDescription().startsWith("Groceries, "));   // The largest
+        QCOMPARE(page.trendCategory(), groceries);
+
+        // From the spending list: the clicked category
+        cards(page)[0]->click();
+        QList<QAbstractButton*> rows = page.findChildren<QAbstractButton*>("spendingRow");
+        QCOMPARE(rows[1]->accessibleName(), QString("No category"));
+        rows[1]->click();
+        QCOMPARE(page.openedReport(), ReportsPage::Report::CategoryTrend);
+        QCOMPARE(page.trendCategory(), 0);
+        QVERIFY(card->accessibleDescription().startsWith("No category, "));
+        QCOMPARE(page.findChildren<QWidget*>("trendRow").size(), 3);       // A row per month
+        QVERIFY(page.findChild<QWidget*>("trendChart"));
+
+        // The picker changes it
+        auto* picker = page.findChild<QComboBox*>("trendCategoryCombo");
+        QCOMPARE(picker->currentData().toInt(), 0);
+        picker->setCurrentIndex(picker->findData(groceries));
+        emit picker->activated(picker->currentIndex());
+        QCOMPARE(page.trendCategory(), groceries);
+        QCOMPARE(page.findChild<QComboBox*>("trendCategoryCombo")->currentData().toInt(), groceries);
+
+        // On to the transactions: the whole range, or one month
+        QSignalSpy requested(&page, &ReportsPage::transactionsRequested);
+        page.findChild<QPushButton*>("trendTransactionsButton")->click();
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(requested[0][0].toInt(), groceries);
+        QCOMPARE(requested[0][1].toInt(), ReportsPage::ALL_ACCOUNTS);
+        QCOMPARE(requested[0][2].toDate(), page.range().first);
+        QCOMPARE(requested[0][3].toDate(), page.range().last);
+        page.findChildren<QAbstractButton*>("trendRow").last()->click();
+        QCOMPARE(requested.size(), 2);
+        QCOMPARE(requested[1][2].toDate(), QDate(today.year(), today.month(), 1));
+        QCOMPARE(requested[1][3].toDate(), page.range().last);
     }
 };
 
