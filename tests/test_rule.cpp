@@ -179,6 +179,93 @@ private slots:
         QCOMPARE(draft.conditions[0].value, QString("999"));
     }
 
+    void draftsFromSeveralUseTheWordsTheirPayeesShare() {
+        QList<Transaction> rewe = {transaction("REWE Markt 4711", "", 4210), transaction("rewe City Köln", "", 1835),
+                                   transaction("REWE SAGT DANKE 0815", "", 6300)};
+        rewe[0].setCategoryId(4);
+        rewe[1].setCategoryId(7);
+        rewe[2].setCategoryId(7);
+        Rule draft = Rules::draftFrom(rewe);
+        QCOMPARE(draft.conditions.size(), 1);
+        QCOMPARE(draft.conditions[0].field, Field::Payee);
+        QCOMPARE(draft.conditions[0].value, QString("REWE"));
+        QCOMPARE(draft.categoryId, 7);                   // What most of them have
+        QVERIFY(draft.matchAll);
+
+        // The longest shared run of whole words, not parts of words or numbers alone
+        draft = Rules::draftFrom(QList<Transaction>{transaction("PAYPAL *SPOTIFY 123", "", 999),
+                                                    transaction("Abo PAYPAL *SPOTIFY 456", "", 999)});
+        QCOMPARE(draft.conditions[0].value, QString("PAYPAL *SPOTIFY"));
+        draft = Rules::draftFrom(QList<Transaction>{transaction("Edeka 4711", "", 100), transaction("Netto 4711", "", 100)});
+        QCOMPARE(draft.conditions.size(), 2);            // "4711" isn't a shared name
+        QVERIFY(!draft.matchAll);
+        QCOMPARE(draft.conditions[0].value, QString("Edeka 4711"));
+        QCOMPARE(draft.categoryId, -1);
+
+        // Sharing nothing: one condition each, any of them enough; duplicates only once
+        draft = Rules::draftFrom(QList<Transaction>{transaction("Edeka", "", 100), transaction("", "Wochenmarkt", 200),
+                                                    transaction("EDEKA", "", 300)});
+        QCOMPARE(draft.conditions.size(), 2);
+        QCOMPARE(draft.conditions[1].field, Field::Description);
+        for (const Transaction& example : {transaction("Edeka", "", 1), transaction("", "Wochenmarkt", 1)}) {
+            QVERIFY(draft.matches(example));
+        }
+    }
+
+    void draftsAlsoLookAtDescriptionsAndTakeTheMostSpecificText() {
+        const QList<Transaction> spotify = {transaction("PayPal Europe", "Kartenzahlung Spotify AB", 999),
+                                            transaction("Lastschrift", "Spotify Premium Kartenzahlung", 999)};
+        QList<Transaction> all = spotify;
+        all << transaction("Aldi", "Kartenzahlung", 100) << transaction("Lidl", "Kartenzahlung", 100)
+            << transaction("REWE City", "Kartenzahlung", 100) << transaction("REWE Markt", "Kartenzahlung", 100);
+        const RuleMatchIndex index(all);
+        const Rules::MatchCounter count = [&index](const Rule& rule) { return index.count(rule); };
+
+        // The payees share nothing; of the shared descriptions "Kartenzahlung" is on everything
+        Rule draft = Rules::draftFrom(spotify, count);
+        QCOMPARE(draft.conditions.size(), 1);
+        QCOMPARE(draft.conditions[0].field, Field::Description);
+        QCOMPARE(draft.conditions[0].value, QString("Spotify"));
+
+        // In the payee of one and the description of the other
+        draft = Rules::draftFrom(QList<Transaction>{transaction("Spotify", "", 999), transaction("PayPal", "Spotify AB", 999)}, count);
+        QCOMPARE(draft.conditions.size(), 1);
+        QCOMPARE(draft.conditions[0].field, Field::PayeeOrDescription);
+        QCOMPARE(draft.conditions[0].value, QString("Spotify"));
+
+        // A shared payee is more specific than the bank's wording
+        const QList<Transaction> rewe = {all[4], all[5]};
+        draft = Rules::draftFrom(rewe, count);
+        QCOMPARE(draft.conditions[0].field, Field::Payee);
+        QCOMPARE(draft.conditions[0].value, QString("REWE"));
+        draft = Rules::draftFrom(rewe);                  // Without counts the payee comes first
+        QCOMPARE(draft.conditions[0].field, Field::Payee);
+    }
+
+    void transactionsAreAddedToRulesThatAnyConditionIsEnoughFor() {
+        Rule rule;
+        rule.categoryId = 4;
+        rule.conditions = {RuleCondition(Field::Payee, Operator::Contains, "REWE")};
+        QVERIFY(Rules::canAddTo(rule));                  // One condition: "all" and "any" are the same
+        rule.conditions << RuleCondition(Field::Amount, Operator::Between, "1000", "5000");
+        QVERIFY(!Rules::canAddTo(rule));                 // Another one would narrow it
+        rule.matchAll = false;
+        QVERIFY(Rules::canAddTo(rule));
+
+        rule.matchAll = true;
+        rule.conditions.removeLast();
+        const Rule added = Rules::addedTo(rule, {transaction("Edeka 12", "", 100), transaction("REWE City", "", 100),
+                                                 transaction("Edeka 34", "", 100)});
+        QVERIFY(!added.matchAll);
+        QCOMPARE(added.categoryId, 4);
+        QCOMPARE(added.conditions.size(), 2);            // REWE City already matched; the Edekas share a name
+        QCOMPARE(added.conditions[1].value, QString("Edeka"));
+
+        const Rule unchanged = Rules::addedTo(rule, {transaction("REWE", "", 100)});
+        QVERIFY(unchanged.matchAll);
+        QCOMPARE(unchanged.conditions.size(), 1);
+    }
+
     void renamingKeepsTheBanksNameForMatchingAndDuplicates() {
         Transaction rewe = transaction("REWE MARKT GMBH 4711", "", 3240);
         const QString bankHash = rewe.calculateHash();

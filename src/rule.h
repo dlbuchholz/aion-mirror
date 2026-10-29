@@ -4,6 +4,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <functional>
 #include <optional>
 
 #include "transaction.h"
@@ -87,7 +88,7 @@ const Rule* renameRule(const QList<Rule>& rules, const Transaction& transaction)
 // The category the rules give the transaction, if any
 std::optional<int> categoryFor(const QList<Rule>& rules, const Transaction& transaction);
 
-// "Payee or description contains "REWE" and amount is between 40,00 € and 120,00 €", in the
+// Example: "Payee or description contains "REWE" and amount is between 40,00 € and 120,00 €", in the
 // current currency format; accountNames names the accounts of account conditions
 QString describe(const Rule& rule, const QHash<int, QString>& accountNames);
 
@@ -106,6 +107,23 @@ bool apply(const QList<RuleChange>& changes);
 // A first draft of a rule for transactions like this one: its payee (or description, or amount)
 // and its category
 Rule draftFrom(const Transaction& transaction);
+
+// How many of the user's transactions a rule matches
+using MatchCounter = std::function<int(const Rule& rule)>;
+
+// A draft for several transactions: words they all share in the payee (e.g. "REWE" for "REWE Markt 4711"
+// and "REWE City"), the description, or either; of those, the one count says matches the fewest
+// transactions, as the most specific. One condition each when they share none. The category is the
+// one most of them have.
+Rule draftFrom(const QList<Transaction>& transactions, const MatchCounter& count = {});
+
+// Whether transactions can be added to the rule by adding conditions: when any condition is
+// enough, or it has just one. Another condition on an "all must match" rule would narrow it.
+bool canAddTo(const Rule& rule);
+
+// The rule changed to also match these transactions (canAddTo must hold): it then matches when
+// any condition matches. Transactions it already matches add nothing.
+Rule addedTo(Rule rule, const QList<Transaction>& transactions, const MatchCounter& count = {});
 
 } // namespace Rules
 

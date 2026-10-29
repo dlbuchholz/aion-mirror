@@ -217,8 +217,13 @@ public:
 
 protected:
     // Only Ctrl/Shift change the selection. A plain click opens the row (and clears an existing
-    // selection); plain dragging and arrow keys never select.
+    // selection); plain dragging and arrow keys never select. A right-click inside the selection
+    // keeps it, for the menu's actions on all of it.
     QItemSelectionModel::SelectionFlags selectionCommand(const QModelIndex& index, const QEvent* event) const override {
+        if (event && event->type() == QEvent::MouseButtonPress
+            && static_cast<const QMouseEvent*>(event)->button() == Qt::RightButton && selectionModel()->isSelected(index)) {
+            return QItemSelectionModel::NoUpdate;
+        }
         Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
         if (event && (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove
                       || event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::KeyPress)) {
@@ -806,11 +811,53 @@ void TransactionsPage::showContextMenu(const QPoint& position) {
     if (!index.isValid() || !transaction) {
         return;                                      // Day headers and empty space have no menu
     }
+    // Inside a selection of several, the rule actions are for all of them
+    QList<Transaction> chosen;
+    if (listView->selectionModel()->isSelected(index)) {
+        for (const int transactionId : selectedTransactionIds()) {
+            if (const auto selected = model->transaction(transactionId)) chosen << *selected;
+        }
+    }
+    if (chosen.size() < 2) {
+        chosen = {*transaction};
+    }
+
     QMenu menu(this);
     menu.addAction("Open", this, [this, index]() { openEditor(index); });
-    menu.addAction("Create rule from this…", this, [this, draft = Rules::draftFrom(*transaction)]() {
-        emit createRuleRequested(draft);
+    const QString createText = chosen.size() == 1 ? QString("Create rule from this…")
+                                                  : QString("Create rule from these %1…").arg(chosen.size());
+    // Shared text is chosen by how few of the user's transactions it matches; read only when used
+    const auto userTransactions = [this]() {
+        QList<Transaction> all;
+        TransactionDAO dao;
+        for (const auto& [id, name] : std::as_const(accounts)) all += dao.getTransactionsForAccount(id);
+        return RuleMatchIndex(all);
+    };
+    menu.addAction(createText, this, [this, chosen, userTransactions]() {
+        const RuleMatchIndex index = userTransactions();
+        emit ruleDraftRequested(Rules::draftFrom(chosen, [&index](const Rule& rule) { return index.count(rule); }), chosen);
     });
+
+    // Adding a payee to an "all must match" rule would narrow it, so those are shown but greyed out
+    QMenu* addMenu = menu.addMenu("Add to rule");
+    QHash<int, QString> accountNames;
+    for (const auto& [id, name] : std::as_const(accounts)) accountNames.insert(id, name);
+    const QList<Rule> rules = RuleDAO(userId).rules();
+    const QFontMetrics metrics(addMenu->font());
+    for (const Rule& rule : rules) {
+        const bool canAdd = Rules::canAddTo(rule);
+        QString text = metrics.elidedText(Rules::title(rule, accountNames), Qt::ElideRight, 320);
+        text.replace('&', "&&");                     // Not a shortcut marker
+        QAction* action = addMenu->addAction(canAdd ? text : text + " (all must match)", this,
+                                             [this, rule, chosen, userTransactions]() {
+            const RuleMatchIndex index = userTransactions();
+            emit ruleDraftRequested(Rules::addedTo(rule, chosen, [&index](const Rule& candidate) {
+                return index.count(candidate);
+            }), chosen);
+        });
+        action->setEnabled(canAdd);
+    }
+    addMenu->setEnabled(!rules.isEmpty());
     menu.exec(listView->viewport()->mapToGlobal(position));
 }
 

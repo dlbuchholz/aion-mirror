@@ -48,7 +48,8 @@ public slots:
 
 signals:
     void transactionsChanged();
-    void createRuleRequested(const Rule& draft);     // "Create rule from this…" on a transaction
+    // "Create rule from this…" (a new rule) or "Add to rule" (a rule with an ID) on the transactions
+    void ruleDraftRequested(const Rule& draft, const QList<Transaction>& examples);
 
 protected:
     void changeEvent(QEvent* event) override;

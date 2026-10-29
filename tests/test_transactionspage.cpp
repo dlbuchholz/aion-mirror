@@ -312,6 +312,11 @@ private slots:
         QCOMPARE(list->selectionModel()->selectedIndexes().size(), 2);
         QVERIFY(editor->isHidden());
 
+        // Right-clicking inside the selection keeps it, for the menu
+        QTest::mouseClick(list->viewport(), Qt::RightButton, Qt::NoModifier, pointA);
+        QCOMPARE(list->selectionModel()->selectedIndexes().size(), 2);
+        QVERIFY(editor->isHidden());
+
         // A plain click again clears the selection and opens just that row
         QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, pointB);
         QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());

@@ -577,12 +577,13 @@ void RulesSettings::rebuildList() {
     editor->setVisible(editedId >= 0);
 }
 
-void RulesSettings::createRule(const Rule& draft) {
-    openEditor(0, &draft);
+void RulesSettings::openDraft(const Rule& draft, const QList<Transaction>& examples) {
+    openEditor(qMax(0, draft.id), &draft, examples);
 }
 
-void RulesSettings::openEditor(int ruleId, const Rule* draft) {
+void RulesSettings::openEditor(int ruleId, const Rule* draft, const QList<Transaction>& examples) {
     editedId = ruleId;
+    draftExamples = examples;
     errorLabel->hide();
     for (ConditionEditor* conditionEditor : std::as_const(conditionEditors)) {
         conditionEditor->deleteLater();
@@ -596,7 +597,7 @@ void RulesSettings::openEditor(int ruleId, const Rule* draft) {
 
     Rule rule = draft ? *draft : Rule();
     for (const Rule& candidate : std::as_const(rules)) {
-        if (ruleId > 0 && candidate.id == ruleId) rule = candidate;
+        if (!draft && ruleId > 0 && candidate.id == ruleId) rule = candidate;
     }
     nameEdit->setText(rule.name);
     matchCombo->setCurrentIndex(rule.matchAll ? 0 : 1);
@@ -680,9 +681,21 @@ std::optional<Rule> RulesSettings::editedRule(QString* error) const {
 void RulesSettings::updateMatchCount() {
     QString error;
     const std::optional<Rule> rule = editedRule(&error);
-    const int count = rule ? matchCount(*rule) : 0;
-    matchCountLabel->setText(rule ? QString("Matches %1 existing %2").arg(count).arg(count == 1 ? "transaction" : "transactions")
-                                  : QString());
+    if (!rule) {
+        matchCountLabel->clear();
+        return;
+    }
+    const int count = matchCount(*rule);
+    QString text = QString("Matches %1 existing %2").arg(count).arg(count == 1 ? "transaction" : "transactions");
+    if (draftExamples.size() > 1) {
+        const auto matched = std::count_if(draftExamples.begin(), draftExamples.end(),
+                                           [&](const Transaction& example) { return rule->matches(example); });
+        text += matched == draftExamples.size() ? QString(" · all %1 selected").arg(draftExamples.size())
+                                                : QString(" · %1 of %2 selected").arg(matched).arg(draftExamples.size());
+    } else if (draftExamples.size() == 1 && !rule->matches(draftExamples.first())) {
+        text += " · not the selected one";
+    }
+    matchCountLabel->setText(text);
 }
 
 void RulesSettings::save() {

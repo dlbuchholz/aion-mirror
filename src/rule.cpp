@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <algorithm>
 
 namespace {
 
@@ -75,6 +76,38 @@ bool tidiedTextMatches(const QString& haystack, RuleCondition::Operator op, cons
 
 QString tidied(const QString& text) {
     return text.simplified().toCaseFolded();
+}
+
+// for e.g. " rewe markt 4711 ", so whole words are found with contains(" markt ")
+QString padded(const QString& text) {
+    return ' ' + tidied(text) + ' ';
+}
+
+// The runs of whole words from sources that inAll says every transaction has, as the sources write
+// them; only the longest ones, not the parts of them. Runs without a letter say nothing ("4711").
+QStringList sharedRuns(const QStringList& sources, const std::function<bool(const QString& needle)>& inAll) {
+    QStringList runs;
+    for (const QString& source : sources) {
+        const QStringList words = source.simplified().split(' ', Qt::SkipEmptyParts);
+        for (qsizetype start = 0; start < words.size(); ++start) {
+            for (qsizetype end = words.size(); end > start; --end) {
+                const QString run = words.mid(start, end - start).join(' ');
+                if (inAll(padded(run))) {
+                    if (std::any_of(run.begin(), run.end(), [](QChar c) { return c.isLetter(); })) runs << run;
+                    break;                           // Shorter ones from this word are parts of it
+                }
+            }
+        }
+    }
+    QStringList longest;
+    for (const QString& run : std::as_const(runs)) {
+        const QString needle = padded(run);
+        const bool part = std::any_of(runs.begin(), runs.end(), [&](const QString& other) {
+            return other.size() > run.size() && padded(other).contains(needle);
+        });
+        if (!part && !longest.contains(run, Qt::CaseInsensitive)) longest << run;
+    }
+    return longest;
 }
 
 bool isTextField(RuleCondition::Field field) {
@@ -346,6 +379,90 @@ Rule Rules::draftFrom(const Transaction& transaction) {
     } else {
         rule.conditions = {RuleCondition(RuleCondition::Field::Amount, RuleCondition::Operator::Is,
                                          QString::number(transaction.getAmountCents()))};
+    }
+    return rule;
+}
+
+Rule Rules::draftFrom(const QList<Transaction>& transactions, const MatchCounter& count) {
+    if (transactions.size() <= 1) {
+        return transactions.isEmpty() ? Rule() : draftFrom(transactions.first());
+    }
+    Rule rule;
+    QHash<int, int> categoryCounts;
+    int mostCommon = 0;
+    for (const Transaction& transaction : transactions) {
+        const int categoryId = transaction.getCategoryId();
+        if (categoryId <= 0) continue;
+        const int seen = ++categoryCounts[categoryId];
+        if (seen > mostCommon) {                     // Ties: the one that got there first
+            rule.categoryId = categoryId;
+            mostCommon = seen;
+        }
+    }
+
+    // Text they all share, in the payee, the description, or either of them. Descriptions often share
+    // the bank's wording too ("Kartenzahlung"), so the text that matches the fewest of the user's
+    // transactions is the one meant; on a tie the payee, then the description.
+    using Field = RuleCondition::Field;
+    QStringList payees, descriptions;
+    for (const Transaction& transaction : transactions) {
+        payees << padded(transaction.getPayee());
+        descriptions << padded(transaction.getDescription());
+    }
+    const auto inAllPayees = [&](const QString& needle) {
+        return std::all_of(payees.begin(), payees.end(), [&](const QString& text) { return text.contains(needle); });
+    };
+    const auto inAllDescriptions = [&](const QString& needle) {
+        return std::all_of(descriptions.begin(), descriptions.end(), [&](const QString& text) { return text.contains(needle); });
+    };
+    const auto inAllEither = [&](const QString& needle) {
+        for (qsizetype i = 0; i < payees.size(); ++i) {
+            if (!payees[i].contains(needle) && !descriptions[i].contains(needle)) return false;
+        }
+        return true;
+    };
+    const Transaction& first = transactions.first();
+    const QList<QPair<Field, QStringList>> candidates = {
+        {Field::Payee, sharedRuns({first.getPayee()}, inAllPayees)},
+        {Field::Description, sharedRuns({first.getDescription()}, inAllDescriptions)},
+        {Field::PayeeOrDescription, sharedRuns({first.getPayee(), first.getDescription()}, inAllEither)},
+    };
+    std::optional<RuleCondition> best;
+    int bestMatches = 0;
+    for (const auto& [field, runs] : candidates) {
+        for (const QString& run : runs) {
+            Rule candidate;
+            candidate.conditions = {RuleCondition(field, RuleCondition::Operator::Contains, run)};
+            const int matches = count ? count(candidate) : 0;
+            if (!best || matches < bestMatches || (matches == bestMatches && field == best->field && run.size() > best->value.size())) {
+                best = candidate.conditions.first();
+                bestMatches = matches;
+            }
+        }
+    }
+    if (best) {
+        rule.conditions = {*best};
+        return rule;
+    }
+    rule.matchAll = false;
+    for (const Transaction& transaction : transactions) {
+        if (!rule.matches(transaction)) rule.conditions += draftFrom(transaction).conditions;
+    }
+    return rule;
+}
+
+bool Rules::canAddTo(const Rule& rule) {
+    return !rule.matchAll || rule.conditions.size() <= 1;
+}
+
+Rule Rules::addedTo(Rule rule, const QList<Transaction>& transactions, const MatchCounter& count) {
+    QList<Transaction> missing;
+    for (const Transaction& transaction : transactions) {
+        if (!rule.matches(transaction)) missing << transaction;
+    }
+    if (!missing.isEmpty()) {
+        rule.matchAll = false;
+        rule.conditions += draftFrom(missing, count).conditions;
     }
     return rule;
 }

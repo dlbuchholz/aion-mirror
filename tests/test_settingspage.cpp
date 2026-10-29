@@ -190,7 +190,7 @@ private slots:
         page.setUserId(1);
         Rule draft;
         draft.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "Kiosk")};
-        page.createRule(draft);
+        page.openRuleDraft(draft);
         auto* sections = page.findChild<QListWidget*>();
         QCOMPARE(sections->currentItem()->text(), QString("Rules"));
         QVERIFY(!page.findChild<QFrame*>("ruleEditor")->isHidden());

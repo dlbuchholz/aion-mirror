@@ -456,7 +456,7 @@ private slots:
         Rule draft;
         draft.categoryId = categoryId("Utilities");
         draft.conditions = {{Field::Payee, Operator::Contains, "Stadtwerke"}};
-        settings.createRule(draft);
+        settings.openDraft(draft);
 
         QWidget* condition = firstCondition(settings);
         QCOMPARE(condition->findChild<QLineEdit*>("conditionText")->text(), QString("Stadtwerke"));
@@ -466,6 +466,47 @@ private slots:
         settings.findChild<QPushButton*>("saveRuleButton")->click();
         settle();
         QCOMPARE(RuleDAO(1).rules().size(), 1);
+    }
+
+    void aDraftSaysHowManyOfItsTransactionsItMatches() {
+        RulesSettings settings;
+        settings.setUserId(1);
+        const QList<Transaction> examples = {Transaction(-1, giroId, "REWE Markt", 3240, QDate(2026, 10, 1), "", 0, "expense"),
+                                             Transaction(-1, giroId, "Aldi", 1500, QDate(2026, 10, 2), "", 0, "expense")};
+        Rule draft;
+        draft.categoryId = categoryId("Groceries");
+        draft.conditions = {{Field::Payee, Operator::Contains, "REWE"}};
+        settings.openDraft(draft, examples);
+        auto* matchCount = settings.findChild<QLabel*>("ruleEditorMatchCount");
+        QCOMPARE(matchCount->text(), QString("Matches 1 existing transaction · 1 of 2 selected"));
+        firstCondition(settings)->findChild<QLineEdit*>("conditionText")->setText("a");
+        QCOMPARE(matchCount->text(), QString("Matches 3 existing transactions · all 2 selected"));
+
+        // Opening a saved rule doesn't mention them any more
+        QVERIFY(addRule("Stadtwerke", "Utilities") > 0);
+        settings.reload();
+        rows(settings).first()->click();
+        QVERIFY(!matchCount->text().contains("selected"));
+    }
+
+    void addingToARuleEditsThatRule() {
+        const int ruleId = addRule("REWE", "Groceries");
+        RulesSettings settings;
+        settings.setUserId(1);
+        Rule changed = RuleDAO(1).rules().first();
+        changed = Rules::addedTo(changed, {Transaction(-1, giroId, "Aldi", 1500, QDate(2026, 10, 2), "", 0, "expense")});
+        settings.openDraft(changed);
+        QVERIFY(!settings.findChild<QPushButton*>("deleteRuleButton")->isHidden());   // The saved rule
+        QCOMPARE(settings.findChild<QComboBox*>("ruleMatchCombo")->currentIndex(), 1);   // Any
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+
+        const QList<Rule> saved = RuleDAO(1).rules();
+        QCOMPARE(saved.size(), 1);
+        QCOMPARE(saved[0].id, ruleId);
+        QCOMPARE(saved[0].conditions.size(), 2);
+        QCOMPARE(saved[0].conditions[1].value, QString("Aldi"));
+        QVERIFY(!saved[0].matchAll);
     }
 
     void describesEveryKindOfCondition() {

@@ -2,6 +2,7 @@
 #define SETTINGSPAGE_H
 
 #include <QWidget>
+#include "transaction.h"
 
 class QCheckBox;
 class QComboBox;
@@ -28,7 +29,8 @@ public:
 
     void setUserId(int userId);                      // Whose categories and account types to show
     void reloadData();                               // Categories and account types changed elsewhere (an import)
-    void createRule(const Rule& draft);              // Shows Rules with a new rule filled with draft
+    // Shows Rules with the editor filled with draft (a new rule, or with an ID that rule changed)
+    void openRuleDraft(const Rule& draft, const QList<Transaction>& examples = {});
     void reloadSidebarBudgetSort();                  // Changed from the sidebar; other unsaved edits stay
 
 signals:

@@ -335,13 +335,13 @@ void SettingsPage::setUserId(int userId)
     accountTypesSettings->setUserId(userId);
 }
 
-void SettingsPage::createRule(const Rule &draft)
+void SettingsPage::openRuleDraft(const Rule &draft, const QList<Transaction> &examples)
 {
     const QList<QListWidgetItem *> items = sectionList->findItems("Rules", Qt::MatchExactly);
     if (!items.isEmpty()) {
         sectionList->setCurrentItem(items.first());
     }
-    rulesSettings->createRule(draft);
+    rulesSettings->openDraft(draft, examples);
 }
 
 void SettingsPage::reloadData()
