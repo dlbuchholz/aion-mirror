@@ -70,6 +70,23 @@ private slots:
         QCOMPARE(range(2026, 10, 3, 2026, 10, 3).label(), QString("3 Oct 2026"));
     }
 
+    void comparisonsInWords() {
+        QCOMPARE(ReportRange::forPreset(Preset::SixMonths, today).comparisonText(today), QString("the 6 months before, up to 29 April"));
+        QCOMPARE(ReportRange::forPreset(Preset::Month, today).comparisonText(today), QString("the month before, up to 29 September"));
+        QCOMPARE(range(2026, 5, 1, 2026, 9, 30).comparisonText(today), QString("the 5 months before"));
+        QCOMPARE(range(2026, 9, 1, 2026, 10, 15).comparisonText(today), QString("the 45 days before"));
+        QCOMPARE(range(2026, 10, 20, 2026, 11, 5).comparisonText(today), QString("the 17 days before, up to 12 October"));
+        QCOMPARE(range(2026, 10, 3, 2026, 10, 3).comparisonText(today), QString("the day before"));
+    }
+
+    void changesInPercent() {
+        QCOMPARE(Reports::changePercent(10800, 10000), 8);
+        QCOMPARE(Reports::changePercent(9400, 10000), -6);
+        QCOMPARE(Reports::changePercent(5000, 5000), 0);
+        QVERIFY(!Reports::changePercent(5000, 0));       // Nothing to compare with
+        QVERIFY(!Reports::changePercent(5000, -200));    // Only refunds before
+    }
+
     void presetKeys() {
         for (Preset preset : {Preset::Month, Preset::ThreeMonths, Preset::SixMonths, Preset::Year, Preset::Custom}) {
             QCOMPARE(ReportRange::presetFromKey(ReportRange::key(preset)), preset);

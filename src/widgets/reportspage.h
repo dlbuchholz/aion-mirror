@@ -11,6 +11,7 @@ class QLabel;
 class QStackedWidget;
 class QToolButton;
 class QVBoxLayout;
+class CategoryBars;
 class ReportCard;
 
 // Reports: an overview with a card per report, and one report at a time in detail. The range
@@ -57,6 +58,9 @@ private:
     void refresh();                                  // The range or account changed
     void updateHeader();
     void updateIcons();
+    void updateCards();
+    void updateDetail();
+    QWidget* spendingDetail(QWidget* parent) const;
 
     int userId = -1;
     ReportRange::Preset preset = ReportRange::Preset::SixMonths;
@@ -71,8 +75,11 @@ private:
     QComboBox* accountCombo = nullptr;
     QStackedWidget* stack = nullptr;
     QList<ReportCard*> cards;                        // In Report order
+    CategoryBars* spendingPreview = nullptr;
     QVBoxLayout* detailLayout = nullptr;
-    QLabel* detailPlaceholder = nullptr;
+    QWidget* detailContent = nullptr;                // The opened report's, rebuilt when the numbers change
+
+    SpendingReport spending;
 };
 
 #endif // REPORTSPAGE_H

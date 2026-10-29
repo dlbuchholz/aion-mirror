@@ -6,6 +6,7 @@
 #include <QToolButton>
 
 #include "account.h"
+#include "transaction.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/reportspage.h"
@@ -147,6 +148,40 @@ private slots:
         page.reload();                                   // Gone: back to all of them
         QCOMPARE(page.accountId(), ReportsPage::ALL_ACCOUNTS);
         QCOMPARE(combo->count(), 2);
+    }
+
+    void spendingByCategoryOnTheCardAndInDetail() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const int savings = AccountDAO::createAccount(1, "Tagesgeld", "Savings", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 3000, today, "", groceries, "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Kiosk", 1000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        QAbstractButton* card = cards(page).first();
+        QVERIFY(card->accessibleDescription().startsWith(Settings::instance().formatSpending(4000)));
+
+        card->click();
+        QVERIFY(text(page, "reportsRangeLabel").contains(" · vs. the month before"));
+        QList<QWidget*> rows = page.findChildren<QWidget*>("spendingRow");
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows[0]->accessibleName(), QString("Groceries"));
+        QVERIFY(rows[0]->accessibleDescription().contains("75% of all spending"));
+        QCOMPARE(rows[1]->accessibleName(), QString("No category"));
+        QVERIFY(page.findChild<QWidget*>("spendingTotal"));
+
+        // Nothing spent from the savings account
+        auto* combo = page.findChild<QComboBox*>("reportsAccountCombo");
+        combo->setCurrentIndex(combo->findData(savings));
+        emit combo->activated(combo->currentIndex());
+        QVERIFY(page.findChildren<QWidget*>("spendingRow").isEmpty());
+        QVERIFY(page.findChild<QLabel*>("reportsEmptyLabel"));
+        QCOMPARE(card->accessibleDescription(), QString("No spending in this range"));
     }
 };
 

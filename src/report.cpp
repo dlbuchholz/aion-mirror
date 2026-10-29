@@ -1,6 +1,11 @@
 #include "report.h"
+#include "category.h"
+#include "db/databasemanager.h"
 
 #include <QLocale>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <algorithm>
 
 namespace {
 
@@ -96,6 +101,19 @@ QString ReportRange::label() const {
     return QString("%1 – %2").arg(english.toString(first, sameYear ? "d MMM" : "d MMM yyyy"), english.toString(last, "d MMM yyyy"));
 }
 
+QString ReportRange::comparisonText(const QDate& today) const {
+    if (!isValid()) return QString();
+    QString text;
+    if (isWholeMonths()) {
+        text = months() == 1 ? QString("the month before") : QString("the %1 months before").arg(months());
+    } else {
+        text = days() == 1 ? QString("the day before") : QString("the %1 days before").arg(days());
+    }
+    const bool ongoing = first <= today && today < last;
+    if (ongoing) text += ", up to " + english.toString(comparison(today).last, "d MMMM");
+    return text;
+}
+
 QString ReportRange::key(Preset preset) {
     for (const auto& [candidate, name] : PresetKeys) {
         if (candidate == preset) return name;
@@ -109,3 +127,58 @@ std::optional<ReportRange::Preset> ReportRange::presetFromKey(const QString& key
     }
     return std::nullopt;
 }
+
+namespace Reports {
+
+SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& range, const QDate& today) {
+    SpendingReport report;
+    report.range = range;
+    report.before = range.comparison(today);
+    if (!range.isValid()) return report;
+
+    // Both ranges in one go; the one before ends where this one starts
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT COALESCE(t.category_id, 0), c.name, c.color, "
+        "SUM(CASE WHEN t.date >= :first THEN " + SpendingCentsSql + " ELSE 0 END), "
+        "SUM(CASE WHEN t.date BETWEEN :beforeFirst AND :beforeLast THEN " + SpendingCentsSql + " ELSE 0 END) "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND " + IsSpendingSql + " AND t.date BETWEEN :from AND :last AND "
+        + CountedAsIncomeOrSpendingSql + (accountId >= 0 ? " AND t.account_id = :account_id " : " ")
+        + "GROUP BY COALESCE(t.category_id, 0)");
+    const ReportRange& before = report.before;
+    query.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    query.bindValue(":beforeFirst", before.first.toString("yyyy-MM-dd"));
+    query.bindValue(":beforeLast", before.last.toString("yyyy-MM-dd"));
+    query.bindValue(":user_id", userId);
+    query.bindValue(":from", before.first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", range.last.toString("yyyy-MM-dd"));
+    if (accountId >= 0) query.bindValue(":account_id", accountId);
+    if (!query.exec()) {
+        qWarning() << "Reports:" << query.lastError().text();
+        return report;
+    }
+    while (query.next()) {
+        CategorySpent spent;
+        spent.categoryId = query.value(0).toInt();
+        spent.categoryName = spent.categoryId == 0 ? QString("No category") : query.value(1).toString();
+        spent.categoryColor = query.value(2).toString();
+        spent.spentCents = query.value(3).toLongLong();
+        spent.beforeCents = query.value(4).toLongLong();
+        report.totalCents += spent.spentCents;
+        report.beforeTotalCents += spent.beforeCents;
+        if (spent.spentCents != 0) report.categories.append(spent);
+    }
+    std::sort(report.categories.begin(), report.categories.end(), [](const CategorySpent& a, const CategorySpent& b) {
+        return a.spentCents != b.spentCents ? a.spentCents > b.spentCents
+                                            : a.categoryName.localeAwareCompare(b.categoryName) < 0;
+    });
+    return report;
+}
+
+std::optional<int> changePercent(Cents now, Cents before) {
+    if (before <= 0) return std::nullopt;
+    return qRound(double(now - before) / double(before) * 100.0);
+}
+
+} // namespace Reports

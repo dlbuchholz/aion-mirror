@@ -5,6 +5,7 @@
 #include <QList>
 #include <QString>
 #include <optional>
+#include "money.h"
 
 // The days a report covers, from first to last
 struct ReportRange {
@@ -37,10 +38,40 @@ struct ReportRange {
 
     // "October 2026", "May – October 2026", "1 Sep – 15 Oct 2026"
     QString label() const;
+    // What comparison() covers, in words: "the 6 months before", "the month before, up to 29 September"
+    QString comparisonText(const QDate& today) const;
 
     // For the settings: "month", "3months", "6months", "year", "custom"
     static QString key(Preset preset);
     static std::optional<Preset> presetFromKey(const QString& key);
 };
+
+// One category's spending in a range and in the range before it. Refunds lower it, so it can be
+// below zero.
+struct CategorySpent {
+    int categoryId = 0;                              // 0 = no category
+    QString categoryName;
+    QString categoryColor;                           // Palette name, empty = neutral
+    Cents spentCents = 0;
+    Cents beforeCents = 0;
+};
+
+struct SpendingReport {
+    ReportRange range;
+    ReportRange before;                              // range.comparison()
+    Cents totalCents = 0;
+    Cents beforeTotalCents = 0;
+    QList<CategorySpent> categories;                 // Those with spending in the range, largest first
+};
+
+namespace Reports {
+
+// Spending per category, without transfers and balance adjustments. accountId < 0 means all accounts.
+SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& range, const QDate& today);
+
+// Rounded change in percent from before to now; none when there was nothing before to compare with
+std::optional<int> changePercent(Cents now, Cents before);
+
+} // namespace Reports
 
 #endif // REPORT_H

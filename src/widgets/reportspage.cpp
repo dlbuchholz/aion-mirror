@@ -1,5 +1,6 @@
 #include "reportspage.h"
 #include "account.h"
+#include "categorycolors.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -36,6 +37,106 @@ void setTextColor(QWidget* widget, const QColor& color) {
     palette.setColor(QPalette::ButtonText, color);
     widget->setPalette(palette);
 }
+
+// "+12%", "−6%", "±0%", or "new" when there was nothing before. Up is more spending, so it's the bad direction.
+QString changeText(Cents now, Cents before, int& direction) {
+    const std::optional<int> change = Reports::changePercent(now, before);
+    if (!change) {
+        direction = 0;
+        return now > 0 ? QString("new") : QString("—");
+    }
+    direction = *change > 0 ? 1 : *change < 0 ? -1 : 0;
+    if (*change == 0) return "±0%";
+    return QString("%1%2%").arg(*change > 0 ? "+" : "−").arg(qAbs(*change));
+}
+
+QColor changeColor(int direction) {
+    const Theme::Colors colors = Theme::colors();
+    return direction > 0 ? colors.danger : direction < 0 ? colors.positive : colors.textSecondary;
+}
+
+// Part of the total in percent; "<1%" for tiny parts, a dash for refunds
+QString shareText(Cents part, Cents total) {
+    if (part <= 0 || total <= 0) return "—";
+    const int percent = qRound(double(part) * 100.0 / double(total));
+    return percent == 0 ? QString("<1%") : QString("%1%").arg(percent);
+}
+
+// The colour of a category's bar, or a neutral one when category colours are off in overviews
+QColor barColor(const QString& categoryColor) {
+    if (!Settings::instance().isCategoryColorsInOverviewsEnabled()) return Theme::colors().textMuted;
+    return CategoryColors::swatch(categoryColor).solid;
+}
+
+// A category in the spending report: its name above a bar, then spent, share and change in
+// columns. The same columns make the heading and the total.
+class SpendingRow : public QWidget {
+public:
+    enum class Kind { Heading, Category, Total };
+    static constexpr int SpentWidth = 130;
+    static constexpr int ShareWidth = 64;
+    static constexpr int ChangeWidth = 80;
+
+    SpendingRow(Kind rowKind, const QString& name, const QString& spent, const QString& share, const QString& change, QWidget* parent)
+        : QWidget(parent), kind(rowKind), columns({name, spent, share, change}) {
+        setObjectName(kind == Kind::Heading ? "spendingHeading" : kind == Kind::Total ? "spendingTotal" : "spendingRow");
+        setFixedHeight(kind == Kind::Heading ? 24 : kind == Kind::Total ? 36 : 44);
+        setAccessibleName(name);
+        if (kind != Kind::Heading) {
+            setAccessibleDescription(QString("%1, %2 of all spending, %3").arg(spent, share, change));
+        }
+    }
+
+    double ratio = 0.0;                              // Bar length against the largest; none at 0 or below
+    QString categoryColor;
+    int direction = 0;                               // Of the change: 1 more spent, -1 less
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        const Theme::Colors colors = Theme::colors();
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        if (kind != Kind::Heading) {
+            painter.setPen(colors.sidebarBorder);
+            painter.drawLine(QPointF(0, 0.5), QPointF(width(), 0.5));
+        }
+        QFont textFont = font();
+        if (kind == Kind::Total) textFont.setWeight(QFont::DemiBold);
+        if (kind == Kind::Heading) textFont.setPointSizeF(font().pointSizeF() * 0.9);
+        painter.setFont(textFont);
+        const QFontMetrics metrics(textFont);
+        const QColor normal = kind == Kind::Heading ? colors.textSecondary : colors.textPrimary;
+
+        // The numbers, right-aligned in their columns
+        int right = width();
+        const QList<QPair<int, int>> numberColumns = {{3, ChangeWidth}, {2, ShareWidth}, {1, SpentWidth}};
+        for (const auto& [index, columnWidth] : numberColumns) {
+            const bool isChange = index == 3 && kind != Kind::Heading;
+            painter.setPen(isChange ? changeColor(direction) : index == 2 && kind != Kind::Heading ? colors.textSecondary : normal);
+            painter.drawText(QRect(right - columnWidth, 0, columnWidth, height()), Qt::AlignRight | Qt::AlignVCenter, columns[index]);
+            right -= columnWidth;
+        }
+
+        // The name, above its bar for categories
+        const int nameWidth = qMax(0, right - 24);
+        const QString name = metrics.elidedText(columns[0], Qt::ElideRight, nameWidth);
+        painter.setPen(normal);
+        if (kind != Kind::Category) {
+            painter.drawText(QRect(0, 0, nameWidth, height()), Qt::AlignLeft | Qt::AlignVCenter, name);
+            return;
+        }
+        painter.drawText(QRect(0, 4, nameWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, name);
+        if (ratio > 0.0) {
+            QPainterPath bar;
+            bar.addRoundedRect(QRectF(0, 26, qMax(4.0, nameWidth * qMin(ratio, 1.0)), 10), 3, 3);
+            painter.fillPath(bar, barColor(categoryColor));
+        }
+    }
+
+private:
+    Kind kind;
+    QStringList columns;                             // Name, spent, share, change
+};
 
 bool askWithDialog(QWidget* parent, QDate& from, QDate& to) {
     QDialog dialog(parent);
@@ -87,6 +188,7 @@ public:
         valueLabel->setFont(valueFont);
         detailLabel = new QLabel(this);
         detailLabel->setObjectName("reportCardDetail");
+        detailLabel->setWordWrap(true);
         previewArea = new QWidget(this);
         previewArea->setObjectName("reportCardPreview");
         previewArea->setMinimumHeight(44);
@@ -144,6 +246,40 @@ private:
     QLabel* valueLabel = nullptr;
     QLabel* detailLabel = nullptr;
     QWidget* previewArea = nullptr;
+};
+
+// The largest categories as thin bars, for the spending card
+class CategoryBars : public QWidget {
+public:
+    explicit CategoryBars(QWidget* parent) : QWidget(parent) {
+        setObjectName("categoryBars");
+        setFixedHeight(4 * 6 + 3 * 4);
+    }
+
+    void setCategories(const QList<CategorySpent>& categories) {
+        shown = categories.mid(0, 4);
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        if (shown.isEmpty()) return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        const double largest = double(qMax<Cents>(1, shown.first().spentCents));
+        double y = 0;
+        for (const CategorySpent& spent : std::as_const(shown)) {
+            if (spent.spentCents > 0) {
+                QPainterPath bar;
+                bar.addRoundedRect(QRectF(0, y, qMax(6.0, width() * 0.9 * double(spent.spentCents) / largest), 6), 3, 3);
+                painter.fillPath(bar, barColor(spent.categoryColor));
+            }
+            y += 10;
+        }
+    }
+
+private:
+    QList<CategorySpent> shown;
 };
 
 ReportsPage::ReportsPage(QWidget* parent)
@@ -220,6 +356,9 @@ ReportsPage::ReportsPage(QWidget* parent)
         grid->addWidget(card, i / 3, i % 3);
         cards.append(card);
     }
+    spendingPreview = new CategoryBars(cards[0]->preview());
+    cards[0]->preview()->layout()->addWidget(spendingPreview);
+    cards[0]->preview()->layout()->setAlignment(spendingPreview, Qt::AlignTop);
     grid->setRowStretch(int(AllReports.size() + 2) / 3, 1);
     overviewScroll->setWidget(overview);
     stack->addWidget(overviewScroll);
@@ -232,10 +371,6 @@ ReportsPage::ReportsPage(QWidget* parent)
     auto* detail = new QWidget(detailScroll);
     detailLayout = new QVBoxLayout(detail);
     detailLayout->setContentsMargins(0, 0, 0, 0);
-    detailPlaceholder = new QLabel("This report isn't built yet.", detail);
-    detailPlaceholder->setObjectName("reportsDetailPlaceholder");
-    detailPlaceholder->setForegroundRole(QPalette::PlaceholderText);
-    detailLayout->addWidget(detailPlaceholder);
     detailLayout->addStretch();
     detailScroll->setWidget(detail);
     stack->addWidget(detailScroll);
@@ -334,18 +469,101 @@ void ReportsPage::applySettings() {
 
 void ReportsPage::refresh() {
     updateHeader();
+    if (userId <= 0) return;
+    spending = Reports::spendingByCategory(userId, shownAccountId, shownRange, QDate::currentDate());
+    updateCards();
+    updateDetail();
 }
 
 void ReportsPage::openReport(Report report) {
     opened = report;
     stack->setCurrentIndex(1);
     updateHeader();
+    updateDetail();
 }
 
 void ReportsPage::showOverview() {
     opened.reset();
     stack->setCurrentIndex(0);
     updateHeader();
+    updateDetail();
+}
+
+void ReportsPage::updateCards() {
+    const Settings& settings = Settings::instance();
+    ReportCard* spendingCard = cards[static_cast<int>(Report::SpendingByCategory)];
+    if (spending.categories.isEmpty()) {
+        spendingCard->setValue(QString(), "No spending in this range");
+    } else if (Reports::changePercent(spending.totalCents, spending.beforeTotalCents)) {
+        int direction = 0;
+        const QString change = changeText(spending.totalCents, spending.beforeTotalCents, direction);
+        spendingCard->setValue(settings.formatSpending(spending.totalCents),
+                               QString("%1 vs. %2").arg(change, shownRange.comparisonText(QDate::currentDate())),
+                               changeColor(direction));
+    } else {
+        const int count = int(spending.categories.size());
+        spendingCard->setValue(settings.formatSpending(spending.totalCents),
+                               QString("In %1 %2").arg(count).arg(count == 1 ? "category" : "categories"));
+    }
+    spendingPreview->setCategories(spending.categories);
+}
+
+void ReportsPage::updateDetail() {
+    delete detailContent;
+    detailContent = nullptr;
+    if (!opened) return;
+    QWidget* parent = detailLayout->parentWidget();
+    if (*opened == Report::SpendingByCategory) {
+        detailContent = spendingDetail(parent);
+    } else {
+        auto* placeholder = new QLabel("This report isn't built yet.", parent);
+        placeholder->setObjectName("reportsDetailPlaceholder");
+        placeholder->setForegroundRole(QPalette::PlaceholderText);
+        detailContent = placeholder;
+    }
+    detailLayout->insertWidget(0, detailContent);
+}
+
+QWidget* ReportsPage::spendingDetail(QWidget* parent) const {
+    auto* widget = new QWidget(parent);
+    widget->setObjectName("spendingDetail");
+    widget->setMaximumWidth(960);
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 4, 0, 0);
+    layout->setSpacing(0);
+    if (spending.categories.isEmpty()) {
+        auto* empty = new QLabel("No spending in this range.", widget);
+        empty->setObjectName("reportsEmptyLabel");
+        empty->setForegroundRole(QPalette::PlaceholderText);
+        layout->addWidget(empty);
+        return widget;
+    }
+
+    const Settings& settings = Settings::instance();
+    layout->addWidget(new SpendingRow(SpendingRow::Kind::Heading, "Category", "Spent", "Share", "Change", widget));
+    // Refunded categories (below zero) come last and get no bar
+    const double largest = double(qMax<Cents>(1, spending.categories.first().spentCents));
+    for (const CategorySpent& spent : spending.categories) {
+        int direction = 0;
+        const QString change = changeText(spent.spentCents, spent.beforeCents, direction);
+        auto* row = new SpendingRow(SpendingRow::Kind::Category, spent.categoryName, settings.formatSpending(spent.spentCents),
+                                    shareText(spent.spentCents, spending.totalCents), change, widget);
+        row->ratio = double(spent.spentCents) / largest;
+        row->categoryColor = spent.categoryColor;
+        row->direction = direction;
+        row->setToolTip(spent.beforeCents != 0 ? QString("%1 in %2").arg(settings.formatSpending(spent.beforeCents),
+                                                                            spending.before.label())
+                                               : QString("Nothing in %1").arg(spending.before.label()));
+        layout->addWidget(row);
+    }
+    int direction = 0;
+    const QString change = changeText(spending.totalCents, spending.beforeTotalCents, direction);
+    auto* total = new SpendingRow(SpendingRow::Kind::Total, "Total", settings.formatSpending(spending.totalCents),
+                                  spending.totalCents > 0 ? QString("100%") : QString("—"), change, widget);
+    total->direction = direction;
+    total->setToolTip(QString("%1 in %2").arg(settings.formatSpending(spending.beforeTotalCents), spending.before.label()));
+    layout->addWidget(total);
+    return widget;
 }
 
 std::optional<ReportsPage::Report> ReportsPage::openedReport() const {
@@ -355,7 +573,9 @@ std::optional<ReportsPage::Report> ReportsPage::openedReport() const {
 void ReportsPage::updateHeader() {
     backLink->setVisible(opened.has_value());
     titleLabel->setText(opened ? title(*opened) : QString("Reports"));
-    rangeLabel->setText(shownRange.label());
+    QString rangeText = shownRange.label();
+    if (opened == Report::SpendingByCategory) rangeText += " · vs. " + shownRange.comparisonText(QDate::currentDate());
+    rangeLabel->setText(rangeText);
 }
 
 void ReportsPage::updateIcons() {
