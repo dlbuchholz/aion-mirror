@@ -367,10 +367,22 @@ bool Rules::apply(const QList<RuleChange>& changes) {
     return db.commit();
 }
 
+// "REWE SAGT DANKE 0815" → "REWE SAGT DANKE": a branch or reference number at the end only matches
+// that one store or booking. Only groups of 4 digits or more, so "Studio 54" stays; a payee that's
+// only numbers stays too.
+static QString withoutTrailingNumbers(const QString& text) {
+    QStringList words = text.simplified().split(' ', Qt::SkipEmptyParts);
+    while (words.size() > 1 && words.last().size() >= 4
+           && std::all_of(words.last().begin(), words.last().end(), [](QChar c) { return c.isDigit(); })) {
+        words.removeLast();
+    }
+    return words.join(' ');
+}
+
 Rule Rules::draftFrom(const Transaction& transaction) {
     Rule rule;
     rule.categoryId = transaction.getCategoryId() > 0 ? transaction.getCategoryId() : -1;
-    const QString payee = transaction.getPayee().simplified();
+    const QString payee = withoutTrailingNumbers(transaction.getPayee());
     const QString description = transaction.getDescription().simplified();
     if (!payee.isEmpty()) {
         rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, payee)};

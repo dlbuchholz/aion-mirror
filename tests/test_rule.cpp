@@ -179,6 +179,18 @@ private slots:
         QCOMPARE(draft.conditions[0].value, QString("999"));
     }
 
+    void draftsLeaveOutReferenceNumbersAtTheEnd() {
+        const auto payeeOf = [](const QString& payee) { return Rules::draftFrom(transaction(payee, "", 100)).conditions[0].value; };
+        QCOMPARE(payeeOf("REWE SAGT DANKE 0815"), QString("REWE SAGT DANKE"));
+        QCOMPARE(payeeOf("PAYPAL *SPOTIFY 35314369001"), QString("PAYPAL *SPOTIFY"));
+        QCOMPARE(payeeOf("ALDI SUED 1234 5678"), QString("ALDI SUED"));
+        QCOMPARE(payeeOf("Studio 54"), QString("Studio 54"));            // Short numbers can be part of the name
+        QCOMPARE(payeeOf("1&1 Telecom 4711"), QString("1&1 Telecom"));  // Only at the end
+        QCOMPARE(payeeOf("Filiale 1234B"), QString("Filiale 1234B"));    // Not only digits
+        QCOMPARE(payeeOf("12345678"), QString("12345678"));              // Nothing else would be left
+        QCOMPARE(payeeOf("4711 0815"), QString("4711"));
+    }
+
     void draftsFromSeveralUseTheWordsTheirPayeesShare() {
         QList<Transaction> rewe = {transaction("REWE Markt 4711", "", 4210), transaction("rewe City Köln", "", 1835),
                                    transaction("REWE SAGT DANKE 0815", "", 6300)};
@@ -199,7 +211,7 @@ private slots:
         draft = Rules::draftFrom(QList<Transaction>{transaction("Edeka 4711", "", 100), transaction("Netto 4711", "", 100)});
         QCOMPARE(draft.conditions.size(), 2);            // "4711" isn't a shared name
         QVERIFY(!draft.matchAll);
-        QCOMPARE(draft.conditions[0].value, QString("Edeka 4711"));
+        QCOMPARE(draft.conditions[0].value, QString("Edeka"));   // Without the branch number
         QCOMPARE(draft.categoryId, -1);
 
         // Sharing nothing: one condition each, any of them enough; duplicates only once
