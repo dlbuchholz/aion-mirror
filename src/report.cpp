@@ -101,6 +101,10 @@ QString ReportRange::label() const {
     return QString("%1 – %2").arg(english.toString(first, sameYear ? "d MMM" : "d MMM yyyy"), english.toString(last, "d MMM yyyy"));
 }
 
+QString ReportRange::weekName() const {
+    return first.isValid() ? QString("Week %1").arg(first.weekNumber()) : QString();
+}
+
 QString ReportRange::comparisonText(const QDate& today) const {
     if (!isValid()) return QString();
     QString text;
@@ -126,6 +130,10 @@ std::optional<ReportRange::Preset> ReportRange::presetFromKey(const QString& key
         if (name == key) return preset;
     }
     return std::nullopt;
+}
+
+std::optional<int> FlowReport::keptPercent() const {
+    return Reports::keptPercent(incomeCents, netCents());
 }
 
 namespace Reports {
@@ -174,6 +182,52 @@ SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& 
                                             : a.categoryName.localeAwareCompare(b.categoryName) < 0;
     });
     return report;
+}
+
+FlowReport incomeVsSpending(int userId, int accountId, const ReportRange& range) {
+    FlowReport report;
+    report.range = range;
+    if (!range.isValid()) return report;
+    for (const ReportRange& period : range.periods(range.flowUnit())) {
+        PeriodFlow flow;
+        flow.period = period;
+        report.periods.append(flow);
+    }
+
+    // Per day, then into the periods; refunds lower the spending instead of counting as income
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT t.date, "
+        "SUM(CASE WHEN " + IsIncomeSql + " THEN t.amount ELSE 0 END), "
+        "SUM(CASE WHEN " + IsSpendingSql + " THEN " + SpendingCentsSql + " ELSE 0 END) "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql
+        + (accountId >= 0 ? " AND t.account_id = :account_id " : " ") + "GROUP BY t.date ORDER BY t.date");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", range.last.toString("yyyy-MM-dd"));
+    if (accountId >= 0) query.bindValue(":account_id", accountId);
+    if (!query.exec()) {
+        qWarning() << "Reports:" << query.lastError().text();
+        return report;
+    }
+    int index = 0;
+    while (query.next()) {
+        const QDate date = QDate::fromString(query.value(0).toString(), "yyyy-MM-dd");
+        while (index < report.periods.size() && report.periods[index].period.last < date) ++index;
+        if (index >= report.periods.size()) break;
+        PeriodFlow& flow = report.periods[index];
+        flow.incomeCents += query.value(1).toLongLong();
+        flow.spendingCents += query.value(2).toLongLong();
+        report.incomeCents += query.value(1).toLongLong();
+        report.spendingCents += query.value(2).toLongLong();
+    }
+    return report;
+}
+
+std::optional<int> keptPercent(Cents income, Cents net) {
+    if (income <= 0 || net < 0) return std::nullopt;
+    return qRound(double(net) / double(income) * 100.0);
 }
 
 std::optional<int> changePercent(Cents now, Cents before) {

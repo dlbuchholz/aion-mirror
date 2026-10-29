@@ -104,6 +104,53 @@ private slots:
         QCOMPARE(Reports::spendingByCategory(1, -1, month, today).totalCents, Cents(3500));
     }
 
+    void incomeAndSpendingPerMonth() {
+        const ReportRange threeMonths = ReportRange::forPreset(Preset::ThreeMonths, today);   // August – October
+        const int salary = categoryId("Salary");
+        add(giro, 300000, QDate(2026, 8, 28), salary, "income");
+        add(giro, 89000, QDate(2026, 8, 3), rent, "expense");
+        add(giro, 300000, QDate(2026, 10, 28), salary, "income");
+        add(giro, 20000, QDate(2026, 10, 2), groceries, "expense");
+        add(giro, 5000, QDate(2026, 10, 9), groceries, "income");        // Refund: less spending, not income
+        add(savings, 1500, QDate(2026, 10, 31), 0, "expense");
+        add(giro, 50000, QDate(2026, 10, 10), categoryId(TransferCategory), "expense");   // Left out
+        add(giro, 9999, QDate(2026, 7, 31), rent, "expense");            // Before the range
+
+        const FlowReport report = Reports::incomeVsSpending(1, -1, threeMonths);
+        QCOMPARE(report.periods.size(), 3);
+        QCOMPARE(report.periods[0].period, ReportRange({QDate(2026, 8, 1), QDate(2026, 8, 31)}));
+        QCOMPARE(report.periods[0].incomeCents, Cents(300000));
+        QCOMPARE(report.periods[0].spendingCents, Cents(89000));
+        QCOMPARE(report.periods[1].incomeCents, Cents(0));               // Empty months are there too
+        QCOMPARE(report.periods[1].spendingCents, Cents(0));
+        QCOMPARE(report.periods[2].incomeCents, Cents(300000));
+        QCOMPARE(report.periods[2].spendingCents, Cents(20000 - 5000 + 1500));
+        QCOMPARE(report.incomeCents, Cents(600000));
+        QCOMPARE(report.spendingCents, Cents(89000 + 16500));
+        QCOMPARE(report.keptPercent(), std::optional<int>(qRound((600000.0 - 105500.0) / 6000.0)));
+
+        QCOMPARE(Reports::incomeVsSpending(1, savings, threeMonths).spendingCents, Cents(1500));
+    }
+
+    void shortRangesGoByWeek() {
+        add(giro, 1000, QDate(2026, 10, 4), groceries, "expense");       // Sunday: the first, partial week
+        add(giro, 2000, QDate(2026, 10, 5), groceries, "expense");       // Monday: the next
+        const FlowReport report = Reports::incomeVsSpending(1, -1, ReportRange::forPreset(Preset::Month, today));
+        QCOMPARE(report.periods.size(), 5);
+        QCOMPARE(report.periods[0].spendingCents, Cents(1000));
+        QCOMPARE(report.periods[1].spendingCents, Cents(2000));
+        QVERIFY(!report.keptPercent());                                  // No income
+        QCOMPARE(report.periods[0].period.weekName(), QString("Week 40"));
+        QCOMPARE(report.periods[1].period.weekName(), QString("Week 41"));
+    }
+
+    void keptOnlyWhenSomethingWasKept() {
+        QCOMPARE(Reports::keptPercent(272774, 229096), std::optional<int>(84));
+        QCOMPARE(Reports::keptPercent(1000, 0), std::optional<int>(0));
+        QVERIFY(!Reports::keptPercent(1, -13773));                       // More went out: no share
+        QVERIFY(!Reports::keptPercent(0, -4268));
+    }
+
     void otherUsersAreLeftOut() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);

@@ -38,6 +38,8 @@ struct ReportRange {
 
     // "October 2026", "May – October 2026", "1 Sep – 15 Oct 2026"
     QString label() const;
+    // The calendar week (ISO, Monday to Sunday) the range starts in: "Week 40"
+    QString weekName() const;
     // What comparison() covers, in words: "the 6 months before", "the month before, up to 29 September"
     QString comparisonText(const QDate& today) const;
 
@@ -64,10 +66,35 @@ struct SpendingReport {
     QList<CategorySpent> categories;                 // Those with spending in the range, largest first
 };
 
+// Income and spending in one week or month of a report
+struct PeriodFlow {
+    ReportRange period;
+    Cents incomeCents = 0;
+    Cents spendingCents = 0;                         // Less refunds
+    Cents netCents() const { return incomeCents - spendingCents; }
+};
+
+struct FlowReport {
+    ReportRange range;
+    QList<PeriodFlow> periods;                       // In order, weeks or months by range.flowUnit()
+    Cents incomeCents = 0;
+    Cents spendingCents = 0;
+    Cents netCents() const { return incomeCents - spendingCents; }
+    // How much of the income was kept, rounded; none without income or when more went out
+    std::optional<int> keptPercent() const;
+};
+
 namespace Reports {
+
+// Income and spending per week or month, without transfers and balance adjustments.
+// accountId < 0 means all accounts.
+FlowReport incomeVsSpending(int userId, int accountId, const ReportRange& range);
 
 // Spending per category, without transfers and balance adjustments. accountId < 0 means all accounts.
 SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& range, const QDate& today);
+
+// Share of the income that was kept, rounded; none without income or when more went out than came in
+std::optional<int> keptPercent(Cents income, Cents net);
 
 // Rounded change in percent from before to now; none when there was nothing before to compare with
 std::optional<int> changePercent(Cents now, Cents before);

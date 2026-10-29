@@ -17,14 +17,18 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 namespace {
+
+const QLocale english(QLocale::English);
 
 const QList<ReportsPage::Report> AllReports = {
     ReportsPage::Report::SpendingByCategory, ReportsPage::Report::IncomeVsSpending, ReportsPage::Report::Balance,
@@ -62,34 +66,40 @@ QString shareText(Cents part, Cents total) {
     return percent == 0 ? QString("<1%") : QString("%1%").arg(percent);
 }
 
+// A week or month of a report: "Week 40 · 1 Oct – 4 Oct 2026", "October 2026"
+QString periodTitle(const ReportRange& period, const ReportRange& range) {
+    if (range.flowUnit() == ReportRange::Unit::Week) return QString("%1 · %2").arg(period.weekName(), period.label());
+    return period.label();
+}
+
 // The colour of a category's bar, or a neutral one when category colours are off in overviews
 QColor barColor(const QString& categoryColor) {
     if (!Settings::instance().isCategoryColorsInOverviewsEnabled()) return Theme::colors().textMuted;
     return CategoryColors::swatch(categoryColor).solid;
 }
 
-// A category in the spending report: its name above a bar, then spent, share and change in
-// columns. The same columns make the heading and the total.
-class SpendingRow : public QWidget {
+// A line in a report's number list: a name (above a bar, if it has one), then numbers in
+// right-aligned columns. The same columns make the heading and the total.
+class ReportRow : public QWidget {
 public:
-    enum class Kind { Heading, Category, Total };
-    static constexpr int SpentWidth = 130;
-    static constexpr int ShareWidth = 64;
-    static constexpr int ChangeWidth = 80;
+    enum class Kind { Heading, Item, Total };
+    // How a number is coloured; Change follows `direction`
+    enum class Tone { Normal, Secondary, Bad, Change };
+    struct Column {
+        QString text;
+        int width = 120;
+        Tone tone = Tone::Normal;
+    };
 
-    SpendingRow(Kind rowKind, const QString& name, const QString& spent, const QString& share, const QString& change, QWidget* parent)
-        : QWidget(parent), kind(rowKind), columns({name, spent, share, change}) {
-        setObjectName(kind == Kind::Heading ? "spendingHeading" : kind == Kind::Total ? "spendingTotal" : "spendingRow");
-        setFixedHeight(kind == Kind::Heading ? 24 : kind == Kind::Total ? 36 : 44);
+    ReportRow(Kind rowKind, const QString& rowName, const QList<Column>& numbers, bool withBar, QWidget* parent)
+        : QWidget(parent), kind(rowKind), name(rowName), columns(numbers), hasBar(withBar && rowKind == Kind::Item) {
+        setFixedHeight(kind == Kind::Heading ? 24 : hasBar ? 44 : kind == Kind::Total ? 36 : 32);
         setAccessibleName(name);
-        if (kind != Kind::Heading) {
-            setAccessibleDescription(QString("%1, %2 of all spending, %3").arg(spent, share, change));
-        }
     }
 
     double ratio = 0.0;                              // Bar length against the largest; none at 0 or below
-    QString categoryColor;
-    int direction = 0;                               // Of the change: 1 more spent, -1 less
+    QString categoryColor;                           // The bar's; empty = neutral
+    int direction = 0;                               // For Tone::Change: 1 bad (red), -1 good (green)
 
 protected:
     void paintEvent(QPaintEvent*) override {
@@ -107,25 +117,32 @@ protected:
         const QFontMetrics metrics(textFont);
         const QColor normal = kind == Kind::Heading ? colors.textSecondary : colors.textPrimary;
 
-        // The numbers, right-aligned in their columns
+        // The numbers, right-aligned in their columns, last one rightmost
         int right = width();
-        const QList<QPair<int, int>> numberColumns = {{3, ChangeWidth}, {2, ShareWidth}, {1, SpentWidth}};
-        for (const auto& [index, columnWidth] : numberColumns) {
-            const bool isChange = index == 3 && kind != Kind::Heading;
-            painter.setPen(isChange ? changeColor(direction) : index == 2 && kind != Kind::Heading ? colors.textSecondary : normal);
-            painter.drawText(QRect(right - columnWidth, 0, columnWidth, height()), Qt::AlignRight | Qt::AlignVCenter, columns[index]);
-            right -= columnWidth;
+        for (auto it = columns.crbegin(); it != columns.crend(); ++it) {
+            QColor color = normal;
+            if (kind != Kind::Heading) {
+                switch (it->tone) {
+                case Tone::Normal: break;
+                case Tone::Secondary: color = colors.textSecondary; break;
+                case Tone::Bad: color = colors.danger; break;
+                case Tone::Change: color = changeColor(direction); break;
+                }
+            }
+            painter.setPen(color);
+            painter.drawText(QRect(right - it->width, 0, it->width, height()), Qt::AlignRight | Qt::AlignVCenter, it->text);
+            right -= it->width;
         }
 
-        // The name, above its bar for categories
+        // The name, above its bar if it has one
         const int nameWidth = qMax(0, right - 24);
-        const QString name = metrics.elidedText(columns[0], Qt::ElideRight, nameWidth);
+        const QString shownName = metrics.elidedText(name, Qt::ElideRight, nameWidth);
         painter.setPen(normal);
-        if (kind != Kind::Category) {
-            painter.drawText(QRect(0, 0, nameWidth, height()), Qt::AlignLeft | Qt::AlignVCenter, name);
+        if (!hasBar) {
+            painter.drawText(QRect(0, 0, nameWidth, height()), Qt::AlignLeft | Qt::AlignVCenter, shownName);
             return;
         }
-        painter.drawText(QRect(0, 4, nameWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, name);
+        painter.drawText(QRect(0, 4, nameWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, shownName);
         if (ratio > 0.0) {
             QPainterPath bar;
             bar.addRoundedRect(QRectF(0, 26, qMax(4.0, nameWidth * qMin(ratio, 1.0)), 10), 3, 3);
@@ -135,8 +152,154 @@ protected:
 
 private:
     Kind kind;
-    QStringList columns;                             // Name, spent, share, change
+    QString name;
+    QList<Column> columns;
+    bool hasBar = false;
 };
+
+} // namespace
+
+// Income and spending bars per week or month; hovering one shows its numbers. Compact is the
+// card's preview: no legend, labels or hovering.
+class FlowChart : public QWidget {
+public:
+    FlowChart(bool compactChart, QWidget* parent) : QWidget(parent), compact(compactChart) {
+        setObjectName(compact ? "flowPreview" : "flowChart");
+        setMouseTracking(!compact);
+        if (compact) {
+            setFixedHeight(40);
+        } else {
+            setMinimumHeight(200);
+        }
+    }
+
+    void setReport(const FlowReport& newReport) {
+        report = newReport;
+        hovered = -1;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        const Theme::Colors colors = Theme::colors();
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        Cents highest = 0;
+        for (const PeriodFlow& flow : std::as_const(report.periods)) {
+            highest = qMax(highest, qMax(flow.incomeCents, flow.spendingCents));
+        }
+        if (highest <= 0) {
+            if (!compact) {
+                painter.setPen(colors.textSecondary);
+                painter.drawText(rect(), Qt::AlignCenter, "No income or spending in this range.");
+            }
+            return;
+        }
+
+        const QRect plot = plotRect();
+        const int barWidth = qBound(compact ? 3 : 6, groupWidth() / 4, compact ? 10 : 22);
+        QFont labelFont = font();
+        labelFont.setPointSizeF(font().pointSizeF() * 0.9);
+        const QFontMetrics labelMetrics(labelFont);
+        // Leave out labels that wouldn't fit, evenly
+        const int labelWidth = labelMetrics.horizontalAdvance("30 Sep") + 8;
+        const int labelEvery = qMax(1, (labelWidth + groupWidth() - 1) / qMax(1, groupWidth()));
+        for (int i = 0; i < report.periods.size(); ++i) {
+            const PeriodFlow& flow = report.periods[i];
+            const QRect group = groupRect(i);
+            if (i == hovered) {
+                QPainterPath path;
+                path.addRoundedRect(QRectF(group.adjusted(2, -4, -2, 22)), 6, 6);
+                painter.fillPath(path, colors.itemHover);
+            }
+            int x = group.center().x() - barWidth - 1;
+            for (const auto& [cents, color] : QList<QPair<Cents, QColor>>{{flow.incomeCents, colors.positive},
+                                                                          {flow.spendingCents, colors.textMuted}}) {
+                const double barHeight = double(cents) / double(highest) * plot.height();
+                if (barHeight > 0) {
+                    const double shown = qMax(barHeight, 2.0);
+                    QPainterPath path;
+                    path.addRoundedRect(QRectF(x, plot.bottom() + 1 - shown, barWidth, shown + 3), 2, 2);
+                    painter.save();
+                    painter.setClipRect(QRectF(x, plot.top(), barWidth, plot.height() + 1));
+                    painter.fillPath(path, color);
+                    painter.restore();
+                }
+                x += barWidth + 2;
+            }
+            if (!compact && i % labelEvery == 0) {
+                painter.setFont(labelFont);
+                painter.setPen(i == hovered ? colors.textPrimary : colors.textSecondary);
+                painter.drawText(QRect(group.center().x() - labelWidth / 2, plot.bottom() + 4, labelWidth, 18), Qt::AlignCenter,
+                                 periodName(flow.period));
+            }
+        }
+        if (compact) return;
+        painter.setPen(colors.sidebarBorder);
+        painter.drawLine(plot.bottomLeft() + QPoint(0, 1), plot.bottomRight() + QPoint(0, 1));
+
+        // Legend in the top right corner
+        painter.setFont(labelFont);
+        int right = rect().right();
+        for (const auto& [label, color] : QList<QPair<QString, QColor>>{{"Spending", colors.textMuted}, {"Income", colors.positive}}) {
+            const int textWidth = labelMetrics.horizontalAdvance(label);
+            painter.setPen(colors.textSecondary);
+            painter.drawText(QRect(right - textWidth, 0, textWidth, 16), Qt::AlignRight | Qt::AlignVCenter, label);
+            QPainterPath swatch;
+            swatch.addRoundedRect(QRectF(right - textWidth - 14, 4, 9, 9), 2, 2);
+            painter.fillPath(swatch, color);
+            right -= textWidth + 30;
+        }
+    }
+
+    void mouseMoveEvent(QMouseEvent* event) override {
+        int index = -1;
+        for (int i = 0; i < report.periods.size(); ++i) {
+            if (groupRect(i).adjusted(0, -8, 0, 24).contains(event->position().toPoint())) index = i;
+        }
+        if (index != hovered) {
+            hovered = index;
+            update();
+        }
+        if (index >= 0) {
+            const Settings& settings = Settings::instance();
+            const PeriodFlow& flow = report.periods[index];
+            QToolTip::showText(event->globalPosition().toPoint(),
+                               QString("%1\nIncome %2\nSpending %3\nNet %4")
+                                   .arg(periodTitle(flow.period, report.range), settings.formatCurrency(flow.incomeCents),
+                                        settings.formatSpending(flow.spendingCents), settings.formatCurrency(flow.netCents(), true)),
+                               this);
+        } else {
+            QToolTip::hideText();
+        }
+    }
+
+    void leaveEvent(QEvent* event) override {
+        hovered = -1;
+        update();
+        QWidget::leaveEvent(event);
+    }
+
+private:
+    // "Oct" for months, "W40" (the calendar week) for weeks
+    QString periodName(const ReportRange& period) const {
+        if (report.range.flowUnit() == ReportRange::Unit::Week) return QString("W%1").arg(period.first.weekNumber());
+        return english.toString(period.first, "MMM");
+    }
+    QRect plotRect() const { return compact ? rect() : rect().adjusted(0, 24, 0, -24); }   // Legend above, labels below
+    int groupWidth() const { return report.periods.isEmpty() ? 0 : plotRect().width() / int(report.periods.size()); }
+    QRect groupRect(int index) const {
+        const QRect plot = plotRect();
+        return QRect(plot.left() + index * groupWidth(), plot.top(), groupWidth(), plot.height());
+    }
+
+    bool compact = false;
+    FlowReport report;
+    int hovered = -1;
+};
+
+namespace {
 
 bool askWithDialog(QWidget* parent, QDate& from, QDate& to) {
     QDialog dialog(parent);
@@ -359,6 +522,10 @@ ReportsPage::ReportsPage(QWidget* parent)
     spendingPreview = new CategoryBars(cards[0]->preview());
     cards[0]->preview()->layout()->addWidget(spendingPreview);
     cards[0]->preview()->layout()->setAlignment(spendingPreview, Qt::AlignTop);
+    ReportCard* flowCard = cards[static_cast<int>(Report::IncomeVsSpending)];
+    flowPreview = new FlowChart(true, flowCard->preview());
+    flowCard->preview()->layout()->addWidget(flowPreview);
+    flowCard->preview()->layout()->setAlignment(flowPreview, Qt::AlignTop);
     grid->setRowStretch(int(AllReports.size() + 2) / 3, 1);
     overviewScroll->setWidget(overview);
     stack->addWidget(overviewScroll);
@@ -471,6 +638,7 @@ void ReportsPage::refresh() {
     updateHeader();
     if (userId <= 0) return;
     spending = Reports::spendingByCategory(userId, shownAccountId, shownRange, QDate::currentDate());
+    flow = Reports::incomeVsSpending(userId, shownAccountId, shownRange);
     updateCards();
     updateDetail();
 }
@@ -506,6 +674,19 @@ void ReportsPage::updateCards() {
                                QString("In %1 %2").arg(count).arg(count == 1 ? "category" : "categories"));
     }
     spendingPreview->setCategories(spending.categories);
+
+    // Income vs. spending: how much of the income was kept
+    ReportCard* flowCard = cards[static_cast<int>(Report::IncomeVsSpending)];
+    const Cents net = flow.netCents();
+    if (flow.incomeCents == 0 && flow.spendingCents == 0) {
+        flowCard->setValue(QString(), "No income or spending in this range");
+    } else if (net < 0) {
+        flowCard->setValue("Spent more", QString("%1 more than came in").arg(settings.formatCurrency(-net)), Theme::colors().danger);
+    } else {
+        flowCard->setValue(QString("Kept %1%").arg(flow.keptPercent().value_or(0)),
+                           QString("%1 of %2 income").arg(settings.formatCurrency(net), settings.formatCurrency(flow.incomeCents)));
+    }
+    flowPreview->setReport(flow);
 }
 
 void ReportsPage::updateDetail() {
@@ -515,6 +696,8 @@ void ReportsPage::updateDetail() {
     QWidget* parent = detailLayout->parentWidget();
     if (*opened == Report::SpendingByCategory) {
         detailContent = spendingDetail(parent);
+    } else if (*opened == Report::IncomeVsSpending) {
+        detailContent = flowDetail(parent);
     } else {
         auto* placeholder = new QLabel("This report isn't built yet.", parent);
         placeholder->setObjectName("reportsDetailPlaceholder");
@@ -539,15 +722,25 @@ QWidget* ReportsPage::spendingDetail(QWidget* parent) const {
         return widget;
     }
 
+    using Column = ReportRow::Column;
+    using Tone = ReportRow::Tone;
+    const auto columns = [](const QString& spent, const QString& share, const QString& change) {
+        return QList<Column>{{spent, 130, Tone::Normal}, {share, 64, Tone::Secondary}, {change, 80, Tone::Change}};
+    };
     const Settings& settings = Settings::instance();
-    layout->addWidget(new SpendingRow(SpendingRow::Kind::Heading, "Category", "Spent", "Share", "Change", widget));
+    auto* heading = new ReportRow(ReportRow::Kind::Heading, "Category", columns("Spent", "Share", "Change"), false, widget);
+    heading->setObjectName("spendingHeading");
+    layout->addWidget(heading);
     // Refunded categories (below zero) come last and get no bar
     const double largest = double(qMax<Cents>(1, spending.categories.first().spentCents));
     for (const CategorySpent& spent : spending.categories) {
         int direction = 0;
+        const QString amount = settings.formatSpending(spent.spentCents);
+        const QString share = shareText(spent.spentCents, spending.totalCents);
         const QString change = changeText(spent.spentCents, spent.beforeCents, direction);
-        auto* row = new SpendingRow(SpendingRow::Kind::Category, spent.categoryName, settings.formatSpending(spent.spentCents),
-                                    shareText(spent.spentCents, spending.totalCents), change, widget);
+        auto* row = new ReportRow(ReportRow::Kind::Item, spent.categoryName, columns(amount, share, change), true, widget);
+        row->setObjectName("spendingRow");
+        row->setAccessibleDescription(QString("%1, %2 of all spending, %3").arg(amount, share, change));
         row->ratio = double(spent.spentCents) / largest;
         row->categoryColor = spent.categoryColor;
         row->direction = direction;
@@ -558,10 +751,63 @@ QWidget* ReportsPage::spendingDetail(QWidget* parent) const {
     }
     int direction = 0;
     const QString change = changeText(spending.totalCents, spending.beforeTotalCents, direction);
-    auto* total = new SpendingRow(SpendingRow::Kind::Total, "Total", settings.formatSpending(spending.totalCents),
-                                  spending.totalCents > 0 ? QString("100%") : QString("—"), change, widget);
+    auto* total = new ReportRow(ReportRow::Kind::Total, "Total",
+                                columns(settings.formatSpending(spending.totalCents),
+                                        spending.totalCents > 0 ? QString("100%") : QString("—"), change),
+                                false, widget);
+    total->setObjectName("spendingTotal");
     total->direction = direction;
     total->setToolTip(QString("%1 in %2").arg(settings.formatSpending(spending.beforeTotalCents), spending.before.label()));
+    layout->addWidget(total);
+    return widget;
+}
+
+QWidget* ReportsPage::flowDetail(QWidget* parent) const {
+    auto* widget = new QWidget(parent);
+    widget->setObjectName("flowDetail");
+    widget->setMaximumWidth(960);
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 4, 0, 0);
+    layout->setSpacing(0);
+    auto* chart = new FlowChart(false, widget);
+    chart->setReport(flow);
+    layout->addWidget(chart);
+    layout->addSpacing(16);
+
+    using Column = ReportRow::Column;
+    using Tone = ReportRow::Tone;
+    const Settings& settings = Settings::instance();
+    const auto kept = [](Cents income, Cents net) {
+        const std::optional<int> percent = Reports::keptPercent(income, net);
+        return percent ? QString("%1%").arg(*percent) : QString("—");
+    };
+    const auto columns = [](const QString& income, const QString& spent, const QString& net, bool short_, const QString& keptText) {
+        return QList<Column>{{income, 120, Tone::Normal}, {spent, 120, Tone::Normal},
+                             {net, 120, short_ ? Tone::Bad : Tone::Normal}, {keptText, 64, Tone::Secondary}};
+    };
+    const bool byWeek = flow.range.flowUnit() == ReportRange::Unit::Week;
+    auto* heading = new ReportRow(ReportRow::Kind::Heading, byWeek ? "Week" : "Month",
+                                  columns("Income", "Spending", "Net", false, "Kept"), false, widget);
+    heading->setObjectName("flowHeading");
+    layout->addWidget(heading);
+    for (const PeriodFlow& period : flow.periods) {
+        const Cents net = period.netCents();
+        auto* row = new ReportRow(ReportRow::Kind::Item, periodTitle(period.period, flow.range),
+                                  columns(settings.formatCurrency(period.incomeCents), settings.formatSpending(period.spendingCents),
+                                          settings.formatCurrency(net, true), net < 0, kept(period.incomeCents, net)),
+                                  false, widget);
+        row->setObjectName("flowRow");
+        row->setAccessibleDescription(QString("Income %1, spending %2, net %3")
+                                          .arg(settings.formatCurrency(period.incomeCents), settings.formatSpending(period.spendingCents),
+                                               settings.formatCurrency(net, true)));
+        layout->addWidget(row);
+    }
+    const Cents net = flow.netCents();
+    auto* total = new ReportRow(ReportRow::Kind::Total, "Total",
+                                columns(settings.formatCurrency(flow.incomeCents), settings.formatSpending(flow.spendingCents),
+                                        settings.formatCurrency(net, true), net < 0, kept(flow.incomeCents, net)),
+                                false, widget);
+    total->setObjectName("flowTotal");
     layout->addWidget(total);
     return widget;
 }

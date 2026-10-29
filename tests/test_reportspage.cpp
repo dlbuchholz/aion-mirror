@@ -183,6 +183,32 @@ private slots:
         QVERIFY(page.findChild<QLabel*>("reportsEmptyLabel"));
         QCOMPARE(card->accessibleDescription(), QString("No spending in this range"));
     }
+
+    void incomeVsSpendingOnTheCardAndInDetail() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Employer", 200000, today, "", 0, "income"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", 50000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::ThreeMonths)->click();
+        QAbstractButton* card = cards(page)[1];
+        QVERIFY(card->accessibleDescription().startsWith("Kept 75%"));
+
+        card->click();
+        QCOMPARE(page.openedReport(), ReportsPage::Report::IncomeVsSpending);
+        QVERIFY(page.findChild<QWidget*>("flowChart"));
+        const QList<QWidget*> rows = page.findChildren<QWidget*>("flowRow");
+        QCOMPARE(rows.size(), 3);                        // A row per month
+        QCOMPARE(rows.last()->accessibleName(), ReportRange::forPreset(Preset::Month, today).label());
+        QVERIFY(page.findChild<QWidget*>("flowTotal"));
+
+        // More spent than came in
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", 300000, today, "", 0, "expense"));
+        page.reload();
+        QVERIFY(card->accessibleDescription().startsWith("Spent more, "));
+    }
 };
 
 QTEST_MAIN(TestReportsPage)
