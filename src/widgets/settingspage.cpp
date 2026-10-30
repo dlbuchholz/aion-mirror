@@ -375,7 +375,9 @@ void SettingsPage::buildCategoriesSection()
     connect(accountTypesSettings, &AccountTypesSettings::accountTypesChanged, this, &SettingsPage::dataChanged);
     addSection("Account types", "database", accountTypesSettings);
 
-    addSection("Backup", "database", new BackupSettings(this));
+    auto *backupSettings = new BackupSettings(this);
+    connect(backupSettings, &BackupSettings::restored, this, &SettingsPage::databaseRestored);
+    addSection("Backup", "database", backupSettings);
 }
 
 void SettingsPage::watch(QComboBox *combo)

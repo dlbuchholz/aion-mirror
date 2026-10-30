@@ -45,6 +45,8 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->sidebar, &SidebarWidget::switchUserRequested, this, &MainWindow::switchUserRequested);
     connect(ui->sidebar, &SidebarWidget::budgetSortChanged, ui->settingsPage, &SettingsPage::reloadSidebarBudgetSort);
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
+    // The restored database may have other users, so everything starts over
+    connect(ui->settingsPage, &SettingsPage::databaseRestored, this, &MainWindow::switchUserRequested);
     connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {
         // Category names, colours and merges show up everywhere
         ui->transactionsPage->reload();

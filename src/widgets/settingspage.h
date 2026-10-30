@@ -36,6 +36,7 @@ public:
 signals:
     void settingsChanged();                          // Emitted after changes were applied
     void dataChanged();                              // Categories or account types were edited (saved right away)
+    void databaseRestored();                         // A backup replaced the open database
 
 protected:
     void changeEvent(QEvent *event) override;

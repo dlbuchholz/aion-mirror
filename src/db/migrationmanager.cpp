@@ -155,11 +155,16 @@ bool MigrationManager::needsUpdate() {
     return !appliedMigrations.isEmpty() && !getPendingMigrations(appliedMigrations).isEmpty();
 }
 
-bool MigrationManager::isNewerThanApp() {
+int MigrationManager::newestKnownVersion() const {
     int newestKnown = 0;
     for (const QString& fileName : QDir(m_migrationDir).entryList({"*.sql"}, QDir::Files)) {
         newestKnown = qMax(newestKnown, fileName.section('_', 0, 0).toInt());
     }
+    return newestKnown;
+}
+
+bool MigrationManager::isNewerThanApp() {
+    const int newestKnown = newestKnownVersion();
     for (int version : getAppliedMigrations()) {
         if (version > newestKnown) {
             return true;

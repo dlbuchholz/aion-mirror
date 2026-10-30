@@ -20,6 +20,10 @@ bool open(const QString& path, QString* errorMessage = nullptr);
 // neither could be opened.
 bool openAtStartup(QString* warningMessage = nullptr, QString* errorMessage = nullptr);
 
+// Replaces the open database with a copy of a backup, saving the current data as a backup first.
+// If the backup can't be opened, the current data is put back. errorMessage says why it failed.
+bool restore(const QString& backupPath, QString* errorMessage = nullptr);
+
 // Creates a new, empty Aion database. Refuses to touch an existing file.
 bool create(const QString& path, QString* errorMessage = nullptr);
 

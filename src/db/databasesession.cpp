@@ -6,6 +6,7 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QSqlQuery>
 #include <QStandardPaths>
@@ -116,6 +117,55 @@ bool openAtStartup(QString* warningMessage, QString* errorMessage) {
         return false;
     }
     if (warningMessage) *warningMessage = lastError;
+    return true;
+}
+
+bool restore(const QString& backupPath, QString* errorMessage) {
+    const QString target = currentPath;
+    const auto fail = [errorMessage](const QString& message) {
+        if (errorMessage) *errorMessage = message;
+        return false;
+    };
+
+    if (QFileInfo(backupPath).canonicalFilePath() == QFileInfo(target).canonicalFilePath()) {
+        return fail("That's the database you have open. Choose a backup instead.");
+    }
+    if (!Backup::inspect(backupPath, errorMessage)) {
+        return false;
+    }
+
+    // Copied first: a failed copy changes nothing, and saving the current data below may remove
+    // the oldest automatic backup, which may be this one
+    const QString incoming = target + ".restoring";
+    QFile::remove(incoming);
+    if (!QFile::copy(backupPath, incoming)) {
+        return fail("The backup couldn't be copied. Nothing was changed.");
+    }
+    if (!Backup::beforeRestore(errorMessage)) {
+        QFile::remove(incoming);
+        return false;
+    }
+
+    DatabaseManager& manager = DatabaseManager::instance();
+    manager.closeDatabase();
+
+    const QString replaced = target + ".replaced";
+    QFile::remove(replaced);
+    if (!QFile::rename(target, replaced)) {
+        QFile::remove(incoming);
+        openAndMigrate(target, nullptr);
+        return fail("The database file couldn't be replaced. It may be in use. Nothing was changed.");
+    }
+    if (!QFile::rename(incoming, target) || !openAndMigrate(target, nullptr)) {
+        manager.closeDatabase();
+        QFile::remove(incoming);
+        QFile::remove(target);
+        QFile::rename(replaced, target);
+        openAndMigrate(target, nullptr);
+        return fail("The backup couldn't be opened, so your current data was put back.");
+    }
+
+    QFile::remove(replaced);
     return true;
 }
 
