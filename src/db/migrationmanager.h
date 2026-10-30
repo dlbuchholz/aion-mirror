@@ -13,6 +13,8 @@ public:
     ~MigrationManager();
 
     bool applyMigrations();
+    bool needsUpdate();                              // A database in use that has migrations to apply (not a new one)
+    bool isNewerThanApp();                           // Has migrations this version of Aion doesn't know
 
 private:
     QString m_migrationDir; // Directory containing migration files

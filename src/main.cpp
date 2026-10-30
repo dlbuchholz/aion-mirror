@@ -17,21 +17,16 @@
 #include <cstdlib>
 #include <functional>
 
-// Opens the database used last time, or the default one if that fails
+// Opens the database for this start and says so if it isn't the one used last time
 static bool openStartupDatabase() {
-    const QString last = Settings::instance().getLastDatabase();
-    if (!last.isEmpty()) {
-        QString error;
-        if (DatabaseSession::open(last, &error)) {
-            return true;
-        }
-        qWarning() << "Could not open last database" << last << ":" << error;
-    }
-
+    QString warning;
     QString error;
-    if (!DatabaseSession::open(DatabaseSession::defaultDatabasePath(), &error)) {
+    if (!DatabaseSession::openAtStartup(&warning, &error)) {
         qCritical() << "Database initialization failed:" << error;
         return false;
+    }
+    if (!warning.isEmpty()) {
+        QMessageBox::warning(nullptr, "Aion", warning);
     }
     return true;
 }

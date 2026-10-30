@@ -150,6 +150,24 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
 }
 
 
+bool MigrationManager::needsUpdate() {
+    const QVector<int> appliedMigrations = getAppliedMigrations();
+    return !appliedMigrations.isEmpty() && !getPendingMigrations(appliedMigrations).isEmpty();
+}
+
+bool MigrationManager::isNewerThanApp() {
+    int newestKnown = 0;
+    for (const QString& fileName : QDir(m_migrationDir).entryList({"*.sql"}, QDir::Files)) {
+        newestKnown = qMax(newestKnown, fileName.section('_', 0, 0).toInt());
+    }
+    for (int version : getAppliedMigrations()) {
+        if (version > newestKnown) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool MigrationManager::applyMigrations() {
     QVector<int> appliedMigrations = getAppliedMigrations();
     QVector<QString> pendingMigrations = getPendingMigrations(appliedMigrations);

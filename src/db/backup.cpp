@@ -1,12 +1,16 @@
 #include "backup.h"
 #include "databasemanager.h"
 
+#include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QSqlError>
 #include <QSqlQuery>
 
 namespace {
+
+constexpr int KeptUpdateBackups = 5;
 
 void setError(QString* errorMessage, const QString& message) {
     if (errorMessage) *errorMessage = message;
@@ -68,6 +72,30 @@ bool write(const QString& path, QString* errorMessage) {
         QFile::remove(unfinished);
         setError(errorMessage, "The backup couldn't be saved under that name. The file may be in use.");
         return false;
+    }
+    return true;
+}
+
+QString folderFor(const QString& databasePath) {
+    return QFileInfo(databasePath).absoluteDir().filePath("backups");
+}
+
+bool beforeUpdate(QString* errorMessage) {
+    const QString databasePath = DatabaseManager::instance().database().databaseName();
+    const QDir folder(folderFor(databasePath));
+    const QString prefix = QFileInfo(databasePath).completeBaseName() + "-before-update-";
+
+    QString reason = "The backups folder couldn't be created.";
+    if (!QDir().mkpath(folder.path())
+        || !write(folder.filePath(prefix + QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmss") + ".db"), &reason)) {
+        setError(errorMessage, QString("It needs an update, but couldn't be backed up first, so it wasn't changed. %1").arg(reason));
+        return false;
+    }
+
+    // The dates in the names sort newest first
+    const QStringList kept = folder.entryList({prefix + "*.db"}, QDir::Files, QDir::Name | QDir::Reversed);
+    for (qsizetype i = KeptUpdateBackups; i < kept.size(); ++i) {
+        QFile::remove(folder.filePath(kept[i]));
     }
     return true;
 }

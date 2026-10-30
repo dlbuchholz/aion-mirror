@@ -15,6 +15,11 @@ QString currentDatabasePath();                       // Empty while no database 
 // open database stays active and errorMessage says why.
 bool open(const QString& path, QString* errorMessage = nullptr);
 
+// Opens the database used last time, or the default one if there's none or it fails. In that
+// failure warningMessage says what happened, for the user to see. errorMessage is for when
+// neither could be opened.
+bool openAtStartup(QString* warningMessage = nullptr, QString* errorMessage = nullptr);
+
 // Creates a new, empty Aion database. Refuses to touch an existing file.
 bool create(const QString& path, QString* errorMessage = nullptr);
 

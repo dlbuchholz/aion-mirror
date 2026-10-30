@@ -14,6 +14,12 @@ QString suggestedName(const QString& databasePath, const QDate& date);
 // a finished copy nothing changes at path. Not the database's own file.
 bool write(const QString& path, QString* errorMessage = nullptr);
 
+// The folder of automatic backups, next to the database
+QString folderFor(const QString& databasePath);
+
+// Saves a copy there before migrations change the open database. Keeps the last few of these.
+bool beforeUpdate(QString* errorMessage = nullptr);
+
 } // namespace Backup
 
 #endif // BACKUP_H
