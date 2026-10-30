@@ -148,6 +148,57 @@ Cents BalanceReport::balanceOn(const QDate& date) const {
 
 namespace Reports {
 
+PayeeReport topPayees(int userId, int accountId, const ReportRange& range) {
+    PayeeReport report;
+    report.range = range;
+    if (!range.isValid()) return report;
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT COALESCE(t.payee, ''), SUM(" + SpendingCentsSql + "), COUNT(*) "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND " + IsSpendingSql + " AND t.date BETWEEN :first AND :last AND "
+        + CountedAsIncomeOrSpendingSql + (accountId >= 0 ? " AND t.account_id = :account_id " : " ")
+        + "GROUP BY COALESCE(t.payee, '')");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", range.last.toString("yyyy-MM-dd"));
+    if (accountId >= 0) query.bindValue(":account_id", accountId);
+    if (!query.exec()) {
+        qWarning() << "Reports:" << query.lastError().text();
+        return report;
+    }
+
+    // "REWE" and "Rewe " are the same payee, under the spelling used most
+    struct Merged {
+        PayeeSpent spent;
+        int spellingCount = 0;
+    };
+    QHash<QString, Merged> merged;
+    QStringList order;
+    while (query.next()) {
+        const QString spelling = query.value(0).toString().simplified();
+        const QString key = spelling.toCaseFolded();
+        const Cents cents = query.value(1).toLongLong();
+        const int count = query.value(2).toInt();
+        if (!merged.contains(key)) order.append(key);
+        Merged& payee = merged[key];
+        if (count > payee.spellingCount) {
+            payee.spent.payee = spelling;
+            payee.spellingCount = count;
+        }
+        payee.spent.spentCents += cents;
+        payee.spent.count += count;
+        report.totalCents += cents;
+    }
+    for (const QString& key : std::as_const(order)) {
+        if (merged[key].spent.spentCents != 0) report.payees.append(merged[key].spent);
+    }
+    std::sort(report.payees.begin(), report.payees.end(), [](const PayeeSpent& a, const PayeeSpent& b) {
+        return a.spentCents != b.spentCents ? a.spentCents > b.spentCents : a.payee.localeAwareCompare(b.payee) < 0;
+    });
+    return report;
+}
+
 CategoryTrend categoryTrend(int userId, int accountId, int categoryId, const ReportRange& range, const QDate& today) {
     CategoryTrend trend;
     trend.range = range;

@@ -79,6 +79,11 @@ MainWindow::MainWindow(int userId, QWidget *parent)
         transactions->showCategoryInRange(categoryId, accountId < 0 ? TransactionsPage::ALL_ACCOUNTS : accountId, from, to);
         showPage(SidebarWidget::Page::Transactions);
     });
+    connect(ui->reportsPage, &ReportsPage::payeeTransactionsRequested, this,
+            [this, transactions](const QString& payee, int accountId, const QDate& from, const QDate& to) {
+        transactions->showPayeeInRange(payee, accountId < 0 ? TransactionsPage::ALL_ACCOUNTS : accountId, from, to);
+        showPage(SidebarWidget::Page::Transactions);
+    });
 
     // "Create rule from this…" and "Add to rule" on transactions open Settings > Rules with the rule filled in
     connect(transactions, &TransactionsPage::ruleDraftRequested, this,

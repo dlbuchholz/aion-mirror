@@ -237,6 +237,33 @@ private slots:
         QCOMPARE(page.findChild<QWidget*>("balanceTotal")->accessibleName(), QString("Whole range"));
     }
 
+    void topPayeesOnTheCardAndInDetail() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Landlord", 90000, today, "", 0, "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 3000, today, "", 0, "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "", 500, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        QAbstractButton* card = cards(page)[4];
+        QVERIFY(card->accessibleDescription().startsWith("Landlord, "));
+        QVERIFY(page.findChild<QLabel*>("payeePreview")->text().startsWith("REWE · "));
+
+        card->click();
+        const QList<QAbstractButton*> rows = page.findChildren<QAbstractButton*>("payeeRow");
+        QCOMPARE(rows.size(), 3);
+        QCOMPARE(rows[2]->accessibleName(), QString("No payee"));
+        QSignalSpy requested(&page, &ReportsPage::payeeTransactionsRequested);
+        rows[1]->click();
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(requested[0][0].toString(), QString("REWE"));
+        QCOMPARE(requested[0][2].toDate(), page.range().first);
+        rows[2]->click();                                // No payee to search for
+        QCOMPARE(requested.size(), 1);
+    }
+
     void categoryTrendFollowsTheLargestOrTheChosenCategory() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         QSqlQuery query(DatabaseManager::instance().database());

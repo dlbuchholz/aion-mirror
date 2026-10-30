@@ -559,6 +559,11 @@ private slots:
         }
         QVERIFY(chip->isHidden());
         QCOMPARE(model->totals().count, 1);                       // Still no category, all time
+
+        page.showPayeeInRange("Rewe", TransactionsPage::ALL_ACCOUNTS, QDate(2026, 5, 1), QDate(2026, 6, 30));
+        QCOMPARE(model->totals().count, 2);                       // Any category, those days
+        QCOMPARE(page.findChild<QLineEdit*>("searchEdit")->text(), QString("Rewe"));
+        QVERIFY(!chip->isHidden());
     }
 
     // --- Deleting and bulk changes ---

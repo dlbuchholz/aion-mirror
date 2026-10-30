@@ -219,6 +219,32 @@ private slots:
         QCOMPARE(trend.averageCents, Cents(4000));
     }
 
+    void payeesLargestFirstWithSpellingsTogether() {
+        const ReportRange month = ReportRange::forPreset(Preset::Month, today);
+        const auto addFrom = [this](int account, const char* payee, Cents cents, int category, const char* type) {
+            return TransactionDAO().addTransaction(Transaction(-1, account, payee, cents, QDate(2026, 10, 5), "", category, type));
+        };
+        addFrom(giro, "REWE", 3000, groceries, "expense");
+        addFrom(giro, "REWE", 2000, groceries, "expense");
+        addFrom(savings, "Rewe ", 1000, groceries, "expense");           // Same payee
+        addFrom(giro, "REWE", 500, groceries, "income");                 // A refund lowers it
+        addFrom(giro, "Landlord", 89000, rent, "expense");
+        addFrom(giro, "", 700, 0, "expense");
+        addFrom(giro, "Employer", 300000, categoryId("Salary"), "income");   // Not spending
+        addFrom(giro, "Savings", 50000, categoryId(TransferCategory), "expense");   // Left out
+
+        const PayeeReport report = Reports::topPayees(1, -1, month);
+        QCOMPARE(report.payees.size(), 3);
+        QCOMPARE(report.payees[0].payee, QString("Landlord"));
+        QCOMPARE(report.payees[1].payee, QString("REWE"));
+        QCOMPARE(report.payees[1].spentCents, Cents(5500));
+        QCOMPARE(report.payees[1].count, 4);
+        QCOMPARE(report.payees[2].payee, QString());
+        QCOMPARE(report.totalCents, Cents(89000 + 5500 + 700));
+
+        QCOMPARE(Reports::topPayees(1, savings, month).totalCents, Cents(1000));
+    }
+
     void otherUsersAreLeftOut() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);

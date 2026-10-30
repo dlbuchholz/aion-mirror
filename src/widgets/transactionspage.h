@@ -42,6 +42,8 @@ public:
     // One category's transactions in an account (or ALL_ACCOUNTS) from one day to another, as
     // a report counted them. The days show as a chip until another period is chosen.
     void showCategoryInRange(int categoryId, int accountId, const QDate& from, const QDate& to);
+    // The same for a payee: searched for, in every category
+    void showPayeeInRange(const QString& payee, int accountId, const QDate& from, const QDate& to);
     void openTransaction(int transactionId);         // Shows all transactions and opens this one in the editor
 
 public slots:
@@ -77,6 +79,7 @@ private:
     };
 
     QToolButton* addChip(const QString& text, QLayout* layout);
+    void showRange(int categoryFilterData, const QString& search, int accountId, const QDate& from, const QDate& to);
     void applyFilter();
     void populateCategoryFilter();
     void updateHeader();

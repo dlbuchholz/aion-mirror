@@ -74,6 +74,10 @@ QString periodTitle(const ReportRange& period, const ReportRange& range) {
     return period.label();
 }
 
+QString payeeName(const QString& payee) {
+    return payee.isEmpty() ? QString("No payee") : payee;
+}
+
 // The colour of a category's bar, or a neutral one when category colours are off in overviews
 QColor barColor(const QString& categoryColor) {
     if (!Settings::instance().isCategoryColorsInOverviewsEnabled()) return Theme::colors().textMuted;
@@ -847,6 +851,12 @@ ReportsPage::ReportsPage(QWidget* parent)
     trendPreview = new TrendChart(true, trendCard->preview());
     trendCard->preview()->layout()->addWidget(trendPreview);
     trendCard->preview()->layout()->setAlignment(trendPreview, Qt::AlignTop);
+    ReportCard* payeeCard = cards[static_cast<int>(Report::TopPayees)];
+    payeePreview = new QLabel(payeeCard->preview());
+    payeePreview->setObjectName("payeePreview");
+    payeePreview->setForegroundRole(QPalette::PlaceholderText);
+    payeeCard->preview()->layout()->addWidget(payeePreview);
+    payeeCard->preview()->layout()->setAlignment(payeePreview, Qt::AlignTop);
     grid->setRowStretch(int(AllReports.size() + 2) / 3, 1);
     overviewScroll->setWidget(overview);
     stack->addWidget(overviewScroll);
@@ -961,6 +971,7 @@ void ReportsPage::refresh() {
     spending = Reports::spendingByCategory(userId, shownAccountId, shownRange, QDate::currentDate());
     flow = Reports::incomeVsSpending(userId, shownAccountId, shownRange);
     balance = Reports::balanceOverTime(userId, shownAccountId, shownRange, QDate::currentDate());
+    payees = Reports::topPayees(userId, shownAccountId, shownRange);
     if (const std::optional<int> category = trendCategory()) {
         trend = Reports::categoryTrend(userId, shownAccountId, *category, shownRange, QDate::currentDate());
     } else {
@@ -1051,6 +1062,22 @@ void ReportsPage::updateCards() {
         trendCard->setValue(QString(), "No spending in this range");
         trendPreview->setTrend(CategoryTrend());
     }
+
+    // Top payees: the largest, and the next three below
+    ReportCard* payeeCard = cards[static_cast<int>(Report::TopPayees)];
+    if (payees.payees.isEmpty() || payees.payees.first().spentCents <= 0) {
+        payeeCard->setValue(QString(), "No spending in this range");
+        payeePreview->clear();
+    } else {
+        const PayeeSpent& top = payees.payees.first();
+        payeeCard->setValue(payeeName(top.payee), QString("%1 in %2 %3").arg(settings.formatSpending(top.spentCents))
+                                                      .arg(top.count).arg(top.count == 1 ? "transaction" : "transactions"));
+        QStringList lines;
+        for (const PayeeSpent& next : payees.payees.mid(1, 3)) {
+            if (next.spentCents > 0) lines.append(QString("%1 · %2").arg(payeeName(next.payee), settings.formatSpending(next.spentCents)));
+        }
+        payeePreview->setText(lines.join('\n'));
+    }
 }
 
 void ReportsPage::updateDetail() {
@@ -1071,6 +1098,8 @@ void ReportsPage::updateDetail() {
         detailContent = balanceDetail(parent);
     } else if (*opened == Report::CategoryTrend) {
         detailContent = trendDetail(parent);
+    } else if (*opened == Report::TopPayees) {
+        detailContent = payeeDetail(parent);
     } else {
         auto* placeholder = new QLabel("This report isn't built yet.", parent);
         placeholder->setObjectName("reportsDetailPlaceholder");
@@ -1231,6 +1260,78 @@ QWidget* ReportsPage::balanceDetail(QWidget* parent) {
     total->setObjectName("balanceTotal");
     total->direction = direction(balance.changeCents());
     total->setToolTip(QString("%1 at the start").arg(settings.formatCurrency(balance.startCents)));
+    layout->addWidget(total);
+    return widget;
+}
+
+QWidget* ReportsPage::payeeDetail(QWidget* parent) {
+    auto* widget = new QWidget(parent);
+    widget->setObjectName("payeeDetail");
+    widget->setMaximumWidth(960);
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 4, 0, 0);
+    layout->setSpacing(0);
+    if (payees.payees.isEmpty()) {
+        auto* empty = new QLabel("No spending in this range.", widget);
+        empty->setObjectName("reportsEmptyLabel");
+        empty->setForegroundRole(QPalette::PlaceholderText);
+        layout->addWidget(empty);
+        return widget;
+    }
+
+    using Column = ReportRow::Column;
+    using Tone = ReportRow::Tone;
+    const auto columns = [](const QString& spent, const QString& share, const QString& count) {
+        return QList<Column>{{spent, 130, Tone::Normal}, {share, 64, Tone::Secondary}, {count, 120, Tone::Secondary}};
+    };
+    const auto countText = [](int count) { return QString("%1 %2").arg(count).arg(count == 1 ? "transaction" : "transactions"); };
+    const Settings& settings = Settings::instance();
+    auto* heading = new ReportRow(ReportRow::Kind::Heading, "Payee", columns("Spent", "Share", "Transactions"), false, widget);
+    heading->setObjectName("payeeHeading");
+    layout->addWidget(heading);
+
+    // The largest ones, then everyone else together
+    constexpr int Shown = 20;
+    const double largest = double(qMax<Cents>(1, payees.payees.first().spentCents));
+    const ReportRange range = payees.range;
+    const int account = shownAccountId;
+    for (const PayeeSpent& spent : payees.payees.mid(0, Shown)) {
+        const QString amount = settings.formatSpending(spent.spentCents);
+        const QString share = shareText(spent.spentCents, payees.totalCents);
+        auto* row = new ReportRow(ReportRow::Kind::Item, payeeName(spent.payee), columns(amount, share, countText(spent.count)), true, widget);
+        row->setObjectName("payeeRow");
+        row->setAccessibleDescription(QString("%1, %2 of all spending, %3").arg(amount, share, countText(spent.count)));
+        row->ratio = double(spent.spentCents) / largest;
+        if (!spent.payee.isEmpty()) {
+            row->makeClickable(QString("Show the transactions with %1").arg(spent.payee));
+            const QString payee = spent.payee;
+            connect(row, &QAbstractButton::clicked, this, [this, payee, account, range]() {
+                emit payeeTransactionsRequested(payee, account, range.first, range.last);
+            });
+        }
+        layout->addWidget(row);
+    }
+    if (payees.payees.size() > Shown) {
+        Cents restCents = 0;
+        int restCount = 0;
+        for (const PayeeSpent& spent : payees.payees.mid(Shown)) {
+            restCents += spent.spentCents;
+            restCount += spent.count;
+        }
+        const int others = int(payees.payees.size()) - Shown;
+        auto* rest = new ReportRow(ReportRow::Kind::Item, QString("%1 other %2").arg(others).arg(others == 1 ? "payee" : "payees"),
+                                   columns(settings.formatSpending(restCents), shareText(restCents, payees.totalCents), countText(restCount)),
+                                   false, widget);
+        rest->setObjectName("payeeRest");
+        layout->addWidget(rest);
+    }
+    int totalCount = 0;
+    for (const PayeeSpent& spent : payees.payees) totalCount += spent.count;
+    auto* total = new ReportRow(ReportRow::Kind::Total, "Total",
+                                columns(settings.formatSpending(payees.totalCents), payees.totalCents > 0 ? QString("100%") : QString("—"),
+                                        countText(totalCount)),
+                                false, widget);
+    total->setObjectName("payeeTotal");
     layout->addWidget(total);
     return widget;
 }

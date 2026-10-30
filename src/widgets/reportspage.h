@@ -58,6 +58,8 @@ public:
 signals:
     // A category's transactions in an account (or ALL_ACCOUNTS) from one day to another
     void transactionsRequested(int categoryId, int accountId, const QDate& from, const QDate& to);
+    // A payee's transactions, the same way
+    void payeeTransactionsRequested(const QString& payee, int accountId, const QDate& from, const QDate& to);
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -75,6 +77,7 @@ private:
     QWidget* flowDetail(QWidget* parent) const;
     QWidget* balanceDetail(QWidget* parent);
     QWidget* trendDetail(QWidget* parent);
+    QWidget* payeeDetail(QWidget* parent);
 
     int userId = -1;
     ReportRange::Preset preset = ReportRange::Preset::SixMonths;
@@ -93,6 +96,7 @@ private:
     FlowChart* flowPreview = nullptr;
     BalanceChart* balancePreview = nullptr;
     TrendChart* trendPreview = nullptr;
+    QLabel* payeePreview = nullptr;
     QVBoxLayout* detailLayout = nullptr;
     QWidget* detailContent = nullptr;                // The opened report's, rebuilt when the numbers change
 
@@ -101,6 +105,7 @@ private:
     BalanceReport balance;
     std::optional<int> chosenTrendCategory;          // Picked by the user; otherwise the largest
     std::optional<CategoryTrend> trend;
+    PayeeReport payees;
 };
 
 #endif // REPORTSPAGE_H

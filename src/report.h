@@ -118,7 +118,23 @@ struct CategoryTrend {
     Cents averageCents = 0;                          // Per week or month, over those that have begun
 };
 
+// What went to one payee. Spellings that differ only in case or spaces are one payee.
+struct PayeeSpent {
+    QString payee;                                   // The most used spelling; empty = no payee
+    Cents spentCents = 0;                            // Less refunds
+    int count = 0;
+};
+
+struct PayeeReport {
+    ReportRange range;
+    QList<PayeeSpent> payees;                        // All with spending, largest first
+    Cents totalCents = 0;
+};
+
 namespace Reports {
+
+// Spending per payee, without transfers and balance adjustments. accountId < 0 means all accounts.
+PayeeReport topPayees(int userId, int accountId, const ReportRange& range);
 
 // How one category's spending went, week by week or month by month. Without transfers and
 // balance adjustments; accountId < 0 means all accounts.

@@ -886,12 +886,20 @@ void TransactionsPage::showCategoryThisMonth(int categoryId) {
 }
 
 void TransactionsPage::showCategoryInRange(int categoryId, int newAccountId, const QDate& from, const QDate& to) {
+    showRange(categoryId == 0 ? TransactionFilter::NO_CATEGORY : categoryId, QString(), newAccountId, from, to);
+}
+
+void TransactionsPage::showPayeeInRange(const QString& payee, int newAccountId, const QDate& from, const QDate& to) {
+    showRange(TransactionFilter::ANY_CATEGORY, payee, newAccountId, from, to);
+}
+
+void TransactionsPage::showRange(int categoryFilterData, const QString& search, int newAccountId, const QDate& from, const QDate& to) {
     showAccount(newAccountId);
     {
         const QSignalBlocker searchBlocker(searchEdit);
         const QSignalBlocker categoryBlocker(categoryFilter);
-        searchEdit->clear();
-        const int index = categoryFilter->findData(categoryId == 0 ? TransactionFilter::NO_CATEGORY : categoryId);
+        searchEdit->setText(search);
+        const int index = categoryFilter->findData(categoryFilterData);
         categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
     }
     rangeFrom = qMin(from, to);
