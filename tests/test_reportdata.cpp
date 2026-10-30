@@ -1,5 +1,6 @@
 #include <QtTest>
 #include "account.h"
+#include "budget.h"
 #include "category.h"
 #include "report.h"
 #include "tests/test_db_fixture.h"
@@ -243,6 +244,43 @@ private slots:
         QCOMPARE(report.totalCents, Cents(89000 + 5500 + 700));
 
         QCOMPARE(Reports::topPayees(1, savings, month).totalCents, Cents(1000));
+    }
+
+    void budgetsAddedUpOverTheMonths() {
+        BudgetDAO budgets;
+        QVERIFY(budgets.setMonthlyLimit(1, groceries, QDate(2026, 8, 1), 10000));
+        QVERIFY(budgets.setMonthlyLimit(1, rent, QDate(2026, 10, 1), 50000));
+        add(giro, 8000, QDate(2026, 8, 5), groceries, "expense");
+        add(savings, 12000, QDate(2026, 9, 5), groceries, "expense");    // Over in September, from any account
+        add(giro, 5000, QDate(2026, 10, 5), groceries, "expense");
+        add(giro, 99900, QDate(2026, 9, 3), rent, "expense");            // No budget yet: doesn't count
+        add(giro, 60000, QDate(2026, 10, 3), rent, "expense");
+
+        const BudgetReport report = Reports::budgetVsActual(1, ReportRange::forPreset(Preset::ThreeMonths, today), today);
+        QCOMPARE(report.categories.size(), 2);
+        QCOMPARE(report.categories[0].categoryName, QString("Rent"));    // Fullest first
+        QCOMPARE(report.categories[0].months, 1);
+        QCOMPARE(report.categories[0].spentCents, Cents(60000));
+        QVERIFY(!report.categories[0].kept());
+        QCOMPARE(report.categories[1].limitCents, Cents(30000));
+        QCOMPARE(report.categories[1].spentCents, Cents(25000));
+        QCOMPARE(report.categories[1].months, 3);
+        QCOMPARE(report.categories[1].monthsOver, 1);
+        QVERIFY(report.categories[1].kept());
+        QCOMPARE(report.keptCount(), 1);
+        QCOMPARE(report.limitCents, Cents(80000));
+        QCOMPARE(report.spentCents, Cents(85000));
+    }
+
+    void budgetsTakeWholeMonthsThatHaveBegun() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, QDate(2026, 1, 1), 10000));
+        const BudgetReport cut = Reports::budgetVsActual(1, {QDate(2026, 9, 15), QDate(2026, 10, 10)}, today);
+        QCOMPARE(cut.range, ReportRange({QDate(2026, 9, 1), QDate(2026, 10, 31)}));
+        QCOMPARE(cut.categories[0].months, 2);
+
+        const BudgetReport ahead = Reports::budgetVsActual(1, {QDate(2026, 10, 1), QDate(2026, 12, 31)}, today);
+        QCOMPARE(ahead.categories[0].months, 1);                         // November and December haven't begun
+        QVERIFY(Reports::budgetVsActual(1, {QDate(2026, 11, 1), QDate(2026, 11, 30)}, today).categories.isEmpty());
     }
 
     void otherUsersAreLeftOut() {

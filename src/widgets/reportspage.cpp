@@ -115,6 +115,7 @@ public:
 
     double ratio = 0.0;                              // Bar length against the largest; none at 0 or below
     QString categoryColor;                           // The bar's; empty = neutral
+    bool showsUsage = false;                         // The bar is part of a limit: on a track, red past it
     int direction = 0;                               // For Tone::Change: 1 bad (red), -1 good (green)
 
 protected:
@@ -164,10 +165,15 @@ protected:
             return;
         }
         painter.drawText(QRect(0, 4, nameWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, shownName);
+        if (showsUsage) {
+            QPainterPath track;
+            track.addRoundedRect(QRectF(0, 26, nameWidth, 10), 3, 3);
+            painter.fillPath(track, colors.track);
+        }
         if (ratio > 0.0) {
             QPainterPath bar;
             bar.addRoundedRect(QRectF(0, 26, qMax(4.0, nameWidth * qMin(ratio, 1.0)), 10), 3, 3);
-            painter.fillPath(bar, barColor(categoryColor));
+            painter.fillPath(bar, showsUsage ? (ratio > 1.0 ? colors.danger : colors.accent) : barColor(categoryColor));
         }
     }
 
@@ -728,6 +734,38 @@ private:
     QWidget* previewArea = nullptr;
 };
 
+// How full all budgets are together, for the budget card
+class UsageBar : public QWidget {
+public:
+    explicit UsageBar(QWidget* parent) : QWidget(parent) {
+        setObjectName("usageBar");
+        setFixedHeight(8);
+    }
+
+    void setRatio(double newRatio) {
+        ratio = newRatio;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        const Theme::Colors colors = Theme::colors();
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPainterPath track;
+        track.addRoundedRect(QRectF(rect()), 4, 4);
+        painter.fillPath(track, colors.track);
+        if (ratio > 0.0) {
+            QPainterPath bar;
+            bar.addRoundedRect(QRectF(0, 0, qMax(8.0, width() * qMin(ratio, 1.0)), height()), 4, 4);
+            painter.fillPath(bar, ratio > 1.0 ? colors.danger : colors.accent);
+        }
+    }
+
+private:
+    double ratio = 0.0;
+};
+
 // The largest categories as thin bars, for the spending card
 class CategoryBars : public QWidget {
 public:
@@ -857,6 +895,10 @@ ReportsPage::ReportsPage(QWidget* parent)
     payeePreview->setForegroundRole(QPalette::PlaceholderText);
     payeeCard->preview()->layout()->addWidget(payeePreview);
     payeeCard->preview()->layout()->setAlignment(payeePreview, Qt::AlignTop);
+    ReportCard* budgetCard = cards[static_cast<int>(Report::BudgetVsActual)];
+    budgetPreview = new UsageBar(budgetCard->preview());
+    budgetCard->preview()->layout()->addWidget(budgetPreview);
+    budgetCard->preview()->layout()->setAlignment(budgetPreview, Qt::AlignTop);
     grid->setRowStretch(int(AllReports.size() + 2) / 3, 1);
     overviewScroll->setWidget(overview);
     stack->addWidget(overviewScroll);
@@ -972,6 +1014,7 @@ void ReportsPage::refresh() {
     flow = Reports::incomeVsSpending(userId, shownAccountId, shownRange);
     balance = Reports::balanceOverTime(userId, shownAccountId, shownRange, QDate::currentDate());
     payees = Reports::topPayees(userId, shownAccountId, shownRange);
+    budgets = Reports::budgetVsActual(userId, shownRange, QDate::currentDate());
     if (const std::optional<int> category = trendCategory()) {
         trend = Reports::categoryTrend(userId, shownAccountId, *category, shownRange, QDate::currentDate());
     } else {
@@ -1078,6 +1121,19 @@ void ReportsPage::updateCards() {
         }
         payeePreview->setText(lines.join('\n'));
     }
+
+    // Budget vs. actual: how many were kept, and how full they are together
+    ReportCard* budgetCard = cards[static_cast<int>(Report::BudgetVsActual)];
+    if (budgets.categories.isEmpty()) {
+        budgetCard->setValue(QString(), "No budgets in this range");
+        budgetPreview->setRatio(0.0);
+    } else {
+        budgetCard->setValue(QString("%1 of %2 kept").arg(budgets.keptCount()).arg(budgets.categories.size()),
+                             QString("%1 of %2 budgeted").arg(settings.formatSpending(budgets.spentCents),
+                                                              settings.formatCurrency(budgets.limitCents)),
+                             budgets.spentCents > budgets.limitCents ? Theme::colors().danger : QColor());
+        budgetPreview->setRatio(double(budgets.spentCents) / double(budgets.limitCents));
+    }
 }
 
 void ReportsPage::updateDetail() {
@@ -1101,10 +1157,7 @@ void ReportsPage::updateDetail() {
     } else if (*opened == Report::TopPayees) {
         detailContent = payeeDetail(parent);
     } else {
-        auto* placeholder = new QLabel("This report isn't built yet.", parent);
-        placeholder->setObjectName("reportsDetailPlaceholder");
-        placeholder->setForegroundRole(QPalette::PlaceholderText);
-        detailContent = placeholder;
+        detailContent = budgetDetail(parent);
     }
     detailLayout->insertWidget(0, detailContent);
 }
@@ -1332,6 +1385,72 @@ QWidget* ReportsPage::payeeDetail(QWidget* parent) {
                                         countText(totalCount)),
                                 false, widget);
     total->setObjectName("payeeTotal");
+    layout->addWidget(total);
+    return widget;
+}
+
+QWidget* ReportsPage::budgetDetail(QWidget* parent) {
+    auto* widget = new QWidget(parent);
+    widget->setObjectName("budgetDetail");
+    widget->setMaximumWidth(960);
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 4, 0, 0);
+    layout->setSpacing(0);
+
+    // Budgets don't follow the range or account exactly; say so rather than look as if they did
+    QStringList notes;
+    if (budgets.range.isValid() && !(budgets.range == shownRange)) notes.append(QString("Budgets are per month, so this covers %1.").arg(budgets.range.label()));
+    if (shownAccountId != ALL_ACCOUNTS) notes.append("Budgets are for all accounts together, so the chosen account doesn't apply here.");
+    if (!notes.isEmpty()) {
+        auto* note = new QLabel(notes.join(' '), widget);
+        note->setObjectName("budgetNote");
+        note->setWordWrap(true);
+        note->setForegroundRole(QPalette::PlaceholderText);
+        layout->addWidget(note);
+        layout->addSpacing(10);
+    }
+    if (budgets.categories.isEmpty()) {
+        auto* empty = new QLabel("No budgets in this range. Set limits per category on the Budget page.", widget);
+        empty->setObjectName("reportsEmptyLabel");
+        empty->setForegroundRole(QPalette::PlaceholderText);
+        layout->addWidget(empty);
+        return widget;
+    }
+
+    using Column = ReportRow::Column;
+    using Tone = ReportRow::Tone;
+    const auto columns = [](const QString& limit, const QString& spent, const QString& left, bool over, const QString& used) {
+        return QList<Column>{{limit, 120, Tone::Normal}, {spent, 120, Tone::Normal},
+                             {left, 120, over ? Tone::Bad : Tone::Normal}, {used, 64, Tone::Secondary}};
+    };
+    const auto usedText = [](Cents spent, Cents limit) { return QString("%1%").arg(qRound(double(spent) / double(limit) * 100.0)); };
+    const Settings& settings = Settings::instance();
+    auto* heading = new ReportRow(ReportRow::Kind::Heading, "Budget", columns("Limit", "Spent", "Left", false, "Used"), false, widget);
+    heading->setObjectName("budgetHeading");
+    layout->addWidget(heading);
+    for (const BudgetActual& budget : budgets.categories) {
+        const QString limit = settings.formatCurrency(budget.limitCents);
+        const QString spent = settings.formatSpending(budget.spentCents);
+        const QString left = settings.formatCurrency(budget.leftCents());
+        const QString used = usedText(budget.spentCents, budget.limitCents);
+        auto* row = new ReportRow(ReportRow::Kind::Item, budget.categoryName, columns(limit, spent, left, !budget.kept(), used), true, widget);
+        row->setObjectName("budgetRow");
+        row->setAccessibleDescription(QString("Limit %1, spent %2, left %3, %4 used").arg(limit, spent, left, used));
+        row->showsUsage = true;
+        row->ratio = double(budget.spentCents) / double(budget.limitCents);
+        const QString monthsText = budget.months == 1 ? QString("1 month with a budget") : QString("%1 months with a budget").arg(budget.months);
+        const QString overText = budget.monthsOver > 0 ? QString(", over in %1").arg(budget.monthsOver) : QString();
+        row->makeClickable(QString("%1%2\nClick for its trend").arg(monthsText, overText));
+        const int categoryId = budget.categoryId;
+        connect(row, &QAbstractButton::clicked, this, [this, categoryId]() { openCategoryTrend(categoryId); });
+        layout->addWidget(row);
+    }
+    auto* total = new ReportRow(ReportRow::Kind::Total, "Total",
+                                columns(settings.formatCurrency(budgets.limitCents), settings.formatSpending(budgets.spentCents),
+                                        settings.formatCurrency(budgets.limitCents - budgets.spentCents),
+                                        budgets.spentCents > budgets.limitCents, usedText(budgets.spentCents, budgets.limitCents)),
+                                false, widget);
+    total->setObjectName("budgetTotal");
     layout->addWidget(total);
     return widget;
 }

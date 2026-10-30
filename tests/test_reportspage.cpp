@@ -8,6 +8,7 @@
 #include <QToolButton>
 
 #include "account.h"
+#include "budget.h"
 #include "transaction.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
@@ -262,6 +263,43 @@ private slots:
         QCOMPARE(requested[0][2].toDate(), page.range().first);
         rows[2]->click();                                // No payee to search for
         QCOMPARE(requested.size(), 1);
+    }
+
+    void budgetVsActualOnTheCardAndInDetail() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        QAbstractButton* card = cards(page)[5];
+        QCOMPARE(card->accessibleDescription(), QString("No budgets in this range"));
+
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, today, 10000));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 4000, today, "", groceries, "expense"));
+        page.reload();
+        QVERIFY(card->accessibleDescription().startsWith("1 of 1 kept, "));
+
+        card->click();
+        QVERIFY(!page.findChild<QLabel*>("budgetNote"));
+        const QList<QAbstractButton*> rows = page.findChildren<QAbstractButton*>("budgetRow");
+        QCOMPARE(rows.size(), 1);
+        QCOMPARE(rows[0]->accessibleName(), QString("Groceries"));
+        QVERIFY(rows[0]->accessibleDescription().endsWith("40% used"));
+
+        // The chosen account doesn't apply, and that's said
+        auto* combo = page.findChild<QComboBox*>("reportsAccountCombo");
+        combo->setCurrentIndex(combo->findData(giro));
+        emit combo->activated(combo->currentIndex());
+        QVERIFY(page.findChild<QLabel*>("budgetNote"));
+
+        // On to its trend
+        page.findChildren<QAbstractButton*>("budgetRow").first()->click();
+        QCOMPARE(page.openedReport(), ReportsPage::Report::CategoryTrend);
+        QCOMPARE(page.trendCategory(), groceries);
     }
 
     void categoryTrendFollowsTheLargestOrTheChosenCategory() {

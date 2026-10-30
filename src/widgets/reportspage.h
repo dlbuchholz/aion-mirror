@@ -15,6 +15,7 @@ class BalanceChart;
 class CategoryBars;
 class FlowChart;
 class TrendChart;
+class UsageBar;
 class ReportCard;
 
 // Reports: an overview with a card per report, and one report at a time in detail. The range
@@ -78,6 +79,7 @@ private:
     QWidget* balanceDetail(QWidget* parent);
     QWidget* trendDetail(QWidget* parent);
     QWidget* payeeDetail(QWidget* parent);
+    QWidget* budgetDetail(QWidget* parent);
 
     int userId = -1;
     ReportRange::Preset preset = ReportRange::Preset::SixMonths;
@@ -97,6 +99,7 @@ private:
     BalanceChart* balancePreview = nullptr;
     TrendChart* trendPreview = nullptr;
     QLabel* payeePreview = nullptr;
+    UsageBar* budgetPreview = nullptr;
     QVBoxLayout* detailLayout = nullptr;
     QWidget* detailContent = nullptr;                // The opened report's, rebuilt when the numbers change
 
@@ -106,6 +109,7 @@ private:
     std::optional<int> chosenTrendCategory;          // Picked by the user; otherwise the largest
     std::optional<CategoryTrend> trend;
     PayeeReport payees;
+    BudgetReport budgets;
 };
 
 #endif // REPORTSPAGE_H

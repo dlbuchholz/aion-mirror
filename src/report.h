@@ -131,7 +131,32 @@ struct PayeeReport {
     Cents totalCents = 0;
 };
 
+// One category's budget added up over the months it had one
+struct BudgetActual {
+    int categoryId = 0;
+    QString categoryName;
+    QString categoryColor;
+    Cents limitCents = 0;
+    Cents spentCents = 0;                            // Only in the months with a budget
+    int months = 0;                                  // With a budget
+    int monthsOver = 0;                              // Of those, past the limit
+    Cents leftCents() const { return limitCents - spentCents; }
+    bool kept() const { return spentCents <= limitCents; }
+};
+
+struct BudgetReport {
+    ReportRange range;                               // Whole months, up to the one today is in
+    QList<BudgetActual> categories;                  // Fullest first
+    Cents limitCents = 0;
+    Cents spentCents = 0;
+    int keptCount() const;
+};
+
 namespace Reports {
+
+// Budgets against spending. Budgets are per month and for all accounts together, so this takes
+// every month the range touches, as far as they have begun, and has no account choice.
+BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& today);
 
 // Spending per payee, without transfers and balance adjustments. accountId < 0 means all accounts.
 PayeeReport topPayees(int userId, int accountId, const ReportRange& range);

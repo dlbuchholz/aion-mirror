@@ -1,4 +1,5 @@
 #include "report.h"
+#include "budget.h"
 #include "category.h"
 #include "db/databasemanager.h"
 
@@ -137,6 +138,10 @@ std::optional<int> FlowReport::keptPercent() const {
     return Reports::keptPercent(incomeCents, netCents());
 }
 
+int BudgetReport::keptCount() const {
+    return int(std::count_if(categories.cbegin(), categories.cend(), [](const BudgetActual& budget) { return budget.kept(); }));
+}
+
 Cents BalanceReport::balanceOn(const QDate& date) const {
     Cents balance = startCents;
     for (const BalancePoint& point : days) {
@@ -147,6 +152,39 @@ Cents BalanceReport::balanceOn(const QDate& date) const {
 }
 
 namespace Reports {
+
+BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& today) {
+    BudgetReport report;
+    if (!range.isValid()) return report;
+    report.range = {monthStart(range.first), monthEnd(qMin(range.last, today))};
+    if (!report.range.isValid()) {                   // All of it still to come
+        report.range = {monthStart(range.first), monthEnd(range.last)};
+        return report;
+    }
+    QHash<int, BudgetActual> byCategory;
+    BudgetDAO dao;
+    for (QDate month = report.range.first; month <= report.range.last; month = month.addMonths(1)) {
+        for (const MonthBudget& budget : dao.budgetsForMonth(userId, month)) {
+            BudgetActual& actual = byCategory[budget.categoryId];
+            actual.categoryId = budget.categoryId;
+            actual.categoryName = budget.categoryName;
+            actual.categoryColor = budget.categoryColor;
+            actual.limitCents += budget.limitCents;
+            actual.spentCents += budget.spentCents;
+            ++actual.months;
+            if (budget.spentCents > budget.limitCents) ++actual.monthsOver;
+            report.limitCents += budget.limitCents;
+            report.spentCents += budget.spentCents;
+        }
+    }
+    report.categories = byCategory.values();
+    std::sort(report.categories.begin(), report.categories.end(), [](const BudgetActual& a, const BudgetActual& b) {
+        const double fullA = double(a.spentCents) / double(a.limitCents);
+        const double fullB = double(b.spentCents) / double(b.limitCents);
+        return fullA != fullB ? fullA > fullB : a.categoryName.localeAwareCompare(b.categoryName) < 0;
+    });
+    return report;
+}
 
 PayeeReport topPayees(int userId, int accountId, const ReportRange& range) {
     PayeeReport report;
