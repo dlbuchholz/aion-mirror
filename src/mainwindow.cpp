@@ -1,3 +1,4 @@
+#include "dialog/deleteaccountdialog.h"
 #include "dialog/editaccountdialog.h"
 #include "widgets/addaccountwidget.h"
 #include "widgets/budgetpage.h"
@@ -31,6 +32,12 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->sidebar, &SidebarWidget::correctBalanceRequested, ui->transactionsPage, &TransactionsPage::correctBalance);
     connect(ui->sidebar, &SidebarWidget::editAccountRequested, this, [this](int accountId) {
         EditAccountDialog dialog(this->userId, accountId, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            reloadAccounts();
+        }
+    });
+    connect(ui->sidebar, &SidebarWidget::deleteAccountRequested, this, [this](int accountId) {
+        DeleteAccountDialog dialog(this->userId, accountId, this);
         if (dialog.exec() == QDialog::Accepted) {
             reloadAccounts();
         }

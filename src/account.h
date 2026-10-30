@@ -44,7 +44,13 @@ public:
     QList<Account> getAllAccountsForUser(int userId);
     bool editAccount(int accountId, const QString& newName, int typeId);
     bool isNameTaken(int userId, const QString& name, int exceptAccountId = -1);   // Ignores case
+    // Deletes the account and its transactions. Rules stop naming it: one that needs the account is
+    // deleted, as without that condition it would match more than before.
     bool deleteAccount(int accountId);
+    // Moves its transactions and rules to another account of the same user first
+    bool deleteAccountMovingTo(int accountId, int targetAccountId);
+    int transactionCount(int accountId);
+    int ruleCount(int accountId);                    // Rules with a condition on this account
     QList<QPair<QString, QString> > getAllAccountTypes(int userId);   // (id, name)
     static int ownerOf(int accountId);               // The account's user, -1 if there's no such account
 private:

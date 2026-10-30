@@ -430,6 +430,7 @@ void SidebarWidget::loadAccounts() {
             menu.addAction("Correct balance…", this, [this, accountId]() { emit correctBalanceRequested(accountId); });
             menu.addSeparator();
             menu.addAction("Edit account…", this, [this, accountId]() { emit editAccountRequested(accountId); });
+            menu.addAction("Delete account…", this, [this, accountId]() { emit deleteAccountRequested(accountId); });
             menu.exec(item->mapToGlobal(position));
         });
     }

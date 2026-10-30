@@ -42,6 +42,7 @@ signals:
     void addAccountRequested();
     void correctBalanceRequested(int accountId);     // From an account's right-click menu
     void editAccountRequested(int accountId);        // The same
+    void deleteAccountRequested(int accountId);      // The same
     void switchUserRequested();
     void budgetSortChanged();                        // Chosen from the Budget header's right-click menu
 

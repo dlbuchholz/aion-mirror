@@ -276,15 +276,113 @@ bool AccountDAO::isNameTaken(int userId, const QString& name, int exceptAccountI
 }
 
 bool AccountDAO::deleteAccount(int accountId) {
-    QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("DELETE FROM accounts WHERE id = :id");
-    query.bindValue(":id", accountId);
-
-    if (!query.exec()) {
-        handleError(query);
+    const int userId = ownerOf(accountId);
+    if (userId < 0) {
         return false;
     }
-    return query.numRowsAffected() > 0;
+
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.prepare(R"(
+        DELETE FROM rules
+        WHERE user_id = :user_id
+          AND id IN (SELECT rule_id FROM rule_conditions WHERE field = 'account' AND value = :account)
+          AND (match_all = 1
+               OR NOT EXISTS (SELECT 1 FROM rule_conditions c
+                              WHERE c.rule_id = rules.id AND NOT (c.field = 'account' AND c.value = :account)))
+    )");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":account", QString::number(accountId));
+    bool ok = query.exec();
+
+    if (ok) {
+        query.prepare(R"(
+            DELETE FROM rule_conditions
+            WHERE field = 'account' AND value = :account
+              AND rule_id IN (SELECT id FROM rules WHERE user_id = :user_id)
+        )");
+        query.bindValue(":account", QString::number(accountId));
+        query.bindValue(":user_id", userId);
+        ok = query.exec();
+    }
+    if (ok) {
+        query.prepare("DELETE FROM accounts WHERE id = :id");
+        query.bindValue(":id", accountId);
+        ok = query.exec();
+    }
+
+    if (!ok) {
+        handleError(query);
+        db.rollback();
+        return false;
+    }
+    return db.commit();
+}
+
+bool AccountDAO::deleteAccountMovingTo(int accountId, int targetAccountId) {
+    const int userId = ownerOf(accountId);
+    if (userId < 0 || accountId == targetAccountId || ownerOf(targetAccountId) != userId) {
+        return false;
+    }
+
+    QSqlDatabase db = DatabaseManager::instance().database();
+    if (!db.transaction()) {
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.prepare("UPDATE transactions SET account_id = :target WHERE account_id = :id");
+    query.bindValue(":target", targetAccountId);
+    query.bindValue(":id", accountId);
+    bool ok = query.exec();
+
+    if (ok) {
+        query.prepare(R"(
+            UPDATE rule_conditions SET value = :target
+            WHERE field = 'account' AND value = :account
+              AND rule_id IN (SELECT id FROM rules WHERE user_id = :user_id)
+        )");
+        query.bindValue(":target", QString::number(targetAccountId));
+        query.bindValue(":account", QString::number(accountId));
+        query.bindValue(":user_id", userId);
+        ok = query.exec();
+    }
+    if (ok) {
+        query.prepare("DELETE FROM accounts WHERE id = :id");
+        query.bindValue(":id", accountId);
+        ok = query.exec();
+    }
+
+    if (!ok) {
+        handleError(query);
+        db.rollback();
+        return false;
+    }
+    return db.commit();
+}
+
+int AccountDAO::transactionCount(int accountId) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare("SELECT COUNT(*) FROM transactions WHERE account_id = :id");
+    query.bindValue(":id", accountId);
+    return query.exec() && query.next() ? query.value(0).toInt() : 0;
+}
+
+int AccountDAO::ruleCount(int accountId) {
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(R"(
+        SELECT COUNT(DISTINCT r.id)
+        FROM rules r
+        JOIN rule_conditions c ON c.rule_id = r.id
+        WHERE r.user_id = :user_id AND c.field = 'account' AND c.value = :account
+    )");
+    query.bindValue(":user_id", ownerOf(accountId));
+    query.bindValue(":account", QString::number(accountId));
+    return query.exec() && query.next() ? query.value(0).toInt() : 0;
 }
 
 void AccountDAO::handleError(const QSqlQuery& query) {
