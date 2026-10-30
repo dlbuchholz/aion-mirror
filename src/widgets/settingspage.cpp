@@ -231,7 +231,7 @@ void SettingsPage::buildCurrencySection()
     form->addRow("Thousands separator", thousandsSeparatorCombo);
     watch(thousandsSeparatorCombo);
 
-    auto *note = new QLabel("Saved in this database, so it looks the same on every computer that opens it.", this);
+    auto *note = new QLabel("Saved in your database, it looks the same on every computer you open it.", this);
     note->setObjectName("currencyNote");
     note->setWordWrap(true);
     note->setForegroundRole(QPalette::PlaceholderText);

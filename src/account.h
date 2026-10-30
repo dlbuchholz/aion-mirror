@@ -42,6 +42,8 @@ public:
     static int createAccount(int userId, const QString &name, const QString &type, Cents initialBalanceCents);
     Account getAccountById(int accountId);
     QList<Account> getAllAccountsForUser(int userId);
+    bool editAccount(int accountId, const QString& newName, int typeId);
+    bool isNameTaken(int userId, const QString& name, int exceptAccountId = -1);   // Ignores case
     bool deleteAccount(int accountId);
     QList<QPair<QString, QString> > getAllAccountTypes(int userId);   // (id, name)
     static int ownerOf(int accountId);               // The account's user, -1 if there's no such account

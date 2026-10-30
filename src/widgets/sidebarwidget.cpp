@@ -428,6 +428,8 @@ void SidebarWidget::loadAccounts() {
             QMenu menu(this);
             menu.addAction("Show transactions", this, [this, accountId]() { emit accountRequested(accountId); });
             menu.addAction("Correct balance…", this, [this, accountId]() { emit correctBalanceRequested(accountId); });
+            menu.addSeparator();
+            menu.addAction("Edit account…", this, [this, accountId]() { emit editAccountRequested(accountId); });
             menu.exec(item->mapToGlobal(position));
         });
     }

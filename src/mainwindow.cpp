@@ -1,3 +1,4 @@
+#include "dialog/editaccountdialog.h"
 #include "widgets/addaccountwidget.h"
 #include "widgets/budgetpage.h"
 #include "widgets/dashboardpage.h"
@@ -28,6 +29,12 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->sidebar, &SidebarWidget::accountRequested, this, &MainWindow::onAccountRequested);
     connect(ui->sidebar, &SidebarWidget::addAccountRequested, this, &MainWindow::onAddAccountClicked);
     connect(ui->sidebar, &SidebarWidget::correctBalanceRequested, ui->transactionsPage, &TransactionsPage::correctBalance);
+    connect(ui->sidebar, &SidebarWidget::editAccountRequested, this, [this](int accountId) {
+        EditAccountDialog dialog(this->userId, accountId, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            reloadAccounts();
+        }
+    });
     connect(ui->sidebar, &SidebarWidget::switchUserRequested, this, &MainWindow::switchUserRequested);
     connect(ui->sidebar, &SidebarWidget::budgetSortChanged, ui->settingsPage, &SettingsPage::reloadSidebarBudgetSort);
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
@@ -138,6 +145,8 @@ void MainWindow::reloadAccounts() {
     ui->transactionsPage->reload();
     ui->budgetPage->reload();
     ui->dashboardPage->reload();
+    ui->reportsPage->reload();
+    ui->settingsPage->reloadData();                // Rules and account types show accounts too
 }
 
 void MainWindow::onSettingsChanged() {

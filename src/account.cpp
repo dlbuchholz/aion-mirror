@@ -240,6 +240,41 @@ QList<Account> AccountDAO::getAllAccountsForUser(int userId) {
     return accounts;
 }
 
+bool AccountDAO::editAccount(int accountId, const QString& newName, int typeId) {
+    const QString trimmedName = newName.trimmed();
+    if (trimmedName.isEmpty()) {
+        return false;
+    }
+
+    // The type has to be one of the account owner's own
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(R"(
+        UPDATE accounts SET name = :name, type_id = :type_id
+        WHERE id = :id
+          AND EXISTS (SELECT 1 FROM account_types WHERE id = :type_id AND user_id = accounts.user_id)
+    )");
+    query.bindValue(":name", trimmedName);
+    query.bindValue(":type_id", typeId);
+    query.bindValue(":id", accountId);
+
+    if (!query.exec()) {
+        handleError(query);
+        return false;
+    }
+    return query.numRowsAffected() > 0;
+}
+
+bool AccountDAO::isNameTaken(int userId, const QString& name, int exceptAccountId) {
+    const QString trimmedName = name.trimmed();
+    for (const Account& account : getAllAccountsForUser(userId)) {
+        if (account.getAccountId() != exceptAccountId
+            && account.getName().compare(trimmedName, Qt::CaseInsensitive) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool AccountDAO::deleteAccount(int accountId) {
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare("DELETE FROM accounts WHERE id = :id");
