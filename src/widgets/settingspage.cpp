@@ -2,6 +2,7 @@
 #include "dialog/rawsettingsdialog.h"
 #include "aboutwidget.h"
 #include "accounttypessettings.h"
+#include "backupsettings.h"
 #include "categoriessettings.h"
 #include "rulessettings.h"
 #include "icons.h"
@@ -373,6 +374,8 @@ void SettingsPage::buildCategoriesSection()
     accountTypesSettings = new AccountTypesSettings(this);
     connect(accountTypesSettings, &AccountTypesSettings::accountTypesChanged, this, &SettingsPage::dataChanged);
     addSection("Account types", "database", accountTypesSettings);
+
+    addSection("Backup", "database", new BackupSettings(this));
 }
 
 void SettingsPage::watch(QComboBox *combo)
