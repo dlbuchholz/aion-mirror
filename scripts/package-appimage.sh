@@ -36,9 +36,12 @@ EXTRA_PLATFORM_PLUGINS=libqoffscreen.so linuxdeploy-x86_64.AppImage \
 doc="$appdir/usr/share/doc/aion"
 mkdir -p "$doc"
 cp "$source_dir/LICENSE" "$doc/LICENSE"
+cp "$source_dir/LICENSE-LGPL" "$doc/LICENSE-LGPL"
 cp "$source_dir/assets/icons/LICENSE" "$doc/LICENSE-icons"
 cp "$source_dir/thirdparty/miniz/LICENSE" "$doc/LICENSE-miniz"
 {
+    echo "Aion's source code: https://codeberg.org/spectre_0/aion"
+    echo
     echo "Aion contains interface icons based on Tabler Icons (https://tabler.io/icons),"
     echo "under the MIT license in LICENSE-icons."
     echo
@@ -46,7 +49,8 @@ cp "$source_dir/thirdparty/miniz/LICENSE" "$doc/LICENSE-miniz"
     echo "in LICENSE-miniz."
     echo
     echo "Aion bundles these libraries. Qt's are the official build, used under the LGPL version 3"
-    echo "(source: https://download.qt.io). The others come from the Ubuntu 22.04 package named next"
+    echo "(LICENSE-LGPL, which adds to the GPL in LICENSE; source: https://download.qt.io)."
+    echo "The others come from the Ubuntu 22.04 package named next"
     echo "to them; source and license: https://packages.ubuntu.com/jammy/<package>."
     echo
     for lib in "$appdir"/usr/lib/*.so* "$appdir"/usr/plugins/*/*.so; do

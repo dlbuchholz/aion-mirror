@@ -50,6 +50,10 @@ AboutWidget::AboutWidget(QWidget* parent)
     license->setWordWrap(true);
     license->setForegroundRole(QPalette::PlaceholderText);
     identityText->addWidget(license);
+    auto* source = new QLabel("<a href=\"https://codeberg.org/spectre_0/aion\">Source code</a>", this);
+    source->setObjectName("aboutSourceLabel");
+    source->setOpenExternalLinks(true);
+    identityText->addWidget(source);
     identity->addLayout(identityText, 1);
     layout->addLayout(identity);
 

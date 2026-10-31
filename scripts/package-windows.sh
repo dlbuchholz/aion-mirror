@@ -108,9 +108,12 @@ find "$stage" -type f \( -iname '*.exe' -o -iname '*.dll' \) -exec "$strip" --st
 
 # Licenses: Aion's own, what's built into Aion.exe, and where each bundled library comes from
 cp "$source_dir/LICENSE" "$stage/LICENSE.txt"
+cp "$source_dir/LICENSE-LGPL" "$stage/LICENSE-LGPL.txt"
 cp "$source_dir/assets/icons/LICENSE" "$stage/LICENSE-icons.txt"
 cp "$source_dir/thirdparty/miniz/LICENSE" "$stage/LICENSE-miniz.txt"
 {
+    echo "Aion's source code: https://codeberg.org/spectre_0/aion"
+    echo
     echo "Aion.exe contains interface icons based on Tabler Icons (https://tabler.io/icons),"
     echo "under the MIT license in LICENSE-icons.txt."
     echo
@@ -119,7 +122,8 @@ cp "$source_dir/thirdparty/miniz/LICENSE" "$stage/LICENSE-miniz.txt"
     echo
     echo "Aion bundles these libraries. Each is the Fedora MinGW build named next to it; its"
     echo "source is available from Fedora (https://src.fedoraproject.org/rpms/<package>) and"
-    echo "its license applies to that file. Qt is used under the LGPL version 3."
+    echo "its license applies to that file. Qt is used under the LGPL version 3 (LICENSE-LGPL.txt,"
+    echo "which adds to the GPL in LICENSE.txt)."
     echo
     for dll in "$stage"/*.dll "$stage"/*/*.dll; do
         relative=${dll#"$stage/"}

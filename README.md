@@ -64,5 +64,7 @@ logo.
 |---|---|
 | Interface icons in `assets/icons/`, based on [Tabler Icons](https://tabler.io/icons) | MIT, see [assets/icons/LICENSE](assets/icons/LICENSE) |
 | [miniz](https://github.com/richgel999/miniz) in `thirdparty/miniz/`, for reading spreadsheets | MIT, see [thirdparty/miniz/LICENSE](thirdparty/miniz/LICENSE) |
-| [Qt](https://www.qt.io) (used, not included) | LGPL-3.0 or a commercial license |
-| [SQLite](https://sqlite.org) (used through Qt, not included) | Public domain |
+| [Qt](https://www.qt.io) (not in this repository, bundled in the downloads) | LGPL-3.0, see [LICENSE-LGPL](LICENSE-LGPL) |
+| [SQLite](https://sqlite.org) (through Qt, bundled in the downloads) | Public domain |
+
+The downloads also list every library they bundle, with its source, in `THIRD-PARTY`.

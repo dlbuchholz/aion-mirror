@@ -45,6 +45,7 @@ private slots:
         QVERIFY(!about.findChild<QLabel*>("logoLabel")->pixmap().isNull());
         QCOMPARE(about.findChild<QLabel*>("aboutVersionLabel")->text(), QString("Version %1").arg(SystemInfo::versionText()));
         QVERIFY(about.findChild<QLabel*>("aboutLicenseLabel")->text().contains("GPL, version 3 or later"));
+        QVERIFY(about.findChild<QLabel*>("aboutSourceLabel")->text().contains("https://codeberg.org/spectre_0/aion"));
     }
 };
 
