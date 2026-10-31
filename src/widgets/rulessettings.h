@@ -30,6 +30,7 @@ public:
 
     void setUserId(int userId);                      // Shows and edits that user's rules
     void reload();                                   // Rules, categories, accounts and transactions changed
+    int matchCountsDone() const { return matchesCounted; }   // How many times a rule's matches were counted
     // Opens the editor filled with draft: a new rule, or with an ID that rule with the draft's changes.
     // The match count then also says how many of the examples it matches.
     void openDraft(const Rule& draft, const QList<Transaction>& examples = {});
@@ -68,6 +69,7 @@ private:
     QHash<int, QString> accountNames;
     RuleMatchIndex matchIndex;                       // The user's transactions, for the match counts
     QHash<int, int> matchCounts;                     // By rule ID; counted when a rule is first listed or saved
+    mutable int matchesCounted = 0;
     int editedId = -1;                               // -1 = editor closed, 0 = new rule
     QList<Transaction> draftExamples;                // The transactions a draft was made from
 

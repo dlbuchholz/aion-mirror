@@ -85,19 +85,10 @@ private slots:
     }
     void cleanup() { db.close(); }
 
-    void staysQuickWithManyTransactionsAndRules() {
-        // Thousands of transactions and long rules, like a few years of bank exports
-        QSqlDatabase database = DatabaseManager::instance().database();
-        QVERIFY(database.transaction());
-        TransactionDAO transactions;
-        const QStringList payees = {"REWE Markt 4711", "Aldi Sued", "Stadtwerke Hannover", "Amazon EU", "DB Vertrieb GmbH",
-                                    "Telekom Deutschland", "McFit", "Netflix", "Hetzner Online", "Trade Republic"};
-        for (int i = 0; i < 5000; ++i) {
-            transactions.addTransaction(Transaction(-1, giroId, payees[i % payees.size()], 1000 + i, QDate(2024, 1, 1).addDays(i % 900),
-                                                    QString("Kartenzahlung %1 Lastschrift").arg(i), 0, "expense"));
-        }
-        QVERIFY(database.commit());
-        for (int r = 0; r < 15; ++r) {
+    void openingAndSavingDontCountEveryRuleAgain() {
+        // Counting is the slow part with thousands of transactions. Only counted, not timed anymore..
+        const int ruleCount = 15;
+        for (int r = 0; r < ruleCount; ++r) {
             Rule rule;
             rule.categoryId = categoryId("Groceries");
             rule.matchAll = false;
@@ -107,24 +98,20 @@ private slots:
             QVERIFY(RuleDAO(1).addRule(rule) > 0);
         }
 
-        QElapsedTimer timer;
-        timer.start();
         RulesSettings settings;
         settings.setUserId(1);
-        const qint64 loading = timer.restart();
-        rows(settings).first()->click();                 // Opening a rule
-        const qint64 opening = timer.restart();
-        QTest::keyClicks(firstCondition(settings)->findChild<QLineEdit*>("conditionText"), "abcdefghij");
-        const qint64 typing = timer.restart();
+        QCOMPARE(settings.matchCountsDone(), ruleCount);
+
+        rows(settings).first()->click();
+        const int opening = settings.matchCountsDone() - ruleCount;
+        QVERIFY2(opening < ruleCount, qPrintable(QString("Opening counted %1 times").arg(opening)));
+
+        QTest::keyClicks(firstCondition(settings)->findChild<QLineEdit*>("conditionText"), "abc");
+        const int beforeSaving = settings.matchCountsDone();
         settings.findChild<QPushButton*>("saveRuleButton")->click();
         settle();
-        const qint64 saving = timer.restart();
-        // Loading counts every rule's matches once. Opening a rule and saving it mustn't count them
-        // all again (they took longer than loading before), whatever the build's speed.
-        const QByteArray times = QString("loading %1 ms, opening %2 ms, typing 10 keys %3 ms, saving %4 ms")
-                                     .arg(loading).arg(opening).arg(typing).arg(saving).toUtf8();
-        QVERIFY2(opening * 3 < loading, times.constData());
-        QVERIFY2(saving * 3 < loading, times.constData());
+        const int saving = settings.matchCountsDone() - beforeSaving;
+        QVERIFY2(saving < ruleCount, qPrintable(QString("Saving counted %1 times").arg(saving)));
     }
 
     void startsEmptyAndCreatesARule() {

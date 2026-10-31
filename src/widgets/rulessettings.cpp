@@ -529,6 +529,7 @@ QString RulesSettings::describe(const Rule& rule) const {
 }
 
 int RulesSettings::matchCount(const Rule& rule) const {
+    ++matchesCounted;
     return matchIndex.count(rule);
 }
 
