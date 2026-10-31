@@ -129,7 +129,7 @@ the build folder.
 ## Builds and releases
 
 CI runs on Codeberg ([.forgejo/workflows/build.yml](.forgejo/workflows/build.yml)), on a
-self-hosted runner with two build images:
+self-hosted runner with three build images:
 
 - `linux-qt`: Fedora with Qt for Linux, Qt for MinGW and Wine
   ([ci/images/fedora44.Dockerfile](ci/images/fedora44.Dockerfile)). Builds and tests Linux and
@@ -137,6 +137,8 @@ self-hosted runner with two build images:
 - `linux-appimage`: Ubuntu 22.04 with the official Qt and linuxdeploy
   ([ci/images/ubuntu22.04.Dockerfile](ci/images/ubuntu22.04.Dockerfile)). Builds, tests and packs the
   AppImage, on an older system so it runs on older distributions too.
+- `linux-debian`: Debian 13 with Debian's Qt
+  ([ci/images/debian13.Dockerfile](ci/images/debian13.Dockerfile)). Builds, tests and packs the DEB.
 
 - **Every push and pull request to `develop`:** Linux is built and tested, and Windows is
   cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
@@ -145,6 +147,8 @@ self-hosted runner with two build images:
   since the last `staging` build) and when started by hand with **Run workflow** on the Actions page, also:
   - pack the Linux build as an RPM for that Fedora release ([scripts/package-rpm.sh](scripts/package-rpm.sh)),
     using Fedora's Qt, and check that it installs, starts and uninstalls;
+  - do the same with a DEB for that Debian release ([scripts/package-deb.sh](scripts/package-deb.sh)),
+    using Debian's Qt;
   - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)) and check
     that it starts with only its own files;
   - build the installer ([installer/aion.nsi](installer/aion.nsi), NSIS), and check that it installs,

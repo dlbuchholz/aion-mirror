@@ -81,7 +81,7 @@ jobs:
           echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
 
   linux:
-    name: Linux
+    name: Linux (RPM Build)
     needs: plan
     if: needs.plan.outputs.build == 'true'
     runs-on: linux-qt
@@ -162,6 +162,87 @@ jobs:
           name: fedora-release
           retention-days: 1
           path: dist/${{ steps.package.outputs.name }}.rpm
+
+  # Linux on Debian, with Debian's Qt (ci/images/debian13.Dockerfile). Also tests with an older
+  # Qt version.
+  debian:
+    name: Linux (DEB Build)
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: linux-debian
+    timeout-minutes: 15
+    outputs:
+      package: ${{ steps.package.outputs.name }}
+    steps:
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Restore the compiler cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-debian-${{ github.sha }}
+          restore-keys: ccache-debian-
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAION_USE_SYSTEM_QT=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+
+      - name: Build
+        run: |
+          ccache -z > /dev/null 2>&1 || true
+          cmake --build build
+          ccache -s 2>/dev/null || true
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      # A DEB for this Debian release, in publishing runs
+      - name: Package
+        id: package
+        if: needs.plan.outputs.publish == 'true'
+        run: |
+          deb=$(bash scripts/package-deb.sh build dist)
+          echo "name=$(basename "$deb" .deb)" >> "$GITHUB_OUTPUT"
+
+      # The plugins Qt loads at runtime aren't found by dpkg-shlibdeps, so they're named in
+      # CMakeLists.txt. A plugin that moved to another package fails here. Then install, start and
+      # remove the package. This image has Qt's development packages too, so a real start on a
+      # clean Debian is still part of the release checks.
+      - name: Check the DEB
+        if: needs.plan.outputs.publish == 'true'
+        run: |
+          deb_file="dist/${{ steps.package.outputs.name }}.deb"
+          dpkg-deb -c "$deb_file"
+          dpkg-deb -f "$deb_file" Depends
+          depends=$(dpkg-deb -f "$deb_file" Depends | tr ',' '\n' | awk '{print $1}')
+          for plugin in sqldrivers/libqsqlite.so iconengines/libqsvgicon.so imageformats/libqsvg.so; do
+            owner=$(dpkg -S "/usr/lib/x86_64-linux-gnu/qt6/plugins/$plugin" | cut -d: -f1)
+            if ! grep -qxF "$owner" <<< "$depends"; then
+              echo "$plugin is in $owner, which the DEB doesn't depend on" >&2
+              exit 1
+            fi
+          done
+          apt-get install -y -q --no-install-recommends "./$deb_file"
+          output=$(cd /tmp && QT_PLUGIN_PATH= Aion --version)
+          echo "$output"
+          grep -q '^Aion ' <<< "$output"
+          apt-get remove -y -q aion
+          if command -v Aion > /dev/null; then
+            echo "Removing the DEB left Aion behind" >&2
+            exit 1
+          fi
+
+      # Kept for a day only: the release has it
+      - name: Hand the DEB to the release job
+        if: needs.plan.outputs.publish == 'true'
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: debian-release
+          retention-days: 1
+          path: dist/${{ steps.package.outputs.name }}.deb
 
   # Linux as an AppImage, on Ubuntu 22.04 with the official Qt (ci/images/ubuntu22.04.Dockerfile),
   # so it runs on older distributions too. Also tests with that Qt version.
@@ -358,7 +439,7 @@ jobs:
   # (scripts/publish-release.sh).
   release:
     name: Release
-    needs: [plan, linux, appimage, windows]
+    needs: [plan, linux, debian, appimage, windows]
     if: needs.plan.outputs.publish == 'true' && github.ref == 'refs/heads/develop'
     runs-on: linux-qt
     timeout-minutes: 15
@@ -384,6 +465,12 @@ jobs:
           name: fedora-release
           path: dist
 
+      - name: Get the DEB
+        uses: https://code.forgejo.org/actions/download-artifact@v3
+        with:
+          name: debian-release
+          path: dist
+
       # The run's own token, unless a RELEASE_TOKEN secret is set
       - name: Publish
         env:
@@ -394,3 +481,4 @@ jobs:
           dist/${{ needs.windows.outputs.package }}-setup.exe
           dist/${{ needs.appimage.outputs.package }}.AppImage
           dist/${{ needs.linux.outputs.package }}.rpm
+          dist/${{ needs.debian.outputs.package }}.deb

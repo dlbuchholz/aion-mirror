@@ -166,7 +166,7 @@ if(UNIX AND NOT APPLE)
     install(FILES thirdparty/miniz/LICENSE DESTINATION ${AION_DOC_DIR} RENAME LICENSE-miniz)
 endif()
 
-# The RPM (scripts/package-rpm.sh)
+# The RPM and the DEB (scripts/package-rpm.sh, scripts/package-deb.sh)
 set(CPACK_PACKAGE_NAME aion)
 set(CPACK_PACKAGE_VENDOR "The Aion contributors")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Personal finance")
@@ -181,6 +181,14 @@ set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase, qt6-qtsvg")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
     /usr/share/applications /usr/share/icons /usr/share/icons/hicolor
     /usr/share/icons/hicolor/scalable /usr/share/icons/hicolor/scalable/apps)
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "The Aion contributors")
+set(CPACK_DEBIAN_PACKAGE_SECTION misc)
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE https://codeberg.org/spectre_0/aion)
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Personal finance\n A personal finance app for the desktop.")
+# Finds the libraries Aion links. Qt's plugins are loaded at runtime, so they're named here, and the
+# workflow checks the names.
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6-sqlite, qt6-svg-plugins")
 include(CPack)
 
 add_subdirectory(tests)
