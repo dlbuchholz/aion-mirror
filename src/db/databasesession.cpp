@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSqlError>
 #include <QSqlQuery>
 #include <QStandardPaths>
 
@@ -35,7 +36,7 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
     manager.closeDatabase();
 
     if (!manager.openDatabase(path)) {
-        if (errorMessage) *errorMessage = "The file couldn't be opened as a database.";
+        if (errorMessage) *errorMessage = "The file couldn't be opened as a database. " + manager.database().lastError().text();
         return false;
     }
     if (isForeignDatabase()) {
@@ -55,7 +56,7 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
     }
     if (!migrations.applyMigrations()) {
         manager.closeDatabase();
-        if (errorMessage) *errorMessage = "The database couldn't be updated to the current version. See the log for details.";
+        if (errorMessage) *errorMessage = "The database couldn't be updated to the current version. " + migrations.lastError();
         return false;
     }
     return true;
@@ -121,7 +122,9 @@ bool openAtStartup(QString* warningMessage, QString* errorMessage) {
                         .arg(QFileInfo(last).fileName(), error);
     }
 
-    if (!open(defaultDatabasePath(), errorMessage)) {
+    QString error;
+    if (!open(defaultDatabasePath(), &error)) {
+        if (errorMessage) *errorMessage = QString("Couldn't open %1. %2").arg(QDir::toNativeSeparators(defaultDatabasePath()), error);
         return false;
     }
     if (warningMessage) *warningMessage = lastError;

@@ -52,6 +52,12 @@ MigrationManager::MigrationManager(const QString& migrationDir)
 
 MigrationManager::~MigrationManager() {}
 
+bool MigrationManager::fail(const QString& reason) {
+    qCritical().noquote() << reason;
+    m_lastError = reason;
+    return false;
+}
+
 QVector<int> MigrationManager::getAppliedMigrations() {
     QVector<int> appliedMigrations;
     QSqlQuery query(DatabaseManager::instance().database());
@@ -95,8 +101,7 @@ QVector<QString> MigrationManager::getPendingMigrations(const QVector<int>& appl
 bool MigrationManager::executeMigration(const QString& migrationFile, int version) {
     QFile file(m_migrationDir + "/" + migrationFile);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCritical() << "Failed to open migration file:" << migrationFile;
-        return false;
+        return fail("Failed to open migration file: " + migrationFile);
     }
 
     QTextStream in(&file);
@@ -109,8 +114,7 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
 
     QSqlDatabase database = DatabaseManager::instance().database();
     if (!database.transaction()) {
-        qCritical() << "Failed to start migration transaction:" << database.lastError().text();
-        return false;
+        return fail("Failed to start migration transaction: " + database.lastError().text());
     }
     QSqlQuery query(database);
 
@@ -121,10 +125,10 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
         }
 
         if (!query.exec(stmt)) {
-            qCritical() << "Failed to execute query from migration file:" << migrationFile << query.lastError().text();
+            const QString reason = migrationFile + ": " + query.lastError().text();
             qCritical() << "Failed SQL:" << stmt;
             database.rollback();
-            return false;
+            return fail(reason);
         }
         query.finish();// Ensure the query is finished before proceeding
     }
@@ -134,15 +138,15 @@ bool MigrationManager::executeMigration(const QString& migrationFile, int versio
     insertQuery.prepare("INSERT INTO schema_migrations (version) VALUES (:version)");
     insertQuery.bindValue(":version", version);
     if (!insertQuery.exec()) {
-        qCritical() << "Failed to record migration:" << migrationFile << insertQuery.lastError().text();
+        const QString reason = "Failed to record migration " + migrationFile + ": " + insertQuery.lastError().text();
         database.rollback();
-        return false;
+        return fail(reason);
     }
 
     if (!database.commit()) {
-        qCritical() << "Failed to commit migration:" << migrationFile << database.lastError().text();
+        const QString reason = "Failed to commit migration " + migrationFile + ": " + database.lastError().text();
         database.rollback();
-        return false;
+        return fail(reason);
     }
 
     qDebug() << "Applied migration:" << migrationFile;
@@ -199,22 +203,17 @@ bool MigrationManager::validateSchema() {
     for (const QString& name : requiredObjects) {
         objectQuery.bindValue(":name", name);
         if (!objectQuery.exec() || !objectQuery.next() || objectQuery.value(0).toInt() != 1) {
-            qCritical() << "Required database object is missing:" << name;
-            return false;
+            return fail("Required database object is missing: " + name);
         }
         objectQuery.finish();
     }
 
     QSqlQuery foreignKeyCheck(database);
     if (!foreignKeyCheck.exec("PRAGMA foreign_key_check")) {
-        qCritical() << "Could not validate database foreign keys:"
-                    << foreignKeyCheck.lastError().text();
-        return false;
+        return fail("Could not validate database foreign keys: " + foreignKeyCheck.lastError().text());
     }
     if (foreignKeyCheck.next()) {
-        qCritical() << "Database contains a foreign-key violation in table:"
-                    << foreignKeyCheck.value(0).toString();
-        return false;
+        return fail("Database contains a foreign-key violation in table: " + foreignKeyCheck.value(0).toString());
     }
     return true;
 }

@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QScopeGuard>
 #include <QSqlQuery>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -80,6 +81,21 @@ private slots:
         QCOMPARE(DatabaseSession::currentDatabasePath(), DatabaseSession::defaultDatabasePath());
         QVERIFY(warning.contains(QFileInfo(newer).fileName()));
         QVERIFY(warning.contains("newer version"));
+    }
+
+    // the message itself has to say what's wrong
+    void saysWhyWhenNoDatabaseCanBeOpened() {
+        Settings::instance().setLastDatabase("");
+        DatabaseManager::instance().closeDatabase();
+        const QString defaultPath = DatabaseSession::defaultDatabasePath();
+        QFile::remove(defaultPath);
+        QVERIFY(QDir().mkpath(defaultPath));                  // A folder can't be opened as a database
+        const auto removeFolder = qScopeGuard([&defaultPath]() { QDir().rmdir(defaultPath); });
+
+        QString error;
+        QVERIFY(!DatabaseSession::openAtStartup(nullptr, &error));
+        QVERIFY2(error.contains(QDir::toNativeSeparators(defaultPath)), qPrintable(error));
+        QVERIFY2(error.contains("unable to open database file", Qt::CaseInsensitive), qPrintable(error));
     }
 };
 

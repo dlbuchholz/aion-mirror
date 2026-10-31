@@ -177,6 +177,8 @@ private slots:
         QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
         MigrationManager manager(root.path());
         QVERIFY(!manager.applyMigrations());
+        QVERIFY2(manager.lastError().contains("002_broken.sql"), qPrintable(manager.lastError()));
+        QVERIFY2(manager.lastError().contains("syntax error"), qPrintable(manager.lastError()));
 
         QSqlQuery query(DatabaseManager::instance().database());
         QVERIFY(query.exec("SELECT COUNT(*) FROM sqlite_master WHERE name='must_rollback'"));

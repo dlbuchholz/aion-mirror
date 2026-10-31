@@ -16,9 +16,13 @@ public:
     bool needsUpdate();                              // A database in use that has migrations to apply (not a new one)
     bool isNewerThanApp();                           // Has migrations this version of Aion doesn't know
     int newestKnownVersion() const;
+    QString lastError() const { return m_lastError; } // Why applyMigrations() failed
 
 private:
     QString m_migrationDir; // Directory containing migration files
+    QString m_lastError;
+
+    bool fail(const QString& reason);
 
     QVector<int> getAppliedMigrations();
     QVector<QString> getPendingMigrations(const QVector<int>& appliedMigrations);

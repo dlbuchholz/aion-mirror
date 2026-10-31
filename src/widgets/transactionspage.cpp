@@ -959,11 +959,11 @@ void TransactionsPage::onSaveRequested(const Transaction& transaction) {
     if (isNew) {
         savedId = transactionDao.addTransaction(transaction);
         if (savedId < 0) {
-            editor->showError("Couldn't save the transaction. See the log for details.");
+            editor->showError("Couldn't save the transaction.");
             return;
         }
     } else if (!transactionDao.updateTransaction(transaction)) {
-        editor->showError("Couldn't save the changes. See the log for details.");
+        editor->showError("Couldn't save the changes.");
         return;
     }
 

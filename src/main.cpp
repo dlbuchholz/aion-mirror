@@ -23,6 +23,7 @@ static bool openStartupDatabase() {
     QString error;
     if (!DatabaseSession::openAtStartup(&warning, &error)) {
         qCritical() << "Database initialization failed:" << error;
+        QMessageBox::critical(nullptr, "Aion", error);
         return false;
     }
     if (!warning.isEmpty()) {
@@ -58,8 +59,6 @@ int main(int argc, char *argv[])
 
     QApplication::setWindowIcon(Icons::appIcon());   // Every window and the taskbar
     if (!openStartupDatabase()) {
-        QMessageBox::critical(nullptr, "Database Error",
-                              "Aion could not initialize its database. See the application log for details.");
         return EXIT_FAILURE;
     }
     // Apply the configured theme; "System" also follows later OS light/dark switches
