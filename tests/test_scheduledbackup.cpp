@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <QComboBox>
+#include <QLabel>
 #include <QSpinBox>
 #include <QTemporaryDir>
 
@@ -163,6 +164,44 @@ private slots:
         blocker.close();
         QVERIFY(DatabaseSession::open(path));
         QVERIFY(DatabaseManager::instance().database().isOpen());
+    }
+
+    void aFailedBackupIsRememberedUntilOneWorks() {
+        QFile blocker(Backup::folderFor(path));                // A file where the folder should go
+        QVERIFY(blocker.open(QIODevice::WriteOnly));
+        blocker.close();
+        QVERIFY(DatabaseSession::open(path));
+        const Settings::BackupFailure failure = Settings::instance().getBackupFailure(path);
+        QVERIFY(failure.when.isValid());
+        QVERIFY(failure.reason.contains("backups folder"));
+        QVERIFY(!Settings::instance().getBackupFailure(path + ".other").when.isValid());   // Per database
+
+        QVERIFY(blocker.remove());
+        QVERIFY(DatabaseSession::open(path));
+        QCOMPARE(scheduledBackups().size(), 1);
+        QVERIFY(!Settings::instance().getBackupFailure(path).when.isValid());
+    }
+
+    void theSectionWarnsAboutAFailureWhileTheScheduleIsOn() {
+        BackupSettings settings;
+        auto* label = settings.findChild<QLabel*>("backupFailureLabel");
+        auto* combo = settings.findChild<QComboBox*>("backupScheduleCombo");
+        settings.reload();
+        QVERIFY(label->isHidden());
+
+        Settings::instance().setBackupFailure(path, QDateTime(QDate(2026, 10, 31), QTime(9, 12)), "The reason.");
+        settings.reload();
+        QVERIFY(!label->isHidden());
+        QCOMPARE(label->text(), QString("The last scheduled backup failed on 31 Oct 2026, 09:12. The reason."));
+
+        combo->setCurrentIndex(combo->findText("Off"));
+        QVERIFY(label->isHidden());
+        combo->setCurrentIndex(combo->findText("Every day"));
+        QVERIFY(!label->isHidden());
+
+        Settings::instance().clearBackupFailure(path);
+        settings.reload();
+        QVERIFY(label->isHidden());
     }
 
     void theSectionShowsAndSavesTheChoices() {

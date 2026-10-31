@@ -127,6 +127,14 @@ public:
     void setBackupSchedule(BackupSchedule schedule);
     int getScheduledBackupsToKeep() const;           // 7 by default
     void setScheduledBackupsToKeep(int count);
+    // The last scheduled backup of this database, if it failed. No time: it didn't.
+    struct BackupFailure {
+        QDateTime when;
+        QString reason;
+    };
+    BackupFailure getBackupFailure(const QString& databasePath) const;
+    void setBackupFailure(const QString& databasePath, const QDateTime& when, const QString& reason);
+    void clearBackupFailure(const QString& databasePath);
 
     // Removes all user-facing settings (currency, transactions, import, theme) so their defaults apply.
     // Window state such as the sidebar layout is kept.

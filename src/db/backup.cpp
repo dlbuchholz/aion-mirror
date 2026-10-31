@@ -174,7 +174,14 @@ bool scheduled(QString* errorMessage) {
         return false;
     }
     users.finish();
-    return saveAutomatic("scheduled", errorMessage, Settings::instance().getScheduledBackupsToKeep());
+    QString reason;
+    if (!saveAutomatic("scheduled", &reason, Settings::instance().getScheduledBackupsToKeep())) {
+        Settings::instance().setBackupFailure(databasePath, QDateTime::currentDateTime(), reason);
+        setError(errorMessage, reason);
+        return false;
+    }
+    Settings::instance().clearBackupFailure(databasePath);
+    return true;
 }
 
 QList<AutomaticBackup> automaticBackups(const QString& databasePath) {

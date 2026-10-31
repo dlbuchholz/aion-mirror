@@ -376,6 +376,24 @@ void Settings::setScheduledBackupsToKeep(int count) {
     settings.setValue("backup/keep", count);
 }
 
+Settings::BackupFailure Settings::getBackupFailure(const QString& databasePath) const {
+    const QVariantMap failure = settings.value("backup/failures").toMap().value(databasePath).toMap();
+    return {failure.value("when").toDateTime(), failure.value("reason").toString()};
+}
+
+void Settings::setBackupFailure(const QString& databasePath, const QDateTime& when, const QString& reason) {
+    QVariantMap failures = settings.value("backup/failures").toMap();
+    failures.insert(databasePath, QVariantMap{{"when", when}, {"reason", reason}});
+    settings.setValue("backup/failures", failures);
+}
+
+void Settings::clearBackupFailure(const QString& databasePath) {
+    QVariantMap failures = settings.value("backup/failures").toMap();
+    if (failures.remove(databasePath) > 0) {
+        settings.setValue("backup/failures", failures);
+    }
+}
+
 void Settings::restoreDefaults() {
     if (DatabaseManager::instance().database().isOpen()) {
         QSqlQuery query(DatabaseManager::instance().database());

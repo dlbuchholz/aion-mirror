@@ -38,6 +38,7 @@ private:
     void restoreFromFile();
     void restore(const QString& path, const QString& description);
     void showResult(const QString& text, bool failed);
+    void updateFailureLabel();
 
     QLabel* introLabel = nullptr;
     QPushButton* backUpButton = nullptr;
@@ -45,6 +46,7 @@ private:
     QLabel* resultLabel = nullptr;
     QComboBox* scheduleCombo = nullptr;
     QSpinBox* keepSpin = nullptr;
+    QLabel* failureLabel = nullptr;
     QLabel* listHeading = nullptr;
     QToolButton* openFolderButton = nullptr;
     QVBoxLayout* listLayout = nullptr;

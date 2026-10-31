@@ -114,6 +114,7 @@ BackupSettings::BackupSettings(QWidget* parent)
         const auto schedule = static_cast<Settings::BackupSchedule>(scheduleCombo->currentData().toInt());
         Settings::instance().setBackupSchedule(schedule);
         keepSpin->setEnabled(schedule != Settings::BackupSchedule::Off);
+        updateFailureLabel();
     });
     connect(keepSpin, &QSpinBox::valueChanged, this, [](int count) {
         Settings::instance().setScheduledBackupsToKeep(count);
@@ -124,6 +125,13 @@ BackupSettings::BackupSettings(QWidget* parent)
     scheduleHint->setWordWrap(true);
     scheduleHint->setForegroundRole(QPalette::PlaceholderText);
     layout->addWidget(scheduleHint);
+
+    failureLabel = new QLabel(this);
+    failureLabel->setObjectName("backupFailureLabel");
+    failureLabel->setTextFormat(Qt::PlainText);
+    failureLabel->setWordWrap(true);
+    failureLabel->setVisible(false);
+    layout->addWidget(failureLabel);
 
     auto* listHeader = new QHBoxLayout();
     listHeading = new QLabel("Automatic backups", this);
@@ -156,6 +164,7 @@ void BackupSettings::reload() {
     introLabel->setText(QString("A backup is a copy of %1: all users, accounts and transactions, and the number "
                                 "formats. The theme and other settings on this computer aren't included.")
                             .arg(QFileInfo(databasePath()).fileName()));
+    updateFailureLabel();
 
     // Replaced, not reused: this can run while one of the old rows' buttons is still being clicked
     if (listContent) {
@@ -247,6 +256,23 @@ void BackupSettings::restore(const QString& path, const QString& description) {
     showResult("Restored.", false);
     reload();
     emit restored();
+}
+
+void BackupSettings::updateFailureLabel() {
+    Settings& settings = Settings::instance();
+    const Settings::BackupFailure failure = settings.getBackupFailure(databasePath());
+    // With the schedule off nothing will clear it, and there's nothing the user is relying on
+    if (!failure.when.isValid() || settings.getBackupSchedule() == Settings::BackupSchedule::Off) {
+        failureLabel->setVisible(false);
+        return;
+    }
+    const QColor danger = Theme::colors().danger;
+    failureLabel->setStyleSheet(QString("QLabel { color: %1; background: rgba(%2, %3, %4, 30); border: 1px solid %1; "
+                                        "border-radius: 6px; padding: 8px 12px; }")
+                                    .arg(danger.name()).arg(danger.red()).arg(danger.green()).arg(danger.blue()));
+    failureLabel->setText(QString("The last scheduled backup failed on %1. %2")
+                              .arg(QLocale(QLocale::English).toString(failure.when, "d MMM yyyy, HH:mm"), failure.reason));
+    failureLabel->setVisible(true);
 }
 
 void BackupSettings::showResult(const QString& text, bool failed) {
