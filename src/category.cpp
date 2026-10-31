@@ -252,6 +252,6 @@ bool CategoryDAO::deleteCategoryKeepingTransactions(int categoryId) {
 
 void CategoryDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "SQL Error:" << query.lastError().text();
+        qWarning() << "CategoryDAO:" << query.lastError().text();
     }
 }

@@ -57,7 +57,7 @@ QList<QPair<QString, QString>> AccountDAO::getAllAccountTypes(int userId) {
             accountTypes.append(qMakePair(id, name));
         }
     } else {
-        qDebug() << "Failed to fetch account types:" << query.lastError().text();
+        qWarning() << "Failed to fetch account types:" << query.lastError().text();
     }
     return accountTypes;
 }
@@ -387,8 +387,7 @@ int AccountDAO::ruleCount(int accountId) {
 
 void AccountDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "AccountDAO / Failed query:" << query.lastQuery();
-        qDebug() << "AccountDAO / Bound values:" << query.boundValues();
-        qDebug() << "AccountDAO / SQL Error:" << query.lastError().text();
+        // Not the bound values: they're the user's accounts
+        qWarning() << "AccountDAO:" << query.lastError().text() << query.lastQuery();
     }
 }

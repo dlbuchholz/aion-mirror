@@ -91,6 +91,6 @@ int UserDAO::findUserIdByUsername(const QString& username) {
 
 void UserDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "SQL Error:" << query.lastError().text();
+        qWarning() << "UserDAO:" << query.lastError().text();
     }
 }

@@ -134,8 +134,6 @@ QString Transaction::calculateHash() const
     // Convert to hex string
     QString hash = QString(hashBytes.toHex());
 
-    qDebug() << "Calculated hash for transaction:" << hashSource << "-> " << hash. left(16) << "...";
-
     return hash;
 }
 
@@ -246,7 +244,6 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
     query.bindValue(":type", transaction.getType());
 
     if (!query.exec()) {
-        qDebug() << "SQL Error:" << query.lastError().text();
         handleError(query);
         return false;
     }
@@ -342,8 +339,6 @@ QList<Transaction> TransactionDAO:: getShadowedTransactions() {
         }
         qDebug() << "  Total shadowed transactions found:" << count;
     } else {
-        qDebug() << "  Query execution failed! ";
-        qDebug() << "  SQL Error:" << query.lastError().text();
         handleError(query);
     }
 
@@ -359,7 +354,6 @@ bool TransactionDAO::hasShadowedTransactions() {
         qDebug() << "hasShadowedTransactions:  Found" << count << "shadowed transactions";
         return count > 0;
     } else {
-        qDebug() << "hasShadowedTransactions: Query failed";
         handleError(query);
         return false;
     }
@@ -448,8 +442,7 @@ QList<QString> TransactionDAO::getExistingHashes(const QList<QString>& hashes)
 
 void TransactionDAO::handleError(const QSqlQuery& query) {
     if (query.lastError().isValid()) {
-        qDebug() << "TransactionDAO / Failed query:" << query.lastQuery();
-        qDebug() << "TransactionDAO / Bound values:" << query.boundValues();
-        qDebug() << "TransactionDAO / SQL Error:" << query.lastError().text();
+        // Not the bound values: they're the user's transactions
+        qWarning() << "TransactionDAO:" << query.lastError().text() << query.lastQuery();
     }
 }

@@ -75,6 +75,8 @@ target_compile_definitions(miniz PUBLIC MINIZ_NO_ZLIB_COMPATIBLE_NAMES MINIZ_NO_
 add_library(AionLib STATIC ${SRC_FILES})
 target_link_libraries(AionLib PUBLIC aion_warnings)   # The app and the tests get the same warnings
 target_link_libraries(AionLib PRIVATE miniz)
+# qDebug is for working on Aion. Warnings stay on in every build.
+target_compile_definitions(AionLib PUBLIC $<$<NOT:$<CONFIG:Debug>>:QT_NO_DEBUG_OUTPUT>)
 target_include_directories(AionLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(AionLib PUBLIC
     Qt::Core
