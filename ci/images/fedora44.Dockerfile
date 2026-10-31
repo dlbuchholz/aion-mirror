@@ -23,6 +23,8 @@ RUN dnf -y install --setopt=install_weak_deps=False \
         wine xorg-x11-server-Xvfb xorg-x11-xauth \
         # the Windows installer (installer/aion.nsi)
         mingw32-nsis \
+        # the RPM (scripts/package-rpm.sh)
+        rpm-build \
         # test coverage (scripts/coverage.sh, nightly)
         gcovr \
     && dnf clean all

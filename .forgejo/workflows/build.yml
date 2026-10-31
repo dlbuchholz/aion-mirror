@@ -86,6 +86,8 @@ jobs:
     if: needs.plan.outputs.build == 'true'
     runs-on: linux-qt
     timeout-minutes: 15
+    outputs:
+      package: ${{ steps.package.outputs.name }}
     steps:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
@@ -103,7 +105,7 @@ jobs:
           restore-keys: ccache-linux-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAION_USE_SYSTEM_QT=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 
       # ccache's statistics show how much came from the cache
       - name: Build
@@ -114,6 +116,52 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      # An RPM for this Fedora release, in publishing runs. rpmbuild is installed here unless the
+      # build image has it already.
+      - name: Package
+        id: package
+        if: needs.plan.outputs.publish == 'true'
+        run: |
+          command -v rpmbuild > /dev/null || dnf -y -q install rpm-build
+          rpm=$(bash scripts/package-rpm.sh build dist)
+          echo "name=$(basename "$rpm" .rpm)" >> "$GITHUB_OUTPUT"
+
+      # The plugins Qt loads at runtime aren't found by rpmbuild, so they're required by name in
+      # CMakeLists.txt. A plugin that moved to another package fails here. Then install, start and
+      # remove the package. This image has Qt's development packages too, so a real start on a
+      # clean Fedora is still part of the release checks.
+      - name: Check the RPM
+        if: needs.plan.outputs.publish == 'true'
+        run: |
+          rpm_file="dist/${{ steps.package.outputs.name }}.rpm"
+          rpm -qpl "$rpm_file"
+          requires=$(rpm -qpR "$rpm_file")
+          for plugin in sqldrivers/libqsqlite.so iconengines/libqsvgicon.so imageformats/libqsvg.so; do
+            owner=$(rpm -qf --qf '%{NAME}' "/usr/lib64/qt6/plugins/$plugin")
+            if ! grep -qxF "$owner" <<< "$requires"; then
+              echo "$plugin is in $owner, which the RPM doesn't require" >&2
+              exit 1
+            fi
+          done
+          dnf -y -q install --nogpgcheck "$rpm_file"
+          output=$(cd /tmp && QT_PLUGIN_PATH= Aion --version)
+          echo "$output"
+          grep -q '^Aion ' <<< "$output"
+          dnf -y -q remove aion
+          if command -v Aion > /dev/null; then
+            echo "Removing the RPM left Aion behind" >&2
+            exit 1
+          fi
+
+      # Kept for a day only: the release has it
+      - name: Hand the RPM to the release job
+        if: needs.plan.outputs.publish == 'true'
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: fedora-release
+          retention-days: 1
+          path: dist/${{ steps.package.outputs.name }}.rpm
 
   # Linux as an AppImage, on Ubuntu 22.04 with the official Qt (ci/images/ubuntu22.04.Dockerfile),
   # so it runs on older distributions too. Also tests with that Qt version.
@@ -330,6 +378,12 @@ jobs:
           name: linux-release
           path: dist
 
+      - name: Get the RPM
+        uses: https://code.forgejo.org/actions/download-artifact@v3
+        with:
+          name: fedora-release
+          path: dist
+
       # The run's own token, unless a RELEASE_TOKEN secret is set
       - name: Publish
         env:
@@ -339,3 +393,4 @@ jobs:
           bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
           dist/${{ needs.windows.outputs.package }}-setup.exe
           dist/${{ needs.appimage.outputs.package }}.AppImage
+          dist/${{ needs.linux.outputs.package }}.rpm

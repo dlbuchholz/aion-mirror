@@ -1,0 +1,9 @@
+Aion's source code: https://codeberg.org/spectre_0/aion
+
+Aion contains interface icons based on Tabler Icons (https://tabler.io/icons),
+under the MIT license in LICENSE-icons.
+
+Aion contains miniz (https://github.com/richgel999/miniz), under the MIT license
+in LICENSE-miniz.
+
+Qt and SQLite come from your distribution's packages, with their own licenses.

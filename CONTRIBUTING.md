@@ -143,6 +143,8 @@ self-hosted runner with two build images:
   Changes to documentation alone (Markdown files, `docs/`) don't start a run.
 - **Publishing runs**, nightly (03:00 UTC, only when more than documentation changed on `develop`
   since the last `staging` build) and when started by hand with **Run workflow** on the Actions page, also:
+  - pack the Linux build as an RPM for that Fedora release ([scripts/package-rpm.sh](scripts/package-rpm.sh)),
+    using Fedora's Qt, and check that it installs, starts and uninstalls;
   - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)) and check
     that it starts with only its own files;
   - build the installer ([installer/aion.nsi](installer/aion.nsi), NSIS), and check that it installs,

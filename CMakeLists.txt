@@ -146,11 +146,41 @@ install(TARGETS Aion
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-qt_generate_deploy_app_script(
-    TARGET Aion
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
-)
-install(SCRIPT ${deploy_script})
+# Packages for a distribution use its Qt, so installing mustn't copy Qt along
+option(AION_USE_SYSTEM_QT "Don't install Qt with Aion, for a distribution's package" OFF)
+if(NOT AION_USE_SYSTEM_QT)
+    qt_generate_deploy_app_script(
+        TARGET Aion
+        OUTPUT_SCRIPT deploy_script
+        NO_UNSUPPORTED_PLATFORM_ERROR
+    )
+    install(SCRIPT ${deploy_script})
+endif()
+
+if(UNIX AND NOT APPLE)
+    install(FILES packaging/linux/aion.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+    install(FILES assets/aion-logo.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME aion.svg)
+    set(AION_DOC_DIR ${CMAKE_INSTALL_DATADIR}/doc/aion)
+    install(FILES LICENSE packaging/linux/THIRD-PARTY DESTINATION ${AION_DOC_DIR})
+    install(FILES assets/icons/LICENSE DESTINATION ${AION_DOC_DIR} RENAME LICENSE-icons)
+    install(FILES thirdparty/miniz/LICENSE DESTINATION ${AION_DOC_DIR} RENAME LICENSE-miniz)
+endif()
+
+# The RPM (scripts/package-rpm.sh)
+set(CPACK_PACKAGE_NAME aion)
+set(CPACK_PACKAGE_VENDOR "The Aion contributors")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Personal finance")
+set(CPACK_PACKAGING_INSTALL_PREFIX /usr)
+set(CPACK_STRIP_FILES ON)
+set(CPACK_RPM_PACKAGE_LICENSE GPL-3.0-or-later)
+set(CPACK_RPM_PACKAGE_URL https://codeberg.org/spectre_0/aion)
+set(CPACK_RPM_PACKAGE_DESCRIPTION "A personal finance app for the desktop.")
+# Qt loads these as plugins at runtime, so rpmbuild can't find them. The workflow checks the names.
+set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase, qt6-qtsvg")
+# These folders belong to other packages
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
+    /usr/share/applications /usr/share/icons /usr/share/icons/hicolor
+    /usr/share/icons/hicolor/scalable /usr/share/icons/hicolor/scalable/apps)
+include(CPack)
 
 add_subdirectory(tests)
