@@ -97,7 +97,15 @@ bool open(const QString& path, QString* errorMessage) {
         if (errorMessage) *errorMessage = "The file doesn't exist anymore.";
         return false;
     }
-    return switchTo(target, errorMessage);
+    if (!switchTo(target, errorMessage)) {
+        return false;
+    }
+    // Not being able to back up on schedule is no reason to keep the database closed
+    QString backupError;
+    if (!Backup::scheduled(&backupError) && !backupError.isEmpty()) {
+        qWarning() << "Scheduled backup failed:" << backupError;
+    }
+    return true;
 }
 
 bool openAtStartup(QString* warningMessage, QString* errorMessage) {

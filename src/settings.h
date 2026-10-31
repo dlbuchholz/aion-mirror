@@ -116,6 +116,18 @@ public:
     void addRecentDatabase(const QString& path);
     void removeRecentDatabase(const QString& path);
 
+    // How often an opened database is backed up, for every database on this computer
+    enum class BackupSchedule {
+        Off,
+        Daily,      // Default
+        Weekly,
+        Monthly
+    };
+    BackupSchedule getBackupSchedule() const;
+    void setBackupSchedule(BackupSchedule schedule);
+    int getScheduledBackupsToKeep() const;           // 7 by default
+    void setScheduledBackupsToKeep(int count);
+
     // Removes all user-facing settings (currency, transactions, import, theme) so their defaults apply.
     // Window state such as the sidebar layout is kept.
     void restoreDefaults();

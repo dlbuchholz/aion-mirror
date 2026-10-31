@@ -2,17 +2,21 @@
 #include "db/backup.h"
 #include "db/databasemanager.h"
 #include "db/databasesession.h"
+#include "settings.h"
 #include "theme.h"
 
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -82,6 +86,44 @@ BackupSettings::BackupSettings(QWidget* parent)
     resultLabel->setWordWrap(true);
     resultLabel->setVisible(false);
     layout->addWidget(resultLabel);
+
+    Settings& settings = Settings::instance();
+    auto* scheduleForm = new QFormLayout();
+    scheduleForm->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
+    scheduleCombo = new QComboBox(this);
+    scheduleCombo->setObjectName("backupScheduleCombo");
+    scheduleCombo->addItem("Every day", static_cast<int>(Settings::BackupSchedule::Daily));
+    scheduleCombo->addItem("Every week", static_cast<int>(Settings::BackupSchedule::Weekly));
+    scheduleCombo->addItem("Every month", static_cast<int>(Settings::BackupSchedule::Monthly));
+    scheduleCombo->addItem("Off", static_cast<int>(Settings::BackupSchedule::Off));
+    scheduleCombo->setCurrentIndex(scheduleCombo->findData(static_cast<int>(settings.getBackupSchedule())));
+    scheduleForm->addRow("Back up", scheduleCombo);
+
+    auto* keepRow = new QHBoxLayout();
+    keepSpin = new QSpinBox(this);
+    keepSpin->setObjectName("backupKeepSpin");
+    keepSpin->setRange(1, 99);
+    keepSpin->setValue(settings.getScheduledBackupsToKeep());
+    keepRow->addWidget(keepSpin);
+    keepRow->addWidget(new QLabel("scheduled backups", this));
+    scheduleForm->addRow("Keep the last", keepRow);
+    layout->addLayout(scheduleForm);
+
+    keepSpin->setEnabled(settings.getBackupSchedule() != Settings::BackupSchedule::Off);
+    connect(scheduleCombo, &QComboBox::currentIndexChanged, this, [this]() {
+        const auto schedule = static_cast<Settings::BackupSchedule>(scheduleCombo->currentData().toInt());
+        Settings::instance().setBackupSchedule(schedule);
+        keepSpin->setEnabled(schedule != Settings::BackupSchedule::Off);
+    });
+    connect(keepSpin, &QSpinBox::valueChanged, this, [](int count) {
+        Settings::instance().setScheduledBackupsToKeep(count);
+    });
+
+    auto* scheduleHint = new QLabel("Runs when a database is opened, if it has changed since the last one. "
+                                    "Applies to every database on this computer.", this);
+    scheduleHint->setWordWrap(true);
+    scheduleHint->setForegroundRole(QPalette::PlaceholderText);
+    layout->addWidget(scheduleHint);
 
     auto* listHeader = new QHBoxLayout();
     listHeading = new QLabel("Automatic backups", this);

@@ -4,8 +4,10 @@
 #include <QWidget>
 #include <functional>
 
+class QComboBox;
 class QLabel;
 class QPushButton;
+class QSpinBox;
 class QToolButton;
 class QVBoxLayout;
 
@@ -41,6 +43,8 @@ private:
     QPushButton* backUpButton = nullptr;
     QPushButton* restoreFileButton = nullptr;
     QLabel* resultLabel = nullptr;
+    QComboBox* scheduleCombo = nullptr;
+    QSpinBox* keepSpin = nullptr;
     QLabel* listHeading = nullptr;
     QToolButton* openFolderButton = nullptr;
     QVBoxLayout* listLayout = nullptr;

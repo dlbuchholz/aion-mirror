@@ -15,6 +15,7 @@ namespace {
 
 constexpr int KeptAutomaticBackups = 5;              // Of each kind
 const QString TimestampFormat = QStringLiteral("yyyy-MM-dd-HHmmss");
+const QString ScheduledKindLabel = QStringLiteral("Scheduled");
 
 void setError(QString* errorMessage, const QString& message) {
     if (errorMessage) *errorMessage = message;
@@ -43,7 +44,7 @@ bool replaceFile(const QString& finished, const QString& path) {
 }
 
 // Saves an automatic backup of this kind next to the open database and removes older ones of the kind
-bool saveAutomatic(const QString& kind, QString* reason) {
+bool saveAutomatic(const QString& kind, QString* reason, int keep = KeptAutomaticBackups) {
     const QString databasePath = DatabaseManager::instance().database().databaseName();
     const QDir folder(Backup::folderFor(databasePath));
     const QString prefix = QString("%1-%2-").arg(QFileInfo(databasePath).completeBaseName(), kind);
@@ -63,7 +64,7 @@ bool saveAutomatic(const QString& kind, QString* reason) {
 
     // The dates in the names sort newest first
     const QStringList kept = folder.entryList({prefix + "*.db"}, QDir::Files, QDir::Name | QDir::Reversed);
-    for (qsizetype i = KeptAutomaticBackups; i < kept.size(); ++i) {
+    for (qsizetype i = keep; i < kept.size(); ++i) {
         QFile::remove(folder.filePath(kept[i]));
     }
     return true;
@@ -129,9 +130,56 @@ bool beforeRestore(QString* errorMessage) {
     return true;
 }
 
+bool isDue(Settings::BackupSchedule schedule, const QDateTime& last, const QDate& today) {
+    if (schedule == Settings::BackupSchedule::Off) {
+        return false;
+    }
+    if (!last.isValid()) {
+        return true;
+    }
+    switch (schedule) {
+    case Settings::BackupSchedule::Daily:
+        return last.date() < today;
+    case Settings::BackupSchedule::Weekly:
+        return last.date().addDays(7) <= today;
+    case Settings::BackupSchedule::Monthly:
+        return last.date().addMonths(1) <= today;
+    case Settings::BackupSchedule::Off:
+        break;
+    }
+    return false;
+}
+
+bool scheduled(QString* errorMessage) {
+    QSqlDatabase database = DatabaseManager::instance().database();
+    const QString databasePath = database.databaseName();
+
+    QDateTime last;
+    for (const AutomaticBackup& backup : automaticBackups(databasePath)) {
+        if (backup.kind == ScheduledKindLabel) {
+            last = backup.when;                      // Newest first
+            break;
+        }
+    }
+    if (!isDue(Settings::instance().getBackupSchedule(), last, QDate::currentDate())) {
+        return false;
+    }
+    // Not changed since: the last one is still a copy of it
+    if (last.isValid() && QFileInfo(databasePath).lastModified() < last) {
+        return false;
+    }
+    // A database nobody has used yet has nothing to keep
+    QSqlQuery users(database);
+    if (!users.exec("SELECT COUNT(*) FROM users") || !users.next() || users.value(0).toInt() == 0) {
+        return false;
+    }
+    users.finish();
+    return saveAutomatic("scheduled", errorMessage, Settings::instance().getScheduledBackupsToKeep());
+}
+
 QList<AutomaticBackup> automaticBackups(const QString& databasePath) {
     const QRegularExpression pattern(
-        QString("^%1-(before-update|before-restore)-(\\d{4}-\\d{2}-\\d{2}-\\d{6})\\.db$")
+        QString("^%1-(before-update|before-restore|scheduled)-(\\d{4}-\\d{2}-\\d{2}-\\d{6})\\.db$")
             .arg(QRegularExpression::escape(QFileInfo(databasePath).completeBaseName())));
 
     QList<AutomaticBackup> backups;
@@ -141,7 +189,9 @@ QList<AutomaticBackup> automaticBackups(const QString& databasePath) {
         if (match.hasMatch()) {
             backups.append({file.absoluteFilePath(),
                             QDateTime::fromString(match.captured(2), TimestampFormat),
-                            match.captured(1) == "before-update" ? "Before update" : "Before restore",
+                            match.captured(1) == "before-update" ? QStringLiteral("Before update")
+                            : match.captured(1) == "before-restore" ? QStringLiteral("Before restore")
+                                                                    : ScheduledKindLabel,
                             file.size()});
         }
     }

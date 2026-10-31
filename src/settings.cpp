@@ -356,6 +356,26 @@ void Settings::removeRecentDatabase(const QString& path) {
     settings.setValue("app/recentDatabases", recent);
 }
 
+Settings::BackupSchedule Settings::getBackupSchedule() const {
+    const int schedule = settings.value("backup/schedule", static_cast<int>(BackupSchedule::Daily)).toInt();
+    if (schedule < static_cast<int>(BackupSchedule::Off) || schedule > static_cast<int>(BackupSchedule::Monthly)) {
+        return BackupSchedule::Daily;
+    }
+    return static_cast<BackupSchedule>(schedule);
+}
+
+void Settings::setBackupSchedule(BackupSchedule schedule) {
+    settings.setValue("backup/schedule", static_cast<int>(schedule));
+}
+
+int Settings::getScheduledBackupsToKeep() const {
+    return qMax(1, settings.value("backup/keep", 7).toInt());
+}
+
+void Settings::setScheduledBackupsToKeep(int count) {
+    settings.setValue("backup/keep", count);
+}
+
 void Settings::restoreDefaults() {
     if (DatabaseManager::instance().database().isOpen()) {
         QSqlQuery query(DatabaseManager::instance().database());

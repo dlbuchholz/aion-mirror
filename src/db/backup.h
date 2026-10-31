@@ -6,6 +6,7 @@
 #include <QList>
 #include <QString>
 #include <optional>
+#include "settings.h"
 
 // Copies of the open database
 namespace Backup {
@@ -26,10 +27,17 @@ bool beforeUpdate(QString* errorMessage = nullptr);
 // The same before a restore replaces the open database
 bool beforeRestore(QString* errorMessage = nullptr);
 
+// Whether a backup last made then (invalid: never) is followed by another today
+bool isDue(Settings::BackupSchedule schedule, const QDateTime& last, const QDate& today);
+
+// Saves a copy there if the schedule says it's time and the open database has something new since
+// the last one. Keeps as many as the settings say. False if nothing was saved.
+bool scheduled(QString* errorMessage = nullptr);
+
 struct AutomaticBackup {
     QString path;
     QDateTime when;
-    QString kind;                                    // "Before update", "Before restore"
+    QString kind;                                    // "Before update", "Before restore", "Scheduled"
     qint64 sizeBytes = 0;
 };
 
