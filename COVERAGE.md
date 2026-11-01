@@ -1,9 +1,9 @@
-<!-- Measured at c4089617511301ad1675d37b6b2d354ed0a51345 by scripts/coverage.sh -->
+<!-- Measured at cc63d816acbe726a2850e6016105f0ed5a3569e2 by scripts/coverage.sh -->
 # Test coverage
 
 ![Coverage](docs/coverage-badge.svg)
 
-**90%** · 10443 / 11627 lines · 43 test suites · 0 test cases · 2026-11-01 · `c408961`
+**90%** · 10443 / 11627 lines · 43 test suites · 396 test cases · 2026-11-01 · `cc63d81`
 
 ## Files
 
@@ -129,304 +129,700 @@
 
 ## Test suites
 
-<details><summary><b>test_aboutwidget</b> · 0 test cases · 8 files</summary>
+<details><summary><b>test_aboutwidget</b> · 2 test cases · 8 files</summary>
 
 [tests/test_aboutwidget.cpp](tests/test_aboutwidget.cpp)
 
+- Shows every entry
+- Showing again keeps the rows
 
 </details>
 
-<details><summary><b>test_account</b> · 0 test cases · 7 files</summary>
+<details><summary><b>test_account</b> · 32 test cases · 7 files</summary>
 
 [tests/test_account.cpp](tests/test_account.cpp)
 
+- Test balances are per account
+- Test create account
+- Test create account invalid type rolls back
+- Test create account empty name rejected
+- Test create account whitespace name rejected
+- Test create account empty type rejected
+- Test create account very long name round trips
+- Test create account negative initial balance creates transaction and balance
+- Test create account zero initial balance creates no transaction
+- Test create account initial deposit transaction inserted
+- Test create account initial transaction is in initial balance category
+- Test create account without initial balance category has no category
+- Test create account twice returns distinct ids and both persist
+- Test get account types contains seeded types
+- Test add account type duplicate name fails
+- Test account type crud add edit delete
+- Test edit account type nonexistent id returns false
+- Test get all accounts for user filters by user
+- Test get all accounts for user no accounts returns empty
+- Test get all account types contains checking with numeric id
+- Test delete account cascades transactions
+- Test delete account type removes row
+- Test delete account type in use is restricted
+- Test delete account type in use does not remove row
+- Test delete account nonexistent returns false
+- Test delete account removes from balances view
+- Test get account by id balance reflects transactions
+- Test get account by id not found returns invalid
+- Test update transaction keeps the hash for duplicate detection
+- Test update transaction rejects temporary id
+- Test update transaction rejects unknown id
+- Test delete transaction unknown id returns false
 
 </details>
 
-<details><summary><b>test_addaccountwidget</b> · 0 test cases · 8 files</summary>
+<details><summary><b>test_addaccountwidget</b> · 3 test cases · 8 files</summary>
 
 [tests/test_addaccountwidget.cpp](tests/test_addaccountwidget.cpp)
 
+- Offers the account types
+- Creates the account with its starting balance
+- Account without starting balance has no transaction
 
 </details>
 
-<details><summary><b>test_applyrulesdialog</b> · 0 test cases · 15 files</summary>
+<details><summary><b>test_applyrulesdialog</b> · 5 test cases · 15 files</summary>
 
 [tests/test_applyrulesdialog.cpp](tests/test_applyrulesdialog.cpp)
 
+- Previews only what would change
+- Changes the transactions when confirmed
+- Previews and applies renames
+- Says so when nothing would change
+- Balance adjustments keep their category
 
 </details>
 
-<details><summary><b>test_backup</b> · 0 test cases · 12 files</summary>
+<details><summary><b>test_backup</b> · 7 test cases · 12 files</summary>
 
 [tests/test_backup.cpp](tests/test_backup.cpp)
 
+- Name follows the database and the date
+- Copy has the data and later changes stay out
+- Replaces an older backup
+- Wont replace the database itself
+- A failed backup says so and leaves nothing
+- Button saves where chosen and adds the extension
+- Cancelling writes nothing
 
 </details>
 
-<details><summary><b>test_backupbeforeupdate</b> · 0 test cases · 6 files</summary>
+<details><summary><b>test_backupbeforeupdate</b> · 8 test cases · 6 files</summary>
 
 [tests/test_backupbeforeupdate.cpp](tests/test_backupbeforeupdate.cpp)
 
+- A new database gets no backup
+- An up to date database gets no backup
+- An older database is backed up as it was then updated
+- Without a backup the database stays as it was
+- Keeps the last five
+- A newer database is refused and left alone
+- Opens the last database again after a refusal
+- Manager knows what its looking at
 
 </details>
 
-<details><summary><b>test_balance</b> · 0 test cases · 25 files</summary>
+<details><summary><b>test_balance</b> · 15 test cases · 25 files</summary>
 
 [tests/test_balance.cpp](tests/test_balance.cpp)
 
+- Balance on a day includes that day
+- Corrections go either way
+- Corrections arent income or spending
+- Dialog adds the difference
+- Import dialog compares with the banks balance
+- Import uses the rules when ticked
+- Import reads the ticked sheets of a spreadsheet
+- Sheets with slightly other headers are matched by name
+- A spreadsheet with one sheet has nothing to choose
+- A damaged spreadsheet keeps the file before
+- Import wizard checks each step
+- Many file categories stay compact
+- Wizard can finish when everything is already imported
+- Importer can create the account
+- Dialog checks an earlier day
 
 </details>
 
-<details><summary><b>test_branding</b> · 0 test cases · 10 files</summary>
+<details><summary><b>test_branding</b> · 3 test cases · 10 files</summary>
 
 [tests/test_branding.cpp](tests/test_branding.cpp)
 
+- Logo is built in
+- App icon has the sizes windows asks for
+- Start window and about show the logo
 
 </details>
 
-<details><summary><b>test_budget</b> · 0 test cases · 9 files</summary>
+<details><summary><b>test_budget</b> · 13 test cases · 9 files</summary>
 
 [tests/test_budget.cpp](tests/test_budget.cpp)
 
+- Monthly limit applies from its month on
+- Changing the monthly limit keeps earlier months
+- Single month value overrides only that month
+- Removing only this month
+- Removing from this month on
+- Spending counts only the months expenses of the user
+- More back than spent goes below zero
+- Unbudgeted spending lists the rest
+- Starting balances arent spending
+- Transfers arent spending
+- Budgets belong to their user
+- Renaming a category keeps its budget
+- Month keys
 
 </details>
 
-<details><summary><b>test_budgetpage</b> · 0 test cases · 16 files</summary>
+<details><summary><b>test_budgetpage</b> · 10 test cases · 16 files</summary>
 
 [tests/test_budgetpage.cpp](tests/test_budgetpage.cpp)
 
+- Shows budgets with totals
+- Overspending is shown as over
+- Empty month explains what to do
+- Adding a budget for every month
+- Changing only this month
+- Removing only this month
+- Removing a single month needs no choice
+- Unbudgeted spending suggests a limit
+- Navigates between months
+- Invalid limit shows an error
 
 </details>
 
-<details><summary><b>test_categorysettings</b> · 0 test cases · 13 files</summary>
+<details><summary><b>test_categorysettings</b> · 12 test cases · 13 files</summary>
 
 [tests/test_categorysettings.cpp](tests/test_categorysettings.cpp)
 
+- Lists categories in groups with built in ones locked
+- Opening a category keeps the list where it is
+- Adds a category with a colour
+- Eighteen colours in hue order and two rows
+- Preview shows the tag in both themes
+- Rejects duplicate and empty names
+- Edits name type and colour
+- Merges after confirming
+- Delete can be cancelled
+- Search filters the list
+- Account types can be added renamed and deleted when unused
+- Shows only the users own categories and account types
 
 </details>
 
-<details><summary><b>test_commandline</b> · 0 test cases · 2 files</summary>
+<details><summary><b>test_commandline</b> · 4 test cases · 2 files</summary>
 
 [tests/test_commandline.cpp](tests/test_commandline.cpp)
 
+- Version prints the version and exits
+- Help lists the options and exits
+- No options starts normally
+- Unknown options dont stop the start
 
 </details>
 
-<details><summary><b>test_csvimport</b> · 0 test cases · 13 files</summary>
+<details><summary><b>test_csvimport</b> · 22 test cases · 13 files</summary>
 
 [tests/test_csvimport.cpp](tests/test_csvimport.cpp)
 
+- Detects delimiter
+- Detects decimal separator
+- Auto maps english and german headers
+- Auto map uses each column once
+- Parses dates
+- Parses amounts
+- Decides transaction type
+- Builds transactions and explains failures
+- Imports and skips duplicates
+- Dry run writes nothing
+- Maps the balance column
+- Stated balance is the one after the newest row
+- Dry run reports the balance before and after
+- Import adds the balance correction
+- Correction in a dry run is rolled back
+- Lists the files categories
+- Edited transactions are still recognised on the next import
+- Rules rename payees and the next import still knows them
+- Rules fill in categories or replace the files when allowed
+- Creates new categories on import only
+- Unreadable rows abort unless partial import
+- Database errors roll back
 
 </details>
 
-<details><summary><b>test_csvparser</b> · 0 test cases · 1 files</summary>
+<details><summary><b>test_csvparser</b> · 3 test cases · 1 files</summary>
 
 [tests/test_csvparser.cpp](tests/test_csvparser.cpp)
 
+- Parses quoted fields and escaped quotes
+- Parses multiline and empty fields
+- Rejects unterminated quote
 
 </details>
 
-<details><summary><b>test_dashboard</b> · 0 test cases · 12 files</summary>
+<details><summary><b>test_dashboard</b> · 10 test cases · 12 files</summary>
 
 [tests/test_dashboard.cpp](tests/test_dashboard.cpp)
 
+- Month totals and balance
+- Cash flow covers six months ending now
+- Last month is compared up to the same day
+- Spending by category is sorted and includes uncategorised
+- Recent transactions newest first without future ones
+- Starting balances arent income or spending
+- Transfers move money but arent income or spending
+- Money back in an expense category isnt income
+- Other users dont count
+- Greeting follows the time of day
 
 </details>
 
-<details><summary><b>test_dashboardpage</b> · 0 test cases · 18 files</summary>
+<details><summary><b>test_dashboardpage</b> · 7 test cases · 18 files</summary>
 
 [tests/test_dashboardpage.cpp](tests/test_dashboardpage.cpp)
 
+- Greets by first name
+- Tiles show this month
+- Overspending is called out
+- Empty cards invite
+- Budgets show the closest to the limit first
+- Clicking a category or transaction asks to show it
+- Quick actions are forwarded
 
 </details>
 
-<details><summary><b>test_databasesession</b> · 0 test cases · 7 files</summary>
+<details><summary><b>test_databasesession</b> · 4 test cases · 7 files</summary>
 
 [tests/test_databasesession.cpp](tests/test_databasesession.cpp)
 
+- Create migrates and remembers the file
+- Create refuses existing files
+- Open switches between databases
+- Rejects files that are not aion databases
 
 </details>
 
-<details><summary><b>test_deleteaccount</b> · 0 test cases · 12 files</summary>
+<details><summary><b>test_deleteaccount</b> · 12 test cases · 12 files</summary>
 
 [tests/test_deleteaccount.cpp](tests/test_deleteaccount.cpp)
 
+- Moving keeps the transactions and adds up the balance
+- Moving points rules at the target
+- Moving needs another account of the same user
+- Deleting removes a rule that needs the account
+- Deleting leaves any match rule its other conditions
+- Deleting removes an any match rule with nothing left
+- Deleting leaves other accounts rules alone
+- A new account doesnt inherit rules
+- Dialog moves by default
+- Dialog can delete the transactions
+- Dialog for the last account can only delete
+- Dialog without transactions has nothing to choose
 
 </details>
 
-<details><summary><b>test_editaccount</b> · 0 test cases · 9 files</summary>
+<details><summary><b>test_editaccount</b> · 6 test cases · 9 files</summary>
 
 [tests/test_editaccount.cpp](tests/test_editaccount.cpp)
 
+- Changes name and type and keeps the balance
+- Refuses an empty name and unknown things
+- Refuses another users type
+- Taken names ignore case and the account itself
+- Dialog starts with the account and saves
+- Dialog wont save an empty or taken name
 
 </details>
 
-<details><summary><b>test_integration</b> · 0 test cases · 5 files</summary>
+<details><summary><b>test_integration</b> · 2 test cases · 5 files</summary>
 
 [tests/test_integration.cpp](tests/test_integration.cpp)
 
+- Test foreign keys are enabled
+- Test foreign keys remain enabled after reopen
 
 </details>
 
-<details><summary><b>test_logging</b> · 0 test cases · 7 files</summary>
+<details><summary><b>test_logging</b> · 2 test cases · 7 files</summary>
 
 [tests/test_logging.cpp](tests/test_logging.cpp)
 
+- Saving a transaction logs none of it
+- A failed save logs the error but not the values
 
 </details>
 
-<details><summary><b>test_mainwindow</b> · 0 test cases · 39 files</summary>
+<details><summary><b>test_mainwindow</b> · 6 test cases · 39 files</summary>
 
 [tests/test_mainwindow.cpp](tests/test_mainwindow.cpp)
 
+- Applying only redoes what changed
+- Starts on the dashboard
+- Sidebar switches pages and accounts
+- Dashboard shortcuts open the right place
+- Changed transactions reach the other pages
+- Edited categories reach the other pages
 
 </details>
 
-<details><summary><b>test_migrationmanager</b> · 0 test cases · 3 files</summary>
+<details><summary><b>test_migrationmanager</b> · 4 test cases · 3 files</summary>
 
 [tests/test_migrationmanager.cpp](tests/test_migrationmanager.cpp)
 
+- Upgrading from every version keeps the data
+- Failed migration rolls back statements
+- Semicolons in comments dont split statements
+- Partially initialized version one can recover
 
 </details>
 
-<details><summary><b>test_money</b> · 0 test cases · 2 files</summary>
+<details><summary><b>test_money</b> · 4 test cases · 2 files</summary>
 
 [tests/test_money.cpp](tests/test_money.cpp)
 
+- Plain string is stable
+- Parses plain decimals
+- Converts spin box values exactly
+- Transaction hash matches the old format
 
 </details>
 
-<details><summary><b>test_rawsettingsdialog</b> · 0 test cases · 3 files</summary>
+<details><summary><b>test_rawsettingsdialog</b> · 4 test cases · 3 files</summary>
 
 [tests/test_rawsettingsdialog.cpp](tests/test_rawsettingsdialog.cpp)
 
+- Lists every setting sorted by name
+- Search finds names and values
+- Apply saves edits and cancel does not
+- Ok saves and closes
 
 </details>
 
-<details><summary><b>test_rendering</b> · 0 test cases · 45 files</summary>
+<details><summary><b>test_rendering</b> · 4 test cases · 45 files</summary>
 
 [tests/test_rendering.cpp](tests/test_rendering.cpp)
 
+- Every page draws in both themes
+- Dashboard chart shows months on hover
+- Dialogs draw in both themes
+- System theme follows the operating system
 
 </details>
 
-<details><summary><b>test_report</b> · 0 test cases · 2 files</summary>
+<details><summary><b>test_report</b> · 8 test cases · 2 files</summary>
 
 [tests/test_report.cpp](tests/test_report.cpp)
 
+- Presets are whole months ending with this one
+- Custom ranges are turned round
+- Compares with the same length before
+- Cuts into days weeks and months
+- Labels
+- Comparisons in words
+- Changes in percent
+- Preset keys
 
 </details>
 
-<details><summary><b>test_reportdata</b> · 0 test cases · 10 files</summary>
+<details><summary><b>test_reportdata</b> · 14 test cases · 10 files</summary>
 
 [tests/test_reportdata.cpp](tests/test_reportdata.cpp)
 
+- Spending per category largest first
+- Transfers and balance adjustments are left out
+- Compares with the range before
+- One account only
+- Income and spending per month
+- Short ranges go by week
+- Kept only when something was kept
+- Balance day by day up to today
+- One category month by month
+- Trend averages only over what has begun
+- Payees largest first with spellings together
+- Budgets added up over the months
+- Budgets take whole months that have begun
+- Other users are left out
 
 </details>
 
-<details><summary><b>test_reportspage</b> · 0 test cases · 17 files</summary>
+<details><summary><b>test_reportspage</b> · 10 test cases · 17 files</summary>
 
 [tests/test_reportspage.cpp](tests/test_reportspage.cpp)
 
+- Starts with six months and remembers the choice
+- Custom ranges are asked for and remembered
+- Cards open their report
+- Accounts can be chosen
+- Spending by category on the card and in detail
+- Income vs spending on the card and in detail
+- Balance over time on the card and in detail
+- Top payees on the card and in detail
+- Budget vs actual on the card and in detail
+- Category trend follows the largest or the chosen category
 
 </details>
 
-<details><summary><b>test_restore</b> · 0 test cases · 13 files</summary>
+<details><summary><b>test_restore</b> · 11 test cases · 13 files</summary>
 
 [tests/test_restore.cpp](tests/test_restore.cpp)
 
+- Inspect counts whats inside
+- Inspect refuses what cant be restored
+- Restore brings back the data and saves what was there
+- The oldest automatic backup can be restored
+- A bad backup changes nothing
+- The open database cant restore itself
+- A backup that wont open puts the data back
+- List shows this databases backups newest first
+- Restoring from a file asks then says so
+- A file that cant be restored isnt offered
+- Rows in the list restore
 
 </details>
 
-<details><summary><b>test_rule</b> · 0 test cases · 11 files</summary>
+<details><summary><b>test_rule</b> · 21 test cases · 11 files</summary>
 
 [tests/test_rule.cpp](tests/test_rule.cpp)
 
+- Text conditions ignore case and spaces
+- The match index counts like the rules match
+- Payee or description looks at both
+- Amount type and account
+- All or any condition
+- The first matching rule wins
+- Changes skip protected and unchanged transactions
+- Applying saves the new categories
+- Drafts start from the payee then description then amount
+- Drafts leave out reference numbers at the end
+- Drafts from several use the words their payees share
+- Drafts also look at descriptions and take the most specific text
+- Transactions are added to rules that any condition is enough for
+- Renaming keeps the banks name for matching and duplicates
+- Each action takes the first rule that has it
+- Applying renames and keeps the original
+- Rules need an action and keep their rename without a category
+- Rules are stored with their conditions and order
+- Rules can have a name or be shown by their conditions
+- Users dont see or change each others rules
+- Rules follow their category
 
 </details>
 
-<details><summary><b>test_rulessettings</b> · 0 test cases · 22 files</summary>
+<details><summary><b>test_rulessettings</b> · 15 test cases · 22 files</summary>
 
 [tests/test_rulessettings.cpp](tests/test_rulessettings.cpp)
 
+- Opening and saving dont count every rule again
+- Starts empty and creates a rule
+- Removing a condition shows an icon
+- Rules can set transfer but not balance adjustments
+- Incomplete rules are not saved
+- Amounts use the money format and can be a range
+- Named rules show their name and long rules fit the list
+- Rules can be edited reordered and deleted
+- Rules can rename with or without a category
+- Changing a rules rename offers to update its names
+- Opening a rule keeps the list where it is
+- A rule can start from a draft
+- A draft says how many of its transactions it matches
+- Adding to a rule edits that rule
+- Describes every kind of condition
 
 </details>
 
-<details><summary><b>test_scheduledbackup</b> · 0 test cases · 11 files</summary>
+<details><summary><b>test_scheduledbackup</b> · 13 test cases · 11 files</summary>
 
 [tests/test_scheduledbackup.cpp](tests/test_scheduledbackup.cpp)
 
+- Defaults to every day keeping seven
+- Is due follows the schedule
+- Opening backs up the first time then not again that day
+- Off means no backups
+- A database without users gets none
+- Unchanged since the last one is skipped
+- Changed since the last one is backed up
+- Not due yet is skipped even when changed
+- Keeps as many as set and leaves other kinds alone
+- A failed backup still opens the database
+- A failed backup is remembered until one works
+- The section warns about a failure while the schedule is on
+- The section shows and saves the choices
 
 </details>
 
-<details><summary><b>test_settings</b> · 0 test cases · 5 files</summary>
+<details><summary><b>test_settings</b> · 12 test cases · 5 files</summary>
 
 [tests/test_settings.cpp](tests/test_settings.cpp)
 
+- Currency symbols
+- Separators and formatting
+- Settings round trip and delimiter fallback
+- Enum values and boolean round trips
+- Malformed values use fallbacks
+- Formatting boundaries and other settings
+- Missing keys use documented defaults
+- Restore defaults keeps window state
+- The number format belongs to the database
+- Category suggestions are on until turned off
+- Recent databases are distinct newest first and limited
+- Sidebar state defaults and round trip
 
 </details>
 
-<details><summary><b>test_settingspage</b> · 0 test cases · 23 files</summary>
+<details><summary><b>test_settingspage</b> · 10 test cases · 23 files</summary>
 
 [tests/test_settingspage.cpp](tests/test_settingspage.cpp)
 
+- Shows the stored values
+- Changes wait for apply
+- Revert restores the stored values
+- Custom currency symbol
+- Category colours in overviews can be turned off
+- Category suggestions can be turned off
+- Sidebar budget sort is chosen here or in the sidebar
+- Create rule shows the rules section with the draft
+- Shows categories added elsewhere after reload
+- Categories and account types have their own sections and save right away
 
 </details>
 
-<details><summary><b>test_sidebarwidget</b> · 0 test cases · 16 files</summary>
+<details><summary><b>test_sidebarwidget</b> · 10 test cases · 16 files</summary>
 
 [tests/test_sidebarwidget.cpp](tests/test_sidebarwidget.cpp)
 
+- Shows accounts with balances
+- Clicks request accounts pages and actions
+- Shows the user
+- Budgets show this months spending
+- Shows the most used budgets unless all are wanted
+- Budgets follow the chosen sort
+- Shows when there are no budgets
+- Folded sections show a summary and are remembered
+- Shows the logo and name and keeps the logo when collapsed
+- Collapsing is remembered
 
 </details>
 
-<details><summary><b>test_spreadsheet</b> · 0 test cases · 1 files</summary>
+<details><summary><b>test_spreadsheet</b> · 6 test cases · 1 files</summary>
 
 [tests/test_spreadsheet.cpp](tests/test_spreadsheet.cpp)
 
+- Knows spreadsheets by their name
+- Reads excel sheets with their values
+- Excel dates can count from1904
+- Reads libre office sheets
+- Matches other sheets columns by name
+- Explains what cant be read
 
 </details>
 
-<details><summary><b>test_startupdatabase</b> · 0 test cases · 6 files</summary>
+<details><summary><b>test_startupdatabase</b> · 5 test cases · 6 files</summary>
 
 [tests/test_startupdatabase.cpp](tests/test_startupdatabase.cpp)
 
+- Opens the last database without a warning
+- Opens the default without a warning on a first start
+- Warns when the last database is gone
+- Warns when the last database is from a newer version
+- Says why when no database can be opened
 
 </details>
 
-<details><summary><b>test_startwindow</b> · 0 test cases · 14 files</summary>
+<details><summary><b>test_startwindow</b> · 9 test cases · 14 files</summary>
 
 [tests/test_startwindow.cpp](tests/test_startwindow.cpp)
 
+- Empty database opens add form
+- Shows the build version
+- Adding a user opens it
+- Remember stores the user
+- Menu lists recent databases and forgets missing ones
+- Switching shows the other databases users
+- The remembered user belongs to its database
+- A broken database file is explained
+- Invalid or duplicate users show an error
 
 </details>
 
-<details><summary><b>test_systeminfo</b> · 0 test cases · 6 files</summary>
+<details><summary><b>test_systeminfo</b> · 3 test cases · 6 files</summary>
 
 [tests/test_systeminfo.cpp](tests/test_systeminfo.cpp)
 
+- Masks the home folder in both separator styles
+- Version text shows the commit in debug builds
+- Report lists build and database details
 
 </details>
 
-<details><summary><b>test_transactionlistmodel</b> · 0 test cases · 4 files</summary>
+<details><summary><b>test_transactionlistmodel</b> · 9 test cases · 4 files</summary>
 
 [tests/test_transactionlistmodel.cpp](tests/test_transactionlistmodel.cpp)
 
+- Groups by day newest first
+- Exposes names and signed amounts
+- Totals follow filter
+- Totals leave out transfers and balance adjustments
+- Refunds lower the spending instead of adding income
+- Search matches payee category and account
+- Category filter includes no category
+- Collapsed days keep header with summary
+- Payees are distinct
 
 </details>
 
-<details><summary><b>test_transactionspage</b> · 0 test cases · 20 files</summary>
+<details><summary><b>test_transactionspage</b> · 21 test cases · 20 files</summary>
 
 [tests/test_transactionspage.cpp](tests/test_transactionspage.cpp)
 
+- New transaction uses shown account
+- Saving writes immediately and closes editor
+- Rules suggest the category of new transactions
+- Rules offer a new payee name without changing it
+- Restoring gives back the banks name
+- Selecting one transaction opens editor
+- Plain clicks open but only ctrl selects
+- Selecting multiple shows bulk bar and closes editor
+- Switching the account keeps the selection bar right
+- Searching keeps the selection bar right
+- Ctrl and shift on day header select the day
+- Zero amount is rejected
+- Fast entry starts the next transaction
+- Open transaction clears filters and unfolds its day
+- Show category this month filters the list
+- Show category in range shows the days as a chip
+- Bulk changes stay quick
+- A failed bulk delete changes nothing
+- Deleting asks first
+- Deletes the selection
+- Sets the category of the selection
 
 </details>
 
-<details><summary><b>test_user_category</b> · 0 test cases · 9 files</summary>
+<details><summary><b>test_user_category</b> · 15 test cases · 9 files</summary>
 
 [tests/test_user_category.cpp](tests/test_user_category.cpp)
 
+- Auto generates user id
+- Lists users by name and finds by username
+- Rejects duplicate user fields
+- Colours are stored
+- Usage counts transactions and budgets
+- Merging moves transactions and budgets
+- Merging keeps the targets own budgets
+- Deleting can keep the transactions
+- New users start with their own defaults
+- Default categories have their own colours
+- Transfer is built in but not a balance adjustment
+- Users dont see or change each others categories
+- Account types belong to their user
+- Starting balances and corrections use the account users categories
+- Category crud and validation
 
 </details>
 
