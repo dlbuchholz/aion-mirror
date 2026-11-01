@@ -64,6 +64,17 @@ private slots:
         QCOMPARE(dialog.findChild<QPushButton*>("applyRulesButton")->text(), QString("Change 2 transactions"));
     }
 
+    void aLongListShowsOnlyTheFirstOnes() {
+        QSqlDatabase database = DatabaseManager::instance().database();
+        QVERIFY(database.transaction());
+        for (int i = 0; i < 201; ++i) add("REWE Markt", 100);
+        QVERIFY(database.commit());
+        ApplyRulesDialog dialog(1);
+        QCOMPARE(dialog.findChild<QLabel*>("applyRulesSummary")->text(), QString("Showing 200 of 201 transactions."));
+        QCOMPARE(dialog.findChildren<QLabel*>("applyRulesPayee").size(), 200);
+        QCOMPARE(dialog.findChild<QPushButton*>("applyRulesButton")->text(), QString("Change 201 transactions"));
+    }
+
     void aFailedChangeIsSaidAndChangesNothing() {
         const int markt = add("REWE Markt", 3240);
         QVERIFY(TestDbFixture::refuse("UPDATE", "transactions"));

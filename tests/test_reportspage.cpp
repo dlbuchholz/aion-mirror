@@ -519,6 +519,68 @@ private slots:
         QCOMPARE(page.openedReport(), ReportsPage::Report::CategoryTrend);
     }
 
+    void theSpendingCardComparesWithTheMonthBefore() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        const QDate before = QDate(today.year(), today.month(), 1).addMonths(-1);
+        const auto spend = [&](const QDate& date, Cents cents) {
+            QVERIFY(TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", cents, date, "", 0, "expense")) > 0);
+        };
+        const auto cardSays = [&]() {
+            ReportsPage page;
+            page.setUserId(1);
+            chip(page, Preset::Month)->click();
+            return cards(page).first()->accessibleDescription();
+        };
+        spend(today, 3000);
+        spend(before, 2000);
+        QVERIFY2(cardSays().contains("+50% vs. "), qPrintable(cardSays()));
+        spend(before, 1000);
+        QVERIFY2(cardSays().contains("±0% vs. "), qPrintable(cardSays()));
+        spend(before, 3000);
+        QVERIFY2(cardSays().contains("−50% vs. "), qPrintable(cardSays()));
+    }
+
+    void payeesBeyondTheLargestAreSummedUp() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        for (int i = 1; i <= 22; ++i) {
+            TransactionDAO().addTransaction(Transaction(-1, giro, QString("Shop %1").arg(i), 100 * i, QDate::currentDate(), "", 0, "expense"));
+        }
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        cards(page)[4]->click();
+        QCOMPARE(page.findChildren<QAbstractButton*>("payeeRow").size(), 20);
+        QCOMPARE(page.findChild<QWidget*>("payeeRest")->accessibleName(), QString("2 other payees"));
+    }
+
+    void aCategoryWithoutSpendingStillDraws() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Kiosk", 1000, QDate::currentDate(), "", 0, "expense"));
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Rent'") && query.next());
+        const int rent = query.value(0).toInt();
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        cards(page)[3]->click();
+        auto* picker = page.findChild<QComboBox*>("trendCategoryCombo");
+        picker->setCurrentIndex(picker->findData(rent));
+        emit picker->activated(picker->currentIndex());
+        QCOMPARE(page.trendCategory(), rent);
+        QCoreApplication::processEvents();
+        QVERIFY(!page.findChild<QWidget*>("trendChart")->grab().isNull());
+    }
+
+    void enterOpensACard() {
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        QTest::keyClick(cards(page)[1], Qt::Key_Return);
+        QCOMPARE(page.openedReport(), ReportsPage::Report::IncomeVsSpending);
+    }
+
     void theCustomRangeDialogAsksForBothDays() {
         ReportsPage page;
         page.setUserId(1);

@@ -546,6 +546,96 @@ private slots:
         QVERIFY(dialog.findChild<QPushButton*>("importButton")->isEnabled());
     }
 
+    void aCategoryFromTheFileCanGoToAnExistingOne() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("mapped.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name;Kategorie\n10.10.2026;-12,00;Shop;Lebensmittel\n");
+        file.close();
+        int groceries = -1;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == "Groceries") groceries = category.getCategoryId();
+        }
+        const QString target = QString("id:%1").arg(groceries);
+
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        auto* back = dialog.findChild<QPushButton*>("backButton");
+        next->click();
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Categories);
+        auto* choice = dialog.findChild<QComboBox*>("categoryChoice");
+        choice->setCurrentIndex(choice->findData(target));
+        QVERIFY(dialog.findChild<QLabel*>("categorySummaryLabel")->text().contains("1 mapped to other categories"));
+
+        // Going back and forth keeps the choice
+        back->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Columns);
+        next->click();
+        QCOMPARE(dialog.findChild<QComboBox*>("categoryChoice")->currentData().toString(), target);
+
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QString said;
+        answerMessageBox(&said);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        const QList<Transaction> imported = TransactionDAO().getTransactionsForAccount(giro);
+        QCOMPARE(imported.size(), 1);
+        QCOMPARE(imported.first().getCategoryId(), groceries);
+    }
+
+    void theColumnsStepSaysWhatItCantRead() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("bad.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name\n10.10.2026;abc;Shop\n");
+        file.close();
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        const QString amount = dialog.findChild<QLabel*>("example_" + CsvImport::FieldAmount)->toolTip();
+        QCOMPARE(amount, QString("can't read \"abc\" as an amount"));
+    }
+
+    void aBrokenQuoteInTheFileIsSaid() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("quote.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name\n\"10.10.2026;-1,00;Shop\n");   // Broken whichever the delimiter
+        file.close();
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        bool said = false;
+        for (QLabel* label : dialog.findChildren<QLabel*>()) {
+            said = said || label->text().startsWith("This file can't be read as CSV: ");
+        }
+        QVERIFY(said);
+    }
+
+    void theReviewSaysARuleRenamesAPayee() {
+        Rule rule;
+        rule.newPayee = "Rewe";
+        rule.conditions = {{RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE"}};
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+        QTemporaryDir dir;
+        const QString path = dir.filePath("renamed.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name\n10.10.2026;-1,00;REWE Markt\n");
+        file.close();
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        dialog.findChild<QPushButton*>("nextButton")->click();
+        dialog.findChild<QPushButton*>("nextButton")->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QCOMPARE(dialog.findChild<QLabel*>("rulesLabel")->text(), QString("1 payee is renamed."));
+    }
+
     void manyFileCategoriesStayCompact() {
         QTemporaryDir dir;
         const QString path = dir.filePath("many.csv");

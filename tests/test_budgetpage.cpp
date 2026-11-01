@@ -52,6 +52,13 @@ class TestBudgetPage : public QObject {
         return 0;
     }
 
+    static bool editorSays(BudgetEditor& editor, const QString& message) {
+        for (QLabel* text : editor.findChildren<QLabel*>()) {
+            if (text->text() == message) return true;
+        }
+        return false;
+    }
+
 private slots:
     void initTestCase() { db.init(); }
     void init() {
@@ -222,6 +229,27 @@ private slots:
         editor->findChild<QPushButton*>("budgetSaveButton")->click();
         QVERIFY(editor->isVisibleTo(&page));
         QCOMPARE(changed.count(), 0);
+    }
+
+    void aBudgetThatCantBeRemovedStays() {
+        QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, thisMonth, 40000));
+        BudgetPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &BudgetPage::budgetsChanged);
+        row(page, "Groceries")->click();
+        QVERIFY(TestDbFixture::refuse("DELETE", "budgets"));
+        page.findChild<QPushButton*>("budgetRemoveButton")->click();
+        auto* editor = page.findChild<BudgetEditor*>();
+        QVERIFY(editor->isVisibleTo(&page));
+        QVERIFY(editorSays(*editor, "The budget could not be removed."));
+        QCOMPARE(limitIn(thisMonth, groceries), Cents(40000));
+        QCOMPARE(changed.count(), 0);
+    }
+
+    void aNewBudgetWithNoCategoriesLeftSaysSo() {
+        BudgetEditor editor;
+        editor.newBudget(thisMonth, {});
+        QVERIFY(editorSays(editor, "Every expense category already has a budget this month. Add categories under Settings → Categories."));
     }
 
     void editorKeys() {

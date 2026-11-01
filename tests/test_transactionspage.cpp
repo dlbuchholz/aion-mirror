@@ -8,6 +8,8 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScopeGuard>
+#include <QShortcut>
 #include <QSqlQuery>
 #include <QTextEdit>
 #include <QTimer>
@@ -982,6 +984,98 @@ private slots:
         }
         QCOMPARE(said, QString("The category couldn't be changed. Nothing was changed."));
         QVERIFY(TransactionDAO().getTransactionById(first).getCategoryId() != groceries);
+    }
+
+    void checkboxesSelectWithoutOpeningTheEditor() {
+        Settings::instance().setSelectionCheckboxesEnabled(true);
+        const auto restore = qScopeGuard([]() { Settings::instance().setSelectionCheckboxesEnabled(false); });
+        const int transactionId = addExpense("Bakery", 420);
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        auto* list = page.findChild<QListView*>("transactionList");
+        const QModelIndex row = rowOf(page, transactionId);
+        const QRect rect = list->visualRect(row);
+        const QPoint box(rect.left() + 20, rect.center().y());
+
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, box);
+        QVERIFY(list->selectionModel()->isSelected(row));
+        QVERIFY(page.findChild<TransactionEditor*>()->isHidden());
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, box);
+        QVERIFY(!list->selectionModel()->isSelected(row));
+
+        QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, rect.center());   // Away from the box
+        QVERIFY(!list->selectionModel()->isSelected(row));
+    }
+
+    void findShortcutGoesToTheSearch() {
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* search = page.findChild<QLineEdit*>("searchEdit");
+        search->setText("rewe");
+        search->deselect();
+        for (QShortcut* shortcut : page.findChildren<QShortcut*>()) {
+            if (shortcut->key() == QKeySequence(QKeySequence::Find)) emit shortcut->activated();
+        }
+        QCOMPARE(search->selectedText(), QString("rewe"));
+    }
+
+    void openingATransactionUnfoldsItsDay() {
+        const int transactionId = addExpense("Bakery", 420);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        model->toggleDay(QDate::currentDate());
+        QVERIFY(model->isDayCollapsed(QDate::currentDate()));
+        page.openTransaction(transactionId);
+        QVERIFY(!model->isDayCollapsed(QDate::currentDate()));
+    }
+
+    void theEditorsDeleteButtonAsksToDelete() {
+        const int transactionId = addExpense("Bakery", 420);
+        TransactionsPage page;
+        page.setUserId(1);
+        page.confirm = [](const QString&, const QString&) { return true; };
+        page.openTransaction(transactionId);
+        auto* editor = page.findChild<TransactionEditor*>();
+        for (QPushButton* button : editor->findChildren<QPushButton*>()) {
+            if (button->text() == "Delete") {
+                button->click();
+                break;
+            }
+        }
+        QVERIFY(TransactionDAO().getTransactionsForAccount(firstId).isEmpty());
+    }
+
+    void switchingToIncomeOffersIncomeCategories() {
+        TransactionsPage page;
+        page.setUserId(1);
+        QVERIFY(QMetaObject::invokeMethod(&page, "addTransaction"));
+        auto* editor = page.findChild<TransactionEditor*>();
+        auto* categories = editor->findChild<QComboBox*>("categoryCombo");
+        QVERIFY(categories->findText("Groceries") >= 0);
+        for (QPushButton* button : editor->findChildren<QPushButton*>()) {
+            if (button->text() == "Income") {
+                button->click();
+                break;
+            }
+        }
+        QCOMPARE(categories->findText("Groceries"), -1);
+    }
+
+    void aSavedBalanceCorrectionReachesThePage() {
+        TransactionsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &TransactionsPage::transactionsChanged);
+        QTimer::singleShot(0, qApp, []() {
+            QWidget* dialog = QApplication::activeModalWidget();
+            dialog->findChild<QLineEdit*>("bankBalanceEdit")->setText(Settings::instance().formatCurrency(1000));
+            dialog->findChild<QPushButton*>("addCorrectionButton")->click();
+        });
+        page.correctBalance(firstId);
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(TransactionDAO().getTransactionsForAccount(firstId).size(), 1);
     }
 
     void dayHeadersHaveNoMenu() {

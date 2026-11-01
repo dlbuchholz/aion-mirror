@@ -15,6 +15,9 @@
 
 #include "account.h"
 #include "category.h"
+#include <QMessageBox>
+#include <QTimer>
+
 #include "dialog/renamedpayeesdialog.h"
 #include "rule.h"
 #include "settings.h"
@@ -555,6 +558,33 @@ private slots:
         settings.reload();
         rows(settings).first()->click();
         QVERIFY(!matchCount->text().contains("selected"));
+    }
+
+    void aDraftSaysWhenItMissesItsOneTransaction() {
+        RulesSettings settings;
+        settings.setUserId(1);
+        Rule draft;
+        draft.categoryId = categoryId("Groceries");
+        draft.conditions = {{Field::Payee, Operator::Contains, "REWE"}};
+        settings.openDraft(draft, {Transaction(-1, giroId, "Aldi", 1500, QDate(2026, 10, 2), "", 0, "expense")});
+        QVERIFY(settings.findChild<QLabel*>("ruleEditorMatchCount")->text().endsWith(" · not the selected one"));
+    }
+
+    void namesThatCantBeChangedAreSaidAndStay() {
+        TransactionDAO transactions;
+        const int id = transactions.addTransaction(Transaction(-1, giroId, "Kiosk Nord", 990, QDate(2026, 10, 4), "", 0, "expense"));
+        RenamedPayeesDialog dialog({transactions.getTransactionById(id)}, "Kiosk Nord", "Kiosk", -1);
+        QVERIFY(TestDbFixture::refuse("UPDATE", "transactions"));
+        QString said;
+        QTimer::singleShot(0, qApp, [&said]() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            said = box->text();
+            box->accept();
+        });
+        dialog.findChild<QPushButton*>("renamedPayeesApplyButton")->click();
+        QCOMPARE(said, QString("The names couldn't be changed. Nothing was changed."));
+        QCOMPARE(dialog.result(), 0);
+        QCOMPARE(transactions.getTransactionById(id).getPayee(), QString("Kiosk Nord"));
     }
 
     void addingToARuleEditsThatRule() {

@@ -31,6 +31,21 @@ private slots:
         QCOMPARE(s.getCustomCurrencySymbol(), QString("¤"));
     }
 
+    void thousandsCanBeWrittenWithoutASeparatorOrWithASpace() {
+        auto& s = Settings::instance();
+        s.setDecimalSeparator(Settings::DecimalSeparator::Point);
+        s.setThousandsSeparator(Settings::ThousandsSeparator::None);
+        QCOMPARE(s.formatNumber(123456, 2), QString("1234.56"));
+        s.setThousandsSeparator(Settings::ThousandsSeparator::Space);
+        QCOMPARE(s.formatNumber(123456, 2), QString("1 234.56"));
+    }
+
+    void anUnknownBackupScheduleMeansDaily() {
+        auto& s = Settings::instance();
+        s.getQSettings().setValue("backup/schedule", 99);
+        QCOMPARE(s.getBackupSchedule(), Settings::BackupSchedule::Daily);
+    }
+
     void separatorsAndFormatting() {
         auto& s = Settings::instance();
         s.setDecimalSeparator(Settings::DecimalSeparator::Comma);

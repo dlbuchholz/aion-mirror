@@ -181,8 +181,16 @@ private slots:
         QCOMPARE(transactionType(5, "", AmountInterpretation::AllExpense), QString("expense"));
         QCOMPARE(transactionType(5, "DEBIT", AmountInterpretation::ColumnBased), QString("expense"));
         QCOMPARE(transactionType(-5, "Credit", AmountInterpretation::ColumnBased), QString("income"));
-        // Unknown text falls back to the sign
         QCOMPARE(transactionType(-5, "S", AmountInterpretation::ColumnBased), QString("expense"));
+        // Unknown text falls back to the sign
+        QCOMPARE(transactionType(-5, "Gebühr", AmountInterpretation::ColumnBased), QString("expense"));
+        QCOMPARE(transactionType(5, "Gebühr", AmountInterpretation::ColumnBased), QString("income"));
+    }
+
+    void anAmountTooLargeToHoldIsntRead() {
+        bool parsed = true;
+        QCOMPARE(parseAmount("99999999999999999999999,00", ',', &parsed), Cents(0));
+        QVERIFY(!parsed);
     }
 
     void buildsTransactionsAndExplainsFailures() {

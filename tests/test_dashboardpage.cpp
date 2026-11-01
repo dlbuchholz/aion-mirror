@@ -148,6 +148,16 @@ private slots:
         QVERIFY(page.findChild<QLabel*>("recentEmptyLabel"));
     }
 
+    void categoryBarsCanLeaveOutTheColors() {
+        const bool original = Settings::instance().isCategoryColorsInOverviewsEnabled();
+        Settings::instance().setCategoryColorsInOverviewsEnabled(false);
+        spend(1000, groceries);
+        DashboardPage page;
+        page.setUserId(1);
+        Settings::instance().setCategoryColorsInOverviewsEnabled(original);
+        QVERIFY(row(page, "categoryRow", "Groceries"));
+    }
+
     void budgetsShowTheClosestToTheLimitFirst() {
         BudgetDAO budgets;
         const QDate month(today.year(), today.month(), 1);
