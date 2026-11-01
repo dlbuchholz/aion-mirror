@@ -410,34 +410,40 @@ QList<QString> TransactionDAO::getExistingHashes(const QList<QString>& hashes)
         return QList<QString>();
     }
 
-    // Build IN clause with placeholders
-    QStringList placeholders;
-    for (int i = 0; i < hashes.size(); ++i) {
-        placeholders << "?";
-    }
+    // In batches: SQLite limits the placeholders of one query, and a failed check would make every
+    // row of a large file look new
+    constexpr qsizetype BatchSize = 500;
+    QSet<QString> existingHashes;
+    for (qsizetype start = 0; start < hashes.size(); start += BatchSize) {
+        const QList<QString> batch = hashes.mid(start, BatchSize);
 
-    QString sql = QString("SELECT DISTINCT hash FROM transactions WHERE hash IN (%1)")
-                      .arg(placeholders.join(", "));
-
-    QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare(sql);
-
-    // Bind values
-    for (const QString& hash : hashes) {
-        query.addBindValue(hash);
-    }
-
-    QList<QString> existingHashes;
-
-    if (query.exec()) {
-        while (query.next()) {
-            existingHashes. append(query.value("hash").toString());
+        // Build IN clause with placeholders
+        QStringList placeholders;
+        for (qsizetype i = 0; i < batch.size(); ++i) {
+            placeholders << "?";
         }
-    } else {
-        handleError(query);
+
+        QString sql = QString("SELECT DISTINCT hash FROM transactions WHERE hash IN (%1)")
+                          .arg(placeholders.join(", "));
+
+        QSqlQuery query(DatabaseManager::instance().database());
+        query.prepare(sql);
+
+        // Bind values
+        for (const QString& hash : batch) {
+            query.addBindValue(hash);
+        }
+
+        if (query.exec()) {
+            while (query.next()) {
+                existingHashes.insert(query.value("hash").toString());
+            }
+        } else {
+            handleError(query);
+        }
     }
 
-    return existingHashes;
+    return QList<QString>(existingHashes.begin(), existingHashes.end());
 }
 
 void TransactionDAO::handleError(const QSqlQuery& query) {
