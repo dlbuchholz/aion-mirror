@@ -6,6 +6,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSqlQuery>
 #include <QTextEdit>
@@ -839,6 +840,148 @@ private slots:
         QCOMPARE(TransactionDAO().getTransactionById(9999).getTransactionId(), Transaction().getTransactionId());
         QVERIFY(TransactionDAO().getExistingHashes({}).isEmpty());
         QVERIFY(!TransactionDAO().transactionExistsByHash("no such hash"));
+    }
+
+    // --- The list, with the real mouse ---
+
+    void clickingADayHeaderFoldsItAndCtrlOrShiftSelect() {
+        const int transactionId = addExpense("A", 100);
+        TransactionsPage page;
+        page.resize(1000, 700);
+        page.setUserId(1);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        const QModelIndex header = model->index(0, 0);
+        const QPoint point = list->visualRect(header).center();
+        QVERIFY(model->data(header, Qt::ToolTipRole).toString().contains("fold"));
+
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QVERIFY(model->isDayCollapsed(QDate::currentDate()));
+        QVERIFY(!list->grab().isNull());                 // A folded day shows its count and sum
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QVERIFY(!model->isDayCollapsed(QDate::currentDate()));
+
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::ControlModifier, point);
+        QVERIFY(list->selectionModel()->isSelected(model->indexForTransaction(transactionId)));
+        list->selectionModel()->clearSelection();
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::ShiftModifier, point);
+        QVERIFY(list->selectionModel()->isSelected(model->indexForTransaction(transactionId)));
+        list->selectionModel()->clearSelection();
+
+        QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, point);   // Like a normal click
+        QVERIFY(model->isDayCollapsed(QDate::currentDate()));
+
+        QVERIFY(!model->data(QModelIndex(), Qt::DisplayRole).isValid());
+        QCOMPARE(model->flags(QModelIndex()), Qt::NoItemFlags);
+    }
+
+    void thePeriodChipsChooseTheDays() {
+        const QDate today = QDate::currentDate();
+        const QDate lastMonth = today.addMonths(-1);
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Now", 100, today, "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Before", 200, lastMonth, "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Long ago", 300, today.addYears(-2), "", 0, "expense")) > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        const auto choose = [&page](const QString& text) {
+            for (QToolButton* chip : page.findChildren<QToolButton*>()) {
+                if (chip->text() == text) chip->click();
+            }
+            auto* list = page.findChild<QListView*>("transactionList");
+            return static_cast<TransactionListModel*>(list->model())->totals().count;
+        };
+        QCOMPARE(choose("Last month"), 1);
+        QCOMPARE(choose("This year"), lastMonth.year() == today.year() ? 2 : 1);
+        QCOMPARE(choose("All time"), 3);
+    }
+
+    void transactionsWithoutAValidAccountHaveTheirOwnView() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("PRAGMA foreign_keys = OFF"));
+        QVERIFY(query.exec("INSERT INTO transactions (account_id, payee, amount, date, type) "
+                           "VALUES (0, 'Lost', 100, '2026-01-01', 'expense')"));
+        QVERIFY(query.exec("PRAGMA foreign_keys = ON"));
+        TransactionsPage page;
+        page.setUserId(1);
+        QToolButton* chip = nullptr;
+        for (QToolButton* candidate : page.findChildren<QToolButton*>()) {
+            if (candidate->toolTip().startsWith("Transactions that don't belong")) chip = candidate;
+        }
+        QVERIFY(chip);
+        chip->setChecked(true);
+        bool titled = false;
+        for (QLabel* label : page.findChildren<QLabel*>()) titled = titled || label->text() == "Unassigned transactions";
+        QVERIFY(titled);
+        page.showAccount(firstId);                       // Choosing an account leaves that view
+        QVERIFY(!chip->isChecked());
+    }
+
+    void anAccountDeletedMeanwhileFallsBackToAll() {
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, firstId, "Kept", 100, QDate::currentDate(), "", 0, "expense")) > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(secondId);
+        QVERIFY(AccountDAO().deleteAccount(secondId));
+        page.reload();
+        auto* list = page.findChild<QListView*>("transactionList");
+        QCOMPARE(static_cast<TransactionListModel*>(list->model())->totals().count, 1);
+    }
+
+    void whatCantBeSavedKeepsTheEditorOpen() {
+        const int transactionId = addExpense("A", 100);
+        TransactionsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &TransactionsPage::transactionsChanged);
+        page.openTransaction(transactionId);
+        auto* editor = page.findChild<TransactionEditor*>();
+
+        emit editor->saveRequested(Transaction(9999, firstId, "Gone", 100, QDate::currentDate(), "", 0, "expense"));
+        QVERIFY(!editor->isHidden());
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "transactions"));
+        emit editor->saveRequested(Transaction(-1, firstId, "New", 100, QDate::currentDate(), "", 0, "expense"));
+        QVERIFY(!editor->isHidden());
+        QCOMPARE(changed.count(), 0);
+    }
+
+    void failedBulkChangesAreSaid() {
+        const int first = addExpense("A", 100);
+        const int second = addExpense("B", 200);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        TransactionsPage page;
+        page.setUserId(1);
+        page.confirm = [](const QString&, const QString&) { return true; };
+        QString said;
+        const auto answerMessageBox = [&said]() {
+            QTimer::singleShot(0, qApp, [&said]() {
+                auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+                said = box->text();
+                box->accept();
+            });
+        };
+
+        selectTransactions(page, {first, second});
+        QVERIFY(TestDbFixture::refuse("DELETE", "transactions", QString("OLD.id = %1").arg(second)));
+        answerMessageBox();
+        QVERIFY(QMetaObject::invokeMethod(&page, "deleteSelected"));
+        QCOMPARE(said, QString("The transactions couldn't be deleted. Nothing was changed."));
+        QCOMPARE(TransactionDAO().getTransactionsForAccount(firstId).size(), 2);
+
+        selectTransactions(page, {first, second});
+        QVERIFY(TestDbFixture::refuse("UPDATE", "transactions", QString("OLD.id = %1").arg(second)));
+        for (QAction* action : page.findChild<QToolButton*>("bulkCategoryButton")->menu()->actions()) {
+            if (action->text() == "Groceries") {
+                answerMessageBox();
+                action->trigger();
+            }
+        }
+        QCOMPARE(said, QString("The category couldn't be changed. Nothing was changed."));
+        QVERIFY(TransactionDAO().getTransactionById(first).getCategoryId() != groceries);
     }
 
     void dayHeadersHaveNoMenu() {

@@ -1,4 +1,7 @@
 #include <QtTest>
+#include <QAbstractButton>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QLabel>
 
 #include "systeminfo.h"
@@ -22,6 +25,12 @@ private slots:
             QVERIFY2(texts.contains(entry.label), qPrintable(entry.label));
             QVERIFY2(texts.contains(entry.value), qPrintable(entry.value));
         }
+    }
+
+    void theCopyButtonCopiesTheReport() {
+        AboutWidget about;
+        about.findChild<QAbstractButton*>("copyInfoButton")->click();
+        QCOMPARE(QGuiApplication::clipboard()->text(), SystemInfo::report());
     }
 
     void showingAgainKeepsTheRows() {

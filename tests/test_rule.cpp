@@ -150,6 +150,67 @@ private slots:
         QCOMPARE(changes.last().categoryId, 10);
     }
 
+    void betweenOnTextNeverMatches() {
+        const Transaction transaction(-1, 1, "REWE", 100, QDate(2026, 1, 1), "", 0, "expense");
+        Rule rule;
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Between, "A", "Z")};
+        QVERIFY(!rule.matches(transaction));
+        QCOMPARE(RuleMatchIndex({transaction}).count(rule), 0);
+    }
+
+    void unknownNamesAreNotGuessedAt() {
+        QVERIFY(!RuleCondition::fieldFromKey("nonsense"));
+        QVERIFY(!RuleCondition::operatorFromKey("nonsense"));
+        QCOMPARE(Rules::describe(Rule(), {}), QString("No conditions"));
+    }
+
+    void aRuleThatCantBeSavedLeavesNothingBehind() {
+        Rule rule;
+        rule.categoryId = categoryId(1, "Groceries");
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE")};
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "rule_conditions"));
+        QCOMPARE(RuleDAO(1).addRule(rule), -1);
+        QVERIFY(RuleDAO(1).rules().isEmpty());            // Not half a rule
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "rules"));
+        QCOMPARE(RuleDAO(1).addRule(rule), -1);
+    }
+
+    void aChangeThatCantBeSavedKeepsTheOldRule() {
+        Rule rule;
+        rule.name = "Before";
+        rule.categoryId = categoryId(1, "Groceries");
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE")};
+        rule.id = RuleDAO(1).addRule(rule);
+        QVERIFY(rule.id > 0);
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "rule_conditions"));
+        rule.name = "After";
+        rule.conditions.first().value = "Aldi";
+        QVERIFY(!RuleDAO(1).updateRule(rule));
+        const Rule stored = RuleDAO(1).rules().first();
+        QCOMPARE(stored.name, QString("Before"));
+        QCOMPARE(stored.conditions.first().value, QString("REWE"));   // The old conditions are back too
+    }
+
+    void applyingIsAllOrNothing() {
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        const int first = TransactionDAO().addTransaction(Transaction(-1, account, "A", 100, QDate(2026, 1, 1), "", 0, "expense"));
+        const int second = TransactionDAO().addTransaction(Transaction(-1, account, "B", 200, QDate(2026, 1, 1), "", 0, "expense"));
+        const int groceries = categoryId(1, "Groceries");
+        QVERIFY(TestDbFixture::refuse("UPDATE", "transactions", QString("OLD.id = %1").arg(second)));
+
+        RuleChange one;
+        one.transaction = TransactionDAO().getTransactionById(first);
+        one.categoryId = groceries;
+        RuleChange two;
+        two.transaction = TransactionDAO().getTransactionById(second);
+        two.categoryId = groceries;
+        QVERIFY(!Rules::apply({one, two}));
+        QCOMPARE(TransactionDAO().getTransactionById(first).getCategoryId(), 0);
+    }
+
     void applyingSavesTheNewCategories() {
         const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
         TransactionDAO dao;

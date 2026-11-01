@@ -203,6 +203,26 @@ private slots:
         QCOMPARE(restored.count(), 1);
     }
 
+    void aFailedRestoreIsSaid() {
+        QVERIFY(Backup::write(QDir(folder).filePath("broken.db")));
+        const QString broken = fileWith("broken.db", {"INSERT INTO transactions (account_id, payee, amount, date, type) "
+                                                      "VALUES (999, 'Nobody', 100, '2026-01-01', 'expense')"});
+        BackupSettings settings;
+        QSignalSpy restored(&settings, &BackupSettings::restored);
+        settings.askRestorePath = [&]() { return broken; };
+        settings.confirmRestore = [](const QString&) { return true; };
+        settings.findChild<QPushButton*>("restoreFromFileButton")->click();
+        QVERIFY(settings.findChild<QLabel*>("backupResultLabel")->text().contains("put back"));
+        QCOMPARE(restored.count(), 0);
+    }
+
+    void aBackupThatCantBeWrittenIsSaid() {
+        BackupSettings settings;
+        settings.askBackupPath = [&](const QString&) { return QDir(folder).filePath("no-such-folder/saved.db"); };
+        settings.findChild<QPushButton*>("backUpNowButton")->click();
+        QVERIFY(settings.findChild<QLabel*>("backupResultLabel")->text().startsWith("The backup couldn't be written."));
+    }
+
     void aFileThatCantBeRestoredIsntOffered() {
         BackupSettings settings;
         bool asked = false;

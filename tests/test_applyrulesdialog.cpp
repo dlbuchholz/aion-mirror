@@ -1,7 +1,9 @@
 #include <QtTest>
 #include <QCheckBox>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
+#include <QTimer>
 
 #include "account.h"
 #include "category.h"
@@ -60,6 +62,22 @@ private slots:
         dialog.findChild<QCheckBox*>("onlyUncategorisedCheck")->setChecked(false);
         QCOMPARE(payees(dialog), QStringList({"REWE City", "REWE Markt"}));
         QCOMPARE(dialog.findChild<QPushButton*>("applyRulesButton")->text(), QString("Change 2 transactions"));
+    }
+
+    void aFailedChangeIsSaidAndChangesNothing() {
+        const int markt = add("REWE Markt", 3240);
+        QVERIFY(TestDbFixture::refuse("UPDATE", "transactions"));
+        ApplyRulesDialog dialog(1);
+        QString said;
+        QTimer::singleShot(0, qApp, [&said]() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            said = box->text();
+            box->accept();
+        });
+        dialog.findChild<QPushButton*>("applyRulesButton")->click();
+        QCOMPARE(said, QString("The transactions couldn't be changed. Nothing was changed."));
+        QCOMPARE(dialog.result(), 0);
+        QCOMPARE(TransactionDAO().getTransactionById(markt).getCategoryId(), 0);
     }
 
     void changesTheTransactionsWhenConfirmed() {

@@ -201,6 +201,29 @@ private slots:
         QVERIFY(row(page, "Groceries"));
     }
 
+    void enterOpensABudgetRow() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, rent, thisMonth, 90000));
+        BudgetPage page;
+        page.setUserId(1);
+        QTest::keyClick(row(page, "Rent"), Qt::Key_Return);
+        QVERIFY(page.findChild<BudgetEditor*>()->isVisibleTo(&page));
+    }
+
+    void aBudgetThatCantBeSavedKeepsTheEditorOpen() {
+        BudgetPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &BudgetPage::budgetsChanged);
+        page.findChild<QPushButton*>("addBudgetButton")->click();
+        auto* editor = page.findChild<BudgetEditor*>();
+        auto* combo = editor->findChild<QComboBox*>("budgetCategoryCombo");
+        combo->setCurrentIndex(combo->findData(rent));
+        editor->findChild<QDoubleSpinBox*>("budgetLimitEdit")->setValue(900.0);
+        QVERIFY(TestDbFixture::refuse("INSERT", "budgets"));
+        editor->findChild<QPushButton*>("budgetSaveButton")->click();
+        QVERIFY(editor->isVisibleTo(&page));
+        QCOMPARE(changed.count(), 0);
+    }
+
     void editorKeys() {
         BudgetEditor editor;
         QSignalSpy closed(&editor, &BudgetEditor::closed);

@@ -2,6 +2,7 @@
 #include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
 #include <QDoubleSpinBox>
 #include <QFrame>
 #include <QLabel>
@@ -9,6 +10,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QTimer>
 #include <QToolButton>
 
 #include "account.h"
@@ -112,6 +114,85 @@ private slots:
         settle();
         const int saving = settings.matchCountsDone() - beforeSaving;
         QVERIFY2(saving < ruleCount, qPrintable(QString("Saving counted %1 times").arg(saving)));
+    }
+
+    void everyKindOfConditionSurvivesOpeningAndSaving() {
+        Rule rule;
+        rule.categoryId = categoryId("Groceries");
+        rule.conditions = {{Field::Amount, Operator::Between, "1000", "2500"},
+                           {Field::Type, Operator::Is, "income"},
+                           {Field::Account, Operator::Is, QString::number(giroId)}};
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+
+        RulesSettings settings;
+        settings.setUserId(1);
+        rows(settings).first()->click();
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        settle();
+        QVERIFY(settings.findChild<QLabel*>("ruleError")->isHidden());
+
+        const QList<RuleCondition> saved = RuleDAO(1).rules().first().conditions;
+        QCOMPARE(saved.size(), 3);
+        QCOMPARE(saved[0].value, QString("1000"));
+        QCOMPARE(saved[0].value2, QString("2500"));
+        QCOMPARE(saved[1].value, QString("income"));
+        QCOMPARE(saved[2].value, QString::number(giroId));
+    }
+
+    void anAccountConditionNeedsAnAccount() {
+        QVERIFY(AccountDAO().deleteAccount(giroId));
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        select(firstCondition(settings)->findChild<QComboBox*>("conditionField"), "Account");
+        select(settings.findChild<QComboBox*>("ruleCategoryCombo"), "Groceries");
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        QCOMPARE(settings.findChild<QLabel*>("ruleError")->text(), QString("Choose an account, or remove that condition."));
+        QVERIFY(RuleDAO(1).rules().isEmpty());
+    }
+
+    void aRuleThatSetsACategoryNeedsOne() {
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        firstCondition(settings)->findChild<QLineEdit*>("conditionText")->setText("rewe");
+        settings.findChild<QComboBox*>("ruleCategoryCombo")->setCurrentIndex(-1);
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        QCOMPARE(settings.findChild<QLabel*>("ruleError")->text(), QString("Choose the category the rule sets."));
+    }
+
+    void whatCantBeSavedOrDeletedIsSaid() {
+        QVERIFY(addRule("REWE", "Groceries") > 0);
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.confirm = [](const QString&, const QString&) { return true; };
+        auto* error = settings.findChild<QLabel*>("ruleError");
+        rows(settings).first()->click();
+
+        QVERIFY(TestDbFixture::refuse("UPDATE", "rules"));
+        settings.findChild<QPushButton*>("saveRuleButton")->click();
+        QCOMPARE(error->text(), QString("The rule couldn't be saved."));
+
+        QVERIFY(TestDbFixture::refuse("DELETE", "rules"));
+        settings.findChild<QPushButton*>("deleteRuleButton")->click();
+        QCOMPARE(error->text(), QString("The rule couldn't be deleted."));
+        QCOMPARE(RuleDAO(1).rules().size(), 1);
+    }
+
+    void applyingToExistingTransactionsTellsThePages() {
+        QVERIFY(addRule("REWE", "Groceries") > 0);
+        RulesSettings settings;
+        settings.setUserId(1);
+        QSignalSpy changed(&settings, &RulesSettings::transactionsChanged);
+        auto* apply = settings.findChild<QPushButton*>("applyRulesToExistingButton");
+
+        QTimer::singleShot(0, qApp, []() { qobject_cast<QDialog*>(QApplication::activeModalWidget())->reject(); });
+        apply->click();
+        QCOMPARE(changed.count(), 0);
+
+        QTimer::singleShot(0, qApp, []() { qobject_cast<QDialog*>(QApplication::activeModalWidget())->accept(); });
+        apply->click();
+        QCOMPARE(changed.count(), 1);
     }
 
     void startsEmptyAndCreatesARule() {

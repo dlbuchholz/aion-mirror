@@ -518,6 +518,33 @@ private slots:
         QCOMPARE(run(rows, basicMapping(), basicOptions(), {}).imported, 2);
     }
 
+    void aCategoryThatCantBeCreatedStopsTheImport() {
+        Mapping mapping = basicMapping();
+        mapping.insert(FieldCategory, 4);
+        Options options = basicOptions();
+        options.categoriesToCreate.insert("tanken", {"Tanken", "expense"});
+        QVERIFY(TestDbFixture::refuse("INSERT", "categories"));
+
+        const Result result = run({{"01.10.2026", "-10,00", "Aral", "", "Tanken"}}, mapping, options, {});
+        QCOMPARE(result.imported, 0);
+        QCOMPARE(result.failed, 1);
+        QVERIFY2(result.errors.first().contains("\"Tanken\" couldn't be created"), qPrintable(result.errors.first()));
+        QCOMPARE(transactionCount(accountId), 0);
+    }
+
+    void aCorrectionThatCantBeSavedUndoesTheImport() {
+        QVERIFY(TestDbFixture::refuse("INSERT", "transactions",
+                                      "NEW.category_id IN (SELECT id FROM categories WHERE name = 'Balance correction')"));
+        RunOptions runOptions;
+        runOptions.checkDate = QDate(2026, 10, 1);
+        runOptions.correct = true;
+        runOptions.correctTo = 99900;
+        const Result result = run({{"01.10.2026", "-10,00", "Aral", ""}}, basicMapping(), basicOptions(), runOptions);
+        QCOMPARE(result.imported, 0);
+        QVERIFY2(result.errors.first().contains("balance correction couldn't be saved"), qPrintable(result.errors.first()));
+        QCOMPARE(transactionCount(accountId), 0);
+    }
+
     // --- Hostile input: what banks, spreadsheets and people really produce. A wrong value must
     // never be saved silently; refusing one is fine, since the import then says which row it was. ---
 

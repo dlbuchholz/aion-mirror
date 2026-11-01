@@ -132,6 +132,31 @@ private slots:
         QCOMPARE(sheets.first().rows, (Rows{{"1904-01-02"}}));
     }
 
+    void tabsAndLineBreaksInLibreOfficeCells() {
+        const QByteArray file = ods(
+            R"(<table:table table:name="Konto"><table:table-row><table:table-cell office:value-type="string">)"
+            R"(<text:p>a<text:tab/>b<text:line-break/>c</text:p></table:table-cell></table:table-row></table:table>)");
+        QString error;
+        const QList<Spreadsheet::Sheet> sheets = Spreadsheet::read(file, Format::Ods, &error);
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(sheets.first().rows, (Rows{{"a\tb\nc"}}));
+    }
+
+    void whatCantBeReadIsSaid() {
+        QString error;
+        QVERIFY(Spreadsheet::read(zip({{"hello.txt", "hi"}}), Format::None, &error).isEmpty());
+        QCOMPARE(error, QString("This file isn't a spreadsheet."));
+
+        QVERIFY(Spreadsheet::read(ods(""), Format::Ods, &error).isEmpty());
+        QCOMPARE(error, QString("This spreadsheet has no sheets."));
+
+        QVERIFY(Spreadsheet::read(zip({{"_rels/.rels", PackageRels}, {"xl/workbook.xml", workbook("")}}), Format::Xlsx, &error).isEmpty());
+        QCOMPARE(error, QString("This workbook has no sheets with cells."));
+
+        QVERIFY(Spreadsheet::readFile("no-such-file.xlsx", &error).isEmpty());
+        QVERIFY(error.startsWith("The file couldn't be opened"));
+    }
+
     void readsLibreOfficeSheets() {
         const QByteArray file = ods(
             R"(<table:table table:name="Konto"><table:table-column/>)"

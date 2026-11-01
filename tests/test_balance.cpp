@@ -17,6 +17,11 @@
 #include "dashboard.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
+#include <QFrame>
+#include <QMessageBox>
+#include <QTimer>
+#include <QToolButton>
+
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
@@ -141,6 +146,193 @@ private slots:
         QVERIFY(!correction->isVisibleTo(&dialog));
         QVERIFY(status->text().startsWith("Matches"));
         QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(120410));    // Still nothing written
+    }
+
+    // --- The import dialog, on a file with a balance column ---
+
+    static void writeBankFile(QFile& file) {
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name Zahlungsbeteiligter;Verwendungszweck;Saldo nach Buchung\n"
+                   "17.10.2026;-31,20;Rewe;Wocheneinkauf;1.510,25\n"
+                   "03.10.2026;350,00;ACME;Gehalt;1.541,45\n");
+        file.close();
+    }
+
+    static void showOnScreen(QWidget& widget) {
+        widget.setAttribute(Qt::WA_DontShowOnScreen);
+        widget.show();
+        QCoreApplication::processEvents();
+    }
+
+    // Answers the message box the next click opens, and hands back its text
+    static void answerMessageBox(QString* said) {
+        QTimer::singleShot(0, qApp, [said]() {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                *said = box->text();
+                box->accept();
+            }
+        });
+    }
+
+    static bool shows(QWidget& dialog, const QString& text) {
+        for (QLabel* label : dialog.findChildren<QLabel*>()) {
+            if (label->text() == text && label->isVisibleTo(&dialog)) return true;
+        }
+        return false;
+    }
+
+    void importDialogSavesTheCorrection() {
+        add(giro, 120410, QDate(2026, 9, 30), "income");
+        QTemporaryDir dir;
+        QFile file(dir.filePath("umsaetze.csv"));
+        writeBankFile(file);
+
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(file.fileName());
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        QVERIFY(dialog.findChild<QCheckBox*>("correctionCheckBox")->isChecked());
+
+        QString said;
+        answerMessageBox(&said);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        QVERIFY2(said.contains("Balance correction of"), qPrintable(said));
+        QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 17)), Cents(151025));   // The bank's balance
+    }
+
+    void importDialogSaysWhenNothingWasImported() {
+        QTemporaryDir dir;
+        QFile file(dir.filePath("umsaetze.csv"));
+        writeBankFile(file);
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(file.fileName());
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        auto* expected = dialog.findChild<QLineEdit*>("expectedBalanceEdit");
+        auto* correction = dialog.findChild<QCheckBox*>("correctionCheckBox");
+
+        expected->setText("no amount");
+        emit expected->textEdited(expected->text());
+        QCOMPARE(dialog.findChild<QLabel*>("balanceStatusLabel")->text(), QString("That isn't an amount Aion can read."));
+        QVERIFY(!correction->isVisibleTo(&dialog));
+        expected->clear();
+        emit expected->textEdited(expected->text());
+        QVERIFY(dialog.findChild<QLabel*>("balanceStatusLabel")->text().startsWith("Enter the balance"));
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "transactions"));
+        QString said;
+        answerMessageBox(&said);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        QVERIFY2(said.contains("Import aborted"), qPrintable(said));
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);     // Still open
+    }
+
+    void importDialogAsksForAnAccountFirst() {
+        QTemporaryDir dir;
+        QFile file(dir.filePath("umsaetze.csv"));
+        writeBankFile(file);
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.loadFile(file.fileName());
+        auto* accounts = dialog.findChild<QComboBox*>("accountComboBox");
+        const QString before = accounts->currentText();
+
+        accounts->setCurrentIndex(accounts->findText(QString::fromUtf8("New account…")));
+        dialog.findChild<QPushButton*>("nextButton")->click();
+        QVERIFY(shows(dialog, "Create the new account first, or choose an existing one."));
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::File);
+
+        auto* create = dialog.findChild<QPushButton*>("createAccountButton");
+        create->click();
+        QVERIFY(shows(dialog, "Enter a name for the new account."));
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "accounts"));
+        dialog.findChild<QLineEdit*>("newAccountNameEdit")->setText("Depot");
+        create->click();
+        QVERIFY(shows(dialog, "The account couldn't be created."));
+
+        // Cancelling goes back to the account that was chosen
+        for (QPushButton* button : dialog.findChild<QFrame*>("newAccountBox")->findChildren<QPushButton*>()) {
+            if (button->text() == "Cancel") button->click();
+        }
+        QCOMPARE(accounts->currentText(), before);
+    }
+
+    void importDialogSaysWhenAFileCantBeOpened() {
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.loadFile(QDir::temp().filePath("no-such-file-for-aion.csv"));
+        bool said = false;
+        for (QLabel* label : dialog.findChildren<QLabel*>()) {
+            said = said || label->text().startsWith("The file couldn't be opened");
+        }
+        QVERIFY(said);
+    }
+
+    void importDialogFollowsAChangedFormatAndGoesBack() {
+        QTemporaryDir dir;
+        QFile file(dir.filePath("umsaetze.csv"));
+        writeBankFile(file);
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(file.fileName());
+
+        auto* summary = dialog.findChild<QLabel*>("formatSummaryLabel");
+        const QString detected = summary->text();
+        auto* decimal = dialog.findChild<QComboBox*>("decimalCombo");
+        decimal->setCurrentIndex(decimal->currentIndex() == 0 ? 1 : 0);
+        QVERIFY(summary->text() != detected);
+        decimal->setCurrentIndex(decimal->currentIndex() == 0 ? 1 : 0);
+
+        auto* delimiter = dialog.findChild<QComboBox*>("delimiterCombo");
+        const int semicolon = delimiter->currentIndex();
+        delimiter->setCurrentIndex(semicolon == 0 ? 1 : 0);
+        QVERIFY(summary->text() != detected);
+        delimiter->setCurrentIndex(semicolon);
+        QCOMPARE(summary->text(), detected);
+
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Columns);
+
+        auto* more = dialog.findChild<QToolButton*>("moreOptionsButton");
+        auto* partial = dialog.findChild<QCheckBox*>("allowPartialCheck");
+        QVERIFY(!partial->isVisibleTo(&dialog));
+        more->click();
+        QVERIFY(partial->isVisibleTo(&dialog));
+        more->click();
+        QVERIFY(!partial->isVisibleTo(&dialog));
+
+        dialog.findChild<QPushButton*>("backButton")->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::File);
+    }
+
+    void withoutTheirTableBalancesAndTheDashboardStayEmpty() {
+        add(giro, 1000, QDate(2026, 10, 1), "income");
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("DROP VIEW account_balances"));
+        QVERIFY(query.exec("DROP TABLE transactions"));
+        QCOMPARE(Balance::onDate(giro, QDate(2026, 10, 1)), Cents(0));
+        QCOMPARE(Dashboard::load(1, QDate(2026, 10, 1)).thisMonth.incomeCents, Cents(0));
+    }
+
+    void aCorrectionThatCantBeSavedIsSaid() {
+        QVERIFY(TestDbFixture::refuse("INSERT", "transactions"));
+        BalanceCorrectionDialog dialog(1, giro);
+        dialog.findChild<QLineEdit*>("bankBalanceEdit")->setText(Settings::instance().formatCurrency(8760));
+        dialog.findChild<QPushButton*>("addCorrectionButton")->click();
+        QCOMPARE(dialog.result(), 0);
+        QVERIFY(dialog.addedTransactionId() <= 0);
+        bool said = false;
+        for (QLabel* label : dialog.findChildren<QLabel*>()) said = said || label->text() == "The correction couldn't be saved.";
+        QVERIFY(said);
     }
 
     void importUsesTheRulesWhenTicked() {

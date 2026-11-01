@@ -62,6 +62,14 @@ public:
         QVERIFY2(UserDAO().createUser(User(id, username, name)), "seeding the user failed");
     }
 
+    // Makes the database refuse this kind of write from now on (INSERT, UPDATE or DELETE on the
+    // table, if the condition holds), as it could with a full disk. Reading still works.
+    static bool refuse(const QString& operation, const QString& table, const QString& condition = "1") {
+        QSqlQuery query(DatabaseManager::instance().database());
+        return query.exec(QString("CREATE TRIGGER refuse_%1_%2 BEFORE %1 ON %2 WHEN %3 BEGIN SELECT RAISE(ABORT, 'refused'); END")
+                              .arg(operation, table, condition));
+    }
+
     const QString& path() const { return templatePath; }
 
 private:

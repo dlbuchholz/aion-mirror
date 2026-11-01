@@ -37,6 +37,49 @@ private slots:
         QCOMPARE(dao.findUserIdByUsername("nobody"), -1);
     }
 
+    void aUserWithoutTheirDefaultsIsntCreated_data() {
+        QTest::addColumn<QString>("table");
+        QTest::newRow("categories") << "categories";
+        QTest::newRow("account types") << "account_types";
+    }
+
+    void aUserWithoutTheirDefaultsIsntCreated() {
+        QFETCH(QString, table);
+        QVERIFY(TestDbFixture::refuse("INSERT", table));
+        QVERIFY(!UserDAO().createUser(User(0, "new", "New User")));
+        QCOMPARE(UserDAO().findUserIdByUsername("new"), -1);
+    }
+
+    void categoryChangesThatCantBeSavedChangeNothing() {
+        CategoryDAO dao(1);
+        const int from = dao.addCategory(Category(-1, "Travel", "expense"));
+        const int into = dao.addCategory(Category(-1, "Holidays", "expense"));
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec(QString("INSERT INTO rules (user_id, position, match_all, category_id) VALUES (1, 0, 1, %1)").arg(from)));
+
+        QVERIFY(TestDbFixture::refuse("UPDATE", "categories"));
+        QVERIFY(!dao.editCategory(from, "Reisen", "expense", "teal"));
+
+        QVERIFY(TestDbFixture::refuse("DELETE", "rules"));
+        QVERIFY(!dao.deleteCategory(from));
+
+        QVERIFY(TestDbFixture::refuse("DELETE", "categories"));
+        QVERIFY(!dao.mergeCategory(from, into));
+        QCOMPARE(dao.getCategoryById(from).getName(), QString("Travel"));
+    }
+
+    void withoutTheirTablesCategoryListsAreEmpty() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("DROP VIEW account_balances"));
+        QVERIFY(query.exec("DROP TABLE recurring_transactions"));
+        QVERIFY(query.exec("DROP TABLE transactions"));
+        QVERIFY(query.exec("DROP TABLE budgets"));
+        QVERIFY(CategoryDAO(1).usage().isEmpty());
+        QVERIFY(query.exec("DROP TABLE rules"));
+        QVERIFY(query.exec("DROP TABLE categories"));
+        QVERIFY(CategoryDAO(1).getAllCategories().isEmpty());
+    }
+
     void anUnknownUserComesBackInvalid() {
         const User nobody = UserDAO().getUserById(9999);
         QCOMPARE(nobody.getUserId(), -1);

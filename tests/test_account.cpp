@@ -12,6 +12,26 @@ private:
     TestDbFixture db;
 
 private slots:
+    void accountChangesThatCantBeSavedChangeNothing() {
+        QCOMPARE(AccountDAO::createAccount(-1, "Nobody's", "Checking", 0), -1);
+        const int giro = AccountDAO::createAccount(1, "Giro", "Checking", 500);
+        const int savings = AccountDAO::createAccount(1, "Savings", "Savings", 0);
+        const int typeId = AccountDAO().getAllAccountTypes(1).first().first.toInt();
+
+        QVERIFY(TestDbFixture::refuse("UPDATE", "account_types"));
+        QVERIFY(!AccountDAO().editAccountType(1, typeId, "Renamed"));
+
+        QVERIFY(TestDbFixture::refuse("INSERT", "accounts"));
+        QCOMPARE(AccountDAO::createAccount(1, "Depot", "Checking", 0), -1);
+
+        QVERIFY(TestDbFixture::refuse("DELETE", "accounts"));
+        QVERIFY(!AccountDAO().deleteAccount(giro));
+        QVERIFY(!AccountDAO().deleteAccountMovingTo(giro, savings));
+        QCOMPARE(AccountDAO().getAccountById(giro).getBalanceCents(), Cents(500));
+        QCOMPARE(AccountDAO().getAccountById(savings).getBalanceCents(), Cents(0));   // The move was undone
+    }
+
+
     void initTestCase() { db.init(); }
     void init() { db.yankDb(); db.seedDefaultUser(); }
     void cleanup() { db.close(); }

@@ -51,6 +51,22 @@ private slots:
     }
     void cleanup() { db.close(); }
 
+    void withoutTheirTablesReportsStayEmpty() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("DROP VIEW account_balances"));
+        QVERIFY(query.exec("DROP TABLE recurring_transactions"));
+        QVERIFY(query.exec("DROP TABLE transactions"));
+        const QDate today(2026, 10, 15);
+        const ReportRange range = ReportRange::forPreset(ReportRange::Preset::Month, today);
+        QVERIFY(Reports::topPayees(1, -1, range).payees.isEmpty());
+        QVERIFY(Reports::categoryTrend(1, -1, groceries, range, today).averageCents == 0);
+        QVERIFY(Reports::balanceOverTime(1, -1, range, today).days.isEmpty());
+        for (const PeriodFlow& flow : Reports::incomeVsSpending(1, -1, range).periods) {
+            QCOMPARE(flow.incomeCents, Cents(0));
+        }
+        Reports::spendingByCategory(1, -1, range, today);
+    }
+
     void spendingPerCategoryLargestFirst() {
         const ReportRange threeMonths = ReportRange::forPreset(Preset::ThreeMonths, today);   // August – October
         add(giro, 89000, QDate(2026, 8, 3), rent, "expense");

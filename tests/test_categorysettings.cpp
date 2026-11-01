@@ -10,6 +10,7 @@
 #include <QToolButton>
 
 #include "account.h"
+#include "budget.h"
 #include "category.h"
 #include "categorycolors.h"
 #include "tests/test_db_fixture.h"
@@ -243,6 +244,101 @@ private slots:
         settings.findChild<QPushButton*>("deleteCategoryButton")->click();
         settle();
         QCOMPARE(named("Travel").getCategoryId(), -1);
+    }
+
+    static QAction* mergeEntry(CategoriesSettings& settings, const QString& name) {
+        for (QAction* action : settings.findChild<QToolButton*>("mergeCategoryButton")->menu()->actions()) {
+            if (action->text() == name) return action;
+        }
+        return nullptr;
+    }
+
+    void mergingSaysWhatHappensToBudgets() {
+        CategoryDAO dao(1);
+        const int from = dao.addCategory(Category(-1, "Lebensmittel", "expense"));
+        const QDate month(2026, 10, 1);
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, from, month, 1000));
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        QString asked;
+        settings.confirm = [&asked](const QString&, const QString& text) { asked = text; return false; };
+        row(settings, "Lebensmittel")->click();
+        settle();
+
+        mergeEntry(settings, "Rent")->trigger();
+        QVERIFY(asked.contains("Its budgets move along."));
+        QVERIFY(dao.getCategoryById(from).getCategoryId() > 0);     // Said no
+
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, named("Groceries").getCategoryId(), month, 2000));
+        settings.reload();                               // Stays open
+        settle();
+        mergeEntry(settings, "Groceries")->trigger();
+        QVERIFY(asked.contains("Its budgets are removed, \"Groceries\" keeps its own."));
+    }
+
+    void whatCantBeMergedDeletedOrSavedIsSaid() {
+        CategoryDAO dao(1);
+        const int travel = dao.addCategory(Category(-1, "Travel", "expense"));
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, account, "DB", 100, QDate(2026, 10, 1), "", travel, "expense")) > 0);
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        QString asked;
+        settings.confirm = [&asked](const QString&, const QString& text) { asked = text; return true; };
+        auto* error = settings.findChild<QLabel*>("categoryError");
+        row(settings, "Travel")->click();
+        settle();
+
+        QVERIFY(TestDbFixture::refuse("DELETE", "categories"));
+        mergeEntry(settings, "Groceries")->trigger();
+        QCOMPARE(error->text(), QString("The categories couldn't be merged."));
+
+        settings.findChild<QPushButton*>("deleteCategoryButton")->click();
+        QVERIFY(asked.contains("It's used by"));
+        QCOMPARE(error->text(), QString("The category couldn't be deleted."));
+        QCOMPARE(dao.getCategoryById(travel).getCategoryId(), travel);
+
+        QVERIFY(TestDbFixture::refuse("UPDATE", "categories"));
+        settings.findChild<QLineEdit*>("categoryNameEdit")->setText("Reisen");
+        for (QPushButton* button : settings.findChild<QFrame*>("categoryEditor")->findChildren<QPushButton*>()) {
+            if (button->text() == "Save") button->click();
+        }
+        QCOMPARE(error->text(), QString("The category couldn't be saved."));
+    }
+
+    void accountTypesSayWhatWentWrong() {
+        AccountTypesSettings settings;
+        settings.setUserId(1);
+        auto* error = settings.findChild<QLabel*>("accountTypeError");
+        auto* add = settings.findChild<QPushButton*>("addAccountTypeButton");
+        auto* newType = settings.findChild<QLineEdit*>("newAccountTypeEdit");
+
+        add->click();
+        QCOMPARE(error->text(), QString("Enter a name for the new account type."));
+        newType->setText("Savings");
+        add->click();
+        QVERIFY(error->text().startsWith("\"Savings\" couldn't be added."));
+
+        const auto typeRow = [&settings](const QString& name) -> QWidget* {
+            for (QWidget* candidate : settings.findChildren<QWidget*>("accountTypeRow")) {
+                if (candidate->isVisibleTo(&settings) && candidate->accessibleName() == name) return candidate;
+            }
+            return nullptr;
+        };
+        auto* name = typeRow("Virtual")->findChild<QLineEdit*>("accountTypeName");
+        emit name->editingFinished();                    // Unchanged: nothing happens
+        name->setText("  ");
+        emit name->editingFinished();
+        QCOMPARE(error->text(), QString("An account type needs a name."));
+        QCOMPARE(name->text(), QString("Virtual"));      // Back to what it was
+
+        name->setText("Savings");
+        emit name->editingFinished();
+        QVERIFY(error->text().startsWith("\"Savings\" couldn't be saved."));
+
+        QVERIFY(TestDbFixture::refuse("DELETE", "account_types"));
+        typeRow("Virtual")->findChild<QToolButton*>("deleteAccountTypeButton")->click();
+        QCOMPARE(error->text(), QString("The account type couldn't be deleted."));
     }
 
     void searchFiltersTheList() {

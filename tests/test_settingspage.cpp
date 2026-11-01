@@ -5,10 +5,14 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QListWidget>
+#include <QTimer>
+#include <QToolButton>
 
 #include "category.h"
+#include "dialog/rawsettingsdialog.h"
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
@@ -68,6 +72,48 @@ private slots:
         s.setDefaultCsvDelimiter(';');
     }
     void cleanup() { db.close(); }
+
+    static QToolButton* bottomButton(SettingsPage& page, const QString& text) {
+        for (QToolButton* button : page.findChildren<QToolButton*>()) {
+            if (button->text() == text) return button;
+        }
+        return nullptr;
+    }
+
+    void restoringDefaultsAsksFirst() {
+        SettingsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &SettingsPage::settingsChanged);
+        auto* restore = bottomButton(page, "Restore defaults");
+        QVERIFY(restore);
+
+        QTimer::singleShot(0, qApp, []() { qobject_cast<QMessageBox*>(QApplication::activeModalWidget())->reject(); });
+        restore->click();
+        QCOMPARE(changed.count(), 0);
+        QVERIFY(Settings::instance().isFastEntryEnabled());         // Not the default
+
+        QTimer::singleShot(0, qApp, []() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            box->button(QMessageBox::RestoreDefaults)->click();
+        });
+        restore->click();
+        QCOMPARE(changed.count(), 1);
+        QVERIFY(!Settings::instance().isFastEntryEnabled());
+        QVERIFY(!child<QCheckBox>(page, "fastEntryCheck")->isChecked());
+    }
+
+    void advancedSettingsReachThePage() {
+        SettingsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &SettingsPage::settingsChanged);
+        QTimer::singleShot(0, qApp, []() {
+            auto* dialog = qobject_cast<RawSettingsDialog*>(QApplication::activeModalWidget());
+            emit dialog->settingsChanged();
+            dialog->reject();
+        });
+        bottomButton(page, "Advanced settings")->click();
+        QCOMPARE(changed.count(), 1);
+    }
 
     void showsTheStoredValues() {
         SettingsPage page;
