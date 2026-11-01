@@ -33,7 +33,7 @@ std::optional<Cents> parsePlain(const QString& text) {
     }
     for (const QString& part : {units, fraction}) {
         for (QChar ch : part) {
-            if (!ch.isDigit()) return std::nullopt;
+            if (ch < u'0' || ch > u'9') return std::nullopt;  // isDigit() also takes other scripts' digits
         }
     }
     if (units.size() > 15) {

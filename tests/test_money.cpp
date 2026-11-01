@@ -76,7 +76,6 @@ private slots:
     void onlyPlainDigitsAreAmounts() {
         QFETCH(QString, text);
         // isDigit() says yes to these, but the number conversion gives 0
-        QEXPECT_FAIL("", "Not fixed yet", Continue);
         QCOMPARE(Money::parsePlain(text), std::optional<Cents>());
     }
 
