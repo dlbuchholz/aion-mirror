@@ -27,6 +27,33 @@ inline QByteArray zipFiles(const QList<QPair<QString, QByteArray>>& files) {
     return result;
 }
 
+// An .xlsx workbook with one sheet of these rows, as written in its XML, this number
+// format as cell style 1
+inline QByteArray xlsxWithRawRows(const QByteArray& rows, const QString& formatCode = QString()) {
+    QByteArray rels = R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>)";
+    QList<QPair<QString, QByteArray>> files;
+    if (!formatCode.isEmpty()) {
+        rels += R"(<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>)";
+        const QByteArray format = "<numFmt numFmtId=\"170\" formatCode=\"" + formatCode.toHtmlEscaped().toUtf8() + "\"/>";
+        files.append({QString("xl/styles.xml"),
+                      R"(<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1">)" + format
+                          + R"(</numFmts><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="170"/></cellXfs></styleSheet>)"});
+    }
+    files.append({QString("_rels/.rels"),
+                  QByteArray(R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">)"
+                             R"(<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>)"
+                             "</Relationships>")});
+    files.append({QString("xl/workbook.xml"),
+                  QByteArray(R"(<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" )"
+                             R"(xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>)"
+                             R"(<sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>)")});
+    files.append({QString("xl/_rels/workbook.xml.rels"), rels + "</Relationships>"});
+    files.append({QString("xl/worksheets/sheet1.xml"),
+                  R"(<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>)" + rows
+                      + "</sheetData></worksheet>"});
+    return zipFiles(files);
+}
+
 // A plain .xlsx workbook: numbers as numbers, everything else as text
 inline QByteArray xlsxFile(const QList<QPair<QString, QList<QStringList>>>& sheets) {
     static const QRegularExpression number(R"(^-?\d+(\.\d+)?$)");

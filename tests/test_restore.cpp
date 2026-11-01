@@ -229,6 +229,28 @@ private slots:
         rows.first()->click();
         QCOMPARE(accountCount(), 2);
     }
+
+    // --- Hostile input ---
+
+    void aBackupWithoutMostTablesIsRefused() {
+        const QString partial = dir.filePath("partial.db");
+        {
+            QSqlDatabase file = QSqlDatabase::addDatabase("QSQLITE", "partial");
+            file.setDatabaseName(partial);
+            QVERIFY(file.open());
+            QSqlQuery query(file);
+            for (const char* sql : {"CREATE TABLE schema_migrations (version INTEGER)", "INSERT INTO schema_migrations VALUES (1)",
+                                    "CREATE TABLE users (id INTEGER)", "CREATE TABLE accounts (id INTEGER)",
+                                    "CREATE TABLE transactions (id INTEGER)"}) {
+                QVERIFY(query.exec(sql));
+            }
+            file.close();
+        }
+        QSqlDatabase::removeDatabase("partial");
+        QString error;
+        QEXPECT_FAIL("", "Not fixed yet", Continue);
+        QVERIFY(!Backup::inspect(partial, &error));
+    }
 };
 
 QTEST_MAIN(TestRestore)

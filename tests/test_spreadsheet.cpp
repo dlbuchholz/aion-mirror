@@ -218,6 +218,56 @@ private slots:
         QVERIFY(Spreadsheet::read(ods("<table:table table:name=\"Broken\"><table:table-row>"), Format::Ods, &error).isEmpty());
         QVERIFY(error.startsWith("The file is damaged"));
     }
+
+    // --- Hostile input: what banks, spreadsheets and people really produce. A wrong value must
+    // never be saved silently; refusing one is fine, since the import then says which row it was. ---
+
+    void numberFormatsThatLookLikeDates_data() {
+        QTest::addColumn<QString>("format");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("old german accounting") << "_-* #,##0.00\\ _D_M_-" << "12.5";
+        QTest::newRow("skipped width") << "#,##0.00_y" << "12.5";
+        QTest::newRow("fill character") << "*d#,##0.00" << "12.5";
+        QTest::newRow("quoted word") << "#,##0.00 \"days\"" << "12.5";
+        QTest::newRow("a real date") << "[$-407]dd.mm.yyyy" << "1900-01-11";
+    }
+    void numberFormatsThatLookLikeDates() {
+        QFETCH(QString, format);
+        QFETCH(QString, expected);
+        QString error;
+        const auto sheets = Spreadsheet::read(xlsxWithRawRows("<row r=\"1\"><c r=\"A1\" s=\"1\"><v>12.5</v></c></row>", format),
+                                              Spreadsheet::Format::Xlsx, &error);
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(sheets.value(0).rows.value(0).value(0), expected);
+    }
+
+    void damagedSpreadsheetsAreRefused_data() {
+        QTest::addColumn<QByteArray>("bytes");
+        QTest::addColumn<int>("format");
+        const QByteArray good = xlsxFile({{"S", {{"a", "1"}}}});
+        QTest::newRow("empty") << QByteArray() << int(Spreadsheet::Format::Xlsx);
+        QTest::newRow("cut in half") << good.left(good.size() / 2) << int(Spreadsheet::Format::Xlsx);
+        QTest::newRow("text") << QByteArray("Date,Amount\n") << int(Spreadsheet::Format::Ods);
+        QTest::newRow("zip without a workbook") << zipFiles({{"hello.txt", "hi"}}) << int(Spreadsheet::Format::Xlsx);
+        QTest::newRow("zip without content") << zipFiles({{"hello.txt", "hi"}}) << int(Spreadsheet::Format::Ods);
+        QTest::newRow("broken xml") << zipFiles({{"content.xml", "<a><b></a>"}}) << int(Spreadsheet::Format::Ods);
+    }
+    void damagedSpreadsheetsAreRefused() {
+        QFETCH(QByteArray, bytes);
+        QFETCH(int, format);
+        QString error;
+        QVERIFY(Spreadsheet::read(bytes, Spreadsheet::Format(format), &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
+
+    void strangeCellsDoNoHarm() {
+        const QByteArray bytes = xlsxWithRawRows("<row r=\"-5\"><c r=\"ZZZZZZZZZZZZZZZZZZZZ1\"><v>1</v></c><c r=\"A1\" t=\"s\"><v>99999</v></c>"
+                                                 "<c r=\"B1\" s=\"99999\"><v>2</v></c><c r=\"C1\"><v>not a number</v></c></row>");
+        QString error;
+        const auto sheets = Spreadsheet::read(bytes, Spreadsheet::Format::Xlsx, &error);
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(sheets.value(0).rows.value(0), QStringList({"", "2", "not a number"}));
+    }
 };
 
 QTEST_MAIN(TestSpreadsheet)

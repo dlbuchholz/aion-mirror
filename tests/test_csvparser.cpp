@@ -32,6 +32,22 @@ private slots:
         QVERIFY(rows.isEmpty());
         QVERIFY(!error.isEmpty());
     }
+
+    // --- Hostile input: what banks, spreadsheets and people really produce. A wrong value must
+    // never be saved silently; refusing one is fine, since the import then says which row it was. ---
+
+    void parserKeepsItsPromisesOnBadQuotes() {
+        QString error;
+        QCOMPARE(CsvParser::parse("\"a\"b,c\n", ',', &error), QList<QStringList>({{"ab", "c"}}));
+        QCOMPARE(CsvParser::parse("a\"b\"c,d\n", ',', &error), QList<QStringList>({{"a\"b\"c", "d"}}));
+        QCOMPARE(CsvParser::parse("a,\"\"\n", ',', &error), QList<QStringList>({{"a", ""}}));
+        QVERIFY(error.isEmpty());
+        QCOMPARE(CsvParser::parse("a\rb\r\nc\n", ',', &error), QList<QStringList>({{"a"}, {"b"}, {"c"}}));
+        // An odd number of quotes must never swallow the rest of the file quietly
+        const auto rows = CsvParser::parse("a,\"b\nc,d\ne,f\n", ',', &error);
+        QVERIFY(rows.isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
 };
 
 QTEST_MAIN(TestCsvParser)

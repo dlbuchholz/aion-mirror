@@ -63,6 +63,46 @@ private slots:
         const QString expected = QCryptographicHash::hash(oldSource.toUtf8(), QCryptographicHash::Sha256).toHex();
         QCOMPARE(transaction.calculateHash(), expected);
     }
+
+    // --- Hostile input: what banks, spreadsheets and people really produce. A wrong value must
+    // never be saved silently; refusing one is fine, since the import then says which row it was. ---
+
+    void onlyPlainDigitsAreAmounts_data() {
+        QTest::addColumn<QString>("text");
+        QTest::newRow("arabic digits") << QString::fromUtf8("١٢");
+        QTest::newRow("arabic decimals") << QString::fromUtf8("1.٥٠");
+        QTest::newRow("fullwidth digits") << QString::fromUtf8("１２");
+    }
+    void onlyPlainDigitsAreAmounts() {
+        QFETCH(QString, text);
+        // isDigit() says yes to these, but the number conversion gives 0
+        QEXPECT_FAIL("", "Not fixed yet", Continue);
+        QCOMPARE(Money::parsePlain(text), std::optional<Cents>());
+    }
+
+    void roundingCarriesOver_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<qint64>("cents");
+        QTest::newRow("into the euros") << "0.995" << qint64(100);
+        QTest::newRow("through nines") << "9.999" << qint64(1000);
+        QTest::newRow("only the third decimal counts") << "1.0049999" << qint64(100);
+        QTest::newRow("the largest amount") << "999999999999999.999" << qint64(100000000000000000);
+        QTest::newRow("leading zeros") << "000000000000012.50" << qint64(1250);
+    }
+    void roundingCarriesOver() {
+        QFETCH(QString, text);
+        QFETCH(qint64, cents);
+        QCOMPARE(Money::parsePlain(text), std::optional<Cents>(cents));
+    }
+
+    void everyAmountSurvivesTheSpinBoxAndTheText() {
+        for (Cents cents = 0; cents < 200000; ++cents) {
+            if (Money::fromDouble(Money::toDouble(cents)) != cents
+                || Money::parsePlain(Money::toPlainString(cents)) != std::optional<Cents>(cents)) {
+                QFAIL(qPrintable(QString("%1 cents changed").arg(cents)));
+            }
+        }
+    }
 };
 
 QTEST_MAIN(TestMoney)

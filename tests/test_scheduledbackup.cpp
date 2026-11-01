@@ -224,6 +224,40 @@ private slots:
         keep->setValue(12);
         QCOMPARE(Settings::instance().getScheduledBackupsToKeep(), 12);
     }
+
+    // --- Hostile input: files and clocks that aren't what Aion expects ---
+
+    void cleaningUpLeavesYourOwnFilesAlone() {
+        const QDir backups(Backup::folderFor(path));
+        QVERIFY(QDir().mkpath(backups.path()));
+        // Not something Aion made: a copy somebody named to keep, and another database's backup
+        const QStringList others = {"budget-before-update-2019 keep this.db",
+                                    "budget-before-update-scheduled-2019-01-01-000000.db"};
+        for (const QString& name : others) {
+            QFile file(backups.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        for (int i = 1; i <= 5; ++i) {
+            QFile file(backups.filePath(QString("budget-before-update-2020-01-0%1-000000.db").arg(i)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QString error;
+        QVERIFY2(Backup::beforeUpdate(&error), qPrintable(error));
+        QEXPECT_FAIL("", "Not fixed yet", Abort);
+        for (const QString& name : others) {
+            QVERIFY2(backups.exists(name), qPrintable(name + " was removed"));
+        }
+    }
+
+    void aBackupFromTheFutureDoesntStopBackups() {
+        // The clock was wrong once, or a backup came from another computer
+        const QDate today(2026, 11, 1);
+        const QDateTime future(today.addYears(5), QTime(12, 0));
+        QEXPECT_FAIL("", "Not fixed yet", Abort);
+        for (const auto schedule : {Settings::BackupSchedule::Daily, Settings::BackupSchedule::Weekly, Settings::BackupSchedule::Monthly}) {
+            QVERIFY(Backup::isDue(schedule, future, today));
+        }
+    }
 };
 
 QTEST_MAIN(TestScheduledBackup)

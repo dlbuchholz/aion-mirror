@@ -1,9 +1,16 @@
 #include <QtTest>
+#include <QComboBox>
+#include <QFile>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QScopeGuard>
 #include <QSqlQuery>
+#include <QTimer>
 
 #include "account.h"
 #include "category.h"
 #include "csvimport.h"
+#include "dialog/importmanagerdialog.h"
 #include "tests/test_db_fixture.h"
 
 using namespace CsvImport;
@@ -30,6 +37,21 @@ class TestCsvImport : public QObject {
         query.prepare("SELECT COUNT(*) FROM transactions WHERE account_id = :id");
         query.bindValue(":id", account);
         return query.exec() && query.next() ? query.value(0).toInt() : -1;
+    }
+
+    Options pointOptions() const {
+        Options options = basicOptions();
+        options.decimalSeparator = '.';
+        return options;
+    }
+
+    static QStringList column(const QString& sql) {
+        QStringList values;
+        QSqlQuery query(DatabaseManager::instance().database());
+        if (query.exec(sql)) {
+            while (query.next()) values << query.value(0).toString();
+        }
+        return values;
     }
 
 private slots:
@@ -494,6 +516,204 @@ private slots:
 
         // The database is still usable afterwards
         QCOMPARE(run(rows, basicMapping(), basicOptions(), {}).imported, 2);
+    }
+
+    // --- Hostile input: what banks, spreadsheets and people really produce. A wrong value must
+    // never be saved silently; refusing one is fine, since the import then says which row it was. ---
+
+    void textWithNumbersInItIsNotAnAmount_data() {
+        QTest::addColumn<QString>("text");
+        QTest::newRow("an invoice number") << "Rechnung 4711";
+        QTest::newRow("scientific notation") << "1.5E+3";
+        QTest::newRow("a date in the wrong column") << "2026-01-02";
+        QTest::newRow("two numbers") << "3 x 5,00";
+        QTest::newRow("an iban") << "DE89 3704 0044 0532 0130 00";
+        QTest::newRow("an excel error") << "#DIV/0!";
+        QTest::newRow("a short word") << "Nr 4711";
+    }
+    void textWithNumbersInItIsNotAnAmount() {
+        QFETCH(QString, text);
+        bool ok = true;
+        const Cents cents = parseAmount(text, ',', &ok);
+        QVERIFY2(!ok, qPrintable(QString("read as %1").arg(Money::toPlainString(cents))));
+    }
+
+    void realWorldAmountsStillWork_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QChar>("separator");
+        QTest::addColumn<qint64>("cents");
+        QTest::newRow("unicode minus") << QString::fromUtf8("−12,50") << QChar(',') << qint64(-1250);
+        QTest::newRow("en dash") << QString::fromUtf8("– 12,50") << QChar(',') << qint64(-1250);
+        QTest::newRow("no-break space thousands") << QString("1") + QChar(0x00A0) + "234,56" << QChar(',') << qint64(123456);
+        QTest::newRow("thin space thousands") << QString("1") + QChar(0x202F) + "234,56" << QChar(',') << qint64(123456);
+        QTest::newRow("swiss thousands") << "1'234.56" << QChar('.') << qint64(123456);
+        QTest::newRow("currency code after") << "12,50 EUR" << QChar(',') << qint64(1250);
+        QTest::newRow("currency code before") << "EUR -12,50" << QChar(',') << qint64(-1250);
+        QTest::newRow("symbol before the sign") << QString::fromUtf8("€-12.50") << QChar('.') << qint64(-1250);
+        QTest::newRow("spelled out") << "12,50 Euro" << QChar(',') << qint64(1250);
+        QTest::newRow("negative zero") << "-0,00" << QChar(',') << qint64(0);
+    }
+    void realWorldAmountsStillWork() {
+        QFETCH(QString, text);
+        QFETCH(QChar, separator);
+        QFETCH(qint64, cents);
+        bool ok = false;
+        QCOMPARE(parseAmount(text, separator, &ok), Cents(cents));
+        QVERIFY(ok);
+    }
+
+    // --- Dates ---
+
+    void twoDigitYearsAreThisCentury_data() {
+        QTest::addColumn<QString>("locale");
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QDate>("expected");
+        // Some bank exports write dates like this
+        QTest::newRow("german") << "de_DE" << "15.01.26" << QDate(2026, 1, 15);
+        QTest::newRow("german, c locale") << "C" << "15.01.26" << QDate(2026, 1, 15);
+        QTest::newRow("us") << "en_US" << "1/15/26" << QDate(2026, 1, 15);
+    }
+    void twoDigitYearsAreThisCentury() {
+        QFETCH(QString, locale);
+        QFETCH(QString, text);
+        QFETCH(QDate, expected);
+        const auto restoreLocale = qScopeGuard([previous = QLocale()] { QLocale::setDefault(previous); });
+        QLocale::setDefault(QLocale(locale));
+        QCOMPARE(parseDate(text), expected);
+    }
+
+    void impossibleDatesAreRefused_data() {
+        QTest::addColumn<QString>("text");
+        QTest::newRow("30 february") << "30.02.2026";
+        QTest::newRow("29 february, no leap year") << "2026-02-29";
+        QTest::newRow("31 april") << "31/04/2026";
+        QTest::newRow("month 13 both ways") << "13/13/2026";
+        QTest::newRow("day zero") << "00.01.2026";
+        QTest::newRow("a number") << "12345";
+        QTest::newRow("an amount") << "12,50";
+    }
+    void impossibleDatesAreRefused() {
+        QFETCH(QString, text);
+        const QDate date = parseDate(text);
+        QVERIFY2(!date.isValid(), qPrintable(date.toString(Qt::ISODate)));
+    }
+
+    void delimiterSurvivesUntidyFiles_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QChar>("expected");
+        QTest::newRow("a blank line at the end") << "Datum;Betrag;Name\n01.01.2026;12,50;Shop\n\n" << QChar(';');
+        QTest::newRow("a blank line in between") << "Datum;Betrag;Name\n\n01.01.2026;12,50;Shop\n" << QChar(';');
+        QTest::newRow("a title line above the table") << "Umsaetze Girokonto\nDatum;Betrag;Name\n01.01.2026;12,50;Shop\n" << QChar(';');
+    }
+    void delimiterSurvivesUntidyFiles() {
+        QFETCH(QString, text);
+        QFETCH(QChar, expected);
+        QEXPECT_FAIL("", "Not fixed yet", Continue);
+        QCOMPARE(detectDelimiter(text), expected);
+    }
+
+    void sollAndHabenMeanSomething_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<QString>("expected");
+        // autoMapColumns maps a "Soll/Haben" column, and such files have unsigned amounts
+        QTest::newRow("S") << "S" << "expense";
+        QTest::newRow("Soll") << "Soll" << "expense";
+        QTest::newRow("H") << "H" << "income";
+        QTest::newRow("Haben") << "Haben" << "income";
+    }
+    void sollAndHabenMeanSomething() {
+        QFETCH(QString, text);
+        QFETCH(QString, expected);
+        QCOMPARE(transactionType(1250, text, AmountInterpretation::ColumnBased), expected);
+    }
+
+    void twoEqualCoffeesOnOneDayAreBothKept() {
+        const QList<QStringList> rows = {{"2026-01-02", "-3.20", "Cafe", "Coffee"}, {"2026-01-02", "-3.20", "Cafe", "Coffee"}};
+        const Result first = run(rows, basicMapping(), pointOptions(), {});
+        QCOMPARE(first.imported, 2);
+        const Result second = run(rows, basicMapping(), pointOptions(), {});
+        QCOMPARE(second.imported, 0);
+        QCOMPARE(second.duplicates, 2);
+    }
+
+    void aHugeFileIsStillCheckedForDuplicates() {
+        // More rows than SQLite takes variables in one query (32766 by default). If the check
+        // fails, every row looks new and the whole file is imported twice.
+        Transaction known(-1, accountId, "Known", 100, QDate(2026, 1, 2), "", 0, "expense");
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(known) > 0);
+        QList<QString> hashes;
+        for (int i = 0; i < 33000; ++i) hashes.append(QString("not there %1").arg(i));
+        hashes.append(known.calculateHash());
+        QCOMPARE(dao.getExistingHashes(hashes), QList<QString>({known.calculateHash()}));
+    }
+
+    void textIsDecodedByWhatItIs() {
+        QCOMPARE(decodeText(QByteArray("M\xC3\xBCller")), QString::fromUtf8("Müller"));
+        QCOMPARE(decodeText(QByteArray("\xEF\xBB\xBFM\xC3\xBCller")), QString::fromUtf8("Müller"));
+        QCOMPARE(decodeText(QByteArray("M\xFCller")), QString::fromUtf8("Müller"));
+        QCOMPARE(decodeText(QByteArray("\x80\xA0" "5 \x96 x")), QString::fromUtf8("€\u00A05 – x"));
+        QCOMPARE(decodeText(QByteArray("\xFF\xFEM\0\xFC\0", 6)), QString::fromUtf8("Mü"));
+        QCOMPARE(decodeText(QByteArray()), QString());
+    }
+
+    void yearsAlreadyInFullStayAsTheyAre() {
+        QCOMPARE(parseDate("15.01.1999"), QDate(1999, 1, 15));
+        // A two-digit year that would be far in the future is last century's
+        QCOMPARE(parseDate("15.01.99"), QDate(1999, 1, 15));
+    }
+
+    void filesFromOlderBankSoftwareKeepTheirUmlauts_data() {
+        QTest::addColumn<QByteArray>("bytes");
+        const QByteArray utf8 = QString::fromUtf8("Datum;Betrag;Empfänger\n02.01.2026;-1,00;Müller\n").toUtf8();
+        QTest::newRow("utf-8") << utf8;
+        QTest::newRow("utf-8 with a byte order mark") << QByteArray("\xEF\xBB\xBF") + utf8;
+        // What older bank software may export
+        QTest::newRow("latin-1") << QByteArray("Datum;Betrag;Empf\xE4nger\n02.01.2026;-1,00;M\xFCller\n");
+    }
+    void filesFromOlderBankSoftwareKeepTheirUmlauts() {
+        QFETCH(QByteArray, bytes);
+        QTemporaryDir dir;
+        const QString path = dir.filePath("umsaetze.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(bytes);
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();                                       // Columns
+        next->click();                                       // Review
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QTimer closer;                                       // The "Import complete" message waits for a click
+        connect(&closer, &QTimer::timeout, this, [] {
+            if (auto* message = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) message->accept();
+        });
+        closer.start(20);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        QCOMPARE(column("SELECT payee FROM transactions"), QStringList({QString::fromUtf8("Müller")}));
+    }
+
+    void hostileTextIsStoredAsIs() {
+        const QString payee = QString::fromUtf8("Robert'); DROP TABLE transactions;-- \"%1\" 🎃");
+        const QString description = "line one\nline two\t%2 100%";
+        const QList<QStringList> rows = {{"2026-01-02", "-1.00", payee, description}};
+        QCOMPARE(run(rows, basicMapping(), pointOptions(), {}).imported, 1);
+        QCOMPARE(column("SELECT payee FROM transactions"), QStringList({payee}));
+        QCOMPARE(column("SELECT description FROM transactions"), QStringList({description}));
+        QCOMPARE(run(rows, basicMapping(), pointOptions(), {}).duplicates, 1);
+    }
+
+    void shortRowsFailWithoutTakingTheOthersDown() {
+        const QList<QStringList> rows = {{"2026-01-02", "-1.00", "Good", ""}, {"2026-01-03"}, {}, {"2026-01-04", "-2.00"}};
+        RunOptions runOptions;
+        runOptions.allowPartialImport = true;
+        const Result result = run(rows, basicMapping(), pointOptions(), runOptions);
+        QCOMPARE(result.imported, 2);
+        QCOMPARE(result.failed, 2);
+        QCOMPARE(column("SELECT SUM(amount) FROM transactions"), QStringList({"300"}));
     }
 };
 
