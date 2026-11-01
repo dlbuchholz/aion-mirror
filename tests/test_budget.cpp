@@ -227,6 +227,55 @@ private slots:
     void monthKeys() {
         QCOMPARE(BudgetDAO::monthKey(QDate(2026, 1, 31)), QString("2026-01"));
     }
+
+    // --- Hostile input ---
+
+    void settingALimitAgainMeansEveryMonthFromThenOn() {
+        BudgetDAO dao;
+        QVERIFY(dao.setMonthlyLimit(1, groceries, oct(), 40000));
+        QVERIFY(dao.removeLimit(1, groceries, dec(), true));
+        QVERIFY(limits(1, dec()).isEmpty());
+
+        // "Every month from fromMonth on" (budget.h), so December has a limit again
+        QVERIFY(dao.setMonthlyLimit(1, groceries, oct(), 50000));
+        QCOMPARE(limits(1, oct()).value("Groceries"), Cents(50000));
+        QCOMPARE(limits(1, dec()).value("Groceries"), Cents(50000));
+    }
+
+    void onlyTheMonthsOwnDaysCount() {
+        BudgetDAO dao;
+        QVERIFY(dao.setMonthlyLimit(1, groceries, QDate(2023, 1, 1), 100000));
+        spend(1, QDate(2023, 12, 31), groceries);
+        spend(10, QDate(2024, 1, 1), groceries);
+        spend(100, QDate(2024, 1, 31), groceries);
+        spend(1000, QDate(2024, 2, 1), groceries);
+        spend(10000, QDate(2024, 2, 29), groceries);
+        spend(100000, QDate(2024, 3, 1), groceries);
+        QCOMPARE(dao.budgetsForMonth(1, QDate(2024, 1, 15)).value(0).spentCents, Cents(110));
+        QCOMPARE(dao.budgetsForMonth(1, QDate(2024, 2, 29)).value(0).spentCents, Cents(11000));
+    }
+
+    void changesAcrossNewYearEndTheRightMonth() {
+        BudgetDAO dao;
+        QVERIFY(dao.setMonthlyLimit(1, groceries, QDate(2026, 6, 1), 100));
+        QVERIFY(dao.setMonthlyLimit(1, groceries, QDate(2027, 1, 1), 200));
+        QCOMPARE(limits(1, QDate(2026, 12, 31)).value("Groceries"), Cents(100));
+        QCOMPARE(limits(1, QDate(2027, 1, 1)).value("Groceries"), Cents(200));
+        QVERIFY(dao.removeLimit(1, groceries, QDate(2027, 1, 1), true));
+        QCOMPARE(limits(1, QDate(2026, 12, 1)).value("Groceries"), Cents(100));
+        QVERIFY(limits(1, QDate(2027, 1, 1)).isEmpty());
+    }
+
+    void aLimitInsertedBetweenOthersLeavesThemAlone() {
+        BudgetDAO dao;
+        QVERIFY(dao.setMonthlyLimit(1, groceries, sep(), 100));
+        QVERIFY(dao.setMonthlyLimit(1, groceries, dec(), 300));
+        QVERIFY(dao.setMonthlyLimit(1, groceries, oct(), 200));
+        QCOMPARE(limits(1, sep()).value("Groceries"), Cents(100));
+        QCOMPARE(limits(1, oct()).value("Groceries"), Cents(200));
+        QCOMPARE(limits(1, nov()).value("Groceries"), Cents(200));
+        QCOMPARE(limits(1, dec()).value("Groceries"), Cents(300));
+    }
 };
 
 QTEST_MAIN(TestBudgetDAO)

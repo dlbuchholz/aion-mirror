@@ -209,20 +209,20 @@ bool BudgetDAO::setMonthlyLimit(int userId, int categoryId, const QDate& fromMon
         const QList<BudgetRow> rows = rowsFor(userId, categoryId);
         for (const BudgetRow& row : rows) {
             if (row.repeats && row.startMonth == month) {
-                return run("UPDATE budgets SET amount = :a WHERE id = :id", {{":a", limitCents}, {":id", row.id}});
+                // Open-ended again, even if it was removed from a later month on. Limits that start
+                // later still win in their months (effectiveRow takes the latest start).
+                return run("UPDATE budgets SET amount = :a, end_month = NULL WHERE id = :id", {{":a", limitCents}, {":id", row.id}});
             }
         }
         // A limit that is running ends the month before, so earlier months keep it
-        QString endMonth;
         for (const BudgetRow& row : rows) {
             if (row.repeats && row.startMonth < month && (row.endMonth.isEmpty() || row.endMonth >= month)) {
-                endMonth = row.endMonth;
                 if (!run("UPDATE budgets SET end_month = :e WHERE id = :id", {{":e", previousMonth(month)}, {":id", row.id}})) {
                     return false;
                 }
             }
         }
-        return insertRow(userId, categoryId, limitCents, month, endMonth, true);
+        return insertRow(userId, categoryId, limitCents, month, QString(), true);
     });
 }
 
