@@ -560,6 +560,25 @@ private slots:
         QVERIFY(!matchCount->text().contains("selected"));
     }
 
+    void rowsLightUpUnderTheMouse() {
+        QVERIFY(addRule("Stadtwerke", "Utilities") > 0);
+        RulesSettings settings;
+        settings.setUserId(1);
+        QAbstractButton* rule = rows(settings).first();
+        const QImage plain = rule->grab().toImage();
+        rule->setAttribute(Qt::WA_UnderMouse);
+        QVERIFY(rule->grab().toImage() != plain);
+    }
+
+    void deletingAsksByDefault() {
+        RulesSettings settings;
+        QTimer::singleShot(0, qApp, []() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            box->button(QMessageBox::Yes)->click();
+        });
+        QVERIFY(settings.confirm("Delete", "Sure?"));
+    }
+
     void aDraftSaysWhenItMissesItsOneTransaction() {
         RulesSettings settings;
         settings.setUserId(1);

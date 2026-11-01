@@ -231,6 +231,26 @@ private slots:
         QCOMPARE(changed.count(), 0);
     }
 
+    void rowsLightUpUnderTheMouseAndIgnoreOtherKeys() {
+        QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, thisMonth, 40000));
+        BudgetPage page;
+        page.setUserId(1);
+        QAbstractButton* budget = row(page, "Groceries");
+        const QImage plain = budget->grab().toImage();
+        budget->setAttribute(Qt::WA_UnderMouse);
+        QVERIFY(budget->grab().toImage() != plain);
+        QTest::keyClick(budget, Qt::Key_A);
+        QVERIFY(page.findChild<BudgetEditor*>()->isHidden());
+    }
+
+    void withoutAUserThereIsNothingToShow() {
+        BudgetPage page;
+        page.reload();
+        QVERIFY(QMetaObject::invokeMethod(&page, "addBudget", Q_ARG(int, 0), Q_ARG(Cents, 0)));
+        QVERIFY(page.findChildren<QAbstractButton*>("budgetRow").isEmpty());
+        QVERIFY(page.findChild<BudgetEditor*>()->isHidden());
+    }
+
     void aBudgetThatCantBeRemovedStays() {
         QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, thisMonth, 40000));
         BudgetPage page;

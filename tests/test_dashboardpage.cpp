@@ -148,6 +148,22 @@ private slots:
         QVERIFY(page.findChild<QLabel*>("recentEmptyLabel"));
     }
 
+    void rowsLightUpUnderTheMouse() {
+        spend(1000, groceries);
+        DashboardPage page;
+        page.setUserId(1);
+        QAbstractButton* category = row(page, "categoryRow", "Groceries");
+        const QImage plain = category->grab().toImage();
+        category->setAttribute(Qt::WA_UnderMouse);
+        QVERIFY(category->grab().toImage() != plain);
+    }
+
+    void withoutAUserThereIsNothingToShow() {
+        DashboardPage page;
+        page.reload();
+        QVERIFY(page.findChildren<QAbstractButton*>("categoryRow").isEmpty());
+    }
+
     void categoryBarsCanLeaveOutTheColors() {
         const bool original = Settings::instance().isCategoryColorsInOverviewsEnabled();
         Settings::instance().setCategoryColorsInOverviewsEnabled(false);

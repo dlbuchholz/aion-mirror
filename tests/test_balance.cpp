@@ -546,6 +546,34 @@ private slots:
         QVERIFY(dialog.findChild<QPushButton*>("importButton")->isEnabled());
     }
 
+    void theDialogSaysWhenThereIsNoAccount() {
+        QVERIFY(AccountDAO().deleteAccount(giro));
+        QVERIFY(AccountDAO().deleteAccount(savings));
+        BalanceCorrectionDialog dialog(1, -1);
+        bool said = false;
+        for (QLabel* label : dialog.findChildren<QLabel*>()) said = said || label->text() == "Add an account first.";
+        QVERIFY(said);
+    }
+
+    void aSecondSpreadsheetReplacesTheSheetList() {
+        QTemporaryDir dir;
+        const QString first = dir.filePath("first.xlsx");
+        const QString second = dir.filePath("second.xlsx");
+        for (const QString& path : {first, second}) {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(xlsxFile({{path == first ? "Januar" : "Februar", {{"Datum", "Betrag"}, {"10.10.2026", "-1,00"}}},
+                                 {"Rest", {{"Datum", "Betrag"}, {"11.10.2026", "-2,00"}}}}));
+        }
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(first);
+        dialog.loadFile(second);
+        QStringList names;
+        for (QCheckBox* check : dialog.findChildren<QCheckBox*>()) names << check->text();
+        QVERIFY2(names.contains("Februar"), qPrintable(names.join(", ")));
+        QVERIFY2(!names.contains("Januar"), qPrintable(names.join(", ")));
+    }
+
     void aCategoryFromTheFileCanGoToAnExistingOne() {
         QTemporaryDir dir;
         const QString path = dir.filePath("mapped.csv");

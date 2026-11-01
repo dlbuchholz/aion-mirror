@@ -986,6 +986,21 @@ private slots:
         QVERIFY(TransactionDAO().getTransactionById(first).getCategoryId() != groceries);
     }
 
+    void withoutAUserThereIsNothingToLoad() {
+        TransactionsPage page;
+        page.reload();
+        QCOMPARE(page.findChild<QListView*>("transactionList")->model()->rowCount(), 0);
+    }
+
+    void deletingAsksByDefault() {
+        TransactionsPage page;
+        QTimer::singleShot(0, qApp, []() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            box->button(QMessageBox::Yes)->click();
+        });
+        QVERIFY(page.confirm("Delete", "Sure?"));
+    }
+
     void checkboxesSelectWithoutOpeningTheEditor() {
         Settings::instance().setSelectionCheckboxesEnabled(true);
         const auto restore = qScopeGuard([]() { Settings::instance().setSelectionCheckboxesEnabled(false); });

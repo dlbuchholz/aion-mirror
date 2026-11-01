@@ -1,9 +1,11 @@
 #include <QtTest>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QTimer>
 
 #include "account.h"
 #include "db/backup.h"
@@ -246,6 +248,70 @@ private slots:
         QCOMPARE(rows.size(), 1);
         rows.first()->click();
         QCOMPARE(accountCount(), 2);
+    }
+
+    // A folder with something in it is in the way of these files, and can't be removed by accident
+    static void blockWithFolder(const QString& file) {
+        QVERIFY(QDir().mkpath(file));
+        QFile inside(QDir(file).filePath("inside"));
+        QVERIFY(inside.open(QIODevice::WriteOnly));
+    }
+
+    void aBackupThatCantReplaceTheOldOneKeepsIt() {
+        const QString existing = QDir(folder).filePath("saved.db");
+        QVERIFY(Backup::write(existing));
+        blockWithFolder(existing + ".old");
+        QString error;
+        QVERIFY(!Backup::write(existing, &error));
+        QVERIFY(error.startsWith("The backup couldn't be saved under that name."));
+        QVERIFY(Backup::inspect(existing).has_value());
+        QVERIFY(!QFile::exists(existing + ".unfinished"));
+    }
+
+    void aBackupThatCantBeCopiedChangesNothing() {
+        const QString backup = backupThenChange();
+        blockWithFolder(path + ".restoring");
+        QString error;
+        QVERIFY(!DatabaseSession::restore(backup, &error));
+        QCOMPARE(error, QString("The backup couldn't be copied. Nothing was changed."));
+        QCOMPARE(accountCount(), 2);
+    }
+
+    void withoutASavedCopyOfTheCurrentDataNothingIsRestored() {
+        const QString backup = backupThenChange();
+        QSqlDatabase database = DatabaseManager::instance().database();
+        QVERIFY(database.transaction());                      // SQLite can't save a copy inside one
+        QString error;
+        QVERIFY(!DatabaseSession::restore(backup, &error));
+        database.rollback();
+        QVERIFY(error.startsWith("Your current data couldn't be backed up first, so nothing was changed."));
+        QCOMPARE(accountCount(), 2);
+        QVERIFY(!QFile::exists(path + ".restoring"));
+    }
+
+    void aDatabaseThatCantBeReplacedStaysOpen() {
+        const QString backup = backupThenChange();
+        blockWithFolder(path + ".replaced");
+        QString error;
+        QVERIFY(!DatabaseSession::restore(backup, &error));
+        QCOMPARE(error, QString("The database file couldn't be replaced. It may be in use. Nothing was changed."));
+        QVERIFY(DatabaseManager::instance().database().isOpen());
+        QCOMPARE(accountCount(), 2);
+        QVERIFY(!QFile::exists(path + ".restoring"));
+    }
+
+    void restoringAsksBeforeReplacingTheData() {
+        BackupSettings settings;
+        QString asked;
+        QTimer::singleShot(0, qApp, [&asked]() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            asked = box->text();
+            for (QAbstractButton* button : box->buttons()) {
+                if (button->text() == "Restore") button->click();
+            }
+        });
+        QVERIFY(settings.confirmRestore("Replace everything?"));
+        QCOMPARE(asked, QString("Replace everything?"));
     }
 
     // --- Hostile input ---

@@ -519,6 +519,50 @@ private slots:
         QCOMPARE(page.openedReport(), ReportsPage::Report::CategoryTrend);
     }
 
+    void rowsLightUpUnderTheMouseAndIgnoreOtherKeys() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Kiosk", 1000, QDate::currentDate(), "", 0, "expense"));
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        QTest::keyClick(cards(page)[0], Qt::Key_A);
+        QCOMPARE(page.openedReport(), std::nullopt);
+        cards(page)[0]->click();
+        QCoreApplication::processEvents();
+        auto* row = page.findChildren<QAbstractButton*>("spendingRow").first();
+        const QImage plain = row->grab().toImage();
+        row->setAttribute(Qt::WA_UnderMouse);
+        QVERIFY(row->grab().toImage() != plain);
+        QTest::keyClick(row, Qt::Key_A);
+        QCOMPARE(page.openedReport(), ReportsPage::Report::SpendingByCategory);
+    }
+
+    void chartsLetGoWhenTheMouseLeavesTheirBars() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Employer", 200000, today, "", 0, "income"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", 50000, today, "", 0, "expense"));
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        chip(page, Preset::ThreeMonths)->click();
+
+        const QList<QPair<int, const char*>> charts = {{1, "flowChart"}, {2, "balanceChart"}, {3, "trendChart"}};
+        for (const auto& [card, name] : charts) {
+            cards(page)[card]->click();
+            QCoreApplication::processEvents();
+            auto* chart = page.findChild<QWidget*>(name);
+            const QImage plain = chart->grab().toImage();
+            moveMouse(chart, inLastBar(chart, 3));
+            moveMouse(chart, QPoint(0, 0));
+            QCOMPARE(chart->grab().toImage(), plain);
+            moveMouse(chart, inLastBar(chart, 3));
+            leave(chart);
+            QCOMPARE(chart->grab().toImage(), plain);
+            page.findChild<QToolButton*>("reportsBackLink")->click();
+        }
+    }
+
     void theSpendingCardComparesWithTheMonthBefore() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         const QDate today = QDate::currentDate();

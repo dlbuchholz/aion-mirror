@@ -132,6 +132,22 @@ private slots:
         QCOMPARE(sheets.first().rows, (Rows{{"1904-01-02"}}));
     }
 
+    void aSheetCutOffInTheMiddleIsDamaged() {
+        const QByteArray workbookRels =
+            R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">)"
+            R"(<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>)"
+            R"(</Relationships>)";
+        const QByteArray file = zip({
+            {"_rels/.rels", PackageRels},
+            {"xl/workbook.xml", workbook(R"(<sheet name="Daten" sheetId="1" r:id="rId1"/>)")},
+            {"xl/_rels/workbook.xml.rels", workbookRels},
+            {"xl/worksheets/sheet1.xml", R"(<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c>)"},
+        });
+        QString error;
+        Spreadsheet::read(file, Format::Xlsx, &error);
+        QVERIFY2(error.startsWith("The file is damaged: "), qPrintable(error));
+    }
+
     void excelCanWriteDatesAsText() {
         const QByteArray workbookRels =
             R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">)"

@@ -70,6 +70,21 @@ public:
                               .arg(operation, table, condition));
     }
 
+    // Makes committing fail after this kind of write: it leaves a row that breaks a deferred foreign
+    // key, which SQLite only checks at the commit
+    static bool failCommitAfter(const QString& operation, const QString& table) {
+        QSqlQuery query(DatabaseManager::instance().database());
+        return query.exec("CREATE TABLE IF NOT EXISTS commit_guard (user_id INTEGER REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED)")
+               && query.exec(QString("CREATE TRIGGER fail_commit_%1_%2 AFTER %1 ON %2 BEGIN INSERT INTO commit_guard VALUES (-1); END")
+                                 .arg(operation, table));
+    }
+
+    // Removes a table, so that everything reading it fails
+    static bool dropTable(const QString& table) {
+        QSqlQuery query(DatabaseManager::instance().database());
+        return query.exec("PRAGMA foreign_keys = OFF") && query.exec("DROP TABLE " + table);
+    }
+
     const QString& path() const { return templatePath; }
 
 private:

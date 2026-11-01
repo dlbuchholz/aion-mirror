@@ -4,9 +4,11 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QTimer>
 #include <QToolButton>
 
 #include "account.h"
@@ -54,6 +56,51 @@ private slots:
         QStringList groups;
         for (QLabel* label : settings.findChildren<QLabel*>("categoryGroupLabel")) groups << label->text();
         QCOMPARE(groups, QStringList({"Expenses", "Income", "Built in"}));
+    }
+
+    void rowsLightUpWhenHoveredOrOpen() {
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        QAbstractButton* groceries = row(settings, "Groceries");
+        const QImage plain = groceries->grab().toImage();
+        groceries->setAttribute(Qt::WA_UnderMouse);
+        QVERIFY(groceries->grab().toImage() != plain);
+    }
+
+    void theOpenCategoryCanBeClosedOrDeletedMeanwhile() {
+        const int unused = CategoryDAO(1).addCategory(Category(-1, "Unused", "expense"));
+        QVERIFY(unused > 0);
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        auto* editor = settings.findChild<QFrame*>("categoryEditor");
+        row(settings, "Unused")->click();
+        settle();
+        QVERIFY(editor->isVisibleTo(&settings));
+        for (QPushButton* button : editor->findChildren<QPushButton*>()) {
+            if (button->text() == "Cancel") {
+                button->click();
+                break;
+            }
+        }
+        settle();
+        QVERIFY(!editor->isVisibleTo(&settings));
+
+        row(settings, "Unused")->click();
+        settle();
+        QVERIFY(CategoryDAO(1).deleteCategory(unused));
+        settings.reload();
+        settle();
+        QVERIFY(!row(settings, "Unused"));
+        QVERIFY(!editor->isVisibleTo(&settings));
+    }
+
+    void removingAsksByDefault() {
+        CategoriesSettings settings;
+        QTimer::singleShot(0, qApp, []() {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            box->button(QMessageBox::Yes)->click();
+        });
+        QVERIFY(settings.confirm("Delete", "Sure?"));
     }
 
     void openingACategoryKeepsTheListWhereItIs() {
