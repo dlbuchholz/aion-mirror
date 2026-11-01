@@ -182,6 +182,64 @@ private slots:
         QCOMPARE(DatabaseSession::currentDatabasePath(), current);         // Still the old one
     }
 
+    void openingAFileSwitchesToIt() {
+        const QString current = DatabaseSession::currentDatabasePath();
+        const QString other = dir.filePath("chosen.db");
+        QVERIFY(DatabaseSession::create(other));
+        QVERIFY(UserDAO().createUser(User(0, "anna", "Anna Other")));
+        QVERIFY(DatabaseSession::open(current));
+
+        StartWindow window;
+        QString answer;                                  // Cancelled first
+        window.askDatabaseToOpen = [&answer]() { return answer; };
+        menuEntry(databaseMenu(window), "Open database file…")->trigger();
+        QCOMPARE(DatabaseSession::currentDatabasePath(), current);
+
+        answer = other;
+        menuEntry(databaseMenu(window), "Open database file…")->trigger();
+        QCOMPARE(DatabaseSession::currentDatabasePath(), other);
+        QVERIFY(showsUser(window, "Anna Other"));
+    }
+
+    void aNewDatabaseGetsItsEndingAndOpens() {
+        const QString current = DatabaseSession::currentDatabasePath();
+        QVERIFY(UserDAO().createUser(User(0, "bob", "Bob Here")));
+        StartWindow window;
+        QString answer;                                  // Cancelled first
+        window.askDatabaseToCreate = [&answer]() { return answer; };
+        menuEntry(databaseMenu(window), "New database…")->trigger();
+        QCOMPARE(DatabaseSession::currentDatabasePath(), current);
+        QVERIFY(showsUser(window, "Bob Here"));
+
+        answer = dir.filePath("family");
+        menuEntry(databaseMenu(window), "New database…")->trigger();
+        QCOMPARE(DatabaseSession::currentDatabasePath(), dir.filePath("family.db"));
+        QVERIFY(QFile::exists(dir.filePath("family.db")));
+        QCOMPARE(window.findChild<QToolButton*>("databaseButton")->text(), QString("family.db"));
+        QVERIFY(!showsUser(window, "Bob Here"));
+        QVERIFY(!window.findChild<QLineEdit*>("nameEdit")->parentWidget()->isHidden());   // No users yet
+    }
+
+    void aNewDatabaseOverAnExistingFileIsRefused() {
+        // The file dialog doesn't warn about overwriting, so this must never touch the file
+        const QString existing = dir.filePath("existing.db");
+        QVERIFY(DatabaseSession::create(existing));
+        QVERIFY(UserDAO().createUser(User(0, "anna", "Anna Other")));
+        const QString current = dir.filePath(QString("case%1.db").arg(++databaseCounter));
+        QVERIFY(DatabaseSession::create(current));
+
+        StartWindow window;
+        window.askDatabaseToCreate = [&existing]() { return existing; };
+        menuEntry(databaseMenu(window), "New database…")->trigger();
+        auto* message = window.findChild<QLabel*>("startMessageLabel");
+        QVERIFY(!message->isHidden());
+        QVERIFY(message->text().startsWith("Couldn't create existing.db."));
+        QCOMPARE(DatabaseSession::currentDatabasePath(), current);         // Still the old one
+
+        QVERIFY(DatabaseSession::open(existing));
+        QVERIFY(UserDAO().findUserIdByUsername("anna") > 0);
+    }
+
     void invalidOrDuplicateUsersShowAnError() {
         QVERIFY(UserDAO().createUser(User(0, "alex", "Alex Example")));
         StartWindow window;

@@ -2,6 +2,7 @@
 #define STARTWINDOW_H
 
 #include <QDialog>
+#include <functional>
 
 class QCheckBox;
 class QFrame;
@@ -19,6 +20,10 @@ public:
     explicit StartWindow(QWidget* parent = nullptr);
 
     int selectedUserId() const;
+
+    // Ask where a database is or should go, empty when cancelled (file dialogs; tests replace them)
+    std::function<QString()> askDatabaseToOpen;
+    std::function<QString()> askDatabaseToCreate;
 
 protected:
     void changeEvent(QEvent* event) override;

@@ -236,6 +236,17 @@ StartWindow::StartWindow(QWidget* parent)
     footer->addWidget(quitButton);
     root->addLayout(footer);
 
+    askDatabaseToOpen = [this]() {
+        return QFileDialog::getOpenFileName(this, "Open database",
+                                            QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath(),
+                                            "Aion database (*.db);;All files (*)");
+    };
+    askDatabaseToCreate = [this]() {
+        return QFileDialog::getSaveFileName(this, "New database",
+                                            QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath() + "/budget.db",
+                                            "Aion database (*.db)", nullptr, QFileDialog::DontConfirmOverwrite);
+    };
+
     updateDatabaseButton();
     loadUsers();
 }
@@ -354,18 +365,14 @@ void StartWindow::switchDatabase(const QString& path) {
 }
 
 void StartWindow::openDatabaseFile() {
-    const QString path = QFileDialog::getOpenFileName(this, "Open database",
-                                                      QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath(),
-                                                      "Aion database (*.db);;All files (*)");
+    const QString path = askDatabaseToOpen();
     if (!path.isEmpty()) {
         switchDatabase(path);
     }
 }
 
 void StartWindow::createDatabase() {
-    QString path = QFileDialog::getSaveFileName(this, "New database",
-                                                QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath() + "/budget.db",
-                                                "Aion database (*.db)", nullptr, QFileDialog::DontConfirmOverwrite);
+    QString path = askDatabaseToCreate();
     if (path.isEmpty()) {
         return;
     }
