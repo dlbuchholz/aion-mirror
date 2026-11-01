@@ -36,6 +36,9 @@ enum class AmountInterpretation {
     ColumnBased                                      // Use the mapped Type column (falls back to the sign)
 };
 
+// A file's text: by its byte order mark, else UTF-8, else Windows-1252 (older bank software)
+QString decodeText(const QByteArray& bytes);
+
 // Detection of the file's conventions
 QChar detectDelimiter(const QString& text);          // ',', ';', '\t' or '|'
 QChar detectDecimalSeparator(const QList<QStringList>& rows, int amountColumn, QChar fallback);

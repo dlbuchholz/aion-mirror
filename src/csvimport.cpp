@@ -10,8 +10,30 @@
 #include <QRegularExpression>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QStringDecoder>
 
 namespace CsvImport {
+
+QString decodeText(const QByteArray& bytes) {
+    if (const std::optional<QStringConverter::Encoding> marked = QStringConverter::encodingForData(bytes)) {
+        return QStringDecoder(*marked).decode(bytes);    // A byte order mark says what it is
+    }
+    QStringDecoder utf8(QStringConverter::Utf8);
+    const QString text = utf8.decode(bytes);
+    if (!utf8.hasError()) {
+        return text;
+    }
+
+    // Not UTF-8: Windows-1252, which is Latin-1 with these in place of its control characters
+    static const char16_t windows1252[32] = {
+        0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+        0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178};
+    QString result = QString::fromLatin1(bytes);
+    for (QChar& c : result) {
+        if (c.unicode() >= 0x80 && c.unicode() <= 0x9F) c = QChar(windows1252[c.unicode() - 0x80]);
+    }
+    return result;
+}
 
 QChar detectDelimiter(const QString& text) {
     if (text.isEmpty()) {
@@ -104,6 +126,16 @@ Mapping autoMapColumns(const QStringList& headers) {
     return mapping;
 }
 
+namespace {
+
+// Qt reads a two-digit year as 19xx. Banks mean this century, unless that's still far ahead.
+QDate inThisCentury(const QDate& date) {
+    const QDate moved = date.addYears(100);
+    return date.year() < 2000 && moved <= QDate::currentDate().addYears(1) ? moved : date;
+}
+
+} // namespace
+
 QDate parseDate(const QString& text) {
     const QString cleaned = text.trimmed();
     if (cleaned.isEmpty()) {
@@ -122,23 +154,46 @@ QDate parseDate(const QString& text) {
             return date;
         }
     }
-    return QLocale().toDate(cleaned, QLocale::ShortFormat);
+    static const QStringList twoDigitYearFormats = {
+        "dd.MM.yy", "d.M.yy", "dd/MM/yy", "MM/dd/yy", "d/M/yy", "M/d/yy", "dd-MM-yy", "MM-dd-yy"
+    };
+    for (const QString& format : twoDigitYearFormats) {
+        const QDate date = QDate::fromString(cleaned, format);
+        if (date.isValid()) {
+            return inThisCentury(date);
+        }
+    }
+    const QDate date = QLocale().toDate(cleaned, QLocale::ShortFormat);
+    static const QRegularExpression fourDigits("\\d{4}");
+    return cleaned.contains(fourDigits) ? date : inThisCentury(date);
 }
 
 Cents parseAmount(const QString& text, QChar decimalSeparator, bool* ok) {
     if (ok) *ok = false;
-    const QString trimmed = text.trimmed();
-    if (trimmed.isEmpty()) {
+
+    // Spaces and apostrophes group thousands ("1 234,56", "1'234.56"); typographic minus signs are minus signs
+    QString compact;
+    for (const QChar c : text) {
+        if (c.isSpace() || c == u'\'' || c == u'’') continue;
+        compact += (c == u'−' || c == u'‒' || c == u'–' || c == u'—') ? QChar('-') : c;
+    }
+
+    // One number, with only signs, currency symbols or a currency code around it. Anything else
+    // with digits in it ("Rechnung 4711", "1.5E+3", a date) isn't an amount.
+    static const QRegularExpression shape(
+        "^(?<before>[-+()\\p{Sc}]*(?:[A-Za-z]{3}|[Ee]uro)?[-+()\\p{Sc}]*)"
+        "(?<number>[0-9][0-9.,]*|[.,][0-9]+)"
+        "(?<after>[-+()\\p{Sc}]*(?:[A-Za-z]{3}|[Ee]uro)?[-+()\\p{Sc}]*)$");
+    const QRegularExpressionMatch match = shape.match(compact);
+    if (!match.hasMatch()) {
         return 0;
     }
 
     // "(12.50)" is accounting notation for -12.50
-    const bool negative = trimmed.contains('(') || trimmed.contains('-');
+    const QString signs = match.captured("before") + match.captured("after");
+    const bool negative = signs.contains('(') || signs.contains('-');
 
-    // Keep digits and separators only (drops currency symbols, spaces, signs)
-    QString cleaned = trimmed;
-    static const QRegularExpression nonNumeric("[^0-9.,]");
-    cleaned.remove(nonNumeric);
+    QString cleaned = match.captured("number");
     if (decimalSeparator == ',') {
         cleaned.remove('.');                         // 1.234,56 -> 1234,56
         cleaned.replace(',', '.');
@@ -164,7 +219,9 @@ QString transactionType(Cents amount, const QString& typeText, AmountInterpretat
     case AmountInterpretation::AllExpense:
         return "expense";
     case AmountInterpretation::ColumnBased: {
-        const QString lower = typeText.toLower();
+        const QString lower = typeText.trimmed().toLower();
+        if (lower == "h" || lower == "haben") return "income";    // German bookkeeping: credit
+        if (lower == "s" || lower == "soll") return "expense";    // German bookkeeping: debit
         if (lower.contains("income") || lower.contains("credit")) return "income";
         if (lower.contains("expense") || lower.contains("debit")) return "expense";
         break;                                       // Unknown text: use the sign

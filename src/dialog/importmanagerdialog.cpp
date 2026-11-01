@@ -23,7 +23,6 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QStackedWidget>
-#include <QTextStream>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -388,11 +387,11 @@ void ImportManagerDialog::loadFile(const QString &path)
         }
     } else {
         QFile file(path);
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (!file.open(QIODevice::ReadOnly)) {
             showError(fileErrorLabel, QString("The file couldn't be opened: %1").arg(file.errorString()));
             return;
         }
-        text = QTextStream(&file).readAll();
+        text = CsvImport::decodeText(file.readAll());
     }
     filePath = path;
     fileText = text;
