@@ -43,7 +43,10 @@ for test in "${tests[@]}"; do
     ctest --test-dir "$build_dir" -R "^$test\$" > "$output/suites/$test.log" 2>&1 || failed+=("$test")
     gcovr -j "$jobs" --root "$repo" --filter "$repo/src/" --json "$output/suites/$test.json" "$build_dir" > /dev/null
     # QtTest lists a program's test functions with -functions
-    "$build_dir/$test" -functions > "$output/suites/$test.functions" 2>/dev/null || true
+    # The programs are in tests/ on Linux and in the build folder itself on Windows (Qt's setup)
+    program="$build_dir/tests/$test"
+    [[ -e $program || -e $program.exe ]] || program="$build_dir/$test"
+    "$program" -functions > "$output/suites/$test.functions" 2>/dev/null || failed+=("$test")
 done
 
 tracefiles=()

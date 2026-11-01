@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(Aion VERSION 0.1.0 LANGUAGES C CXX)          # C for thirdparty/miniz
+project(Aion VERSION 0.1.1 LANGUAGES C CXX)          # C for thirdparty/miniz
 
 include(CTest)
 
