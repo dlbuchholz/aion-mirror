@@ -604,11 +604,14 @@ private slots:
         QTest::newRow("a blank line at the end") << "Datum;Betrag;Name\n01.01.2026;12,50;Shop\n\n" << QChar(';');
         QTest::newRow("a blank line in between") << "Datum;Betrag;Name\n\n01.01.2026;12,50;Shop\n" << QChar(';');
         QTest::newRow("a title line above the table") << "Umsaetze Girokonto\nDatum;Betrag;Name\n01.01.2026;12,50;Shop\n" << QChar(';');
+        QTest::newRow("a title with a comma") << "Umsaetze, Girokonto\nDatum;Betrag;Name\n01.01.2026;12,50;Shop\n" << QChar(';');
+        QTest::newRow("decimal commas in every row") << "Titel\nDatum;Betrag\n01.01.2026;12,50\n02.01.2026;3,10\n" << QChar(';');
+        QTest::newRow("one row that's cut short") << "Date,Amount,Payee\n2026-01-01,12.50,Shop\n2026-01-02\n2026-01-03,1.00,Cafe\n" << QChar(',');
+        QTest::newRow("no delimiter at all") << "Name\nShop\n" << QChar(',');
     }
     void delimiterSurvivesUntidyFiles() {
         QFETCH(QString, text);
         QFETCH(QChar, expected);
-        QEXPECT_FAIL("", "Not fixed yet", Continue);
         QCOMPARE(detectDelimiter(text), expected);
     }
 

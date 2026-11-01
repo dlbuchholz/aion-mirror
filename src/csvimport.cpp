@@ -40,26 +40,30 @@ QChar detectDelimiter(const QString& text) {
         return ',';
     }
 
-    // The delimiter that splits every record into the same, largest number of columns wins
+    // The delimiter that splits the most lines into the same number of columns wins, then the one
+    // with more columns. Not all lines have to agree: files can have blank lines or a title above
+    // the table.
     QChar best = ',';
+    int bestLines = 0;
     int bestColumns = 1;
     for (QChar delimiter : {QChar(','), QChar(';'), QChar('\t'), QChar('|')}) {
         QString error;
         const QList<QStringList> records = CsvParser::parse(text, delimiter, &error);
-        if (!error.isEmpty() || records.isEmpty() || records.first().size() <= 1) {
+        if (!error.isEmpty()) {
             continue;
         }
-        const int columns = records.first().size();
-        bool consistent = true;
+        QHash<int, int> linesWithColumns;
         for (const QStringList& record : records) {
-            if (record.size() != columns) {
-                consistent = false;
-                break;
+            if (record.size() > 1) {
+                linesWithColumns[int(record.size())]++;
             }
         }
-        if (consistent && columns > bestColumns) {
-            bestColumns = columns;
-            best = delimiter;
+        for (auto it = linesWithColumns.cbegin(); it != linesWithColumns.cend(); ++it) {
+            if (it.value() > bestLines || (it.value() == bestLines && it.key() > bestColumns)) {
+                bestLines = it.value();
+                bestColumns = it.key();
+                best = delimiter;
+            }
         }
     }
     return best;
