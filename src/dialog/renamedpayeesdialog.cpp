@@ -107,6 +107,7 @@ void RenamedPayeesDialog::apply() {
         }
     }
     if (!db.commit()) {
+        db.rollback();
         QMessageBox::warning(this, windowTitle(), "The names couldn't be changed. Nothing was changed.");
         return;
     }

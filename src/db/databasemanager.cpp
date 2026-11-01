@@ -30,6 +30,14 @@ QSqlDatabase& DatabaseManager::database() {
     return m_database;
 }
 
+bool DatabaseManager::commitOrRollback(QSqlDatabase& database) {
+    if (database.commit()) {
+        return true;
+    }
+    database.rollback();
+    return false;
+}
+
 bool DatabaseManager::openDatabase(const QString& dbPath) {
     // If no driver/connection has been set up yet, create one now.
     if (!m_database.isValid()) {

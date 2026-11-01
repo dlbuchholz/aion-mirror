@@ -131,6 +131,61 @@ private slots:
         QCOMPARE(applyRenames(transactionId), QString("The names couldn't be changed. Nothing was changed."));
     }
 
+    void aFailedCommitDoesntBlockWhatComesNext() {
+        const auto nothingOpen = []() { return database().transaction() && database().rollback(); };
+        const int transactionId = addExpense("Kiosk");
+        const int otherAccount = AccountDAO::createAccount(1, "Other", "Savings", 0);
+        Rule rule = ruleFor("Kiosk");
+        rule.id = RuleDAO(1).addRule(rule);
+        const int unused = CategoryDAO(1).addCategory(Category(-1, "Unused", "expense"));
+        const int unusedToo = CategoryDAO(1).addCategory(Category(-1, "Unused too", "expense"));
+        TransactionDAO transactions;
+
+        QVERIFY(TestDbFixture::failCommitAfter("INSERT", "accounts"));
+        QCOMPARE(AccountDAO::createAccount(1, "New", "Savings", 0), -1);
+        QVERIFY(nothingOpen());
+        QCOMPARE(AccountDAO().getAllAccountsForUser(1).size(), 2);
+
+        QVERIFY(TestDbFixture::failCommitAfter("DELETE", "accounts"));
+        QVERIFY(!AccountDAO().deleteAccount(otherAccount));
+        QVERIFY(nothingOpen());
+        QVERIFY(!AccountDAO().deleteAccountMovingTo(otherAccount, giro));
+        QVERIFY(nothingOpen());
+        QCOMPARE(AccountDAO().getAllAccountsForUser(1).size(), 2);
+
+        QVERIFY(TestDbFixture::failCommitAfter("UPDATE", "transactions"));
+        Transaction changed = transactions.getTransactionById(transactionId);
+        changed.setPayee("Changed");
+        QVERIFY(!transactions.updateTransactions({changed}));
+        QVERIFY(nothingOpen());
+        const QList<RuleChange> changes = Rules::changesFor({rule}, transactions.getTransactionsForAccount(giro), false, {});
+        QCOMPARE(changes.size(), 1);
+        QVERIFY(!Rules::apply(changes));
+        QVERIFY(nothingOpen());
+        QCOMPARE(applyRenames(transactionId), QString("The names couldn't be changed. Nothing was changed."));
+        QVERIFY(nothingOpen());
+        QCOMPARE(transactions.getTransactionById(transactionId).getPayee(), QString("Kiosk"));
+
+        QVERIFY(TestDbFixture::failCommitAfter("DELETE", "transactions"));
+        QVERIFY(!transactions.deleteTransactions({transactionId}));
+        QVERIFY(nothingOpen());
+        QCOMPARE(transactions.getTransactionsForAccount(giro).size(), 1);
+
+        QVERIFY(TestDbFixture::failCommitAfter("INSERT", "budgets"));
+        QVERIFY(!BudgetDAO().setMonthlyLimit(1, 4, QDate(2026, 10, 1), 1000));
+        QVERIFY(nothingOpen());
+
+        QVERIFY(TestDbFixture::failCommitAfter("DELETE", "categories"));
+        QVERIFY(!CategoryDAO(1).deleteCategory(unused));
+        QVERIFY(nothingOpen());
+        QVERIFY(!CategoryDAO(1).mergeCategory(unused, unusedToo));
+        QVERIFY(nothingOpen());
+
+        QVERIFY(TestDbFixture::failCommitAfter("UPDATE", "rules"));
+        QVERIFY(!RuleDAO(1).setOrder({rule.id}));
+        QVERIFY(nothingOpen());
+    }
+
     void refusedWritesAreReported() {
         QVERIFY(BudgetDAO().setMonthlyLimit(1, 4, QDate(2026, 9, 1), 1000));
         QVERIFY(TestDbFixture::refuse("UPDATE", "budgets"));

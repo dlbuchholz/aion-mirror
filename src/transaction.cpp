@@ -298,7 +298,7 @@ bool TransactionDAO::updateTransactions(const QList<Transaction>& transactions) 
             return false;
         }
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 bool TransactionDAO::deleteTransactions(const QList<int>& transactionIds) {
@@ -312,7 +312,7 @@ bool TransactionDAO::deleteTransactions(const QList<int>& transactionIds) {
             return false;
         }
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 QList<Transaction> TransactionDAO::getTransactionsForAccount(int accountId) {

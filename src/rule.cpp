@@ -364,7 +364,7 @@ bool Rules::apply(const QList<RuleChange>& changes) {
             return false;
         }
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 // "REWE SAGT DANKE 0815" → "REWE SAGT DANKE": a branch or reference number at the end only matches
@@ -661,5 +661,5 @@ bool RuleDAO::setOrder(const QList<int>& ruleIds) {
             return false;
         }
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }

@@ -140,7 +140,7 @@ bool inTransaction(Steps steps) {
         db.rollback();
         return false;
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 } // namespace

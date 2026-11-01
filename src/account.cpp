@@ -187,6 +187,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
     // Commit the transaction
     if (!db.commit()) {
         qWarning() << "Failed to commit transaction:" << db.lastError().text();
+        db.rollback();
         return -1;
     }
 
@@ -331,7 +332,7 @@ bool AccountDAO::deleteAccount(int accountId) {
         db.rollback();
         return false;
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 bool AccountDAO::deleteAccountMovingTo(int accountId, int targetAccountId) {
@@ -376,7 +377,7 @@ bool AccountDAO::deleteAccountMovingTo(int accountId, int targetAccountId) {
         db.rollback();
         return false;
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 int AccountDAO::transactionCount(int accountId) {

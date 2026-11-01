@@ -152,7 +152,7 @@ bool CategoryDAO::deleteCategory(int categoryId) {
         db.rollback();                               // Still used by transactions or budgets
         return false;
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 bool CategoryDAO::editCategory(int id, const QString& newName, const QString& newType, const QString& newColor) {
@@ -208,7 +208,7 @@ bool runAll(const QList<QPair<QString, QVariantMap>>& statements) {
             return false;
         }
     }
-    return db.commit();
+    return DatabaseManager::commitOrRollback(db);
 }
 
 } // namespace
