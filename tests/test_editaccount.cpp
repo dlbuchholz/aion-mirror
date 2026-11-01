@@ -48,6 +48,15 @@ private slots:
         QCOMPARE(AccountDAO().getAccountById(giro).getName(), QString("Girokonto"));
     }
 
+    void theDialogSaysWhenAnAccountCantBeSaved() {
+        EditAccountDialog dialog(1, giro);
+        QVERIFY(AccountDAO().deleteAccount(giro));       // Gone while the dialog was open
+        dialog.findChild<QLineEdit*>("accountNameEdit")->setText("Hausbank");
+        dialog.findChild<QPushButton*>("saveAccountButton")->click();
+        QCOMPARE(dialog.findChild<QLabel*>("accountStatusLabel")->text(), QString("The account couldn't be saved."));
+        QCOMPARE(dialog.result(), 0);
+    }
+
     void refusesAnotherUsersType() {
         QVERIFY(UserDAO().createUser(User(0, "other", "Other User")));
         const int otherType = AccountDAO().addAccountType(2, "Foreign");

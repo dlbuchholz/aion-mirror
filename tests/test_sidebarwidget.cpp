@@ -2,6 +2,8 @@
 #include <QAbstractButton>
 #include <QLabel>
 #include <QMenu>
+#include <QSignalSpy>
+#include <QTimer>
 
 #include "account.h"
 #include "budget.h"
@@ -177,6 +179,74 @@ private slots:
         QCOMPARE(shown(sidebar).size(), 7);
         QVERIFY(!sidebar.findChild<QAbstractButton*>("moreBudgetsItem"));
         Settings::instance().setSidebarShowingAllBudgets(false);
+    }
+
+    // Menus block until closed, so choosing the entry is queued first
+    static void chooseFromMenu(const QString& text) {
+        QTimer::singleShot(0, qApp, [text]() {
+            auto* menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+            for (QAction* action : menu->actions()) {
+                if (action->text() == text) action->trigger();
+            }
+            menu->close();
+        });
+    }
+
+    void accountMenusAskForTheRightThing() {
+        SidebarWidget sidebar;
+        sidebar.setUserId(1);
+        sidebar.setAttribute(Qt::WA_DontShowOnScreen);
+        sidebar.show();
+        QCoreApplication::processEvents();
+        QSignalSpy show(&sidebar, &SidebarWidget::accountRequested);
+        QSignalSpy correct(&sidebar, &SidebarWidget::correctBalanceRequested);
+        QSignalSpy edit(&sidebar, &SidebarWidget::editAccountRequested);
+        QSignalSpy remove(&sidebar, &SidebarWidget::deleteAccountRequested);
+        const int account = AccountDAO().getAllAccountsForUser(1).first().getAccountId();
+        QAbstractButton* row = item(sidebar, AccountDAO().getAccountById(account).getName());
+        QVERIFY(row);
+
+        for (const char* entry : {"Show transactions", "Correct balance…", "Edit account…", "Delete account…"}) {
+            chooseFromMenu(QString::fromUtf8(entry));
+            emit row->customContextMenuRequested(QPoint(2, 2));
+        }
+        QCOMPARE(show.count(), 1);
+        QCOMPARE(show[0][0].toInt(), account);
+        QCOMPARE(correct.count(), 1);
+        QCOMPARE(edit.count(), 1);
+        QCOMPARE(remove.count(), 1);
+        QCOMPARE(remove[0][0].toInt(), account);
+    }
+
+    void theUserMenuSwitchesUser() {
+        SidebarWidget sidebar;
+        sidebar.setUserId(1);
+        sidebar.setAttribute(Qt::WA_DontShowOnScreen);
+        sidebar.show();
+        QCoreApplication::processEvents();
+        QSignalSpy switchUser(&sidebar, &SidebarWidget::switchUserRequested);
+        chooseFromMenu(QString::fromUtf8("Switch user…"));
+        sidebar.findChild<QAbstractButton*>("userItem")->click();
+        QCOMPARE(switchUser.count(), 1);
+    }
+
+    void collapsingAnimatesToTheNarrowWidthAndBack() {
+        SidebarWidget sidebar;
+        sidebar.setUserId(1);
+        sidebar.setAttribute(Qt::WA_DontShowOnScreen);
+        sidebar.setCollapsed(false, false);
+        sidebar.show();
+        QCoreApplication::processEvents();
+        const int wide = sidebar.width();
+        auto* brandName = sidebar.findChild<QWidget*>("sidebarBrandName");
+
+        sidebar.setCollapsed(true, true);
+        QTRY_VERIFY(sidebar.width() < wide);
+        QVERIFY(brandName->isHidden());
+
+        sidebar.setCollapsed(false, true);
+        QTRY_COMPARE(sidebar.width(), wide);
+        QTRY_VERIFY(!brandName->isHidden());             // Back only once it's wide again
     }
 
     void budgetsFollowTheChosenSort() {

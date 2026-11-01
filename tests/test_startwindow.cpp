@@ -15,6 +15,7 @@
 #include "settings.h"
 #include "startwindow.h"
 #include "systeminfo.h"
+#include "theme.h"
 #include "user.h"
 #include "version.h"
 
@@ -238,6 +239,17 @@ private slots:
 
         QVERIFY(DatabaseSession::open(existing));
         QVERIFY(UserDAO().findUserIdByUsername("anna") > 0);
+    }
+
+    void aNewPaletteRecoloursTheVersion() {
+        StartWindow window;
+        auto* version = window.findChild<QLabel*>("versionLabel");
+        QPalette wrong = version->palette();
+        wrong.setColor(QPalette::WindowText, Qt::magenta);
+        version->setPalette(wrong);
+
+        window.setPalette(QPalette(Qt::darkCyan));       // What a theme change sends
+        QCOMPARE(version->palette().color(QPalette::WindowText), Theme::colors().textMuted);
     }
 
     void invalidOrDuplicateUsersShowAnError() {

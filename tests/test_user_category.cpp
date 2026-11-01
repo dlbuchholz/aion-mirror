@@ -37,6 +37,12 @@ private slots:
         QCOMPARE(dao.findUserIdByUsername("nobody"), -1);
     }
 
+    void anUnknownUserComesBackInvalid() {
+        const User nobody = UserDAO().getUserById(9999);
+        QCOMPARE(nobody.getUserId(), -1);
+        QVERIFY(nobody.getName().isEmpty());
+    }
+
     void rejectsDuplicateUserFields() {
         UserDAO dao;
         QVERIFY(!dao.createUser(User(0, "testuser", "Another Name")));

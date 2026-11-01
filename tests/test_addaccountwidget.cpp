@@ -3,6 +3,9 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QSqlQuery>
+#include <QTimer>
 
 #include "account.h"
 #include "balance.h"
@@ -57,6 +60,58 @@ private slots:
         form.findChild<QAbstractButton*>("createAccountButton")->click();
         const int accountId = AccountDAO().getAllAccountsForUser(1).first().getAccountId();
         QVERIFY(TransactionDAO().getTransactionsForAccount(accountId).isEmpty());
+    }
+
+    // Clicks Create and answers the message box that blocks it; returns what it said
+    static QString messageOnCreate(AddAccountWidget& form) {
+        QString said;
+        QTimer::singleShot(0, qApp, [&said]() {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                said = box->text();
+                box->accept();
+            }
+        });
+        form.findChild<QAbstractButton*>("createAccountButton")->click();
+        QCoreApplication::processEvents();               // The queued call, if no box opened
+        return said;
+    }
+
+    void withoutAUserNothingIsCreated() {
+        AddAccountWidget form;
+        form.findChild<QLineEdit*>("accountNameInput")->setText("Giro");
+        QVERIFY(messageOnCreate(form).contains("User ID is not set"));
+        QVERIFY(AccountDAO().getAllAccountsForUser(1).isEmpty());
+    }
+
+    void aNameOfOnlySpacesIsRefused() {
+        AddAccountWidget form;
+        form.setUserId(1);
+        QSignalSpy created(&form, &AddAccountWidget::accountCreated);
+        form.findChild<QLineEdit*>("accountNameInput")->setText("   ");
+        QVERIFY(messageOnCreate(form).contains("valid account name"));
+        QCOMPARE(created.count(), 0);
+        QVERIFY(AccountDAO().getAllAccountsForUser(1).isEmpty());
+    }
+
+    void anAccountNeedsAType() {
+        AddAccountWidget form;
+        form.setUserId(1);
+        form.findChild<QComboBox*>("accountTypeComboBox")->clear();
+        form.findChild<QLineEdit*>("accountNameInput")->setText("Giro");
+        QVERIFY(messageOnCreate(form).contains("select an account type"));
+        QVERIFY(AccountDAO().getAllAccountsForUser(1).isEmpty());
+    }
+
+    void anAccountThatCantBeSavedKeepsTheForm() {
+        AddAccountWidget form;
+        form.setUserId(1);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("DELETE FROM account_types"));   // The offered type is gone by now
+        QSignalSpy created(&form, &AddAccountWidget::accountCreated);
+        form.findChild<QLineEdit*>("accountNameInput")->setText("Giro");
+        QVERIFY(messageOnCreate(form).contains("Failed to create"));
+        QCOMPARE(created.count(), 0);
+        QCOMPARE(form.findChild<QLineEdit*>("accountNameInput")->text(), QString("Giro"));
     }
 };
 

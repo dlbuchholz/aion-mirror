@@ -2,7 +2,9 @@
 #include <QAbstractButton>
 #include <QLabel>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QToolButton>
+#include <QToolTip>
 
 #include "account.h"
 #include "budget.h"
@@ -71,6 +73,64 @@ private slots:
         QCOMPARE(text(page, "savedValue"), money(150000));
         QCOMPARE(text(page, "savedDetail"), QString("75% of income"));
         QCOMPARE(text(page, "averageValue"), money(50000 / today.day()));
+    }
+
+    static void moveMouse(QWidget* widget, QPoint position) {
+        QMouseEvent event(QEvent::MouseMove, QPointF(position), widget->mapToGlobal(QPointF(position)),
+                          Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(widget, &event);
+    }
+
+    void hoveringTheChartShowsAMonthsNumbers() {
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, giro, "ACME", 200000, today, "", 0, "income")) > 0);
+        spend(50000, rent);
+        DashboardPage page;
+        page.setUserId(1);
+        page.setAttribute(Qt::WA_DontShowOnScreen);
+        page.resize(1100, 800);
+        page.show();
+        QCoreApplication::processEvents();
+        auto* chart = page.findChild<QWidget*>("cashFlowChart");
+        const QImage plain = chart->grab().toImage();
+
+        moveMouse(chart, QPoint(chart->width() - 10, chart->height() / 2));   // The current month is last
+        QVERIFY2(QToolTip::text().contains("Income " + money(200000)), qPrintable(QToolTip::text()));
+        QVERIFY(QToolTip::text().contains("Net " + money(150000, true)));
+        QVERIFY(chart->grab().toImage() != plain);       // The month is highlighted
+
+        QEvent leave(QEvent::Leave);
+        QApplication::sendEvent(chart, &leave);
+        QCOMPARE(chart->grab().toImage(), plain);
+
+        moveMouse(chart, QPoint(chart->width() / 2, chart->height() + 100));  // Below the months
+        QCOMPARE(chart->grab().toImage(), plain);
+    }
+
+    void anEmptyChartDraws() {
+        DashboardPage page;
+        page.setUserId(1);
+        page.setAttribute(Qt::WA_DontShowOnScreen);
+        page.resize(1100, 800);
+        page.show();
+        QCoreApplication::processEvents();
+        QVERIFY(!page.findChild<QWidget*>("cashFlowChart")->grab().isNull());
+    }
+
+    void enterOpensARowLikeAClick() {
+        spend(1250, groceries);
+        DashboardPage page;
+        page.setUserId(1);
+        QSignalSpy requested(&page, &DashboardPage::categoryRequested);
+        QAbstractButton* rowButton = nullptr;
+        for (QAbstractButton* button : page.findChildren<QAbstractButton*>()) {
+            if (button->accessibleName() == "Groceries") rowButton = button;
+        }
+        QVERIFY(rowButton);
+        QTest::keyClick(rowButton, Qt::Key_Return);
+        QCOMPARE(requested.count(), 1);
+        QCOMPARE(requested[0][0].toInt(), groceries);
+        QTest::keyClick(rowButton, Qt::Key_A);           // Other keys do nothing
+        QCOMPARE(requested.count(), 1);
     }
 
     void overspendingIsCalledOut() {

@@ -112,6 +112,26 @@ private slots:
         QCOMPARE(AccountDAO().ruleCount(next), 0);
     }
 
+    void dialogSaysWhenAnAccountCantBeDeleted() {
+        DeleteAccountDialog dialog(1, giro);
+        QVERIFY(AccountDAO().deleteAccount(savings));     // The target is gone while the dialog was open
+        dialog.findChild<QPushButton*>("deleteAccountButton")->click();
+        QCOMPARE(dialog.findChild<QLabel*>("deleteStatusLabel")->text(), QString("The account couldn't be deleted."));
+        QCOMPARE(dialog.result(), 0);
+        QCOMPARE(AccountDAO().getAccountById(giro).getAccountId(), giro);
+    }
+
+    void dialogSaysWhatHappensToRules() {
+        QVERIFY(addRule(giro, true, false) > 0);
+        DeleteAccountDialog dialog(1, giro);
+        dialog.findChild<QRadioButton*>("deleteTransactionsOption")->setChecked(true);
+        bool warned = false;
+        for (QLabel* label : dialog.findChildren<QLabel*>()) {
+            warned = warned || label->text().contains("1 rule will stop using this account");
+        }
+        QVERIFY(warned);
+    }
+
     void dialogMovesByDefault() {
         DeleteAccountDialog dialog(1, giro);
         QVERIFY(dialog.findChild<QRadioButton*>("moveTransactionsOption")->isChecked());

@@ -8,11 +8,13 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QSqlQuery>
+#include <QTextEdit>
 #include <QTimer>
 #include <QToolButton>
 #include <functional>
 
 #include "account.h"
+#include "dialog/importmanagerdialog.h"
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
@@ -731,6 +733,112 @@ private slots:
             if (action->text() == text) return action;
         }
         return nullptr;
+    }
+
+    // --- Keys in the editor ---
+
+    void enterSavesAndEscapeClosesTheEditor() {
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        auto* editor = page.findChild<TransactionEditor*>();
+
+        page.addTransaction();
+        QTest::keyClick(editor, Qt::Key_Escape);
+        QVERIFY(editor->isHidden());
+        QVERIFY(TransactionDAO().getTransactionsForAccount(firstId).isEmpty());
+
+        page.addTransaction();
+        editor->findChild<QDoubleSpinBox*>("amountEdit")->setValue(4.2);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QCOMPARE(TransactionDAO().getTransactionsForAccount(firstId).size(), 1);
+    }
+
+    void enterInTheDescriptionSavesAndShiftEnterAddsALine() {
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        auto* editor = page.findChild<TransactionEditor*>();
+        auto* description = editor->findChild<QTextEdit*>();
+
+        page.addTransaction();
+        QTest::keyClick(description, Qt::Key_Escape);
+        QVERIFY(editor->isHidden());
+
+        page.addTransaction();
+        editor->findChild<QDoubleSpinBox*>("amountEdit")->setValue(4.2);
+        QTest::keyClicks(description, "one");
+        QTest::keyClick(description, Qt::Key_Return, Qt::ShiftModifier);
+        QTest::keyClicks(description, "two");
+        QVERIFY(TransactionDAO().getTransactionsForAccount(firstId).isEmpty());
+
+        QTest::keyClick(description, Qt::Key_Return);
+        const QList<Transaction> saved = TransactionDAO().getTransactionsForAccount(firstId);
+        QCOMPARE(saved.size(), 1);
+        QCOMPARE(saved.first().getDescription(), QString("one\ntwo"));
+    }
+
+    void withoutAnAccountNothingIsSaved() {
+        QVERIFY(AccountDAO().deleteAccount(firstId));
+        QVERIFY(AccountDAO().deleteAccount(secondId));
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        page.addTransaction();
+        auto* editor = page.findChild<TransactionEditor*>();
+        editor->findChild<QDoubleSpinBox*>("amountEdit")->setValue(4.2);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QVERIFY(!editor->isHidden());                    // Still open, showing the error
+    }
+
+    // --- Dialogs opened from the page ---
+
+    void aCancelledBalanceCorrectionChangesNothing() {
+        TransactionsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &TransactionsPage::transactionsChanged);
+        QTimer::singleShot(0, qApp, []() { qobject_cast<QDialog*>(QApplication::activeModalWidget())->reject(); });
+        page.correctBalance(firstId);
+        QCOMPARE(changed.count(), 0);
+    }
+
+    void importsAndNewAccountsReachThePage() {
+        TransactionsPage page;
+        page.setUserId(1);
+        QSignalSpy changed(&page, &TransactionsPage::transactionsChanged);
+        QTimer::singleShot(0, qApp, []() {
+            auto* dialog = qobject_cast<ImportManagerDialog*>(QApplication::activeModalWidget());
+            emit dialog->transactionsImported(1);
+            emit dialog->accountCreated(1);
+            dialog->reject();
+        });
+        page.importTransactions();
+        QCOMPARE(changed.count(), 2);
+    }
+
+    // --- Rows without a valid account, which the database doesn't normally allow ---
+
+    void rowsWithoutAValidAccountAreFound() {
+        QVERIFY(!TransactionDAO().hasShadowedTransactions());
+        QVERIFY(TransactionDAO().getShadowedTransactions().isEmpty());
+
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("PRAGMA foreign_keys = OFF"));
+        const bool added = query.exec("INSERT INTO transactions (account_id, payee, amount, date, type) "
+                                      "VALUES (0, 'Lost', 100, '2026-01-01', 'expense')");
+        QVERIFY(query.exec("PRAGMA foreign_keys = ON"));
+        QVERIFY(added);
+
+        QVERIFY(TransactionDAO().hasShadowedTransactions());
+        const QList<Transaction> found = TransactionDAO().getShadowedTransactions();
+        QCOMPARE(found.size(), 1);
+        QCOMPARE(found.first().getPayee(), QString("Lost"));
+    }
+
+    void askingForSomethingThatIsntThere() {
+        QCOMPARE(TransactionDAO().getTransactionById(9999).getTransactionId(), Transaction().getTransactionId());
+        QVERIFY(TransactionDAO().getExistingHashes({}).isEmpty());
+        QVERIFY(!TransactionDAO().transactionExistsByHash("no such hash"));
     }
 
     void dayHeadersHaveNoMenu() {

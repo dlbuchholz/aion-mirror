@@ -201,6 +201,18 @@ private slots:
         QVERIFY(row(page, "Groceries"));
     }
 
+    void editorKeys() {
+        BudgetEditor editor;
+        QSignalSpy closed(&editor, &BudgetEditor::closed);
+        QSignalSpy save(&editor, &BudgetEditor::saveRequested);
+        QTest::keyClick(&editor, Qt::Key_Return);        // No category chosen: an error, not a save
+        QCOMPARE(save.count(), 0);
+        QTest::keyClick(&editor, Qt::Key_A);             // Other keys do nothing
+        QCOMPARE(closed.count(), 0);
+        QTest::keyClick(&editor, Qt::Key_Escape);
+        QCOMPARE(closed.count(), 1);
+    }
+
     void invalidLimitShowsAnError() {
         BudgetPage page;
         page.setUserId(1);
