@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QDesktopServices>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -6,6 +7,8 @@
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QToolButton>
+#include <QUrl>
 
 #include "account.h"
 #include "db/backup.h"
@@ -55,6 +58,11 @@ class TestRestore : public QObject {
         QSqlDatabase::removeDatabase("fileWith");
         return file;
     }
+
+    QUrl openedUrl;
+
+public slots:
+    void urlOpened(const QUrl& url) { openedUrl = url; }
 
 private slots:
     void initTestCase() {
@@ -312,6 +320,16 @@ private slots:
         });
         QVERIFY(settings.confirmRestore("Replace everything?"));
         QCOMPARE(asked, QString("Replace everything?"));
+    }
+
+    void openFolderShowsThisDatabasesBackups() {
+        QDesktopServices::setUrlHandler("file", this, "urlOpened");
+        BackupSettings settings;
+        for (QToolButton* button : settings.findChildren<QToolButton*>()) {
+            if (button->text() == "Open folder") button->click();
+        }
+        QDesktopServices::unsetUrlHandler("file");
+        QCOMPARE(openedUrl, QUrl::fromLocalFile(Backup::folderFor(path)));
     }
 
     // --- Hostile input ---

@@ -45,6 +45,19 @@ private slots:
         QVERIFY(!(table->item(1, 0)->flags() & Qt::ItemIsEditable));         // Names can't be edited
     }
 
+    void onlyChangedValuesCountAsEdits() {
+        RawSettingsDialog dialog;
+        auto* table = dialog.findChild<QTableWidget*>();
+        auto* buttons = dialog.findChild<QDialogButtonBox*>();
+        table->item(0, 0)->setText("Alpha/renamed");                         // A name, not a value
+        QVERIFY(!buttons->button(QDialogButtonBox::Apply)->isEnabled());
+
+        buttons->button(QDialogButtonBox::Ok)->click();                      // Nothing to save
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QCOMPARE(settings().value("Alpha/first").toString(), QString("a"));
+        QVERIFY(!settings().contains("Alpha/renamed"));
+    }
+
     void searchFindsNamesAndValues() {
         RawSettingsDialog dialog;
         auto* table = dialog.findChild<QTableWidget*>();

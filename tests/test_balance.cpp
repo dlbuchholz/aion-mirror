@@ -555,6 +555,37 @@ private slots:
         QVERIFY(said);
     }
 
+    void withNoSheetTickedNoneComparesWithAnother() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("two.xlsx");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(xlsxFile({{"Januar", {{"Datum", "Betrag"}, {"10.10.2026", "-1,00"}}},
+                             {"Februar", {{"Datum", "Betrag"}, {"11.10.2026", "-2,00"}}}}));
+        file.close();
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        for (QCheckBox* check : dialog.findChildren<QCheckBox*>("sheetCheck")) check->setChecked(false);
+        for (QLabel* status : dialog.findChildren<QLabel*>("sheetStatus")) QVERIFY(status->text().isEmpty());
+    }
+
+    void aReviewWithoutAnyReadableDayChecksNoBalance() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("nodates.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name\nkein Datum;-1,00;Shop\n");
+        file.close();
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.loadFile(path);
+        dialog.findChild<QPushButton*>("nextButton")->click();
+        dialog.findChild<QPushButton*>("nextButton")->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Review);
+        QVERIFY(dialog.findChild<QLabel*>("balanceStatusLabel")->text().isEmpty());
+        QVERIFY(dialog.findChild<QCheckBox*>("correctionCheckBox")->isHidden());
+    }
+
     void aSecondSpreadsheetReplacesTheSheetList() {
         QTemporaryDir dir;
         const QString first = dir.filePath("first.xlsx");

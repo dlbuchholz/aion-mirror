@@ -132,6 +132,25 @@ private slots:
         QCOMPARE(sheets.first().rows, (Rows{{"1904-01-02"}}));
     }
 
+    void anEmptyPartInTheFileDoesntStopTheRest() {
+        const QByteArray workbookRels =
+            R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">)"
+            R"(<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>)"
+            R"(<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>)"
+            R"(</Relationships>)";
+        const QByteArray file = zip({
+            {"_rels/.rels", PackageRels},
+            {"xl/workbook.xml", workbook(R"(<sheet name="Daten" sheetId="1" r:id="rId1"/>)")},
+            {"xl/_rels/workbook.xml.rels", workbookRels},
+            {"xl/sharedStrings.xml", QByteArray()},
+            {"xl/worksheets/sheet1.xml", worksheet(R"(<row r="1"><c r="A1"><v>7</v></c></row>)")},
+        });
+        QString error;
+        const QList<Spreadsheet::Sheet> sheets = Spreadsheet::read(file, Format::Xlsx, &error);
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(sheets.first().rows, (Rows{{"7"}}));
+    }
+
     void aSheetCutOffInTheMiddleIsDamaged() {
         const QByteArray workbookRels =
             R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">)"

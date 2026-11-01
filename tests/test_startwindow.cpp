@@ -129,6 +129,16 @@ private slots:
         QVERIFY(menuEntry(menu, "New database…"));
     }
 
+    void choosingTheOpenDatabaseChangesNothing() {
+        const QString current = dir.filePath(QString("case%1.db").arg(++databaseCounter));
+        QVERIFY(DatabaseSession::create(current));
+        StartWindow window;
+        const quint64 generation = DatabaseManager::instance().generation();
+        menuEntry(databaseMenu(window), QFileInfo(current).fileName())->trigger();
+        QCOMPARE(DatabaseManager::instance().generation(), generation);      // Not opened again
+        QCOMPARE(DatabaseSession::currentDatabasePath(), current);
+    }
+
     void switchingShowsTheOtherDatabasesUsers() {
         const QString other = dir.filePath("people.db");
         QVERIFY(DatabaseSession::create(other));

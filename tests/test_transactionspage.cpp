@@ -7,6 +7,7 @@
 #include <QListView>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QShortcut>
@@ -984,6 +985,48 @@ private slots:
         }
         QCOMPARE(said, QString("The category couldn't be changed. Nothing was changed."));
         QVERIFY(TransactionDAO().getTransactionById(first).getCategoryId() != groceries);
+    }
+
+    void dayHeadersLightUpUnderTheMouse() {
+        addExpense("Bakery", 420);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* list = page.findChild<QListView*>("transactionList");
+        const auto drawn = [list](QStyle::State state) {
+            QImage image(400, 40, QImage::Format_ARGB32);
+            image.fill(Qt::gray);                        // The hover colour is faint white or black
+            QPainter painter(&image);
+            QStyleOptionViewItem option;
+            option.initFrom(list);
+            option.rect = image.rect();
+            option.state = state;
+            list->itemDelegate()->paint(&painter, option, list->model()->index(0, 0));
+            return image;
+        };
+        QVERIFY(drawn(QStyle::State_Enabled | QStyle::State_MouseOver) != drawn(QStyle::State_Enabled));
+    }
+
+    void addingSeveralToARuleLooksForWhatTheyShare() {
+        const int first = addExpense("Aldi Nord", 100);
+        const int second = addExpense("Aldi Sued", 200);
+        Rule rule;
+        rule.name = "Food";
+        rule.matchAll = false;
+        rule.newPayee = "Food";
+        rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE")};
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        selectTransactions(page, {first, second});
+        Rule draft;
+        connect(&page, &TransactionsPage::ruleDraftRequested, &page, [&draft](const Rule& requested) { draft = requested; });
+        rightClick(page, rowOf(page, first), [](QMenu* menu) {
+            entry(entry(menu, "Add to rule")->menu(), "Food")->trigger();
+        });
+        QCOMPARE(draft.conditions.size(), 2);
+        QCOMPARE(draft.conditions.last().value, QString("Aldi"));
     }
 
     void withoutAUserThereIsNothingToLoad() {

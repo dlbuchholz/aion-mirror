@@ -71,6 +71,13 @@ private slots:
     }
     void cleanup() { db.close(); }
 
+    void withoutAUserThereIsNothingToRefresh() {
+        SidebarWidget sidebar;
+        const qsizetype before = sidebar.findChildren<QWidget*>().size();
+        sidebar.refresh();
+        QCOMPARE(sidebar.findChildren<QWidget*>().size(), before);
+    }
+
     void showsAccountsWithBalances() {
         SidebarWidget sidebar;
         sidebar.setUserId(1);
