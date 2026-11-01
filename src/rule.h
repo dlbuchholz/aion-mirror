@@ -49,7 +49,7 @@ struct Rule {
     // so a renamed transaction still matches rules written for the bank's name.
     bool matches(const Transaction& transaction) const;
     bool setsCategory() const { return categoryId > 0; }
-    bool renames() const { return !newPayee.isEmpty(); }
+    bool renames() const { return !newPayee.trimmed().isEmpty(); }
 };
 
 // Many transactions with their texts tidied once (spacing and case), so rules can be counted over

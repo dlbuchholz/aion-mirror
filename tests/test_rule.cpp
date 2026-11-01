@@ -465,6 +465,60 @@ private slots:
         QVERIFY(categories.deleteCategoryKeepingTransactions(into));   // Deleting removes it
         QVERIFY(RuleDAO(1).rules().isEmpty());
     }
+
+    // --- Hostile input ---
+
+    void aNewPayeeOfOnlySpacesIsRefused() {
+        Rule rule;
+        rule.newPayee = "   ";
+        rule.conditions = {{Field::Payee, Operator::Contains, "Shop"}};
+        QCOMPARE(RuleDAO(1).addRule(rule), -1);
+    }
+
+    // The rule editor counts with the index and imports match with the rule: they must agree
+    void countingAndMatchingAgree_data() {
+        QTest::addColumn<QString>("payee");
+        QTest::addColumn<QString>("needle");
+        QTest::newRow("umlaut") << QString::fromUtf8("Müller") << QString::fromUtf8("MÜLLER");
+        QTest::newRow("sharp s, upper") << QString::fromUtf8("Straße") << "STRASSE";
+        QTest::newRow("sharp s, capital") << QString::fromUtf8("STRAẞE") << QString::fromUtf8("straße");
+        QTest::newRow("final sigma") << QString::fromUtf8("ΣΑΣ") << QString::fromUtf8("σας");
+        QTest::newRow("turkish i") << QString::fromUtf8("İstanbul") << "istanbul";
+        QTest::newRow("ligature") << QString::fromUtf8("ﬁnanz") << "finanz";
+        QTest::newRow("no-break space") << QString("REWE") + QChar(0x00A0) + "Markt" << "rewe markt";
+        QTest::newRow("composed and not") << QString::fromUtf8("Mu\u0308ller") << QString::fromUtf8("Müller");
+        QTest::newRow("emoji") << QString::fromUtf8("Cafe 🎃") << QString::fromUtf8("🎃");
+    }
+    void countingAndMatchingAgree() {
+        QFETCH(QString, payee);
+        QFETCH(QString, needle);
+        const Transaction shop = transaction(payee, "", 100);
+        const RuleMatchIndex index({shop});
+        for (const Operator op : {Operator::Contains, Operator::Is, Operator::StartsWith}) {
+            Rule rule;
+            rule.conditions = {{Field::Payee, op, needle}};
+            QCOMPARE(index.count(rule) == 1, rule.matches(shop));
+        }
+    }
+
+    void nonsenseAmountConditionsMatchNothing() {
+        const Transaction shop = transaction("Shop", "", 100);
+        QVERIFY(!(RuleCondition{Field::Amount, Operator::Is, "abc"}.matches(shop)));
+        QVERIFY(!(RuleCondition{Field::Amount, Operator::Between, "50"}.matches(shop)));
+        QVERIFY(!(RuleCondition{Field::Amount, Operator::Contains, "100"}.matches(shop)));
+        QVERIFY((RuleCondition{Field::Amount, Operator::Between, "200", "50"}.matches(shop)));   // Back to front
+    }
+
+    void spacesAsANewPayeeAreNoRenameNextToACategory() {
+        Rule rule;
+        rule.newPayee = "   ";
+        rule.categoryId = categoryId(1, "Groceries");
+        rule.conditions = {{Field::Payee, Operator::Contains, "Shop"}};
+        QVERIFY(!rule.renames());
+        QVERIFY(RuleDAO(1).addRule(rule) > 0);
+        QVERIFY(!RuleDAO(1).rules().value(0).renames());
+        QVERIFY(!Rules::renameRule({rule}, transaction("Shop", "", 100)));
+    }
 };
 
 QTEST_MAIN(TestRule)
