@@ -135,7 +135,8 @@ bool isDateFormat(int id, QString code) {
     static const QRegularExpression quoted(R"("[^"]*")");
     static const QRegularExpression escaped(R"(\\.)");
     static const QRegularExpression bracketed(R"(\[[^\]]*\])");   // Colours, conditions, locales
-    code.remove(quoted).remove(escaped).remove(bracketed);
+    static const QRegularExpression padding(R"([_*].)");          // A width to skip or a fill character: "_D"
+    code.remove(quoted).remove(escaped).remove(bracketed).remove(padding);
     code = code.toLower();
     // m alone could be minutes ("h:mm")
     return code.contains('d') || code.contains('y') || (code.contains('m') && !code.contains('h') && !code.contains('s'));
