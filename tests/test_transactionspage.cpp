@@ -8,9 +8,12 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QSqlQuery>
+#include <QTimer>
 #include <QToolButton>
+#include <functional>
 
 #include "account.h"
+#include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
 #include "transactionlistmodel.h"
@@ -645,6 +648,17 @@ private slots:
         QVERIFY(TransactionDAO().getTransactionsForAccount(firstId).isEmpty());
     }
 
+    void aFailedBulkEditChangesNothing() {
+        const QDate today = QDate::currentDate();
+        const int first = addExpense("A", 100);
+        const int second = addExpense("B", 200);
+        QVERIFY(!TransactionDAO().updateTransactions({Transaction(first, firstId, "Changed", 111, today, "", 0, "expense"),
+                                                      Transaction(second, firstId, "Refused", -5, today, "", 0, "expense")}));
+        QCOMPARE(TransactionDAO().getTransactionById(first).getPayee(), QString("A"));
+        QCOMPARE(TransactionDAO().getTransactionById(first).getAmountCents(), Cents(100));
+        QCOMPARE(TransactionDAO().getTransactionById(second).getPayee(), QString("B"));
+    }
+
     void deletingAsksFirst() {
         const int transactionId = addExpense("Bakery", 420);
         TransactionsPage page;
@@ -683,6 +697,130 @@ private slots:
         QCOMPARE(left.size(), 1);
         QCOMPARE(left.first().getTransactionId(), kept);
         QVERIFY(page.findChild<QFrame*>("bulkBar")->isHidden());                // Nothing selected any more
+    }
+
+    // --- Right-click menu ---
+
+    // Right-clicks a row; the menu blocks until closed, so what to do with it is queued first
+    static void rightClick(TransactionsPage& page, const QModelIndex& index, const std::function<void(QMenu*)>& use) {
+        auto* list = page.findChild<QListView*>("transactionList");
+        QTimer::singleShot(0, qApp, [use]() {
+            if (auto* menu = qobject_cast<QMenu*>(QApplication::activePopupWidget())) {
+                use(menu);
+                menu->close();
+            }
+        });
+        emit list->customContextMenuRequested(list->visualRect(index).center());
+        QCoreApplication::processEvents();               // The queued call, if no menu opened
+    }
+
+    static void showOnScreen(TransactionsPage& page) {
+        page.setAttribute(Qt::WA_DontShowOnScreen);
+        page.resize(1100, 700);
+        page.show();
+        QCoreApplication::processEvents();
+    }
+
+    static QModelIndex rowOf(TransactionsPage& page, int transactionId) {
+        auto* list = page.findChild<QListView*>("transactionList");
+        return static_cast<TransactionListModel*>(list->model())->indexForTransaction(transactionId);
+    }
+
+    static QAction* entry(QMenu* menu, const QString& text) {
+        for (QAction* action : menu->actions()) {
+            if (action->text() == text) return action;
+        }
+        return nullptr;
+    }
+
+    void dayHeadersHaveNoMenu() {
+        addExpense("A", 100);
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        bool opened = false;
+        auto* list = page.findChild<QListView*>("transactionList");
+        rightClick(page, list->model()->index(0, 0), [&opened](QMenu*) { opened = true; });
+        QVERIFY(!opened);
+    }
+
+    void openingFromTheMenuShowsThatTransaction() {
+        const int transactionId = addExpense("Bakery", 420);
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        rightClick(page, rowOf(page, transactionId), [](QMenu* menu) { entry(menu, "Open")->trigger(); });
+        QCOMPARE(page.findChild<TransactionEditor*>()->editedTransactionId(), transactionId);
+    }
+
+    void aRuleIsDraftedFromTheRowOrTheWholeSelection() {
+        const int first = addExpense("REWE Markt", 100);
+        const int second = addExpense("REWE City", 200);
+        const int other = addExpense("Kiosk", 300);
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        QList<Transaction> examples;
+        Rule draft;
+        connect(&page, &TransactionsPage::ruleDraftRequested, &page, [&](const Rule& rule, const QList<Transaction>& used) {
+            draft = rule;
+            examples = used;
+        });
+
+        // Only the clicked row counts when it's outside the selection, or alone in it
+        selectTransactions(page, {first, second});
+        rightClick(page, rowOf(page, other), [](QMenu* menu) { entry(menu, "Create rule from this…")->trigger(); });
+        QCOMPARE(examples.size(), 1);
+        QCOMPARE(examples.first().getTransactionId(), other);
+
+        rightClick(page, rowOf(page, first), [](QMenu* menu) { entry(menu, "Create rule from these 2…")->trigger(); });
+        QCOMPARE(examples.size(), 2);
+        QCOMPARE(draft.conditions.size(), 1);
+        QCOMPARE(draft.conditions.first().value, QString("REWE"));
+        QCOMPARE(draft.id, -1);
+    }
+
+    void addToRuleListsTheRulesAndGreysOutThoseItWouldNarrow() {
+        using Condition = RuleCondition;
+        const int transactionId = addExpense("Kiosk", 100);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+
+        TransactionsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        rightClick(page, rowOf(page, transactionId), [](QMenu* menu) {     // No rules yet
+            QVERIFY(!entry(menu, "Add to rule")->isEnabled());
+        });
+
+        Rule any;
+        any.name = "Food & drink";
+        any.matchAll = false;
+        any.categoryId = groceries;
+        any.conditions = {Condition(Condition::Field::Payee, Condition::Operator::Contains, "REWE")};
+        const int anyId = RuleDAO(1).addRule(any);
+        QVERIFY(anyId > 0);
+        Rule narrow = any;
+        narrow.name = "Narrow";
+        narrow.matchAll = true;
+        narrow.conditions << Condition(Condition::Field::Description, Condition::Operator::Contains, "weekly");
+        QVERIFY(RuleDAO(1).addRule(narrow) > 0);
+
+        Rule draft;
+        connect(&page, &TransactionsPage::ruleDraftRequested, &page, [&draft](const Rule& rule) { draft = rule; });
+        rightClick(page, rowOf(page, transactionId), [](QMenu* menu) {
+            QMenu* rules = entry(menu, "Add to rule")->menu();
+            QVERIFY(rules->isEnabled());
+            QVERIFY(!entry(rules, "Narrow (all must match)")->isEnabled());
+            QAction* add = entry(rules, "Food && drink");    // Not a shortcut marker
+            QVERIFY(add);
+            QVERIFY(add->isEnabled());
+            add->trigger();
+        });
+        QCOMPARE(draft.id, anyId);
+        QCOMPARE(draft.conditions.size(), 2);
+        QCOMPARE(draft.conditions.last().value, QString("Kiosk"));
     }
 
     void setsTheCategoryOfTheSelection() {

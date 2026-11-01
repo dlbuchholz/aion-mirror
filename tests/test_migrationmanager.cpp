@@ -207,6 +207,86 @@ private slots:
         QCOMPARE(query.value(0).toString(), QString("--; not a comment"));
     }
 
+    void semicolonsAndQuotesInStringsStayInTheirStatement() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QFile migration(root.filePath("002_strings.sql"));
+        QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
+        migration.write("CREATE TABLE notes (text TEXT);\n"
+                        "INSERT INTO notes VALUES ('it''s; -- all one value');\n");
+        migration.close();
+
+        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
+        MigrationManager(root.path()).applyMigrations();  // Reports the missing app tables; the script itself ran
+        QCOMPARE(column("SELECT text FROM notes"), QStringList{"it's; -- all one value"});
+    }
+
+    void aMissingFolderAppliesNothingAndSaysSo() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
+        MigrationManager manager(root.filePath("no-such-folder"));
+        QVERIFY(!manager.applyMigrations());
+        QVERIFY2(manager.lastError().contains("missing"), qPrintable(manager.lastError()));
+        QVERIFY(column("SELECT version FROM schema_migrations").isEmpty());
+    }
+
+    void aFailedMigrationKeepsEarlierOnesAndIsTriedAgain() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        const auto write = [&root](const char* name, const char* sql) {
+            QFile file(root.filePath(name));
+            return file.open(QIODevice::WriteOnly | QIODevice::Text) && file.write(sql) > 0;
+        };
+        QVERIFY(write("002_first.sql", "CREATE TABLE first_table (id INTEGER);"));
+        QVERIFY(write("003_second.sql", "CREATE TABLE half_done (id INTEGER); INVALID SQL;"));
+        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
+
+        QVERIFY(!MigrationManager(root.path()).applyMigrations());
+        QCOMPARE(column("SELECT version FROM schema_migrations"), QStringList{"2"});
+        QCOMPARE(column("SELECT name FROM sqlite_master WHERE name = 'half_done'"), QStringList{});
+
+        // The fixed script of the next version of the app runs, the earlier one doesn't run twice
+        QVERIFY(write("003_second.sql", "CREATE TABLE half_done (id INTEGER);"));
+        MigrationManager(root.path()).applyMigrations();  // Reports the missing app tables
+        QCOMPARE(column("SELECT version FROM schema_migrations ORDER BY version"), (QStringList{"2", "3"}));
+    }
+
+    void aMigrationThatCantBeRecordedIsUndone() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QFile migration(root.filePath("002_drops.sql"));
+        QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
+        migration.write("CREATE TABLE must_rollback (id INTEGER); DROP TABLE schema_migrations;");
+        migration.close();
+
+        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
+        MigrationManager manager(root.path());
+        QVERIFY(!manager.applyMigrations());
+        QVERIFY2(manager.lastError().startsWith("Failed to record"), qPrintable(manager.lastError()));
+        QCOMPARE(column("SELECT name FROM sqlite_master WHERE name = 'must_rollback'"), QStringList{});
+        QCOMPARE(column("SELECT name FROM sqlite_master WHERE name = 'schema_migrations'"), QStringList{"schema_migrations"});
+    }
+
+    void aMigrationThatCantBeCommittedIsUndone() {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        QFile migration(root.filePath("002_orphan.sql"));
+        QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
+        migration.write("CREATE TABLE parent (id INTEGER PRIMARY KEY);\n"
+                        "CREATE TABLE child (parent_id INTEGER REFERENCES parent (id));\n"
+                        "PRAGMA defer_foreign_keys = ON;\n"       // The missing parent only shows at the commit
+                        "INSERT INTO child VALUES (1);\n");
+        migration.close();
+
+        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
+        MigrationManager manager(root.path());
+        QVERIFY(!manager.applyMigrations());
+        QVERIFY2(manager.lastError().startsWith("Failed to commit"), qPrintable(manager.lastError()));
+        QCOMPARE(column("SELECT name FROM sqlite_master WHERE name = 'child'"), QStringList{});
+        QVERIFY(column("SELECT version FROM schema_migrations").isEmpty());
+    }
+
     void partiallyInitializedVersionOneCanRecover() {
         QTemporaryDir root;
         QVERIFY(root.isValid());

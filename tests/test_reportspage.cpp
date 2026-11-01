@@ -1,11 +1,15 @@
 #include <QtTest>
 #include <QAbstractButton>
 #include <QComboBox>
+#include <QDateEdit>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QStackedWidget>
+#include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 
 #include "account.h"
 #include "budget.h"
@@ -349,6 +353,193 @@ private slots:
         QCOMPARE(requested.size(), 2);
         QCOMPARE(requested[1][2].toDate(), QDate(today.year(), today.month(), 1));
         QCOMPARE(requested[1][3].toDate(), page.range().last);
+    }
+
+    // --- Drawing and the mouse: painting code only runs when something is really drawn ---
+
+    static void showOnScreen(ReportsPage& page) {
+        page.setAttribute(Qt::WA_DontShowOnScreen);
+        page.resize(1100, 800);
+        page.show();
+        QCoreApplication::processEvents();
+    }
+    static void moveMouse(QWidget* widget, QPoint position) {
+        QMouseEvent event(QEvent::MouseMove, QPointF(position), widget->mapToGlobal(QPointF(position)),
+                          Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(widget, &event);
+    }
+    static void leave(QWidget* widget) {
+        QEvent event(QEvent::Leave);
+        QApplication::sendEvent(widget, &event);
+    }
+    static void releaseMouse(QWidget* widget, QPoint position, Qt::MouseButton button) {
+        QMouseEvent event(QEvent::MouseButtonRelease, QPointF(position), widget->mapToGlobal(QPointF(position)),
+                          button, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(widget, &event);
+    }
+    // In the last of three months' bars, or weeks' for a month
+    static QPoint inLastBar(QWidget* chart, int bars) {
+        return QPoint(chart->width() - chart->width() / (2 * bars), chart->height() / 2);
+    }
+
+    void everyReportDraws_data() {
+        QTest::addColumn<int>("preset");
+        QTest::addColumn<bool>("withData");
+        for (const bool withData : {true, false}) {
+            for (const Preset preset : {Preset::Month, Preset::Year}) {
+                QTest::addRow("%s, %s", qPrintable(ReportRange::key(preset)), withData ? "with data" : "empty")
+                    << int(preset) << withData;
+            }
+        }
+    }
+
+    void everyReportDraws() {
+        QFETCH(int, preset);
+        QFETCH(bool, withData);
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        if (withData) {
+            const QDate today = QDate::currentDate();
+            // Below zero, over budget, and a name long enough to be cut off
+            TransactionDAO().addTransaction(Transaction(-1, giro, QString(300, 'x'), 90000, today, "", groceries, "expense"));
+            TransactionDAO().addTransaction(Transaction(-1, giro, "Employer", 20000, today.addMonths(-2), "", 0, "income"));
+            QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, today, 1000));
+        }
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        chip(page, Preset(preset))->click();
+        QVERIFY(!page.grab().isNull());
+        for (int card = 0; card < cards(page).size(); ++card) {
+            cards(page)[card]->click();
+            QCoreApplication::processEvents();
+            QVERIFY(!page.grab().isNull());
+            page.findChild<QToolButton*>("reportsBackLink")->click();
+        }
+    }
+
+    void hoveringTheFlowChartShowsAPeriodsNumbers() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Employer", 200000, today, "", 0, "income"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", 50000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        chip(page, Preset::ThreeMonths)->click();
+        cards(page)[1]->click();
+        QCoreApplication::processEvents();
+        auto* chart = page.findChild<QWidget*>("flowChart");
+        const QImage plain = chart->grab().toImage();
+
+        moveMouse(chart, inLastBar(chart, 3));
+        const Settings& settings = Settings::instance();
+        QVERIFY2(QToolTip::text().contains("Income " + settings.formatCurrency(200000)), qPrintable(QToolTip::text()));
+        QVERIFY(QToolTip::text().contains("Net " + settings.formatCurrency(150000, true)));
+        QVERIFY(chart->grab().toImage() != plain);       // The period is highlighted
+
+        leave(chart);
+        QCOMPARE(chart->grab().toImage(), plain);
+    }
+
+    void hoveringTheBalanceChartShowsADaysBalance() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Start", 100000, today.addMonths(-4), "", 0, "income"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        chip(page, Preset::Month)->click();
+        cards(page)[2]->click();
+        QCoreApplication::processEvents();
+        auto* chart = page.findChild<QWidget*>("balanceChart");
+        const QImage plain = chart->grab().toImage();
+
+        moveMouse(chart, QPoint(90, chart->height() / 2));   // The first day, right of the amounts
+        QVERIFY2(QToolTip::text().contains(QLocale(QLocale::English).toString(QDate(today.year(), today.month(), 1), "d MMMM yyyy")),
+                 qPrintable(QToolTip::text()));
+        QVERIFY(QToolTip::text().contains(Settings::instance().formatCurrency(100000)));
+        QVERIFY(chart->grab().toImage() != plain);       // Its day is marked
+
+        moveMouse(chart, QPoint(10, chart->height() / 2));   // Over the amounts: no day
+        QCOMPARE(chart->grab().toImage(), plain);
+    }
+
+    void clickingATrendBarShowsThatPeriodsTransactions() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 3000, today, "", groceries, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        chip(page, Preset::ThreeMonths)->click();
+        cards(page)[3]->click();
+        QCoreApplication::processEvents();
+        auto* chart = page.findChild<QWidget*>("trendChart");
+        const QImage plain = chart->grab().toImage();
+        QSignalSpy requested(&page, &ReportsPage::transactionsRequested);
+
+        const QPoint lastBar = inLastBar(chart, 3);
+        moveMouse(chart, lastBar);
+        QVERIFY2(QToolTip::text().contains("1 transaction\nClick to show them"), qPrintable(QToolTip::text()));
+        QVERIFY(chart->grab().toImage() != plain);
+
+        releaseMouse(chart, lastBar, Qt::RightButton);   // Only the left button
+        QCOMPARE(requested.size(), 0);
+        releaseMouse(chart, QPoint(lastBar.x(), chart->height() + 100), Qt::LeftButton);   // Beside the bars
+        QCOMPARE(requested.size(), 0);
+
+        releaseMouse(chart, lastBar, Qt::LeftButton);
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(requested[0][0].toInt(), groceries);
+        QCOMPARE(requested[0][2].toDate(), QDate(today.year(), today.month(), 1));
+
+        leave(chart);
+        QCOMPARE(chart->grab().toImage(), plain);
+    }
+
+    void enterOpensARowLikeAClick() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Kiosk", 1000, QDate::currentDate(), "", 0, "expense"));
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        cards(page)[0]->click();
+        QCoreApplication::processEvents();
+        QTest::keyClick(page.findChildren<QAbstractButton*>("spendingRow").first(), Qt::Key_Return);
+        QCOMPARE(page.openedReport(), ReportsPage::Report::CategoryTrend);
+    }
+
+    void theCustomRangeDialogAsksForBothDays() {
+        ReportsPage page;
+        page.setUserId(1);
+        const ReportRange before = page.range();
+        const auto answerDialog = [](QDialogButtonBox::StandardButton button) {
+            QTimer::singleShot(0, qApp, [button]() {
+                QWidget* dialog = QApplication::activeModalWidget();
+                const QList<QDateEdit*> edits = dialog->findChildren<QDateEdit*>();
+                edits[0]->setDate(QDate(2026, 2, 3));
+                edits[1]->setDate(QDate(2026, 4, 5));
+                dialog->findChild<QDialogButtonBox*>()->button(button)->click();
+            });
+        };
+
+        answerDialog(QDialogButtonBox::Cancel);
+        chip(page, Preset::Custom)->click();
+        QCOMPARE(page.range(), before);
+
+        answerDialog(QDialogButtonBox::Ok);
+        chip(page, Preset::Custom)->click();
+        QCOMPARE(page.range(), ReportRange::custom(QDate(2026, 2, 3), QDate(2026, 4, 5)));
     }
 };
 

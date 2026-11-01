@@ -1,11 +1,16 @@
 #include <QtTest>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
 #include <QPushButton>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListView>
+#include <QListWidget>
 #include <QSqlQuery>
 #include <QStackedWidget>
+#include <QTimer>
+#include <functional>
 
 #include "account.h"
 #include "category.h"
@@ -16,6 +21,7 @@
 #include "transactionlistmodel.h"
 #include "widgets/budgetpage.h"
 #include "widgets/dashboardpage.h"
+#include "widgets/reportspage.h"
 #include "widgets/settingspage.h"
 #include "widgets/sidebarwidget.h"
 #include "widgets/transactioneditor.h"
@@ -153,6 +159,84 @@ private slots:
         emit dashboard->transactionsRequested();
         QCOMPARE(currentPage(window), transactions);
         QCOMPARE(shownTransactions(window), 1);
+    }
+
+    void reportsLeadToTheTransactionsTheyCounted() {
+        const QDate today = QDate::currentDate();
+        spend(giro, 1000, groceries);
+        spend(savings, 2000, groceries);
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Bakery", 500, today, "", 0, "expense"));
+        MainWindow window(1);
+        auto* reports = window.findChild<ReportsPage*>();
+        auto* transactions = window.findChild<TransactionsPage*>();
+
+        emit reports->transactionsRequested(groceries, ReportsPage::ALL_ACCOUNTS, today, today);
+        QCOMPARE(currentPage(window), transactions);
+        QCOMPARE(shownTransactions(window), 2);
+        emit reports->transactionsRequested(groceries, savings, today, today);
+        QCOMPARE(shownTransactions(window), 1);
+
+        emit window.findChild<SidebarWidget*>()->pageRequested(SidebarWidget::Page::Reports);
+        emit reports->payeeTransactionsRequested("Bakery", ReportsPage::ALL_ACCOUNTS, today, today);
+        QCOMPARE(currentPage(window), transactions);
+        QCOMPARE(transactions->findChild<QLineEdit*>("searchEdit")->text(), QString("Bakery"));
+        QCOMPARE(shownTransactions(window), 1);
+    }
+
+    void ruleDraftsOpenInTheRulesSettings() {
+        MainWindow window(1);
+        Rule draft;
+        draft.name = "From a transaction";
+        draft.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Contains, "REWE")};
+        emit window.findChild<TransactionsPage*>()->ruleDraftRequested(draft, {});
+        QCOMPARE(currentPage(window), window.findChild<SettingsPage*>());
+        QCOMPARE(window.findChild<SettingsPage*>()->findChild<QListWidget*>()->currentItem()->text(), QString("Rules"));
+        QCOMPARE(window.findChild<QLineEdit*>("ruleNameEdit")->text(), QString("From a transaction"));
+    }
+
+    // The account dialogs block until answered, so the answer is queued first
+
+    static void whenADialogOpens(const std::function<void(QWidget*)>& answer) {
+        QTimer::singleShot(0, qApp, [answer]() { answer(QApplication::activeModalWidget()); });
+    }
+
+    static QComboBox* reportAccounts(MainWindow& window) {
+        return window.findChild<ReportsPage*>()->findChild<QComboBox*>("reportsAccountCombo");
+    }
+
+    void accountsChangedFromTheSidebarShowEverywhere() {
+        MainWindow window(1);
+        auto* sidebar = window.findChild<SidebarWidget*>();
+        auto* accounts = reportAccounts(window);
+
+        // Cancelled: nothing changes
+        whenADialogOpens([](QWidget* dialog) { qobject_cast<QDialog*>(dialog)->reject(); });
+        emit sidebar->addAccountRequested();
+        QCOMPARE(accounts->findText("Depot"), -1);
+
+        whenADialogOpens([](QWidget* dialog) {
+            dialog->findChild<QLineEdit*>("accountNameInput")->setText("Depot");
+            dialog->findChild<QAbstractButton*>("createAccountButton")->click();
+        });
+        emit sidebar->addAccountRequested();
+        QVERIFY(accounts->findText("Depot") >= 0);
+
+        whenADialogOpens([](QWidget* dialog) {
+            dialog->findChild<QLineEdit*>("accountNameEdit")->setText("Hausbank");
+            dialog->findChild<QPushButton*>("saveAccountButton")->click();
+        });
+        emit sidebar->editAccountRequested(giro);
+        QVERIFY(accounts->findText("Hausbank") >= 0);
+        QCOMPARE(accounts->findText("Girokonto"), -1);
+
+        whenADialogOpens([](QWidget* dialog) { qobject_cast<QDialog*>(dialog)->reject(); });
+        emit sidebar->deleteAccountRequested(savings);
+        QVERIFY(accounts->findText("Tagesgeld") >= 0);
+        QVERIFY(AccountDAO().getAccountById(savings).getAccountId() > 0);
+
+        whenADialogOpens([](QWidget* dialog) { dialog->findChild<QPushButton*>("deleteAccountButton")->click(); });
+        emit sidebar->deleteAccountRequested(savings);
+        QCOMPARE(accounts->findText("Tagesgeld"), -1);
     }
 
     void changedTransactionsReachTheOtherPages() {
