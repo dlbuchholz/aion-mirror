@@ -243,20 +243,33 @@ private slots:
         }
         QString error;
         QVERIFY2(Backup::beforeUpdate(&error), qPrintable(error));
-        QEXPECT_FAIL("", "Not fixed yet", Abort);
         for (const QString& name : others) {
             QVERIFY2(backups.exists(name), qPrintable(name + " was removed"));
         }
+        QCOMPARE(Backup::automaticBackups(path).size(), 5);  // And Aion's own are still cleaned up
+        QVERIFY(!backups.exists("budget-before-update-2020-01-01-000000.db"));
     }
 
     void aBackupFromTheFutureDoesntStopBackups() {
         // The clock was wrong once, or a backup came from another computer
         const QDate today(2026, 11, 1);
         const QDateTime future(today.addYears(5), QTime(12, 0));
-        QEXPECT_FAIL("", "Not fixed yet", Abort);
         for (const auto schedule : {Settings::BackupSchedule::Daily, Settings::BackupSchedule::Weekly, Settings::BackupSchedule::Monthly}) {
             QVERIFY(Backup::isDue(schedule, future, today));
         }
+    }
+
+    void aBackupFromTheFutureIsIgnoredWhenBackingUp() {
+        QVERIFY(QDir().mkpath(Backup::folderFor(path)));
+        const QString name = QString("budget-scheduled-%1.db").arg(QDateTime::currentDateTime().addYears(5).toString("yyyy-MM-dd-HHmmss"));
+        QFile file(QDir(Backup::folderFor(path)).filePath(name));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+
+        QVERIFY(Backup::scheduled());
+        QCOMPARE(scheduledBackups().size(), 2);
+        QVERIFY(!Backup::scheduled());                       // Once a day, not on every start
+        QCOMPARE(scheduledBackups().size(), 2);
     }
 };
 

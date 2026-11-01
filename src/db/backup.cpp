@@ -62,8 +62,10 @@ bool saveAutomatic(const QString& kind, QString* reason, int keep = KeptAutomati
         return false;
     }
 
-    // The dates in the names sort newest first
-    const QStringList kept = folder.entryList({prefix + "*.db"}, QDir::Files, QDir::Name | QDir::Reversed);
+    // Only Aion's own backups of this kind: other files may just start with the same words. The
+    // dates in the names sort newest first.
+    const QRegularExpression ownName(QString("^%1\\d{4}-\\d{2}-\\d{2}-\\d{6}\\.db$").arg(QRegularExpression::escape(prefix)));
+    const QStringList kept = folder.entryList({"*.db"}, QDir::Files, QDir::Name | QDir::Reversed).filter(ownName);
     for (qsizetype i = keep; i < kept.size(); ++i) {
         QFile::remove(folder.filePath(kept[i]));
     }
@@ -134,8 +136,8 @@ bool isDue(Settings::BackupSchedule schedule, const QDateTime& last, const QDate
     if (schedule == Settings::BackupSchedule::Off) {
         return false;
     }
-    if (!last.isValid()) {
-        return true;
+    if (!last.isValid() || last.date() > today) {
+        return true;                                 // A date ahead of today says nothing: the clock was wrong
     }
     switch (schedule) {
     case Settings::BackupSchedule::Daily:
@@ -154,9 +156,11 @@ bool scheduled(QString* errorMessage) {
     QSqlDatabase database = DatabaseManager::instance().database();
     const QString databasePath = database.databaseName();
 
+    // Ones dated ahead of now, from a wrong clock, don't count: they'd stop backups until that date
+    const QDateTime now = QDateTime::currentDateTime();
     QDateTime last;
     for (const AutomaticBackup& backup : automaticBackups(databasePath)) {
-        if (backup.kind == ScheduledKindLabel) {
+        if (backup.kind == ScheduledKindLabel && backup.when <= now) {
             last = backup.when;                      // Newest first
             break;
         }
