@@ -5,6 +5,7 @@
 #include <QRadioButton>
 
 #include "account.h"
+#include "csvimport.h"
 #include "dialog/deleteaccountdialog.h"
 #include "tests/test_db_fixture.h"
 
@@ -151,6 +152,24 @@ private slots:
         dialog.findChild<QPushButton*>("deleteAccountButton")->click();
         QCOMPARE(AccountDAO().getAccountById(empty).getAccountId(), -1);
         QCOMPARE(AccountDAO().transactionCount(savings), 1);
+    }
+
+    // --- Hostile input ---
+
+    void movedTransactionsAreStillRecognisedByTheNextImport() {
+        using namespace CsvImport;
+        const QList<QStringList> rows = {{"2026-01-02", "-3.20", "Cafe", "Coffee"}};
+        const Mapping mapping = {{FieldDate, 0}, {FieldAmount, 1}, {FieldPayee, 2}, {FieldDescription, 3}};
+        Options options;
+        options.accountId = giro;
+        QCOMPARE(run(rows, mapping, options, {}).imported, 1);
+        QVERIFY(AccountDAO().deleteAccountMovingTo(giro, savings));
+
+        // The bank's overlapping export, now into the account they were moved to
+        options.accountId = savings;
+        const Result again = run(rows, mapping, options, {});
+        QCOMPARE(again.imported, 0);
+        QCOMPARE(again.duplicates, 1);
     }
 };
 

@@ -163,6 +163,10 @@ QVariant ruleIdValue(const Transaction& transaction) {
 }
 
 int TransactionDAO::addTransaction(const Transaction& transaction) {
+    if (transaction.getAmountCents() < 0) {
+        qWarning() << "Cannot add a transaction with a negative amount: the type carries the sign";
+        return -1;
+    }
     QSqlQuery query(DatabaseManager::instance().database());
 
     // Calculate hash
@@ -214,16 +218,24 @@ bool TransactionDAO::updateTransaction(const Transaction& transaction) {
                    << transaction.getTransactionId();
         return false;
     }
+    if (transaction.getAmountCents() < 0) {
+        qWarning() << "Cannot save a transaction with a negative amount: the type carries the sign";
+        return false;
+    }
 
     // The hash stays as it was when the transaction was added: it stands for the row the bank sent,
-    // so an import still recognises it after the payee or description was changed here
+    // so an import still recognises it after the payee or description was changed here. Only a move
+    // to another account changes it, since imports look for it under the account they import into.
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
-        "UPDATE transactions SET account_id = :account_id, amount = :amount, date = :date, "
+        "UPDATE transactions SET hash = CASE WHEN account_id = :same_account THEN hash ELSE :moved_hash END, "
+        "account_id = :account_id, amount = :amount, date = :date, "
         "description = :description, payee = :payee, original_payee = :original_payee, renamed_by_rule = :renamed_by_rule, "
         "category_id = :category_id, type = :type "
         "WHERE id = :id"
         );
+    query.bindValue(":same_account", transaction.getAccountId());
+    query.bindValue(":moved_hash", transaction.calculateHash());
     query.bindValue(":id", transaction.getTransactionId());
     query.bindValue(":account_id", transaction.getAccountId());
     query.bindValue(":amount", transaction.getAmountCents());

@@ -1,10 +1,13 @@
 #include <QtTest>
 #include "account.h"
+#include "balance.h"
 #include "budget.h"
 #include "category.h"
+#include "dashboard.h"
 #include "report.h"
 #include "tests/test_db_fixture.h"
 
+Q_DECLARE_METATYPE(ReportRange)
 using Preset = ReportRange::Preset;
 
 // The numbers behind the reports, from the database
@@ -288,6 +291,69 @@ private slots:
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);
         add(theirs, 9900, QDate(2026, 10, 2), 0, "expense");
         QCOMPARE(Reports::spendingByCategory(1, -1, ReportRange::forPreset(Preset::Month, today), today).totalCents, Cents(0));
+    }
+
+    // --- Hostile input ---
+
+    // The same money, whichever report looks at it, on messy data: refunds, transfers, balance
+    // adjustments, no category, two accounts, the edges of months
+    void allReportsAgreeOnTheSameMoney_data() {
+        QTest::addColumn<ReportRange>("range");
+        QTest::newRow("a year") << ReportRange{QDate(2025, 11, 1), QDate(2026, 10, 31)};
+        QTest::newRow("a month") << ReportRange{QDate(2026, 2, 1), QDate(2026, 2, 28)};
+        QTest::newRow("ten days") << ReportRange{QDate(2026, 1, 28), QDate(2026, 2, 6)};
+        QTest::newRow("one day") << ReportRange{QDate(2026, 3, 1), QDate(2026, 3, 1)};
+        QTest::newRow("past today") << ReportRange{QDate(2026, 10, 1), QDate(2026, 12, 31)};
+    }
+    void allReportsAgreeOnTheSameMoney() {
+        QFETCH(ReportRange, range);
+        const QList<int> categories = {0, groceries, rent, categoryId("Salary"), categoryId("Transfer"),
+                                       categoryId("Balance correction"), categoryId("Initial balance")};
+        QSqlDatabase database = DatabaseManager::instance().database();
+        QVERIFY(database.transaction());                     // One write, not 500
+        QRandomGenerator random(20261101);
+        for (int i = 0; i < 500; ++i) {
+            const QDate date = QDate(2025, 9, 1).addDays(random.bounded(480));
+            add(random.bounded(2) ? giro : savings, random.bounded(1, 100000), date,
+                categories[random.bounded(int(categories.size()))], random.bounded(2) ? "income" : "expense");
+        }
+        QVERIFY(database.commit());
+
+        const FlowReport flow = Reports::incomeVsSpending(1, -1, range);
+        Cents periodIncome = 0;
+        Cents periodSpending = 0;
+        for (const PeriodFlow& period : flow.periods) {
+            periodIncome += period.incomeCents;
+            periodSpending += period.spendingCents;
+        }
+        QCOMPARE(periodIncome, flow.incomeCents);
+        QCOMPARE(periodSpending, flow.spendingCents);
+
+        const SpendingReport spending = Reports::spendingByCategory(1, -1, range, today);
+        QCOMPARE(spending.totalCents, flow.spendingCents);
+        QCOMPARE(Reports::topPayees(1, -1, range).totalCents, flow.spendingCents);
+        Cents trends = 0;
+        for (const int category : categories) {
+            trends += Reports::categoryTrend(1, -1, category, range, today).totalCents;
+        }
+        QCOMPARE(trends, flow.spendingCents);
+
+        // Accounts add up to all of them together
+        QCOMPARE(Reports::incomeVsSpending(1, giro, range).spendingCents + Reports::incomeVsSpending(1, savings, range).spendingCents,
+                 flow.spendingCents);
+
+        const BalanceReport balance = Reports::balanceOverTime(1, -1, range, today);
+        const QDate end = balance.days.last().date;
+        QCOMPARE(balance.endCents(), Balance::onDate(giro, end) + Balance::onDate(savings, end));
+        QCOMPARE(balance.startCents, Balance::onDate(giro, range.first.addDays(-1)) + Balance::onDate(savings, range.first.addDays(-1)));
+    }
+
+    void plannedPaymentsDontChangeTodaysBalance() {
+        add(giro, 100000, today, categoryId("Salary"), "income");
+        add(giro, 30000, today.addDays(10), rent, "expense");           // A payment still to come
+        const ReportRange month = ReportRange::forPreset(Preset::Month, today);
+        QCOMPARE(Reports::balanceOverTime(1, -1, month, today).endCents(), Cents(100000));
+        QCOMPARE(Dashboard::load(1, today, 6, 5).totalBalanceCents, Cents(100000));
     }
 };
 

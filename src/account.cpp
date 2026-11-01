@@ -177,7 +177,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
         Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), "Initial deposit", categoryId,
                                        initialBalanceCents > 0 ? "income" : "expense");
         TransactionDAO transactionDao;
-        if (!transactionDao.addTransaction(initialTransaction)) {
+        if (transactionDao.addTransaction(initialTransaction) <= 0) {
             qWarning() << "Failed to insert initial transaction";
             db.rollback();
             return -1;
@@ -193,13 +193,27 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
     return accountId;
 }
 
-Account AccountDAO::getAccountById(int accountId) {
+namespace {
+
+// Accounts with their balance on a day: payments dated later are still to come
+QString accountsWithBalanceSql(const QString& condition) {
+    return QString(R"(
+        SELECT a.id AS account_id, a.name AS account_name, at.name AS account_type,
+               COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount WHEN t.type = 'expense' THEN -t.amount ELSE 0 END), 0) AS balance
+        FROM accounts a
+        LEFT JOIN account_types at ON at.id = a.type_id
+        LEFT JOIN transactions t ON t.account_id = a.id AND t.date <= :today
+        WHERE %1
+        GROUP BY a.id
+    )").arg(condition);
+}
+
+} // namespace
+
+Account AccountDAO::getAccountById(int accountId, const QDate& today) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare(R"(
-        SELECT account_id, account_name, account_type, balance
-        FROM account_balances
-        WHERE account_id = :id
-    )");
+    query.prepare(accountsWithBalanceSql("a.id = :id"));
+    query.bindValue(":today", today.toString("yyyy-MM-dd"));
     query.bindValue(":id", accountId);
 
     if (query.exec() && query.next()) {
@@ -215,13 +229,10 @@ Account AccountDAO::getAccountById(int accountId) {
     return Account(-1, "", "", 0.0); // Invalid account on failure
 }
 
-QList<Account> AccountDAO::getAllAccountsForUser(int userId) {
+QList<Account> AccountDAO::getAllAccountsForUser(int userId, const QDate& today) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare(R"(
-        SELECT account_id, account_name, account_type, balance
-        FROM account_balances
-        WHERE user_id = :user_id
-    )");
+    query.prepare(accountsWithBalanceSql("a.user_id = :user_id"));
+    query.bindValue(":today", today.toString("yyyy-MM-dd"));
     query.bindValue(":user_id", userId);
 
     QList<Account> accounts;
@@ -334,12 +345,15 @@ bool AccountDAO::deleteAccountMovingTo(int accountId, int targetAccountId) {
         return false;
     }
 
-    QSqlQuery query(db);
-    query.prepare("UPDATE transactions SET account_id = :target WHERE account_id = :id");
-    query.bindValue(":target", targetAccountId);
-    query.bindValue(":id", accountId);
-    bool ok = query.exec();
+    // One by one, so each gets the hash for its new account and the next import recognises it
+    TransactionDAO transactionDao;
+    bool ok = true;
+    for (Transaction transaction : transactionDao.getTransactionsForAccount(accountId)) {
+        transaction.setAccountId(targetAccountId);
+        ok = ok && transactionDao.updateTransaction(transaction);
+    }
 
+    QSqlQuery query(db);
     if (ok) {
         query.prepare(R"(
             UPDATE rule_conditions SET value = :target

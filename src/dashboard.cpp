@@ -43,7 +43,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
     DashboardData data;
 
     AccountDAO accountDao;
-    for (const Account& account : accountDao.getAllAccountsForUser(userId)) {
+    for (const Account& account : accountDao.getAllAccountsForUser(userId, today)) {
         data.totalBalanceCents += account.getBalanceCents();
     }
 

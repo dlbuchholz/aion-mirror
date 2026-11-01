@@ -442,6 +442,67 @@ private slots:
         TransactionDAO dao;
         QVERIFY(!dao.deleteTransaction(999999));
     }
+
+    // --- Hostile input ---
+
+    void aStartingBalanceThatCantBeSavedMeansNoAccount() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("CREATE TRIGGER refuse BEFORE INSERT ON transactions BEGIN SELECT RAISE(ABORT, 'refused'); END"));
+        QCOMPARE(AccountDAO::createAccount(1, "Without", "Checking", 5000), -1);
+        QVERIFY(AccountDAO().getAllAccountsForUser(1).isEmpty());
+    }
+
+    void nonsenseTransactionsAreRefused_data() {
+        QTest::addColumn<Cents>("amount");
+        QTest::addColumn<QDate>("date");
+        QTest::newRow("no date") << Cents(100) << QDate();
+        QTest::newRow("negative amount") << Cents(-100) << QDate(2026, 1, 2);
+    }
+    void nonsenseTransactionsAreRefused() {
+        QFETCH(Cents, amount);
+        QFETCH(QDate, date);
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        TransactionDAO dao;
+        const Transaction nonsense(-1, account, "Shop", amount, date, "", 0, "expense");
+        QCOMPARE(dao.addTransaction(nonsense), -1);
+
+        const int good = dao.addTransaction(Transaction(-1, account, "Shop", 100, QDate(2026, 1, 2), "", 0, "expense"));
+        QVERIFY(good > 0);
+        const Transaction edited(good, account, "Shop", amount, date, "", 0, "expense");
+        QVERIFY(!dao.updateTransaction(edited));
+        QCOMPARE(AccountDAO().getAccountById(account).getBalanceCents(), Cents(-100));
+    }
+
+    void balancesLeaveOutWhatIsStillToCome() {
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 100000);
+        const QDate today = QDate::currentDate();
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(Transaction(-1, account, "Rent", 30000, today.addDays(1), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, account, "Shop", 1000, today, "", 0, "expense")) > 0);
+        AccountDAO accounts;
+        QCOMPARE(accounts.getAccountById(account).getBalanceCents(), Cents(99000));
+        QCOMPARE(accounts.getAllAccountsForUser(1).first().getBalanceCents(), Cents(99000));
+        QCOMPARE(accounts.getAccountById(account, today.addDays(1)).getBalanceCents(), Cents(69000));
+    }
+
+    void movingOneTransactionKeepsItRecognised() {
+        const int from = AccountDAO::createAccount(1, "From", "Checking", 0);
+        const int to = AccountDAO::createAccount(1, "To", "Checking", 0);
+        TransactionDAO dao;
+        Transaction moved(-1, from, "Cafe", 320, QDate(2026, 1, 2), "Coffee", 0, "expense");
+        moved.setTransactionId(dao.addTransaction(moved));
+        const QString bankHash = moved.calculateHash();
+
+        // An edit in the same account keeps the hash; a move gives the one for the new account
+        moved.setPayee("Edited");
+        QVERIFY(dao.updateTransaction(moved));
+        QVERIFY(dao.transactionExistsByHash(bankHash));
+        moved.setPayee("Cafe");
+        moved.setAccountId(to);
+        QVERIFY(dao.updateTransaction(moved));
+        QVERIFY(!dao.transactionExistsByHash(bankHash));
+        QVERIFY(dao.transactionExistsByHash(moved.calculateHash()));
+    }
 };
 
 QTEST_MAIN(TestAccountDAO)

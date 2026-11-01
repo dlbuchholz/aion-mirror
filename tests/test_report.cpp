@@ -1,6 +1,7 @@
 #include <QtTest>
 #include "report.h"
 
+Q_DECLARE_METATYPE(ReportRange)
 using Preset = ReportRange::Preset;
 using Unit = ReportRange::Unit;
 
@@ -92,6 +93,45 @@ private slots:
             QCOMPARE(ReportRange::presetFromKey(ReportRange::key(preset)), preset);
         }
         QVERIFY(!ReportRange::presetFromKey("weekly"));
+    }
+
+    // --- Hostile input: every day of a few years, leap day included ---
+
+    void comparisonsNeverOverlapOrRunBackwards() {
+        for (QDate day(2023, 12, 1); day <= QDate(2028, 3, 31); day = day.addDays(1)) {
+            for (const Preset preset : {Preset::Month, Preset::ThreeMonths, Preset::SixMonths, Preset::Year}) {
+                const ReportRange current = ReportRange::forPreset(preset, day);
+                const ReportRange before = current.comparison(day);
+                QVERIFY2(current.isValid() && current.isWholeMonths(), qPrintable(day.toString(Qt::ISODate)));
+                QVERIFY2(before.isValid(), qPrintable(day.toString(Qt::ISODate)));
+                QVERIFY2(before.last < current.first, qPrintable(day.toString(Qt::ISODate)));
+                QCOMPARE(before.first.addMonths(current.months()), current.first);
+            }
+            const ReportRange custom{day, day.addDays(9)};
+            const ReportRange before = custom.comparison(day.addDays(3));
+            QCOMPARE(before.first.addDays(10), custom.first);
+            QCOMPARE(before.days(), qint64(4));
+        }
+    }
+
+    void periodsCoverEveryDayOnce_data() {
+        QTest::addColumn<ReportRange>("whole");
+        QTest::newRow("across new year") << range(2026, 12, 20, 2027, 1, 10);
+        QTest::newRow("one day, a sunday") << range(2026, 11, 1, 2026, 11, 1);
+        QTest::newRow("leap february") << range(2024, 2, 1, 2024, 2, 29);
+        QTest::newRow("several years") << range(2023, 1, 31, 2027, 3, 1);
+    }
+    void periodsCoverEveryDayOnce() {
+        QFETCH(ReportRange, whole);
+        for (const Unit unit : {Unit::Day, Unit::Week, Unit::Month}) {
+            const QList<ReportRange> periods = whole.periods(unit);
+            QVERIFY(!periods.isEmpty());
+            QCOMPARE(periods.first().first, whole.first);
+            QCOMPARE(periods.last().last, whole.last);
+            for (qsizetype i = 1; i < periods.size(); ++i) {
+                QCOMPARE(periods[i].first, periods[i - 1].last.addDays(1));
+            }
+        }
     }
 };
 

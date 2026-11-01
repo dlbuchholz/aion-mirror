@@ -1,6 +1,7 @@
 #ifndef ACCOUNT_H
 #define ACCOUNT_H
 
+#include <QDate>
 #include <QString>
 #include <QList>
 #include <QSqlDatabase>
@@ -40,8 +41,9 @@ public:
 
     // Account Management
     static int createAccount(int userId, const QString &name, const QString &type, Cents initialBalanceCents);
-    Account getAccountById(int accountId);
-    QList<Account> getAllAccountsForUser(int userId);
+    // Balances count what is dated up to today; later payments are still to come
+    Account getAccountById(int accountId, const QDate& today = QDate::currentDate());
+    QList<Account> getAllAccountsForUser(int userId, const QDate& today = QDate::currentDate());
     bool editAccount(int accountId, const QString& newName, int typeId);
     bool isNameTaken(int userId, const QString& name, int exceptAccountId = -1);   // Ignores case
     // Deletes the account and its transactions. Rules stop naming it: one that needs the account is
