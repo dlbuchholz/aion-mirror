@@ -1,6 +1,7 @@
 #ifndef MIGRATIONMANAGER_H
 #define MIGRATIONMANAGER_H
 
+#include <QSqlDatabase>
 #include <QString>
 #include <QVector>
 
@@ -17,6 +18,10 @@ public:
     bool isNewerThanApp();                           // Has migrations this version of Aion doesn't know
     int newestKnownVersion() const;
     QString lastError() const { return m_lastError; } // Why applyMigrations() failed
+
+    // The first table or view Aion needs that this database doesn't have; empty if it has them all.
+    // If a migration removes one, take it off the list only if older databases can still be migrated.
+    static QString missingRequiredObject(const QSqlDatabase& database);
 
 private:
     QString m_migrationDir; // Directory containing migration files

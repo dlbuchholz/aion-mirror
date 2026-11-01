@@ -238,6 +238,8 @@ std::optional<Contents> inspect(const QString& path, QString* errorMessage) {
                 problem = "This file isn't an Aion database.";
             } else if (query.value(0).toInt() > MigrationManager(BuiltInMigrations).newestKnownVersion()) {
                 problem = "It's from a newer version of Aion. Update Aion to restore it.";
+            } else if (!MigrationManager::missingRequiredObject(file).isEmpty()) {
+                problem = "This file isn't an Aion database.";
             } else if (!count("users", &found.users) || !count("accounts", &found.accounts)
                        || !count("transactions", &found.transactions)) {
                 problem = "This file isn't an Aion database.";

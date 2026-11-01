@@ -153,12 +153,10 @@ private slots:
     }
 
     void aBackupThatWontOpenPutsTheDataBack() {
-        // Passes the inspection, but isn't a complete database
-        const QString broken = fileWith("broken.db", {"CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT)",
-                                                      "INSERT INTO schema_migrations (version) VALUES (1)",
-                                                      "CREATE TABLE users (id INTEGER)",
-                                                      "CREATE TABLE accounts (id INTEGER)",
-                                                      "CREATE TABLE transactions (id INTEGER)"});
+        // Passes the inspection, but opening it finds a transaction whose account doesn't exist
+        QVERIFY(Backup::write(QDir(folder).filePath("broken.db")));
+        const QString broken = fileWith("broken.db", {"INSERT INTO transactions (account_id, payee, amount, date, type) "
+                                                      "VALUES (999, 'Nobody', 100, '2026-01-01', 'expense')"});
         QVERIFY(Backup::inspect(broken).has_value());
 
         QString error;
@@ -248,8 +246,8 @@ private slots:
         }
         QSqlDatabase::removeDatabase("partial");
         QString error;
-        QEXPECT_FAIL("", "Not fixed yet", Continue);
         QVERIFY(!Backup::inspect(partial, &error));
+        QCOMPARE(error, QString("This file isn't an Aion database."));
     }
 };
 

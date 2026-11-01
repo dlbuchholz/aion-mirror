@@ -192,20 +192,28 @@ bool MigrationManager::applyMigrations() {
     return validateSchema();
 }
 
-bool MigrationManager::validateSchema() {
+QString MigrationManager::missingRequiredObject(const QSqlDatabase& database) {
     static const QStringList requiredObjects = {
-        "users", "account_types", "accounts", "categories", "transactions",
-        "budgets", "recurring_transactions", "schema_migrations", "account_balances"
+        "users", "database_settings", "account_types", "accounts", "categories", "transactions",
+        "budgets", "rules", "rule_conditions", "recurring_transactions", "schema_migrations", "account_balances"
     };
-    QSqlDatabase database = DatabaseManager::instance().database();
     QSqlQuery objectQuery(database);
     objectQuery.prepare("SELECT COUNT(*) FROM sqlite_master WHERE name = :name");
     for (const QString& name : requiredObjects) {
         objectQuery.bindValue(":name", name);
         if (!objectQuery.exec() || !objectQuery.next() || objectQuery.value(0).toInt() != 1) {
-            return fail("Required database object is missing: " + name);
+            return name;
         }
         objectQuery.finish();
+    }
+    return QString();
+}
+
+bool MigrationManager::validateSchema() {
+    QSqlDatabase database = DatabaseManager::instance().database();
+    const QString missing = missingRequiredObject(database);
+    if (!missing.isEmpty()) {
+        return fail("Required database object is missing: " + missing);
     }
 
     QSqlQuery foreignKeyCheck(database);
