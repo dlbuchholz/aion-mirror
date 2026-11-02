@@ -56,7 +56,6 @@ private slots:
         QVERIFY(query.exec("DROP VIEW account_balances"));
         QVERIFY(query.exec("DROP TABLE recurring_transactions"));
         QVERIFY(query.exec("DROP TABLE transactions"));
-        const QDate today(2026, 10, 15);
         const ReportRange range = ReportRange::forPreset(ReportRange::Preset::Month, today);
         QVERIFY(Reports::topPayees(1, -1, range).payees.isEmpty());
         QVERIFY(Reports::categoryTrend(1, -1, groceries, range, today).averageCents == 0);
