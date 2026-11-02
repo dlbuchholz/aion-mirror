@@ -129,7 +129,7 @@ the build folder.
 ## Builds and releases
 
 CI runs on Codeberg ([.forgejo/workflows/build.yml](.forgejo/workflows/build.yml)), on a
-self-hosted runner with three build images:
+self-hosted runner with four build images:
 
 - `linux-qt`: Fedora with Qt for Linux, Qt for MinGW and Wine
   ([ci/images/fedora44.Dockerfile](ci/images/fedora44.Dockerfile)). Builds and tests Linux and
@@ -139,6 +139,10 @@ self-hosted runner with three build images:
   AppImage, on an older system so it runs on older distributions too.
 - `linux-debian`: Debian 13 with Debian's Qt
   ([ci/images/debian13.Dockerfile](ci/images/debian13.Dockerfile)). Builds, tests and packs the DEB.
+- `linux-qt-win7`: the `linux-qt` image plus Qt 6.8.5 for MinGW with the
+  [qt6windows7](https://github.com/crystalidea/qt6windows7) patches
+  ([ci/images/fedora44-win7.Dockerfile](ci/images/fedora44-win7.Dockerfile)). Builds, tests and
+  packs the Windows 7/8 package. It starts from `linux-qt`, so rebuild it whenever that one changes.
 
 - **Every push and pull request to `develop`:** Linux is built and tested, and Windows is
   cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
@@ -155,6 +159,12 @@ self-hosted runner with three build images:
     starts and uninstalls under Wine;
   - pack the AppImage ([scripts/package-appimage.sh](scripts/package-appimage.sh)) and check that it
     starts;
+  - nightly, with the draft, or when its box is ticked: build the Windows 7/8 package and its
+    installer ([installer/aion-win7.nsi](installer/aion-win7.nsi)) the same way, and check that
+    every Windows function it calls exists on Windows 7 SP1
+    ([scripts/check-win7-imports.sh](scripts/check-win7-imports.sh), with the lists in
+    [ci/win7-exports](ci/win7-exports/README.md)). Not first-class support: a failure there only
+    warns, and the release then goes out without these files;
   - update the releases ([scripts/publish-release.sh](scripts/publish-release.sh)): always the
     `staging` pre-release, the version's draft only when started by hand with the box ticked.
 - **Coverage**, nightly (04:00 UTC, [.forgejo/workflows/coverage.yml](.forgejo/workflows/coverage.yml),
@@ -219,7 +229,8 @@ To release:
 
 1. On Codeberg, open **Actions**, choose the workflow, click **Run workflow** on `develop` with
    **Also prepare the draft release** ticked, and wait for it to pass. The draft then has that
-   commit's build.
+   commit's build. If the Windows 7/8 job failed, the draft has no Windows 7/8 files: check its
+   log, and decide whether to fix it first or release without them.
 2. Open the draft under **Releases**, write the release notes, and click **Publish**.
    The release and its tag stay as they are from then on.
 3. Raise the version in `CMakeLists.txt` for the next release. Its draft is made the next time you
