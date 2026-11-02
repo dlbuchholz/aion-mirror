@@ -7,6 +7,7 @@
 
 #include "db/databasemanager.h"
 #include "db/migrationmanager.h"
+#include "tests/test_db_fixture.h"
 
 namespace {
 
@@ -118,7 +119,7 @@ private slots:
         const QStringList files = builtInMigrationFiles();
 
         // What a new database looks like
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("new.sqlite")));
         QVERIFY(MigrationManager(BuiltInMigrations).applyMigrations());
@@ -167,7 +168,7 @@ private slots:
     }
 
     void failedMigrationRollsBackStatements() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QFile migration(root.filePath("002_broken.sql"));
         QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -187,7 +188,7 @@ private slots:
     }
 
     void semicolonsInCommentsDontSplitStatements() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QFile migration(root.filePath("002_comments.sql"));
         QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -208,7 +209,7 @@ private slots:
     }
 
     void semicolonsAndQuotesInStringsStayInTheirStatement() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QFile migration(root.filePath("002_strings.sql"));
         QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -222,7 +223,7 @@ private slots:
     }
 
     void aMissingFolderAppliesNothingAndSaysSo() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("db.sqlite")));
         MigrationManager manager(root.filePath("no-such-folder"));
@@ -232,7 +233,7 @@ private slots:
     }
 
     void aFailedMigrationKeepsEarlierOnesAndIsTriedAgain() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         const auto write = [&root](const char* name, const char* sql) {
             QFile file(root.filePath(name));
@@ -253,7 +254,7 @@ private slots:
     }
 
     void aMigrationThatCantBeRecordedIsUndone() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QFile migration(root.filePath("002_drops.sql"));
         QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -269,7 +270,7 @@ private slots:
     }
 
     void aMigrationThatCantBeCommittedIsUndone() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QFile migration(root.filePath("002_orphan.sql"));
         QVERIFY(migration.open(QIODevice::WriteOnly | QIODevice::Text));
@@ -288,7 +289,7 @@ private slots:
     }
 
     void partiallyInitializedVersionOneCanRecover() {
-        QTemporaryDir root;
+        TestFolder root;
         QVERIFY(root.isValid());
         QVERIFY(QFile::copy(BuiltInMigrations + "/001_initial_schema.sql",
                             root.filePath("001_initial_schema.sql")));

@@ -1,11 +1,11 @@
 #include <QtTest>
 #include <QDir>
-#include <QTemporaryDir>
 
 #include "db/databasemanager.h"
 #include "db/databasesession.h"
 #include "settings.h"
 #include "systeminfo.h"
+#include "tests/test_db_fixture.h"
 #include "version.h"
 
 class TestSystemInfo : public QObject {
@@ -48,7 +48,7 @@ private slots:
 
     void reportListsBuildAndDatabaseDetails() {
         // Database inside the home folder, so the report must mask its path
-        QTemporaryDir dir(QDir::homePath() + "/aion-systeminfo-XXXXXX");
+        TestFolder dir(QDir::homePath() + "/aion-systeminfo-XXXXXX");
         QVERIFY(dir.isValid());
         QVERIFY(DatabaseSession::create(dir.filePath("report.db")));
 
@@ -70,7 +70,6 @@ private slots:
             }
         }
         QVERIFY(foundFullPath);
-        DatabaseManager::instance().closeDatabase();
     }
 };
 

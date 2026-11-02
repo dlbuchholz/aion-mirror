@@ -10,6 +10,13 @@
 #include "user.h"
 #include "tests/test_db_utils.h" // execOrFail
 
+// A temporary folder that closes the database first, also when a check failed before the end of
+// the test: Windows can't delete an open database file, so the folder would stay behind
+struct TestFolder : QTemporaryDir {
+    using QTemporaryDir::QTemporaryDir;
+    ~TestFolder() { DatabaseManager::instance().closeDatabase(); }
+};
+
 /**
  * TestDbFixture
  *
