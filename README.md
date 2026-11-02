@@ -37,9 +37,17 @@ small, simple and long-lived. Feel free to suggest anything related to that.
 Aion runs on Windows and Linux (64-bit). Get it from the
 [releases page](https://codeberg.org/spectre_0/aion/releases).
 
-**Windows:** run the file ending in `-setup.exe`. It does not need administrator rights,
- you can install it on your user account only. There's also a `.zip` if you'd
+**Windows 10 and 11:** run the file ending in `windows-x64-setup.exe`. It does not need administrator rights,
+ you can install it on your user account only. There's also a `windows-x64.zip` if you'd
  rather not install anything: unpack it and start `Aion.exe`.
+
+**Windows 7 SP1, 8 and 8.1:** use the files ending in `windows7-x64-setup.exe` or `windows7-x64.zip`
+ the same way. Aion uses Qt 6, which officially supports only Windows 10 and later.
+To enable compatibility with older Windows versions, this build uses Qt 6.8 with
+patches from [qt6windows7](https://github.com/crystalidea/qt6windows7).
+These patches are unofficial and not supported by Qt.
+
+As this compatibility relies on third-party patches for Qt, it may be fragile and some issues are to be expected. If you encounter any problems, please report them.
 
 **Linux:**
 

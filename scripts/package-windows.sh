@@ -8,12 +8,24 @@
 # the MinGW runtime and Fedora's libraries (zlib, freetype, ...). Each Qt module brings its
 # plugins along (see the table below), like windeployqt does. Writes a list of the bundled DLLs
 # with their Fedora package and license, and prints the zip's path at the end.
+#
+# For the Windows 7/8 package (ci/images/fedora44-win7.Dockerfile), which brings its own Qt:
+#   QT_ROOT         Qt's folder; its DLLs are taken before the MinGW folder's, and its plugins
+#                   from its plugins folder. Its SOURCE.txt, which says where that Qt comes
+#                   from, goes into the package as QT-SOURCE.txt.
+#   PACKAGE_SUFFIX  the end of the package's name, windows-x64 by default
 set -euo pipefail
 
 build_dir=$(realpath "$1")
 output_dir=$(realpath -m "$2")
 mingw_root=${MINGW_ROOT:-/usr/x86_64-w64-mingw32/sys-root/mingw}
-plugin_root=${QT_PLUGIN_ROOT:-$mingw_root/lib/qt6/plugins}
+if [[ -n ${QT_ROOT:-} ]]; then
+    qt_root=$QT_ROOT
+    plugin_root=${QT_PLUGIN_ROOT:-$qt_root/plugins}
+else
+    qt_root=$mingw_root
+    plugin_root=${QT_PLUGIN_ROOT:-$mingw_root/lib/qt6/plugins}
+fi
 objdump=${OBJDUMP:-x86_64-w64-mingw32-objdump}
 strip=${STRIP:-x86_64-w64-mingw32-strip}
 source_dir=$(realpath "$(dirname "$0")/..")
@@ -32,15 +44,21 @@ declare -A module_plugins=(
 
 version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "$build_dir/CMakeCache.txt")
 commit=$(git -C "$source_dir" rev-parse --short HEAD)
-name="aion-$version-$commit-windows-x64"
+name="aion-$version-$commit-${PACKAGE_SUFFIX:-windows-x64}"
 stage="$output_dir/$name"
 rm -rf "$stage"
 mkdir -p "$stage"
 cp "$build_dir/Aion.exe" "$stage/"
 
-# Follow the imports of every file in the package. A DLL found in the MinGW folder is copied
-# (and followed in turn); anything else must be part of Windows itself (KERNEL32.dll, ...). A
-# copied Qt module adds its plugins, whose imports are followed too.
+# Where a DLL the package needs comes from: Qt's folder first, then the MinGW folder (the same
+# folder unless QT_ROOT is set). Prints nothing for a DLL in neither.
+find_dll() {
+    find "$qt_root/bin" "$mingw_root/bin" -maxdepth 1 -iname "$1" -print -quit
+}
+
+# Follow the imports of every file in the package. A DLL found in Qt's or the MinGW folder is
+# copied (and followed in turn); anything else must be part of Windows itself (KERNEL32.dll, ...).
+# A copied Qt module adds its plugins, whose imports are followed too.
 declare -A seen=()
 system_dlls=()
 queue=("$stage/Aion.exe")
@@ -68,7 +86,7 @@ while ((${#queue[@]})); do
         key=${dll,,}
         [[ -n ${seen[$key]:-} ]] && continue
         seen[$key]=1
-        found=$(find "$mingw_root/bin" -maxdepth 1 -iname "$dll" -print -quit)
+        found=$(find_dll "$dll")
         if [[ -n $found ]]; then
             cp "$found" "$stage/"
             queue+=("$stage/$(basename "$found")")
@@ -111,6 +129,15 @@ cp "$source_dir/LICENSE" "$stage/LICENSE.txt"
 cp "$source_dir/LICENSE-LGPL" "$stage/LICENSE-LGPL.txt"
 cp "$source_dir/assets/icons/LICENSE" "$stage/LICENSE-icons.txt"
 cp "$source_dir/thirdparty/miniz/LICENSE" "$stage/LICENSE-miniz.txt"
+own_qt=false
+if [[ $qt_root != "$mingw_root" ]]; then
+    own_qt=true
+    if [[ ! -f $qt_root/SOURCE.txt ]]; then
+        echo "$qt_root has no SOURCE.txt saying where this Qt comes from" >&2
+        exit 1
+    fi
+    cp "$qt_root/SOURCE.txt" "$stage/QT-SOURCE.txt"
+fi
 {
     echo "Aion's source code: https://codeberg.org/spectre_0/aion"
     echo
@@ -124,11 +151,18 @@ cp "$source_dir/thirdparty/miniz/LICENSE" "$stage/LICENSE-miniz.txt"
     echo "source is available from Fedora (https://src.fedoraproject.org/rpms/<package>) and"
     echo "its license applies to that file. Qt is used under the LGPL version 3 (LICENSE-LGPL.txt,"
     echo "which adds to the GPL in LICENSE.txt)."
+    if $own_qt; then
+        echo "Except Qt, which was built for this package: QT-SOURCE.txt says from which source."
+    fi
     echo
     for dll in "$stage"/*.dll "$stage"/*/*.dll; do
         relative=${dll#"$stage/"}
-        source_file="$mingw_root/bin/$(basename "$dll")"
+        source_file=$(find_dll "$(basename "$dll")")
         [[ $relative == */* ]] && source_file="$plugin_root/$relative"
+        if $own_qt && [[ $source_file == "$qt_root"/* || $relative == */* ]]; then
+            echo "$relative: Qt, built for this package (QT-SOURCE.txt)"
+            continue
+        fi
         package=$(rpm -qf --qf '%{NAME} %{VERSION}, %{LICENSE}' "$source_file" 2>/dev/null || echo "unknown package")
         echo "$relative: $package"
     done
