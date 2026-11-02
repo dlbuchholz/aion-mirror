@@ -1,6 +1,6 @@
 # Icons
 
-Monochrome 24×24 stroke icons used by the sidebar. They are bundled as Qt
+Monochrome 24×24 stroke icons used by the sidebar and the settings. They are bundled as Qt
 resources (`:/icons/<name>.svg`) and tinted at runtime to match the theme.
 
 ## Origin and license
@@ -32,3 +32,4 @@ see `LICENSE` in this folder):
 | `info.svg`          | `info-circle`           |
 | `x.svg`             | `x`                     |
 | `sparkle.svg`       | `sparkles` (its big star, filled) |
+| `bank.svg`          | `building-bank`         |
