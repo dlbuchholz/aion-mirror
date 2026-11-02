@@ -144,9 +144,13 @@ self-hosted runner with four build images:
   ([ci/images/fedora44-win7.Dockerfile](ci/images/fedora44-win7.Dockerfile)). Builds, tests and
   packs the Windows 7/8 package. It starts from `linux-qt`, so rebuild it whenever that one changes.
 
-- **Every push and pull request to `develop`:** Linux is built and tested, and Windows is
-  cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
+- **Every push and pull request to `develop`:** Linux is built and tested on Fedora, and Windows
+  is cross-built with MinGW and tested under Wine. A newer push cancels the run of an older commit.
   Changes to documentation alone (Markdown files, `docs/`) don't start a run.
+- **Pull requests, and pushes that change the build** (a `CMakeLists.txt`, the DEB or AppImage
+  script or image, or the workflow), are also built and tested on Debian and for the AppImage.
+  These test the older Qt versions, so a function only newer Qt has shows up in the nightly run
+  at the latest.
 - **Publishing runs**, nightly (03:00 UTC, only when more than documentation changed on `develop`
   since the last `staging` build) and when started by hand with **Run workflow** on the Actions page, also:
   - pack the Linux build as an RPM for that Fedora release ([scripts/package-rpm.sh](scripts/package-rpm.sh)),

@@ -1,4 +1,5 @@
-# Builds Aion and runs the tests on every push to develop and every pull request.
+# Builds Aion and runs the tests on every push to develop and every pull request. Pushes build on
+# Fedora and Windows only, unless they change the build (see the Plan job).
 # Packages and publishes it (the "staging" pre-release) nightly when develop changed, and when
 # started by hand ("Run workflow" on the Actions page), which can also prepare the version's draft.
 # The Windows 7/8 package is built in nightly runs, with the draft, and when its box is ticked.
@@ -45,30 +46,50 @@ env:
 # included, so a run that hangs frees the runner after minutes instead of hours.
 jobs:
   # Decides what this run does: build (always, except a nightly run when staging already has this
-  # commit or only documentation changed since), publish (nightly and by hand) and prepare the
-  # draft (by hand, when ticked)
+  # commit or only documentation changed since), build with the older Qt versions too (see
+  # older_qt below), publish (nightly and by hand) and prepare the draft (by hand, when ticked)
   plan:
     name: Plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       build: ${{ steps.plan.outputs.build }}
+      older_qt: ${{ steps.plan.outputs.older_qt }}
       publish: ${{ steps.plan.outputs.publish }}
       draft: ${{ steps.plan.outputs.draft }}
     steps:
-      # The whole history with its tags, to find the commit staging was built from
+      # The whole history with its tags, to find the commit staging was built from, or the
+      # commit before a push
       - name: Check out
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.event_name == 'push'
         uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # A push builds on Fedora and Windows only, unless it changes what the Debian and AppImage
+      # builds depend on (OLDER_QT_FILES). Those test the older Qt versions, so a newer Qt's
+      # function shows up nightly at the latest. Pull requests, nightly and by hand build all.
       - name: Plan
         id: plan
         env:
           PUBLISH: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
           DRAFT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' }}
+          BEFORE: ${{ github.event.before }}
+          OLDER_QT_FILES: '(^|/)CMakeLists\.txt$|^scripts/package-(deb|appimage)\.sh$|^ci/images/(debian13|ubuntu22\.04)\.Dockerfile$|^\.forgejo/workflows/build\.yml$'
         run: |
+          older_qt=true
+          if [[ $GITHUB_EVENT_NAME == push ]]; then
+            # A new branch or a force push has no earlier commit here to compare with
+            if ! git -c safe.directory='*' cat-file -e "$BEFORE^{commit}" 2> /dev/null; then
+              echo "The commit before this push is unknown, building with the older Qt versions too"
+            elif git -c safe.directory='*' diff --name-only "$BEFORE" "$GITHUB_SHA" | grep -qE "$OLDER_QT_FILES"; then
+              echo "This push changes the build, building with the older Qt versions too"
+            else
+              older_qt=false
+            fi
+          fi
+          echo "older_qt=$older_qt" >> "$GITHUB_OUTPUT"
+
           build=true
           if [[ $GITHUB_EVENT_NAME == schedule ]]; then
             staging=$(git -c safe.directory='*' rev-parse -q --verify 'refs/tags/staging^{commit}' || true)
@@ -169,11 +190,11 @@ jobs:
           path: dist/${{ steps.package.outputs.name }}.rpm
 
   # Linux on Debian, with Debian's Qt (ci/images/debian13.Dockerfile). Also tests with an older
-  # Qt version.
+  # Qt version, so not on every push (older_qt).
   debian:
     name: Linux (DEB Build)
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: needs.plan.outputs.build == 'true' && needs.plan.outputs.older_qt == 'true'
     runs-on: linux-debian
     timeout-minutes: 15
     outputs:
@@ -250,11 +271,12 @@ jobs:
           path: dist/${{ steps.package.outputs.name }}.deb
 
   # Linux as an AppImage, on Ubuntu 22.04 with the official Qt (ci/images/ubuntu22.04.Dockerfile),
-  # so it runs on older distributions too. Also tests with that Qt version.
+  # so it runs on older distributions too. Also tests with that Qt version, so not on every push
+  # (older_qt).
   appimage:
     name: Linux (AppImage)
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: needs.plan.outputs.build == 'true' && needs.plan.outputs.older_qt == 'true'
     runs-on: linux-appimage
     timeout-minutes: 15
     outputs:
