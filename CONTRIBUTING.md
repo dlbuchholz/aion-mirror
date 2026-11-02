@@ -119,6 +119,19 @@ Open `CMakeLists.txt` and choose a kit. The kit sets the matching compiler and p
 nothing else is needed. To run the tests, use **Tools → Tests → Run All Tests**, or run `ctest` in
 the build folder.
 
+## Command line (Windows, MSVC)
+
+[scripts/build.ps1](scripts/build.ps1) configures, builds and tests with Visual Studio 2022 or its
+Build Tools, in the `build-vs` folder, using all cores:
+
+```powershell
+.\scripts\build.ps1 test run     # build, test, and start Aion if the tests pass
+```
+
+It finds the newest `msvc*_64` Qt kit under `C:\Qt` or `D:\Qt`. For a kit elsewhere, pass
+`-QtDir C:\path\to\6.12.0\msvc2022_64` once or set `AION_QT_DIR`. The tests run off screen, so their
+windows don't appear. `Get-Help .\scripts\build.ps1 -Examples` lists the other actions.
+
 ## Before you send a change
 
 - Build without new warnings. To check, configure with `-DAION_WARNINGS_AS_ERRORS=ON`. MSVC and GCC

@@ -58,6 +58,12 @@ if(AION_COVERAGE)
     target_link_options(aion_warnings INTERFACE --coverage)
 endif()
 
+# Visual Studio builds compile one file after another unless told otherwise (/MP). Ninja already
+# runs one compiler per file in parallel.
+if(MSVC AND CMAKE_GENERATOR MATCHES "Visual Studio")
+    add_compile_options(/MP)
+endif()
+
 # MSVC's incremental linking reuses the .ilk files of earlier links and has produced test
 # programs that crash on start until relinked from scratch. Full links are quick here.
 if(MSVC)
