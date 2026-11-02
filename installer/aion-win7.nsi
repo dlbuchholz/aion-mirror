@@ -7,7 +7,7 @@
 ; installed regular Aion (Windows 10/11). Keep changes to aion.nsi in step here. It also stops on
 ; Windows older than 7 SP1 and on 32-bit Windows, which the package doesn't run on.
 ;
-; Installs for the current user only (no admin rights) into %LOCALAPPDATA%\Programs\Aion Win7,
+; Installs for the current user only (no admin rights) into %LOCALAPPDATA%\Programs\Aion-Win7,
 ; with a Start menu entry and an optional desktop shortcut. Uninstalling removes the program, and
 ; the user's data (database and settings, shared with the regular Aion) only when they tick that
 ; option.
@@ -24,7 +24,7 @@ Unicode true
 
 !define APP_NAME "Aion for Windows 7 and 8"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Aion-Win7"
-!define FOLDER_NAME "Aion Win7"
+!define FOLDER_NAME "Aion-Win7"                    ; No space: Wine quotes a /D=... with one, which NSIS ignores
 
 Name "${APP_NAME}"
 OutFile "${OUTFILE}"

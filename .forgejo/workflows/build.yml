@@ -525,8 +525,8 @@ jobs:
 
       - name: Check the installer
         run: |
-          folder="$WINEPREFIX/drive_c/AionTest/Aion Win7"
-          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\AionTest\Aion Win7'
+          folder="$WINEPREFIX/drive_c/AionTest/Aion-Win7"
+          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\AionTest\Aion-Win7'
           wineserver -w
           output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Aion.exe" --version)
           echo "$output"
