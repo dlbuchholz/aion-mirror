@@ -373,7 +373,7 @@ void SettingsPage::buildCategoriesSection()
 
     accountTypesSettings = new AccountTypesSettings(this);
     connect(accountTypesSettings, &AccountTypesSettings::accountTypesChanged, this, &SettingsPage::dataChanged);
-    addSection("Account types", "database", accountTypesSettings);
+    addSection("Account types", "bank", accountTypesSettings);
 
     auto *backupSettings = new BackupSettings(this);
     connect(backupSettings, &BackupSettings::restored, this, &SettingsPage::databaseRestored);

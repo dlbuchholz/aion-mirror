@@ -258,6 +258,18 @@ private slots:
         QVERIFY(hasRow("Tanken"));
     }
 
+    void everySectionHasItsOwnIcon() {
+        SettingsPage page;
+        auto* sections = page.findChild<QListWidget*>();
+        QSet<QString> icons;
+        for (int i = 0; i < sections->count(); ++i) {
+            const QString icon = sections->item(i)->data(Qt::UserRole).toString();
+            QVERIFY2(QFile::exists(QString(":/icons/%1.svg").arg(icon)), qPrintable(icon + " is not in the resources"));
+            QVERIFY2(!icons.contains(icon), qPrintable(sections->item(i)->text() + " shares its icon " + icon));
+            icons.insert(icon);
+        }
+    }
+
     void categoriesAndAccountTypesHaveTheirOwnSectionsAndSaveRightAway() {
         SettingsPage page;
         page.setUserId(1);
