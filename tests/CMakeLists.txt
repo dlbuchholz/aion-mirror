@@ -5,6 +5,7 @@ file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp
 foreach(test_source IN LISTS TEST_SOURCES)
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source}
+        isolated_settings.cpp                    # Never the real app's settings
         test_db_fixture.h
         test_spreadsheet_files.h
     )

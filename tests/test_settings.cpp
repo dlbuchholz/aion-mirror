@@ -20,6 +20,12 @@ private slots:
         original.clear();
     }
 
+    void testsDontUseTheRealSettings() {
+        QSettings& settings = Settings::instance().getQSettings();
+        QCOMPARE(settings.format(), QSettings::IniFormat);
+        QVERIFY(QDir::cleanPath(settings.fileName()).startsWith(QDir::cleanPath(QDir::tempPath())));
+    }
+
     void currencySymbols() {
         auto& s = Settings::instance();
         s.setCurrencySymbol(Settings::CurrencySymbol::EUR);

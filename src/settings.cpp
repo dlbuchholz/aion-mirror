@@ -5,7 +5,7 @@
 #include <QSqlQuery>
 
 Settings:: Settings()
-    : settings("LeineHive", "Aion") {
+    : settings(QSettings::defaultFormat(), QSettings::UserScope, "LeineHive", "Aion") {
     // settings(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/settings.ini",
     //           QSettings::IniFormat)
     qDebug() << "Settings file location:" << settings.fileName();
