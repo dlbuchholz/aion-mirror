@@ -472,6 +472,34 @@ private slots:
         QCOMPARE(dao.rules().size(), 1);
     }
 
+    void aConditionThatCantBeReadStopsItsRule() {
+        RuleDAO dao(1);
+        Rule rule;
+        rule.categoryId = categoryId(1, "Groceries");
+        rule.conditions = {{Field::Payee, Operator::Contains, "REWE"},
+                           {Field::Amount, Operator::Between, "100", "5000"}};
+        const int damaged = dao.addRule(rule);
+        rule.conditions = {{Field::Payee, Operator::Contains, "Aldi"}};
+        const int intact = dao.addRule(rule);
+        QVERIFY(damaged > 0 && intact > 0);
+
+        // As a damaged or hand-edited database could have it: the table's checks refuse unknown names
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("PRAGMA ignore_check_constraints = ON"));
+        QVERIFY(query.exec(QString("UPDATE rule_conditions SET field = 'nonsense' WHERE rule_id = %1 AND field = 'amount'")
+                               .arg(damaged)));
+        QCOMPARE(query.numRowsAffected(), 1);
+        QVERIFY(query.exec("PRAGMA ignore_check_constraints = OFF"));
+
+        const QList<Rule> rules = dao.rules();
+        QCOMPARE(rules.size(), 2);                           // Still there, to be fixed in the settings
+        QVERIFY(rules[0].conditions.isEmpty());              // Not just "Payee contains REWE", which matches more
+        QVERIFY(!rules[0].matches(transaction("REWE", "", 100000)));
+        QCOMPARE(Rules::describe(rules[0], {}), QString("No conditions"));
+        QCOMPARE(rules[1].conditions.size(), 1);             // Other rules are left alone
+        QVERIFY(rules[1].matches(transaction("Aldi", "", 100)));
+    }
+
     void rulesCanHaveANameOrBeShownByTheirConditions() {
         RuleDAO dao(1);
         Rule rule;

@@ -3,6 +3,7 @@
 #include "settings.h"
 
 #include <QHash>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <algorithm>
@@ -515,14 +516,26 @@ QList<Rule> RuleDAO::rules() {
         qWarning() << "RuleDAO::rules:" << query.lastError().text();
         return result;
     }
+    // A condition Aion can't read (a damaged or hand-edited database) leaves its rule without any:
+    // dropping only that one would make a rule that needs all of them match more than it should.
+    // Without conditions it matches nothing and shows so in the settings, until it's fixed there.
+    QSet<int> unreadable;
     while (query.next()) {
         const auto field = RuleCondition::fieldFromKey(query.value(1).toString());
         const auto op = RuleCondition::operatorFromKey(query.value(2).toString());
         const auto index = indexById.constFind(query.value(0).toInt());
-        if (!field || !op || index == indexById.constEnd()) {
+        if (index == indexById.constEnd()) {
+            continue;
+        }
+        if (!field || !op) {
+            unreadable.insert(*index);
             continue;
         }
         result[*index].conditions.append({*field, *op, query.value(3).toString(), query.value(4).toString()});
+    }
+    for (int index : unreadable) {
+        qWarning() << "RuleDAO::rules: rule" << result[index].id << "has a condition that can't be read";
+        result[index].conditions.clear();
     }
     return result;
 }
