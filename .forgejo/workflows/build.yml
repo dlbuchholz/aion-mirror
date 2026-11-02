@@ -1,7 +1,7 @@
 # Builds Aion and runs the tests on every push to develop and every pull request.
 # Packages and publishes it (the "staging" pre-release) nightly when develop changed, and when
-# started by hand ("Run workflow" on the Actions page), which can also prepare the version's draft
-# and build the Windows 7/8 package.
+# started by hand ("Run workflow" on the Actions page), which can also prepare the version's draft.
+# The Windows 7/8 package is built in nightly runs, with the draft, and when its box is ticked.
 # Runs on the self-hosted runner (label linux-qt: Fedora with Qt 6, see the runner's Dockerfile).
 name: Build and test
 
@@ -23,7 +23,7 @@ on:
         type: boolean
         default: false
       windows7:
-        description: Also build the Windows 7/8 package (not published, see the windows7 job)
+        description: Also build the Windows 7/8 package (always built nightly and with the draft)
         type: boolean
         default: false
 
@@ -440,15 +440,22 @@ jobs:
             dist/${{ steps.package.outputs.name }}-setup.exe
 
   # Windows 7/8, cross-compiled with Qt 6.8.5 and the qt6windows7 patches
-  # (ci/images/fedora44-win7.Dockerfile). Not first-class support: runs only when started by hand
-  # with its box ticked, a failure doesn't fail the run, and the release doesn't publish its files.
-  # The zip and the installer stay with the run for a week, for trying them on Windows 7/8.
+  # (ci/images/fedora44-win7.Dockerfile). Not first-class support: built only in publishing runs
+  # that are nightly or prepare the draft, or when started by hand with its box ticked, not on
+  # pushes. A failure doesn't fail the run or hold up the release, which then goes out without
+  # these files.
   windows7:
     name: Windows 7/8 (MinGW, Qt 6.8)
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.windows7 == 'true'
+    needs: plan
+    if: >
+      needs.plan.outputs.build == 'true' && needs.plan.outputs.publish == 'true'
+      && (github.event_name == 'schedule' || needs.plan.outputs.draft == 'true'
+          || github.event.inputs.windows7 == 'true')
     runs-on: linux-qt-win7
     timeout-minutes: 20
     continue-on-error: true
+    outputs:
+      package: ${{ steps.package.outputs.name }}
     steps:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
@@ -538,10 +545,12 @@ jobs:
             exit 1
           fi
 
-      - name: Keep the zip and the installer
+      # For the release job, and for trying them on Windows 7/8 from a run that doesn't publish
+      # (one on another branch than develop): kept for a week.
+      - name: Hand the files to the release job
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
-          name: windows7-packages
+          name: windows7-release
           retention-days: 7
           path: |
             dist/${{ steps.package.outputs.name }}.zip
@@ -549,16 +558,28 @@ jobs:
 
   # After all builds pass in a publishing run on develop: replace the rolling "staging"
   # pre-release, and, when ticked, tag a new version from CMakeLists.txt with a draft release
-  # (scripts/publish-release.sh).
+  # (scripts/publish-release.sh). The Windows 7/8 files go along when that job built them; it
+  # failing or not running doesn't hold up the release (always(), with the other jobs checked).
   release:
     name: Release
-    needs: [plan, linux, debian, appimage, windows]
-    if: needs.plan.outputs.publish == 'true' && github.ref == 'refs/heads/develop'
+    needs: [plan, linux, debian, appimage, windows, windows7]
+    if: >
+      always() && needs.plan.outputs.publish == 'true' && github.ref == 'refs/heads/develop'
+      && needs.linux.result == 'success' && needs.debian.result == 'success'
+      && needs.appimage.result == 'success' && needs.windows.result == 'success'
     runs-on: linux-qt
     timeout-minutes: 15
     steps:
       - name: Check out
         uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Get the Windows 7/8 files
+        if: needs.windows7.outputs.package != ''
+        continue-on-error: true
+        uses: https://code.forgejo.org/actions/download-artifact@v3
+        with:
+          name: windows7-release
+          path: dist
 
       - name: Get the Windows files
         uses: https://code.forgejo.org/actions/download-artifact@v3
@@ -584,14 +605,22 @@ jobs:
           name: debian-release
           path: dist
 
-      # The run's own token, unless a RELEASE_TOKEN secret is set
+      # The run's own token, unless a RELEASE_TOKEN secret is set. The Windows 7/8 files only when
+      # both arrived.
       - name: Publish
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           PREPARE_DRAFT: ${{ needs.plan.outputs.draft }}
-        run: >
-          bash scripts/publish-release.sh dist/${{ needs.windows.outputs.package }}.zip
-          dist/${{ needs.windows.outputs.package }}-setup.exe
-          dist/${{ needs.appimage.outputs.package }}.AppImage
-          dist/${{ needs.linux.outputs.package }}.rpm
-          dist/${{ needs.debian.outputs.package }}.deb
+          WINDOWS7: ${{ needs.windows7.outputs.package }}
+        run: |
+          files=(dist/${{ needs.windows.outputs.package }}.zip
+                 dist/${{ needs.windows.outputs.package }}-setup.exe
+                 dist/${{ needs.appimage.outputs.package }}.AppImage
+                 dist/${{ needs.linux.outputs.package }}.rpm
+                 dist/${{ needs.debian.outputs.package }}.deb)
+          if [[ -n $WINDOWS7 && -f dist/$WINDOWS7.zip && -f dist/$WINDOWS7-setup.exe ]]; then
+            files+=("dist/$WINDOWS7.zip" "dist/$WINDOWS7-setup.exe")
+          else
+            echo "Publishing without the Windows 7/8 files"
+          fi
+          bash scripts/publish-release.sh "${files[@]}"
