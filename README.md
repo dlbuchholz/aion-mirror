@@ -42,11 +42,12 @@ Aion runs on Windows and Linux (64-bit). Get it from the
  rather not install anything: unpack it and start `Aion.exe`.
 
 **Windows 7 SP1, 8 and 8.1:** use the files ending in `windows7-x64-setup.exe` or `windows7-x64.zip`
- the same way. Qt 6, which Aion is built on, doesn't support Windows before 10. This build uses Qt 6.8
- with the [qt6windows7](https://github.com/crystalidea/qt6windows7) patches, which make it run on these
- older versions; the patches are not supported by Qt. This is not first-class support: these systems
- aren't a primary target of Aion, so expect issues. If you run into one, please report it. If possible, reported
- issues will be looked at and fixed.
+ the same way. Aion uses Qt 6, which officially supports only Windows 10 and later.
+To enable compatibility with older Windows versions, this build uses Qt 6.8 with
+patches from [qt6windows7](https://github.com/crystalidea/qt6windows7).
+These patches are unofficial and not supported by Qt.
+
+As this compatibility relies on third-party patches for Qt, it may be fragile and some issues are to be expected. If you encounter any problems, please report them.
 
 **Linux:**
 
