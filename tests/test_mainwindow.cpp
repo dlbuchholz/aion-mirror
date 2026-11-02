@@ -77,6 +77,8 @@ private slots:
             return query.exec("SELECT total_changes()") && query.next() ? query.value(0).toLongLong() : -1;
         };
         const QString originalTheme = Settings::instance().getTheme();
+        Settings::instance().setTheme("Dark");           // Saved and applied, as at the app's start
+        Theme::applyTheme(Theme::Type::Dark);
         MainWindow window(1);
         auto* settings = window.findChild<SettingsPage*>();
         auto* apply = settings->findChild<QPushButton*>("applyButton");
