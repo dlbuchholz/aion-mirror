@@ -144,11 +144,22 @@ struct BudgetActual {
     bool kept() const { return spentCents <= limitCents; }
 };
 
+// All budgets of one month together
+struct BudgetMonth {
+    ReportRange month;
+    Cents limitCents = 0;
+    Cents spentCents = 0;                            // In the categories with a budget that month
+};
+
 struct BudgetReport {
     ReportRange range;                               // Whole months, up to the one today is in
     QList<BudgetActual> categories;                  // Fullest first
     Cents limitCents = 0;
     Cents spentCents = 0;
+    QList<BudgetMonth> months;                       // One per month of the range, in order
+    // A single month only: what its budgeted categories spent, added up day by day from the 1st up
+    // to today (or the month's last day). Empty for longer ranges.
+    QList<Cents> spentByDay;
     int keptCount() const;
 };
 

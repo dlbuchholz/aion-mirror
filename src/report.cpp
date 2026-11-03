@@ -5,6 +5,7 @@
 
 #include <QHash>
 #include <QLocale>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <algorithm>
@@ -27,6 +28,32 @@ QDate monthStart(const QDate& date) {
 
 QDate monthEnd(const QDate& date) {
     return monthStart(date).addMonths(1).addDays(-1);
+}
+
+// The spending in these categories (0 = no category), added up day by day from the month's first
+// up to today or its last day, the way the budgets count it
+QList<Cents> budgetedSpendingByDay(int userId, const QSet<int>& categories, const ReportRange& month, const QDate& today) {
+    QList<Cents> byDay(month.first.daysTo(qMin(month.last, today)) + 1, 0);
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT t.date, COALESCE(t.category_id, 0), SUM(" + SpendingCentsSql + ") "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND " + IsSpendingSql + " AND t.date BETWEEN :first AND :last AND "
+        + CountedAsIncomeOrSpendingSql + " GROUP BY t.date, COALESCE(t.category_id, 0)");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":first", month.first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", month.first.addDays(byDay.size() - 1).toString("yyyy-MM-dd"));
+    if (!query.exec()) {
+        qWarning() << "Reports:" << query.lastError().text();
+        return {};
+    }
+    while (query.next()) {
+        if (!categories.contains(query.value(1).toInt())) continue;
+        const int day = int(month.first.daysTo(QDate::fromString(query.value(0).toString(), "yyyy-MM-dd")));
+        if (day >= 0 && day < byDay.size()) byDay[day] += query.value(2).toLongLong();
+    }
+    for (int day = 1; day < byDay.size(); ++day) byDay[day] += byDay[day - 1];
+    return byDay;
 }
 
 } // namespace
@@ -162,9 +189,16 @@ BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& t
         return report;
     }
     QHash<int, BudgetActual> byCategory;
+    QSet<int> budgeted;                              // In the last month, for spentByDay
     BudgetDAO dao;
     for (QDate month = report.range.first; month <= report.range.last; month = month.addMonths(1)) {
+        BudgetMonth& total = report.months.emplace_back();
+        total.month = {month, monthEnd(month)};
+        budgeted.clear();
         for (const MonthBudget& budget : dao.budgetsForMonth(userId, month)) {
+            budgeted.insert(budget.categoryId);
+            total.limitCents += budget.limitCents;
+            total.spentCents += budget.spentCents;
             BudgetActual& actual = byCategory[budget.categoryId];
             actual.categoryId = budget.categoryId;
             actual.categoryName = budget.categoryName;
@@ -183,6 +217,7 @@ BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& t
         const double fullB = double(b.spentCents) / double(b.limitCents);
         return fullA != fullB ? fullA > fullB : a.categoryName.localeAwareCompare(b.categoryName) < 0;
     });
+    if (report.months.size() == 1 && !budgeted.isEmpty()) report.spentByDay = budgetedSpendingByDay(userId, budgeted, report.range, today);
     return report;
 }
 

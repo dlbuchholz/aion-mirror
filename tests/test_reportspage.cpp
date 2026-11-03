@@ -406,6 +406,34 @@ private slots:
         QCOMPARE(rows[0]->accessibleName(), QString("Groceries"));
         QVERIFY(rows[0]->accessibleDescription().endsWith("40% used"));
 
+        // How the month goes against an even pace, above its chart
+        const Settings& settings = Settings::instance();
+        auto* chart = page.findChild<QWidget*>("budgetChart");
+        QVERIFY(chart);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        QTRY_VERIFY(chart->y() > page.findChild<QLabel*>("budgetSummary")->y());                 // Below the summary,
+        QVERIFY(chart->y() < page.findChild<QAbstractButton*>("budgetRow")->y());                 // above the list
+        const QString summary = text(page, "budgetSummary");
+        if (today.day() == today.daysInMonth()) {
+            QCOMPARE(summary, QString("%1 of %2 spent").arg(settings.formatCurrency(4000), settings.formatCurrency(10000)));
+        } else {
+            const Cents difference = 4000 - 10000 * today.day() / today.daysInMonth();
+            QVERIFY2(summary.startsWith(QString("%1 spent by the %2").arg(settings.formatCurrency(4000)).arg(today.day())), qPrintable(summary));
+            QVERIFY2(summary.endsWith(difference == 0 ? QString(", right on an even pace")
+                                                      : QString(", %1 %2 an even pace").arg(settings.formatCurrency(qAbs(difference)),
+                                                                                           difference > 0 ? "over" : "under")),
+                     qPrintable(summary));
+        }
+
+        // Several months: how many were over
+        chip(page, Preset::ThreeMonths)->click();
+        QCOMPARE(text(page, "budgetSummary"), QString("Within the budgets every month"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 7000, today, "", groceries, "expense"));
+        page.reload();
+        QCOMPARE(text(page, "budgetSummary"), QString("Over the budgets in 1 of 1 month"));
+        chip(page, Preset::Month)->click();
+
         // The chosen account doesn't apply, and that's said
         auto* combo = page.findChild<QComboBox*>("reportsAccountCombo");
         combo->setCurrentIndex(combo->findData(giro));

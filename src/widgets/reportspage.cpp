@@ -76,6 +76,46 @@ QString periodTitle(const ReportRange& period, const ReportRange& range) {
     return period.label();
 }
 
+// "1st", "2nd", "3rd", "11th", "22nd"
+QString ordinal(int day) {
+    const char* suffix = "th";
+    if (day % 100 < 11 || day % 100 > 13) {
+        if (day % 10 == 1) suffix = "st";
+        else if (day % 10 == 2) suffix = "nd";
+        else if (day % 10 == 3) suffix = "rd";
+    }
+    return QString::number(day) + suffix;
+}
+
+// Above the budget chart: how the month is going against an even pace, or how many months were over
+QString budgetSummary(const BudgetReport& report, const QDate& today) {
+    const Settings& settings = Settings::instance();
+    if (report.months.size() != 1) {
+        int withBudget = 0;
+        int over = 0;
+        for (const BudgetMonth& month : report.months) {
+            if (month.limitCents <= 0) continue;
+            ++withBudget;
+            if (month.spentCents > month.limitCents) ++over;
+        }
+        if (withBudget == 0) return QString();
+        if (over == 0) return "Within the budgets every month";
+        return QString("Over the budgets in %1 of %2 %3").arg(over).arg(withBudget).arg(withBudget == 1 ? "month" : "months");
+    }
+    const BudgetMonth& month = report.months.first();
+    if (month.limitCents <= 0 || report.spentByDay.isEmpty()) return QString();
+    const Cents soFar = report.spentByDay.last();
+    if (today >= month.month.last) {
+        return QString("%1 of %2 spent").arg(settings.formatCurrency(soFar), settings.formatCurrency(month.limitCents));
+    }
+    const int day = int(report.spentByDay.size());
+    const Cents pace = month.limitCents * day / month.month.days();
+    const Cents difference = soFar - pace;
+    QString text = QString("%1 spent by the %2").arg(settings.formatCurrency(soFar), ordinal(day));
+    if (difference == 0) return text + ", right on an even pace";
+    return text + QString(", %1 %2 an even pace").arg(settings.formatCurrency(qAbs(difference)), difference > 0 ? "over" : "under");
+}
+
 QString payeeName(const QString& payee) {
     return payee.isEmpty() ? QString("No payee") : payee;
 }
@@ -622,6 +662,110 @@ private:
     bool compact = false;
     CategoryTrend trend;
     int hovered = -1;
+};
+
+// Budget vs. actual over the budgets together. A single month: the spending added up day by day
+// against an even pace to the month's limit (dashed), so mid-month shows whether it's on track.
+// Longer: a bar per month with a mark at its limit, red when over.
+class BudgetChart : public QWidget {
+public:
+    explicit BudgetChart(QWidget* parent) : QWidget(parent) {
+        setObjectName("budgetChart");
+        setMinimumHeight(200);
+    }
+
+    void setReport(const BudgetReport& newReport) {
+        report = newReport;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QFont labelFont = font();
+        labelFont.setPointSizeF(font().pointSizeF() * 0.9);
+        painter.setFont(labelFont);
+        if (report.months.size() == 1) {
+            paintPace(painter);
+        } else {
+            paintMonths(painter);
+        }
+    }
+
+private:
+    void paintPace(QPainter& painter) const {
+        const Theme::Colors colors = Theme::colors();
+        const Settings& settings = Settings::instance();
+        const BudgetMonth& month = report.months.first();
+        const int days = int(month.month.days());
+        if (month.limitCents <= 0 || days < 2) return;
+        const Cents soFar = report.spentByDay.isEmpty() ? 0 : report.spentByDay.last();
+        const double highest = double(qMax(month.limitCents, soFar));
+        const QFontMetrics metrics(painter.font());
+        const QString limitText = settings.formatCurrency(month.limitCents, false, 0);
+        const QRect plot = rect().adjusted(metrics.horizontalAdvance(limitText) + 8, 8, -8, -24);
+        const auto x = [&](int day) { return plot.left() + double(day) / (days - 1) * plot.width(); };
+        const auto y = [&](Cents cents) { return plot.bottom() - double(cents) / highest * plot.height(); };
+
+        // The limit, the ground and the even pace between them
+        painter.setPen(colors.sidebarBorder);
+        painter.drawLine(QPointF(plot.left(), y(month.limitCents)), QPointF(plot.right(), y(month.limitCents)));
+        painter.drawLine(plot.bottomLeft(), plot.bottomRight());
+        painter.setPen(QPen(colors.textSecondary, 1, Qt::DashLine));
+        painter.drawLine(QPointF(x(0), y(0)), QPointF(x(days - 1), y(month.limitCents)));
+        painter.setPen(colors.textSecondary);
+        painter.drawText(QRect(0, int(y(month.limitCents)) - 8, plot.left() - 8, 16), Qt::AlignRight | Qt::AlignVCenter, limitText);
+        for (const int day : {0, days / 2, days - 1}) {
+            const QString label = day == 0 ? english.toString(month.month.first, "d MMM") : QString::number(day + 1);
+            painter.drawText(QRect(int(x(day)) - 40, plot.bottom() + 4, 80, 18), Qt::AlignCenter, label);
+        }
+
+        // The spending so far, red once past the limit
+        if (report.spentByDay.isEmpty()) return;
+        QPolygonF line;
+        for (int day = 0; day < report.spentByDay.size(); ++day) line << QPointF(x(day), y(report.spentByDay[day]));
+        const QColor color = soFar > month.limitCents ? colors.danger : colors.accent;
+        painter.setPen(QPen(color, 2));
+        painter.drawPolyline(line);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(color);
+        painter.drawEllipse(line.last(), 3.5, 3.5);
+    }
+
+    void paintMonths(QPainter& painter) const {
+        const Theme::Colors colors = Theme::colors();
+        Cents highest = 0;
+        for (const BudgetMonth& month : report.months) highest = qMax(highest, qMax(month.limitCents, month.spentCents));
+        if (highest <= 0 || report.months.isEmpty()) return;
+        const QRect plot = rect().adjusted(0, 8, 0, -24);
+        const int groupWidth = plot.width() / int(report.months.size());
+        const int barWidth = qBound(8, groupWidth / 2, 36);
+        const auto y = [&](Cents cents) { return plot.bottom() + 1 - double(cents) / double(highest) * plot.height(); };
+        for (int i = 0; i < report.months.size(); ++i) {
+            const BudgetMonth& month = report.months[i];
+            const double center = plot.left() + (i + 0.5) * groupWidth;
+            if (month.spentCents > 0) {
+                QPainterPath bar;
+                const double top = qMin(y(month.spentCents), plot.bottom() - 1.0);
+                bar.addRoundedRect(QRectF(center - barWidth / 2.0, top, barWidth, plot.bottom() + 1 - top + 3), 3, 3);
+                painter.save();
+                painter.setClipRect(QRectF(plot.left(), plot.top(), plot.width(), plot.height() + 1));
+                painter.fillPath(bar, month.spentCents > month.limitCents && month.limitCents > 0 ? colors.danger : colors.accent);
+                painter.restore();
+            }
+            if (month.limitCents > 0) {                  // The limit as a mark across the bar
+                painter.setPen(QPen(colors.textPrimary, 2));
+                painter.drawLine(QPointF(center - barWidth * 0.8, y(month.limitCents)), QPointF(center + barWidth * 0.8, y(month.limitCents)));
+            }
+            painter.setPen(colors.textSecondary);
+            painter.drawText(QRect(int(center) - 40, plot.bottom() + 4, 80, 18), Qt::AlignCenter, english.toString(month.month.first, "MMM"));
+        }
+        painter.setPen(colors.sidebarBorder);
+        painter.drawLine(plot.bottomLeft() + QPoint(0, 1), plot.bottomRight() + QPoint(0, 1));
+    }
+
+    BudgetReport report;
 };
 
 namespace {
@@ -1513,6 +1657,19 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
         layout->addWidget(empty);
         return widget;
     }
+
+    // How it went, then the chart: the pace in a single month, the months otherwise
+    const QString summary = budgetSummary(budgets, QDate::currentDate());
+    if (!summary.isEmpty()) {
+        auto* label = new QLabel(summary, widget);
+        label->setObjectName("budgetSummary");
+        layout->addWidget(label);
+        layout->addSpacing(8);
+    }
+    auto* chart = new BudgetChart(widget);
+    chart->setReport(budgets);
+    layout->addWidget(chart);
+    layout->addSpacing(16);
 
     using Column = ReportRow::Column;
     using Tone = ReportRow::Tone;

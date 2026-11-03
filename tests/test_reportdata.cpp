@@ -288,6 +288,46 @@ private slots:
         QCOMPARE(report.keptCount(), 1);
         QCOMPARE(report.limitCents, Cents(80000));
         QCOMPARE(report.spentCents, Cents(85000));
+
+        // Month by month, each with the budgets it had
+        QCOMPARE(report.months.size(), 3);
+        QCOMPARE(report.months[0].month, ReportRange({QDate(2026, 8, 1), QDate(2026, 8, 31)}));
+        QCOMPARE(report.months[0].limitCents, Cents(10000));
+        QCOMPARE(report.months[0].spentCents, Cents(8000));
+        QCOMPARE(report.months[1].limitCents, Cents(10000));
+        QCOMPARE(report.months[1].spentCents, Cents(12000));             // Rent had no budget yet
+        QCOMPARE(report.months[2].limitCents, Cents(60000));
+        QCOMPARE(report.months[2].spentCents, Cents(65000));
+        QVERIFY(report.spentByDay.isEmpty());                            // Only for a single month
+    }
+
+    void aMonthsBudgetsDayByDay() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, QDate(2026, 9, 1), 10000));
+        add(giro, 3000, QDate(2026, 10, 1), groceries, "expense");
+        add(savings, 2500, QDate(2026, 10, 10), groceries, "expense");
+        add(giro, 500, QDate(2026, 10, 10), groceries, "income");        // Money back
+        add(giro, 9000, QDate(2026, 10, 5), rent, "expense");            // No budget: doesn't count
+        add(giro, 4000, QDate(2026, 10, 30), groceries, "expense");      // Still to come
+        add(giro, 7000, QDate(2026, 9, 30), groceries, "expense");       // The month before
+
+        // This month: up to today, the 29th
+        const BudgetReport report = Reports::budgetVsActual(1, ReportRange::forPreset(Preset::Month, today), today);
+        QCOMPARE(report.spentByDay.size(), 29);
+        QCOMPARE(report.spentByDay[0], Cents(3000));
+        QCOMPARE(report.spentByDay[8], Cents(3000));
+        QCOMPARE(report.spentByDay[9], Cents(5000));
+        QCOMPARE(report.spentByDay.last(), Cents(5000));
+        QCOMPARE(report.spentCents, Cents(9000));                        // The budget counts what's planned too
+        QCOMPARE(report.months.size(), 1);
+
+        // A month that's over: every day
+        const BudgetReport september = Reports::budgetVsActual(1, {QDate(2026, 9, 1), QDate(2026, 9, 30)}, today);
+        QCOMPARE(september.spentByDay.size(), 30);
+        QCOMPARE(september.spentByDay[28], Cents(0));
+        QCOMPARE(september.spentByDay.last(), Cents(7000));
+
+        // Without budgets there's nothing to pace
+        QVERIFY(Reports::budgetVsActual(1, {QDate(2026, 8, 1), QDate(2026, 8, 31)}, today).spentByDay.isEmpty());
     }
 
     void budgetsTakeWholeMonthsThatHaveBegun() {
