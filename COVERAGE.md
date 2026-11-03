@@ -1,9 +1,9 @@
-<!-- Measured at 76b7305ee6694cf0607a42ed243ca9689a660077 by scripts/coverage.sh -->
+<!-- Measured at 0c0ef1c46835d63fac9759625103f82db85f5f6d by scripts/coverage.sh -->
 # Test coverage
 
 ![Coverage](docs/coverage-badge.svg)
 
-**98%** · 11506 / 11698 lines · 44 test suites · 591 test cases · 2026-11-02 · `76b7305`
+**98%** · 11514 / 11705 lines · 44 test suites · 593 test cases · 2026-11-03 · `0c0ef1c`
 
 ## Files
 
@@ -20,7 +20,7 @@
 | [src/widgets/categorytag.cpp](src/widgets/categorytag.cpp) | 97% | 34 / 35 | applyrulesdialog, balance, categorysettings and 4 more |
 | [src/dialog/balancecorrectiondialog.cpp](src/dialog/balancecorrectiondialog.cpp) | 98% | 97 / 99 | balance, rendering, transactionspage |
 | [src/icons.cpp](src/icons.cpp) | 98% | 53 / 54 | aboutwidget, branding, budgetpage and 11 more |
-| [src/rule.cpp](src/rule.cpp) | 98% | 449 / 459 | applyrulesdialog, balance, csvimport and 7 more |
+| [src/rule.cpp](src/rule.cpp) | 98% | 457 / 466 | applyrulesdialog, balance, csvimport and 7 more |
 | [src/startwindow.cpp](src/startwindow.cpp) | 98% | 303 / 309 | branding, rendering, startwindow |
 | [src/systeminfo.cpp](src/systeminfo.cpp) | 98% | 58 / 59 | aboutwidget, branding, commandline and 6 more |
 | [src/transactionlistmodel.cpp](src/transactionlistmodel.cpp) | 98% | 163 / 167 | mainwindow, rendering, transactionlistmodel, transactionspage |
@@ -88,7 +88,7 @@
 - **src/widgets/categorytag.cpp** (1 lines): [30](src/widgets/categorytag.cpp#L30)
 - **src/dialog/balancecorrectiondialog.cpp** (2 lines): [24](src/dialog/balancecorrectiondialog.cpp#L24), [83](src/dialog/balancecorrectiondialog.cpp#L83)
 - **src/icons.cpp** (1 lines): [95](src/icons.cpp#L95)
-- **src/rule.cpp** (10 lines): [60](src/rule.cpp#L60), [74](src/rule.cpp#L74), [126](src/rule.cpp#L126), [170](src/rule.cpp#L170), [182](src/rule.cpp#L182), [192](src/rule.cpp#L192), [199](src/rule.cpp#L199), [206](src/rule.cpp#L206), [346](src/rule.cpp#L346), [523](src/rule.cpp#L523)
+- **src/rule.cpp** (9 lines): [61](src/rule.cpp#L61), [75](src/rule.cpp#L75), [127](src/rule.cpp#L127), [171](src/rule.cpp#L171), [183](src/rule.cpp#L183), [193](src/rule.cpp#L193), [200](src/rule.cpp#L200), [207](src/rule.cpp#L207), [347](src/rule.cpp#L347)
 - **src/startwindow.cpp** (6 lines): [240–242](src/startwindow.cpp#L240-L242), [245–247](src/startwindow.cpp#L245-L247)
 - **src/systeminfo.cpp** (1 lines): [36](src/systeminfo.cpp#L36)
 - **src/transactionlistmodel.cpp** (4 lines): [42–43](src/transactionlistmodel.cpp#L42-L43), [162–163](src/transactionlistmodel.cpp#L162-L163)
@@ -701,7 +701,7 @@
 
 </details>
 
-<details><summary><b>test_rule</b> · 30 test cases · 11 files</summary>
+<details><summary><b>test_rule</b> · 31 test cases · 11 files</summary>
 
 [tests/test_rule.cpp](tests/test_rule.cpp)
 
@@ -728,6 +728,7 @@
 - Applying renames and keeps the original
 - Rules need an action and keep their rename without a category
 - Rules are stored with their conditions and order
+- A condition that cant be read stops its rule
 - Rules can have a name or be shown by their conditions
 - Users dont see or change each others rules
 - Rules follow their category
@@ -792,10 +793,11 @@
 
 </details>
 
-<details><summary><b>test_settings</b> · 14 test cases · 5 files</summary>
+<details><summary><b>test_settings</b> · 15 test cases · 5 files</summary>
 
 [tests/test_settings.cpp](tests/test_settings.cpp)
 
+- Tests dont use the real settings
 - Currency symbols
 - Thousands can be written without a separator or with a space
 - An unknown backup schedule means daily
@@ -813,7 +815,7 @@
 
 </details>
 
-<details><summary><b>test_settingspage</b> · 12 test cases · 24 files</summary>
+<details><summary><b>test_settingspage</b> · 13 test cases · 24 files</summary>
 
 [tests/test_settingspage.cpp](tests/test_settingspage.cpp)
 
@@ -828,6 +830,7 @@
 - Sidebar budget sort is chosen here or in the sidebar
 - Create rule shows the rules section with the draft
 - Shows categories added elsewhere after reload
+- Every section has its own icon
 - Categories and account types have their own sections and save right away
 
 </details>
@@ -933,7 +936,7 @@
 
 </details>
 
-<details><summary><b>test_transactionspage</b> · 49 test cases · 24 files</summary>
+<details><summary><b>test_transactionspage</b> · 48 test cases · 24 files</summary>
 
 [tests/test_transactionspage.cpp](tests/test_transactionspage.cpp)
 
@@ -953,7 +956,6 @@
 - Open transaction clears filters and unfolds its day
 - Show category this month filters the list
 - Show category in range shows the days as a chip
-- Bulk changes stay quick
 - A failed bulk delete changes nothing
 - A failed bulk edit changes nothing
 - Deleting asks first
