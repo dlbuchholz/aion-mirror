@@ -28,6 +28,8 @@
 #include <QToolTip>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace {
 
 const QLocale english(QLocale::English);
@@ -646,6 +648,37 @@ bool askWithDialog(QWidget* parent, QDate& from, QDate& to) {
     return true;
 }
 
+// One or more lines that take any width they're given, so a long payee or category name never
+// widens its card: a line that doesn't fit ends in "…". text() stays the whole text.
+class ElidedLabel : public QLabel {
+public:
+    explicit ElidedLabel(QWidget* parent) : QLabel(parent) {
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    }
+
+    QSize minimumSizeHint() const override { return {0, QLabel::minimumSizeHint().height()}; }
+
+    bool isElided() const {
+        const QStringList lines = text().split('\n');
+        return std::any_of(lines.cbegin(), lines.cend(),
+                           [this](const QString& line) { return fontMetrics().horizontalAdvance(line) > contentsRect().width(); });
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter painter(this);
+        painter.setPen(palette().color(foregroundRole()));
+        const QRect area = contentsRect();
+        const int lineHeight = fontMetrics().lineSpacing();
+        int y = area.top();
+        for (const QString& line : text().split('\n')) {
+            painter.drawText(QRect(area.left(), y, area.width(), lineHeight), Qt::AlignLeft | Qt::AlignVCenter,
+                             fontMetrics().elidedText(line, Qt::ElideRight, area.width()));
+            y += lineHeight;
+        }
+    }
+};
+
 } // namespace
 
 // A report in the overview: its title, the number that matters most, a line about it, and a
@@ -667,7 +700,7 @@ public:
         titleLabel = new QLabel(title, this);
         titleLabel->setObjectName("reportCardTitle");
         titleLabel->setForegroundRole(QPalette::PlaceholderText);
-        valueLabel = new QLabel(this);
+        valueLabel = new ElidedLabel(this);
         valueLabel->setObjectName("reportCardValue");
         QFont valueFont = valueLabel->font();
         valueFont.setPointSize(15);
@@ -727,9 +760,25 @@ protected:
         QAbstractButton::keyPressEvent(event);
     }
 
+    // What was cut short, in full
+    bool event(QEvent* event) override {
+        if (event->type() == QEvent::ToolTip) {
+            QStringList full;
+            for (const QLabel* child : findChildren<QLabel*>()) {
+                const auto* label = dynamic_cast<const ElidedLabel*>(child);
+                if (label && label->isVisible() && label->isElided()) full.append(label->text());
+            }
+            if (!full.isEmpty()) {
+                QToolTip::showText(static_cast<QHelpEvent*>(event)->globalPos(), full.join('\n'), this);
+                return true;
+            }
+        }
+        return QAbstractButton::event(event);
+    }
+
 private:
     QLabel* titleLabel = nullptr;
-    QLabel* valueLabel = nullptr;
+    ElidedLabel* valueLabel = nullptr;
     QLabel* detailLabel = nullptr;
     QWidget* previewArea = nullptr;
 };
@@ -867,6 +916,7 @@ ReportsPage::ReportsPage(QWidget* parent)
     auto* grid = new QGridLayout(overview);
     grid->setContentsMargins(0, 0, 0, 0);
     grid->setSpacing(12);
+    for (int column = 0; column < 3; ++column) grid->setColumnStretch(column, 1);   // Every card as wide, whatever it shows
     for (int i = 0; i < AllReports.size(); ++i) {
         const Report report = AllReports[i];
         auto* card = new ReportCard(title(report), overview);
@@ -890,7 +940,7 @@ ReportsPage::ReportsPage(QWidget* parent)
     trendCard->preview()->layout()->addWidget(trendPreview);
     trendCard->preview()->layout()->setAlignment(trendPreview, Qt::AlignTop);
     ReportCard* payeeCard = cards[static_cast<int>(Report::TopPayees)];
-    payeePreview = new QLabel(payeeCard->preview());
+    payeePreview = new ElidedLabel(payeeCard->preview());
     payeePreview->setObjectName("payeePreview");
     payeePreview->setForegroundRole(QPalette::PlaceholderText);
     payeeCard->preview()->layout()->addWidget(payeePreview);

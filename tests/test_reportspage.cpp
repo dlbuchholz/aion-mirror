@@ -269,6 +269,39 @@ private slots:
         QCOMPARE(requested.size(), 1);
     }
 
+    void longNamesDontWidenTheirCard() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        const QDate today = QDate::currentDate();
+        const QString longest = "PAYPAL *SOMESHOP EUROPE S.A.R.L. ET CIE S.C.A. LUXEMBOURG 35314369001 " + QString(40, 'X');
+        const QString second = "AMAZON PAYMENTS EUROPE S.C.A. MARKETPLACE " + QString(40, 'Y');
+        TransactionDAO().addTransaction(Transaction(-1, giro, longest, 90000, today, "", 0, "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, second, 3000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        page.resize(1200, 700);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        const QList<QAbstractButton*> all = cards(page);
+        for (const QAbstractButton* card : all) {
+            QCOMPARE(card->width(), all.first()->width());
+            QVERIFY(card->minimumSizeHint().width() < 300);
+        }
+
+        // The names are cut short, and in full as the card's tool tip
+        QAbstractButton* payeeCard = all[4];
+        QHelpEvent help(QEvent::ToolTip, QPoint(10, 10), payeeCard->mapToGlobal(QPoint(10, 10)));
+        QApplication::sendEvent(payeeCard, &help);
+        QVERIFY(QToolTip::text().contains(longest));
+        QVERIFY(QToolTip::text().contains(second));
+        QToolTip::hideText();
+        QTRY_VERIFY(!QToolTip::isVisible());
+        QHelpEvent onBudget(QEvent::ToolTip, QPoint(10, 10), all[5]->mapToGlobal(QPoint(10, 10)));
+        QApplication::sendEvent(all[5], &onBudget);
+        QVERIFY(!QToolTip::isVisible());
+    }
+
     void budgetVsActualOnTheCardAndInDetail() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         QSqlQuery query(DatabaseManager::instance().database());
