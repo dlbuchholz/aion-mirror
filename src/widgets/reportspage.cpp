@@ -853,8 +853,11 @@ ReportsPage::ReportsPage(QWidget* parent)
     : QWidget(parent) {
     askCustomRange = [this](QDate& from, QDate& to) { return askWithDialog(this, from, to); };
 
-    auto* root = new QVBoxLayout(this);
-    root->setContentsMargins(24, 20, 24, 20);
+    // Everything sits in one column: the full width, or centred (Settings, Appearance; updateWidth)
+    column = new QWidget(this);
+    column->setObjectName("reportsColumn");
+    auto* root = new QVBoxLayout(column);
+    root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(12);
 
     // Title (or the way back), the range, and the choices that apply to every report
@@ -900,6 +903,17 @@ ReportsPage::ReportsPage(QWidget* parent)
         refresh();
     });
     choices->addWidget(accountCombo);
+    // The full width or the centred column, the same as in Settings, Appearance
+    widthButton = new QToolButton(this);
+    widthButton->setObjectName("reportsWidthButton");
+    widthButton->setCursor(Qt::PointingHandCursor);
+    connect(widthButton, &QToolButton::clicked, this, [this]() {
+        Settings::instance().setReportsCentred(!Settings::instance().isReportsCentred());
+        updateWidth();
+        updateIcons();
+        emit widthChanged();
+    });
+    choices->addWidget(widthButton);
     header->addLayout(choices);
     header->setAlignment(choices, Qt::AlignTop);
     root->addLayout(header);
@@ -916,7 +930,7 @@ ReportsPage::ReportsPage(QWidget* parent)
     auto* grid = new QGridLayout(overview);
     grid->setContentsMargins(0, 0, 0, 0);
     grid->setSpacing(12);
-    for (int column = 0; column < 3; ++column) grid->setColumnStretch(column, 1);   // Every card as wide, whatever it shows
+    for (int gridColumn = 0; gridColumn < 3; ++gridColumn) grid->setColumnStretch(gridColumn, 1);   // Every card as wide, whatever it shows
     for (int i = 0; i < AllReports.size(); ++i) {
         const Report report = AllReports[i];
         auto* card = new ReportCard(title(report), overview);
@@ -977,6 +991,7 @@ ReportsPage::ReportsPage(QWidget* parent)
     }
     showOverview();
     updateIcons();
+    updateWidth();
 }
 
 QString ReportsPage::title(Report report) {
@@ -1054,7 +1069,44 @@ void ReportsPage::reload() {
 }
 
 void ReportsPage::applySettings() {
+    updateWidth();
+    updateIcons();                                   // The width button's
     refresh();
+}
+
+// The column is placed by hand, not by a layout: a layout would count centred margins into the
+// page's minimum size, and the window could no longer get narrower. Centred, it's CentredWidth wide
+// (or what the header needs) with the rest half on either side.
+void ReportsPage::updateWidth() {
+    const QRect area = rect().adjusted(Margin.left(), Margin.top(), -Margin.right(), -Margin.bottom());
+    int columnWidth = area.width();
+    if (Settings::instance().isReportsCentred()) {
+        columnWidth = qMin(area.width(), qMax(CentredWidth, column->minimumSizeHint().width()));
+    }
+    column->setGeometry(area.left() + (area.width() - columnWidth) / 2, area.top(), columnWidth, area.height());
+}
+
+QSize ReportsPage::minimumSizeHint() const {
+    return column->minimumSizeHint().grownBy(Margin);
+}
+
+QSize ReportsPage::sizeHint() const {
+    return column->sizeHint().grownBy(Margin);
+}
+
+void ReportsPage::resizeEvent(QResizeEvent* event) {
+    updateWidth();
+    QWidget::resizeEvent(event);
+}
+
+// The column asks for this when it needs more or less room, for a longer title or a larger font
+bool ReportsPage::event(QEvent* event) {
+    if (event->type() == QEvent::LayoutRequest) {
+        updateGeometry();                            // The page's own minimum follows the column's
+        updateWidth();
+        return true;
+    }
+    return QWidget::event(event);
 }
 
 void ReportsPage::refresh() {
@@ -1215,7 +1267,6 @@ void ReportsPage::updateDetail() {
 QWidget* ReportsPage::spendingDetail(QWidget* parent) {
     auto* widget = new QWidget(parent);
     widget->setObjectName("spendingDetail");
-    widget->setMaximumWidth(960);
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
@@ -1273,7 +1324,6 @@ QWidget* ReportsPage::spendingDetail(QWidget* parent) {
 QWidget* ReportsPage::flowDetail(QWidget* parent) const {
     auto* widget = new QWidget(parent);
     widget->setObjectName("flowDetail");
-    widget->setMaximumWidth(960);
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
@@ -1323,7 +1373,6 @@ QWidget* ReportsPage::flowDetail(QWidget* parent) const {
 QWidget* ReportsPage::balanceDetail(QWidget* parent) {
     auto* widget = new QWidget(parent);
     widget->setObjectName("balanceDetail");
-    widget->setMaximumWidth(960);
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
@@ -1370,7 +1419,6 @@ QWidget* ReportsPage::balanceDetail(QWidget* parent) {
 QWidget* ReportsPage::payeeDetail(QWidget* parent) {
     auto* widget = new QWidget(parent);
     widget->setObjectName("payeeDetail");
-    widget->setMaximumWidth(960);
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
@@ -1442,7 +1490,6 @@ QWidget* ReportsPage::payeeDetail(QWidget* parent) {
 QWidget* ReportsPage::budgetDetail(QWidget* parent) {
     auto* widget = new QWidget(parent);
     widget->setObjectName("budgetDetail");
-    widget->setMaximumWidth(960);
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
@@ -1508,7 +1555,6 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
 QWidget* ReportsPage::trendDetail(QWidget* parent) {
     auto* widget = new QWidget(parent);
     widget->setObjectName("trendDetail");
-    widget->setMaximumWidth(960);
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
@@ -1611,6 +1657,10 @@ void ReportsPage::updateHeader() {
 void ReportsPage::updateIcons() {
     backLink->setIcon(Icons::icon("chevron-left", Theme::colors().accent));
     setTextColor(backLink, Theme::colors().accent);
+    const bool centred = Settings::instance().isReportsCentred();
+    widthButton->setIcon(Icons::icon(centred ? "maximize" : "minimize", Theme::colors().textPrimary));
+    widthButton->setToolTip(centred ? "Use the full width" : "Back to a centred column");
+    widthButton->setAccessibleName(widthButton->toolTip());
 }
 
 void ReportsPage::changeEvent(QEvent* event) {

@@ -90,6 +90,10 @@ public:
     bool isCategoryColorsInOverviewsEnabled() const;
     void setCategoryColorsInOverviewsEnabled(bool enabled);
 
+    // Reports in a centred column (ReportsPage::CentredWidth), instead of the full width (on by default)
+    bool isReportsCentred() const;
+    void setReportsCentred(bool centred);
+
     // Every budget in the sidebar, instead of the five most used (off by default)
     bool isSidebarShowingAllBudgets() const;
     void setSidebarShowingAllBudgets(bool showAll);

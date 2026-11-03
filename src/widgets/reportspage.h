@@ -33,6 +33,7 @@ public:
         BudgetVsActual
     };
     static constexpr int ALL_ACCOUNTS = -1;
+    static constexpr int CentredWidth = 1280;       // The reports' column when centred (Settings, Appearance)
 
     explicit ReportsPage(QWidget* parent = nullptr);
 
@@ -46,6 +47,9 @@ public:
     void openReport(Report report);
     void showOverview();
     std::optional<Report> openedReport() const;      // None in the overview
+
+    QSize minimumSizeHint() const override;
+    QSize sizeHint() const override;
 
     ReportRange range() const { return shownRange; }
     int accountId() const { return shownAccountId; }
@@ -61,9 +65,13 @@ signals:
     void transactionsRequested(int categoryId, int accountId, const QDate& from, const QDate& to);
     // A payee's transactions, the same way
     void payeeTransactionsRequested(const QString& payee, int accountId, const QDate& from, const QDate& to);
+    // Switched between the full width and the centred column with the page's own button
+    void widthChanged();
 
 protected:
     void changeEvent(QEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    bool event(QEvent* event) override;
 
 private:
     QToolButton* addChip(const QString& text, ReportRange::Preset chipPreset, QLayout* layout);
@@ -72,6 +80,7 @@ private:
     void refresh();                                  // The range or account changed
     void updateHeader();
     void updateIcons();
+    void updateWidth();                              // Full width or centred, as set
     void updateCards();
     void updateDetail();
     QWidget* spendingDetail(QWidget* parent);
@@ -87,11 +96,14 @@ private:
     int shownAccountId = ALL_ACCOUNTS;
     std::optional<Report> opened;
 
+    static constexpr QMargins Margin{24, 20, 24, 20};
+    QWidget* column = nullptr;                       // The header and the reports, centred or not (updateWidth)
     QToolButton* backLink = nullptr;
     QLabel* titleLabel = nullptr;
     QLabel* rangeLabel = nullptr;
     QButtonGroup* rangeGroup = nullptr;
     QComboBox* accountCombo = nullptr;
+    QToolButton* widthButton = nullptr;
     QStackedWidget* stack = nullptr;
     QList<ReportCard*> cards;                        // In Report order
     CategoryBars* spendingPreview = nullptr;

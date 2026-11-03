@@ -10,6 +10,7 @@
 #include <QSqlQuery>
 #include <QStackedWidget>
 #include <QTimer>
+#include <QToolButton>
 #include <functional>
 
 #include "account.h"
@@ -183,6 +184,16 @@ private slots:
         QCOMPARE(currentPage(window), transactions);
         QCOMPARE(transactions->findChild<QLineEdit*>("searchEdit")->text(), QString("Bakery"));
         QCOMPARE(shownTransactions(window), 1);
+    }
+
+    void theReportsWidthButtonReachesTheSettings() {
+        Settings::instance().setReportsCentred(true);
+        MainWindow window(1);
+        auto* check = window.findChild<SettingsPage*>()->findChild<QCheckBox*>("reportsCentredCheck");
+        QVERIFY(check->isChecked());
+        window.findChild<ReportsPage*>()->findChild<QToolButton*>("reportsWidthButton")->click();
+        QVERIFY(!check->isChecked());                    // Applying the settings later keeps the full width
+        Settings::instance().setReportsCentred(true);
     }
 
     void ruleDraftsOpenInTheRulesSettings() {

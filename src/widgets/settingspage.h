@@ -32,6 +32,7 @@ public:
     // Shows Rules with the editor filled with draft (a new rule, or with an ID that rule changed)
     void openRuleDraft(const Rule& draft, const QList<Transaction>& examples = {});
     void reloadSidebarBudgetSort();                  // Changed from the sidebar; other unsaved edits stay
+    void reloadReportsWidth();                       // Changed on the Reports page, the same way
 
 signals:
     void settingsChanged();                          // Emitted after changes were applied
@@ -89,6 +90,7 @@ private:
     QCheckBox *selectionCheckboxesCheck = nullptr;
     QCheckBox *suggestCategoriesCheck = nullptr;
     QCheckBox *categoryColorsCheck = nullptr;
+    QCheckBox *reportsCentredCheck = nullptr;
     QCheckBox *allBudgetsCheck = nullptr;
     QComboBox *budgetSortCombo = nullptr;
 

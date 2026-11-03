@@ -197,6 +197,29 @@ private slots:
         QVERIFY(Settings::instance().isCategoryColorsInOverviewsEnabled());
     }
 
+    void reportsCanUseTheFullWidth() {
+        Settings::instance().restoreDefaults();                               // Restored after the test case
+        QVERIFY(Settings::instance().isReportsCentred());                     // Centred by default
+        SettingsPage page;
+        page.setUserId(1);
+        auto* check = child<QCheckBox>(page, "reportsCentredCheck");
+        QVERIFY(check->isChecked());
+        check->setChecked(false);
+        QVERIFY(hasUnsavedChanges(page));
+        QVERIFY(Settings::instance().isReportsCentred());                     // Not before Apply
+        child<QPushButton>(page, "applyButton")->click();
+        QVERIFY(!Settings::instance().isReportsCentred());
+        SettingsPage again;
+        QVERIFY(!child<QCheckBox>(again, "reportsCentredCheck")->isChecked());
+        // Switched on the Reports page: the box follows without counting as an unsaved change
+        Settings::instance().setReportsCentred(true);
+        again.reloadReportsWidth();
+        QVERIFY(child<QCheckBox>(again, "reportsCentredCheck")->isChecked());
+        QVERIFY(!hasUnsavedChanges(again));
+        Settings::instance().restoreDefaults();
+        QVERIFY(Settings::instance().isReportsCentred());
+    }
+
     void categorySuggestionsCanBeTurnedOff() {
         Settings::instance().setCategorySuggestionEnabled(true);
         SettingsPage page;

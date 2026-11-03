@@ -416,6 +416,14 @@ void Settings::setCategoryColorsInOverviewsEnabled(bool enabled) {
     settings.setValue("appearance/categoryColorsInOverviews", enabled);
 }
 
+bool Settings::isReportsCentred() const {
+    return settings.value("appearance/reportsCentred", true).toBool();
+}
+
+void Settings::setReportsCentred(bool centred) {
+    settings.setValue("appearance/reportsCentred", centred);
+}
+
 bool Settings::isSidebarShowingAllBudgets() const {
     return settings.value("appearance/sidebarAllBudgets", false).toBool();
 }

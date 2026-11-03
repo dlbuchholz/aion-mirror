@@ -4,6 +4,7 @@
 #include "accounttypessettings.h"
 #include "backupsettings.h"
 #include "categoriessettings.h"
+#include "reportspage.h"
 #include "rulessettings.h"
 #include "icons.h"
 #include "settings.h"
@@ -281,6 +282,13 @@ void SettingsPage::buildAppearanceSection()
     form->addRow(categoryColorsCheck);
     watch(categoryColorsCheck);
 
+    reportsCentredCheck = new QCheckBox("Show reports in a centred column instead of the full width", this);
+    reportsCentredCheck->setObjectName("reportsCentredCheck");
+    reportsCentredCheck->setToolTip(QString("At most %1 pixels wide, so elements stay close on a large screen")
+                                        .arg(ReportsPage::CentredWidth));
+    form->addRow(reportsCentredCheck);
+    watch(reportsCentredCheck);
+
     allBudgetsCheck = new QCheckBox("Show all budgets in the sidebar", this);
     allBudgetsCheck->setObjectName("allBudgetsCheck");
     allBudgetsCheck->setToolTip("Otherwise the sidebar shows the first five in the order below and links to the Budget page for the rest");
@@ -302,6 +310,13 @@ void SettingsPage::reloadSidebarBudgetSort()
 {
     loading = true;
     budgetSortCombo->setCurrentIndex(budgetSortCombo->findData(int(Settings::instance().getSidebarBudgetSort())));
+    loading = false;
+}
+
+void SettingsPage::reloadReportsWidth()
+{
+    loading = true;
+    reportsCentredCheck->setChecked(Settings::instance().isReportsCentred());
     loading = false;
 }
 
@@ -428,6 +443,7 @@ void SettingsPage::loadSettings()
     selectionCheckboxesCheck->setChecked(settings.isSelectionCheckboxesEnabled());
     suggestCategoriesCheck->setChecked(settings.isCategorySuggestionEnabled());
     categoryColorsCheck->setChecked(settings.isCategoryColorsInOverviewsEnabled());
+    reportsCentredCheck->setChecked(settings.isReportsCentred());
     allBudgetsCheck->setChecked(settings.isSidebarShowingAllBudgets());
     budgetSortCombo->setCurrentIndex(budgetSortCombo->findData(int(settings.getSidebarBudgetSort())));
 
@@ -469,6 +485,7 @@ void SettingsPage::saveSettings()
 
     settings.setTheme(themeCombo->currentData().toString());
     settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());
+    settings.setReportsCentred(reportsCentredCheck->isChecked());
     settings.setSidebarShowingAllBudgets(allBudgetsCheck->isChecked());
     settings.setSidebarBudgetSort(static_cast<Settings::BudgetSort>(budgetSortCombo->currentData().toInt()));
 

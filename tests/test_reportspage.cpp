@@ -49,7 +49,7 @@ private slots:
         db.yankDb();
         db.seedDefaultUser();
         QSettings& settings = Settings::instance().getQSettings();
-        for (const char* key : {"ui/reportsRange", "ui/reportsFrom", "ui/reportsTo"}) settings.remove(key);
+        for (const char* key : {"ui/reportsRange", "ui/reportsFrom", "ui/reportsTo", "appearance/reportsCentred"}) settings.remove(key);
     }
     void cleanup() { db.close(); }
 
@@ -267,6 +267,85 @@ private slots:
         QCOMPARE(requested[0][2].toDate(), page.range().first);
         rows[2]->click();                                // No payee to search for
         QCOMPARE(requested.size(), 1);
+    }
+
+    void reportsFillTheWidthOrAreCentred() {
+        constexpr int Wide = 1800;
+        constexpr int Centred = ReportsPage::CentredWidth;
+        Settings::instance().setReportsCentred(false);   // Centred is the default
+        ReportsPage page;
+        page.setUserId(1);
+        page.resize(Wide, 800);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        auto* column = page.findChild<QWidget*>("reportsColumn");
+        auto* header = page.findChild<QWidget*>("reportsWidthButton");      // The header's last
+        const auto rightEdge = [&page](QWidget* widget) { return widget->mapTo(&page, QPoint(widget->width(), 0)).x(); };
+
+        // The whole width, the header's choices at its end and an opened report as wide
+        QCOMPARE(column->geometry(), page.rect().adjusted(24, 20, -24, -20));
+        QCOMPARE(rightEdge(header), Wide - 24);
+        cards(page)[1]->click();
+        QTRY_COMPARE(rightEdge(page.findChild<QWidget*>("flowDetail")), Wide - 24);
+
+        // Centred: with as much room on either side, the header ending where the report and the
+        // cards do (a small font, so the header fits; the test platform's is wide)
+        QFont small = page.font();
+        small.setPointSize(6);
+        page.setFont(small);
+        page.findChild<QToolButton*>("reportsBackLink")->click();
+        Settings::instance().setReportsCentred(true);
+        page.applySettings();
+        QTRY_COMPARE(column->width(), Centred);
+        QCOMPARE(column->x(), (Wide - Centred) / 2);
+        QCOMPARE(rightEdge(header), (Wide + Centred) / 2);
+        QTRY_COMPARE(rightEdge(cards(page)[2]), (Wide + Centred) / 2);
+        cards(page)[1]->click();
+        QTRY_COMPARE(rightEdge(page.findChild<QWidget*>("flowDetail")), (Wide + Centred) / 2);
+        // The room on either side isn't needed, so the window can still get narrower
+        QCOMPARE(page.minimumSizeHint().width(), column->minimumSizeHint().width() + 48);
+
+        // Wider, still centred, when the header needs more room
+        QFont large = page.font();
+        large.setPointSize(16);
+        page.setFont(large);
+        QTRY_VERIFY(column->width() > Centred);
+        QTRY_VERIFY(qAbs(column->x() - (Wide - rightEdge(column))) <= 1);   // Give or take a pixel
+        QCOMPARE(column->width(), column->minimumSizeHint().width());
+
+        // And back
+        Settings::instance().setReportsCentred(false);
+        page.applySettings();
+        QTRY_COMPARE(column->width(), Wide - 48);
+    }
+    void theWidthButtonSwitchesAndIsRemembered() {
+        QVERIFY(Settings::instance().isReportsCentred());   // The default
+        ReportsPage page;
+        page.setUserId(1);
+        page.resize(1800, 800);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        auto* column = page.findChild<QWidget*>("reportsColumn");
+        auto* button = page.findChild<QToolButton*>("reportsWidthButton");
+        QSignalSpy changed(&page, &ReportsPage::widthChanged);
+        QCOMPARE(button->toolTip(), QString("Use the full width"));
+
+        button->click();
+        QVERIFY(!Settings::instance().isReportsCentred());
+        QTRY_COMPARE(column->width(), 1800 - 48);
+        QCOMPARE(button->toolTip(), QString("Back to a centred column"));
+        QCOMPARE(changed.size(), 1);
+
+        button->click();
+        QVERIFY(Settings::instance().isReportsCentred());
+        QTRY_VERIFY(column->width() < 1800 - 48);
+        QCOMPARE(button->toolTip(), QString("Use the full width"));
+        QCOMPARE(changed.size(), 2);
+
+        // Changed in the settings: the button follows
+        Settings::instance().setReportsCentred(false);
+        page.applySettings();
+        QCOMPARE(button->toolTip(), QString("Back to a centred column"));
     }
 
     void longNamesDontWidenTheirCard() {
