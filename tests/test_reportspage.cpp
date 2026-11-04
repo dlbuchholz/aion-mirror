@@ -305,10 +305,10 @@ private slots:
         // The room on either side isn't needed, so the window can still get narrower
         QCOMPARE(page.minimumSizeHint().width(), column->minimumSizeHint().width() + 48);
 
-        // Wider, still centred, when the header needs more room
-        QFont large = page.font();
-        large.setPointSize(16);
-        page.setFont(large);
+        // Wider, still centred, when the header needs more room (a title that needs it, whatever the
+        // platform's fonts)
+        auto* title = page.findChild<QLabel*>("reportsTitle");
+        title->setMinimumWidth(title->minimumSizeHint().width() + Centred + 100 - column->minimumSizeHint().width());
         QTRY_VERIFY(column->width() > Centred);
         QTRY_VERIFY(qAbs(column->x() - (Wide - rightEdge(column))) <= 1);   // Give or take a pixel
         QCOMPARE(column->width(), column->minimumSizeHint().width());
