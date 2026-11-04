@@ -17,6 +17,7 @@ class FlowChart;
 class TrendChart;
 class UsageBar;
 class ReportCard;
+class SankeyChart;
 
 // Reports: an overview with a card per report, and one report at a time in detail. The range
 // (remembered) and the account are chosen at the top and apply to all of them.
@@ -30,7 +31,8 @@ public:
         Balance,
         CategoryTrend,
         TopPayees,
-        BudgetVsActual
+        BudgetVsActual,
+        MoneyFlow
     };
     static constexpr int ALL_ACCOUNTS = -1;
     static constexpr int CentredWidth = 1280;       // The reports' column when centred (Settings, Appearance)
@@ -89,6 +91,7 @@ private:
     QWidget* trendDetail(QWidget* parent);
     QWidget* payeeDetail(QWidget* parent);
     QWidget* budgetDetail(QWidget* parent);
+    QWidget* moneyFlowDetail(QWidget* parent);
 
     int userId = -1;
     ReportRange::Preset preset = ReportRange::Preset::SixMonths;
@@ -112,6 +115,7 @@ private:
     TrendChart* trendPreview = nullptr;
     QLabel* payeePreview = nullptr;
     UsageBar* budgetPreview = nullptr;
+    SankeyChart* moneyFlowPreview = nullptr;
     QVBoxLayout* detailLayout = nullptr;
     QWidget* detailContent = nullptr;                // The opened report's, rebuilt when the numbers change
 
@@ -122,6 +126,7 @@ private:
     std::optional<CategoryTrend> trend;
     PayeeReport payees;
     BudgetReport budgets;
+    MoneyFlow moneyFlow;
 };
 
 #endif // REPORTSPAGE_H

@@ -163,7 +163,36 @@ struct BudgetReport {
     int keptCount() const;
 };
 
+// One stream of the money flow: an income category, a spending category, or the smaller spending
+// categories together
+struct FlowPart {
+    int categoryId = 0;                              // 0 = no category; unused for the rest
+    QString name;
+    QString color;                                   // Palette name, empty = neutral
+    Cents cents = 0;                                 // Above zero
+    bool isRest = false;                             // The smaller spending categories together
+    bool isMoneyBack = false;                        // A spending category that got more back than it spent
+};
+
+// Where the income went, for a Sankey diagram: income on the left, spending and what was kept on
+// the right. Both sides add up to the same: when more went out than came in, the difference
+// comes in from savings; money back in a spending category comes in on the left.
+struct MoneyFlow {
+    static constexpr int ShownSpending = 8;          // The largest; the rest together after them
+    ReportRange range;
+    QList<FlowPart> income;                          // Largest first, then money back
+    QList<FlowPart> spending;                        // Largest first, then the rest
+    Cents incomeCents = 0;
+    Cents spendingCents = 0;                         // Less what came back, as in the other reports
+    Cents keptCents() const { return qMax<Cents>(0, incomeCents - spendingCents); }
+    Cents fromSavingsCents() const { return qMax<Cents>(0, spendingCents - incomeCents); }
+    Cents totalCents() const;                        // Each side's
+};
+
 namespace Reports {
+
+// Where the income went, without transfers and balance adjustments. accountId < 0 means all accounts.
+MoneyFlow moneyFlow(int userId, int accountId, const ReportRange& range);
 
 // Budgets against spending. Budgets are per month and for all accounts together, so this takes
 // every month the range touches, as far as they have begun, and has no account choice.

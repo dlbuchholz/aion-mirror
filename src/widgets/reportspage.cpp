@@ -37,6 +37,7 @@ const QLocale english(QLocale::English);
 const QList<ReportsPage::Report> AllReports = {
     ReportsPage::Report::SpendingByCategory, ReportsPage::Report::IncomeVsSpending, ReportsPage::Report::Balance,
     ReportsPage::Report::CategoryTrend, ReportsPage::Report::TopPayees, ReportsPage::Report::BudgetVsActual,
+    ReportsPage::Report::MoneyFlow,
 };
 
 void setTextColor(QWidget* widget, const QColor& color) {
@@ -768,6 +769,191 @@ private:
     BudgetReport report;
 };
 
+// The money flow as a Sankey diagram: income (and money from savings or back) on the left, all of
+// it in the middle, spending and what was kept on the right, each band as wide as its money.
+// Hovering a band shows its numbers and clicking a category's calls partClicked. Compact is the
+// card's preview: just the bands.
+class SankeyChart : public QWidget {
+public:
+    SankeyChart(bool compactChart, QWidget* parent) : QWidget(parent), compact(compactChart) {
+        setObjectName(compact ? "moneyFlowPreview" : "moneyFlowChart");
+        setMouseTracking(!compact);
+        if (compact) setFixedHeight(40);
+    }
+
+    std::function<void(int categoryId)> partClicked;
+
+    void setFlow(const MoneyFlow& newFlow) {
+        flow = newFlow;
+        hovered = -1;
+        if (!compact) setMinimumHeight(qMax(240, int(qMax(flow.income.size() + 1, flow.spending.size() + 1)) * 30 + 40));
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        const Theme::Colors colors = Theme::colors();
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        const QList<Node> all = nodes();
+        if (all.isEmpty()) {
+            if (!compact) {
+                painter.setPen(colors.textSecondary);
+                painter.drawText(rect(), Qt::AlignCenter, "No income or spending in this range.");
+            }
+            return;
+        }
+        for (int i = 0; i < all.size(); ++i) {
+            QColor band = all[i].color;
+            band.setAlphaF(i == hovered ? 0.6 : 0.3);
+            painter.fillPath(all[i].band, band);
+        }
+        const QRectF middle = middleRect();
+        painter.fillRect(middle, colors.textSecondary);
+        for (const Node& node : all) painter.fillRect(node.box, node.color);
+        if (compact) return;
+
+        const Settings& settings = Settings::instance();
+        QFont labelFont = font();
+        labelFont.setPointSizeF(font().pointSizeF() * 0.9);
+        painter.setFont(labelFont);
+        const QFontMetrics metrics(labelFont);
+        for (int i = 0; i < all.size(); ++i) {
+            const Node& node = all[i];
+            const QString text = metrics.elidedText(QString("%1 · %2").arg(node.name, settings.formatCurrency(node.cents, false, 0)),
+                                                    Qt::ElideRight, labelWidth() - 8);
+            painter.setPen(i == hovered || node.isKept ? colors.textPrimary : colors.textSecondary);
+            const QRectF area = node.left ? QRectF(0, node.box.top(), node.box.left() - 8, node.box.height())
+                                          : QRectF(node.box.right() + 8, node.box.top(), labelWidth(), node.box.height());
+            painter.drawText(area.adjusted(0, -10, 0, 10), (node.left ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, text);
+        }
+        const bool onlyIncome = flow.fromSavingsCents() == 0 && std::none_of(flow.income.cbegin(), flow.income.cend(),
+                                                                              [](const FlowPart& part) { return part.isMoneyBack; });
+        painter.setPen(colors.textPrimary);
+        painter.drawText(QRectF(middle.center().x() - 150, middle.bottom() + 4, 300, 18), Qt::AlignCenter,
+                         QString("%1 %2").arg(onlyIncome ? "Income" : "Total", settings.formatCurrency(flow.totalCents(), false, 0)));
+    }
+
+    void mouseMoveEvent(QMouseEvent* event) override {
+        const QList<Node> all = nodes();
+        int index = -1;
+        for (int i = 0; i < all.size(); ++i) {
+            if (all[i].band.contains(event->position()) || all[i].box.adjusted(-2, -2, 2, 2).contains(event->position())) index = i;
+        }
+        if (index != hovered) {
+            hovered = index;
+            setCursor(index >= 0 && all[index].categoryId && partClicked ? Qt::PointingHandCursor : Qt::ArrowCursor);
+            update();
+        }
+        if (index < 0) {
+            QToolTip::hideText();
+            return;
+        }
+        const Node& node = all[index];
+        const Settings& settings = Settings::instance();
+        QString text = QString("%1\n%2").arg(node.name, settings.formatCurrency(node.cents));
+        if (flow.incomeCents > 0) text += QString(", %1 of the income").arg(shareText(node.cents, flow.incomeCents));
+        if (node.categoryId && partClicked) text += "\nClick to show its transactions";
+        QToolTip::showText(event->globalPosition().toPoint(), text, this);
+    }
+
+    void mouseReleaseEvent(QMouseEvent* event) override {
+        if (event->button() != Qt::LeftButton || hovered < 0 || !partClicked) return;
+        const QList<Node> all = nodes();
+        if (hovered < all.size() && all[hovered].categoryId) partClicked(*all[hovered].categoryId);
+    }
+
+    void leaveEvent(QEvent* event) override {
+        hovered = -1;
+        update();
+        QWidget::leaveEvent(event);
+    }
+
+private:
+    struct Node {
+        QString name;
+        Cents cents = 0;
+        QColor color;
+        std::optional<int> categoryId;               // None for what isn't one category
+        bool left = false;
+        bool isKept = false;
+        QRectF box;
+        QPainterPath band;                           // To or from the middle
+    };
+
+    static constexpr double NodeWidth = 10;
+    static constexpr double Gap = 8;
+
+    int labelWidth() const { return compact ? 0 : qMin(220, width() * 3 / 10); }
+    QRectF plotRect() const { return compact ? QRectF(rect()) : QRectF(rect()).adjusted(0, 8, 0, -28); }   // Middle's label below
+    QRectF middleRect() const {
+        const QRectF plot = plotRect();
+        const double height = flow.totalCents() > 0 ? scale() * double(flow.totalCents()) : 0;
+        return QRectF(plot.center().x() - NodeWidth / 2, plot.center().y() - height / 2, NodeWidth, height);
+    }
+    // Pixels per cent, so the side with more parts fits with its gaps
+    double scale() const {
+        const int most = int(qMax(flow.income.size() + 1, flow.spending.size() + 1));
+        const double gap = compact ? 2 : Gap;
+        return qMax(0.0, plotRect().height() - gap * (most - 1)) / double(qMax<Cents>(1, flow.totalCents()));
+    }
+
+    // The parts in drawing order, with their boxes and bands
+    QList<Node> nodes() const {
+        if (flow.totalCents() <= 0) return {};
+        const Theme::Colors colors = Theme::colors();
+        QList<Node> left;
+        for (const FlowPart& part : flow.income) {
+            left.append({part.name, part.cents, part.isMoneyBack ? barColor(part.color) : colors.positive, part.categoryId, true});
+            if (part.isMoneyBack) left.last().name = QString("Back from %1").arg(part.name);
+        }
+        if (flow.fromSavingsCents() > 0) left.append({"From savings", flow.fromSavingsCents(), colors.textMuted, std::nullopt, true});
+        QList<Node> right;
+        for (const FlowPart& part : flow.spending) {
+            right.append({part.name, part.cents, part.isRest ? colors.textMuted : barColor(part.color),
+                          part.isRest ? std::nullopt : std::optional<int>(part.categoryId), false});
+        }
+        if (flow.keptCents() > 0) {
+            right.append({"Kept", flow.keptCents(), colors.accent, std::nullopt, false, true});
+        }
+
+        const QRectF plot = plotRect();
+        const QRectF middle = middleRect();
+        const double perCent = scale();
+        const double gap = compact ? 2 : Gap;
+        const double leftX = plot.left() + labelWidth();
+        const double rightX = plot.right() - labelWidth() - NodeWidth;
+        for (QList<Node>* side : {&left, &right}) {
+            double height = gap * (side->size() - 1);
+            for (const Node& node : std::as_const(*side)) height += perCent * double(node.cents);
+            double y = plot.center().y() - height / 2;
+            double middleY = middle.top();                   // Where its band meets the middle
+            const bool isLeft = side == &left;
+            for (Node& node : *side) {
+                const double h = perCent * double(node.cents);
+                node.box = QRectF(isLeft ? leftX : rightX, y, NodeWidth, qMax(1.0, h));
+                const double from = isLeft ? node.box.right() : middle.right();
+                const double to = isLeft ? middle.left() : node.box.left();
+                const double fromTop = isLeft ? y : middleY;
+                const double toTop = isLeft ? middleY : y;
+                const double bend = (to - from) / 2;
+                node.band.moveTo(from, fromTop);
+                node.band.cubicTo(from + bend, fromTop, to - bend, toTop, to, toTop);
+                node.band.lineTo(to, toTop + h);
+                node.band.cubicTo(to - bend, toTop + h, from + bend, fromTop + h, from, fromTop + h);
+                node.band.closeSubpath();
+                y += h + gap;
+                middleY += h;
+            }
+        }
+        return left + right;
+    }
+
+    bool compact = false;
+    MoneyFlow flow;
+    int hovered = -1;
+};
+
 namespace {
 
 bool askWithDialog(QWidget* parent, QDate& from, QDate& to) {
@@ -1107,6 +1293,10 @@ ReportsPage::ReportsPage(QWidget* parent)
     budgetPreview = new UsageBar(budgetCard->preview());
     budgetCard->preview()->layout()->addWidget(budgetPreview);
     budgetCard->preview()->layout()->setAlignment(budgetPreview, Qt::AlignTop);
+    ReportCard* moneyCard = cards[static_cast<int>(Report::MoneyFlow)];
+    moneyFlowPreview = new SankeyChart(true, moneyCard->preview());
+    moneyCard->preview()->layout()->addWidget(moneyFlowPreview);
+    moneyCard->preview()->layout()->setAlignment(moneyFlowPreview, Qt::AlignTop);
     grid->setRowStretch(int(AllReports.size() + 2) / 3, 1);
     overviewScroll->setWidget(overview);
     stack->addWidget(overviewScroll);
@@ -1146,6 +1336,7 @@ QString ReportsPage::title(Report report) {
     case Report::CategoryTrend: return "Category trend";
     case Report::TopPayees: return "Top payees";
     case Report::BudgetVsActual: return "Budget vs. actual";
+    case Report::MoneyFlow: return "Money flow";
     }
     return QString();
 }
@@ -1261,6 +1452,7 @@ void ReportsPage::refresh() {
     balance = Reports::balanceOverTime(userId, shownAccountId, shownRange, QDate::currentDate());
     payees = Reports::topPayees(userId, shownAccountId, shownRange);
     budgets = Reports::budgetVsActual(userId, shownRange, QDate::currentDate());
+    moneyFlow = Reports::moneyFlow(userId, shownAccountId, shownRange);
     if (const std::optional<int> category = trendCategory()) {
         trend = Reports::categoryTrend(userId, shownAccountId, *category, shownRange, QDate::currentDate());
     } else {
@@ -1380,6 +1572,19 @@ void ReportsPage::updateCards() {
                              budgets.spentCents > budgets.limitCents ? Theme::colors().danger : QColor());
         budgetPreview->setRatio(double(budgets.spentCents) / double(budgets.limitCents));
     }
+
+    // Money flow: where most of the income went
+    ReportCard* moneyCard = cards[static_cast<int>(Report::MoneyFlow)];
+    if (moneyFlow.spending.isEmpty()) {
+        moneyCard->setValue(QString(), moneyFlow.incomeCents > 0 ? "All of the income kept" : "No income or spending in this range");
+    } else {
+        const FlowPart& largest = moneyFlow.spending.first();
+        moneyCard->setValue(largest.name, moneyFlow.incomeCents > 0
+                                              ? QString("%1, %2 of the income").arg(settings.formatSpending(largest.cents),
+                                                                                    shareText(largest.cents, moneyFlow.incomeCents))
+                                              : settings.formatSpending(largest.cents));
+    }
+    moneyFlowPreview->setFlow(moneyFlow);
 }
 
 void ReportsPage::updateDetail() {
@@ -1402,6 +1607,8 @@ void ReportsPage::updateDetail() {
         detailContent = trendDetail(parent);
     } else if (*opened == Report::TopPayees) {
         detailContent = payeeDetail(parent);
+    } else if (*opened == Report::MoneyFlow) {
+        detailContent = moneyFlowDetail(parent);
     } else {
         detailContent = budgetDetail(parent);
     }
@@ -1705,6 +1912,68 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
                                         budgets.spentCents > budgets.limitCents, usedText(budgets.spentCents, budgets.limitCents)),
                                 false, widget);
     total->setObjectName("budgetTotal");
+    layout->addWidget(total);
+    return widget;
+}
+
+QWidget* ReportsPage::moneyFlowDetail(QWidget* parent) {
+    auto* widget = new QWidget(parent);
+    widget->setObjectName("moneyFlowDetail");
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 4, 0, 0);
+    layout->setSpacing(0);
+
+    // A category's band or row leads to its transactions
+    const ReportRange range = moneyFlow.range;
+    const int account = shownAccountId;
+    const auto showCategory = [this, account, range](int categoryId) {
+        emit transactionsRequested(categoryId, account, range.first, range.last);
+    };
+    auto* chart = new SankeyChart(false, widget);
+    chart->setFlow(moneyFlow);
+    chart->partClicked = showCategory;
+    layout->addWidget(chart);
+    if (moneyFlow.totalCents() <= 0) return widget;
+    layout->addSpacing(16);
+
+    // Where it went, as numbers
+    using Column = ReportRow::Column;
+    using Tone = ReportRow::Tone;
+    const Settings& settings = Settings::instance();
+    const auto columns = [](const QString& amount, const QString& share) {
+        return QList<Column>{{amount, 130, Tone::Normal}, {share, 120, Tone::Secondary}};
+    };
+    const auto share = [this](Cents cents) { return shareText(cents, moneyFlow.incomeCents); };
+    auto* heading = new ReportRow(ReportRow::Kind::Heading, "Where it went", columns("Amount", "Of the income"), false, widget);
+    heading->setObjectName("moneyFlowHeading");
+    layout->addWidget(heading);
+    for (const FlowPart& part : moneyFlow.spending) {
+        auto* row = new ReportRow(ReportRow::Kind::Item, part.name, columns(settings.formatSpending(part.cents), share(part.cents)), false, widget);
+        row->setObjectName("moneyFlowRow");
+        if (!part.isRest) {
+            row->makeClickable(QString("Show the transactions in %1").arg(part.name));
+            const int categoryId = part.categoryId;
+            connect(row, &QAbstractButton::clicked, this, [showCategory, categoryId]() { showCategory(categoryId); });
+        }
+        layout->addWidget(row);
+    }
+    if (moneyFlow.keptCents() > 0) {
+        auto* kept = new ReportRow(ReportRow::Kind::Item, "Kept", columns(settings.formatCurrency(moneyFlow.keptCents()), share(moneyFlow.keptCents())),
+                                   false, widget);
+        kept->setObjectName("moneyFlowKept");
+        layout->addWidget(kept);
+    }
+    if (moneyFlow.fromSavingsCents() > 0) {
+        auto* savings = new ReportRow(ReportRow::Kind::Item, "From savings, more than came in",
+                                      {{settings.formatCurrency(moneyFlow.fromSavingsCents()), 130, Tone::Bad}, {QString(), 120, Tone::Secondary}},
+                                      false, widget);
+        savings->setObjectName("moneyFlowFromSavings");
+        layout->addWidget(savings);
+    }
+    auto* total = new ReportRow(ReportRow::Kind::Total, "Income", columns(settings.formatCurrency(moneyFlow.incomeCents),
+                                                                          moneyFlow.incomeCents > 0 ? QString("100%") : QString("—")),
+                                false, widget);
+    total->setObjectName("moneyFlowTotal");
     layout->addWidget(total);
     return widget;
 }

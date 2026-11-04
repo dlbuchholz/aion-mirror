@@ -114,7 +114,7 @@ private slots:
         ReportsPage page;
         page.setUserId(1);
         const QList<QAbstractButton*> all = cards(page);
-        QCOMPARE(all.size(), 6);
+        QCOMPARE(all.size(), 7);
         QCOMPARE(all.first()->accessibleName(), QString("Spending by category"));
         auto* back = page.findChild<QToolButton*>("reportsBackLink");
         QVERIFY(back->isHidden());
@@ -559,6 +559,60 @@ private slots:
             QVERIFY(!page.grab().isNull());
             page.findChild<QToolButton*>("reportsBackLink")->click();
         }
+    }
+
+    void moneyFlowOnTheCardAndInDetail() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Employer", 200000, today, "", 0, "income"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 50000, today, "", groceries, "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Kiosk", 10000, today, "", 0, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        chip(page, Preset::Month)->click();
+        QAbstractButton* card = cards(page)[6];
+        QCOMPARE(card->accessibleName(), QString("Money flow"));
+        QCOMPARE(card->accessibleDescription(), QString("Groceries, %1, 25% of the income").arg(Settings::instance().formatSpending(50000)));
+
+        // The diagram, and where it went as rows
+        card->click();
+        QCoreApplication::processEvents();
+        const QList<QAbstractButton*> rows = page.findChildren<QAbstractButton*>("moneyFlowRow");
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows[0]->accessibleName(), QString("Groceries"));
+        QCOMPARE(rows[1]->accessibleName(), QString("No category"));
+        QVERIFY(page.findChild<QWidget*>("moneyFlowKept"));
+        QVERIFY(!page.findChild<QWidget*>("moneyFlowFromSavings"));
+        QSignalSpy requested(&page, &ReportsPage::transactionsRequested);
+        rows[0]->click();
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(requested[0][0].toInt(), groceries);
+        QCOMPARE(requested[0][2].toDate(), page.range().first);
+
+        // A band says what it is and leads to its transactions too: down the right-hand parts
+        auto* chart = page.findChild<QWidget*>("moneyFlowChart");
+        const int partsX = chart->width() - qMin(220, chart->width() * 3 / 10) - 5;
+        int groceriesY = -1;
+        for (int y = 0; y < chart->height() && groceriesY < 0; y += 2) {
+            moveMouse(chart, QPoint(partsX, y));
+            if (QToolTip::text().startsWith("Groceries\n")) groceriesY = y;
+        }
+        QVERIFY(groceriesY >= 0);
+        QVERIFY(QToolTip::text().contains("25% of the income"));
+        releaseMouse(chart, QPoint(partsX, groceriesY), Qt::LeftButton);
+        QCOMPARE(requested.size(), 2);
+        QCOMPARE(requested[1][0].toInt(), groceries);
+
+        // More out than in: the rest from savings, nothing kept
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Landlord", 300000, today, "", 0, "expense"));
+        page.reload();
+        QVERIFY(page.findChild<QWidget*>("moneyFlowFromSavings"));
+        QVERIFY(!page.findChild<QWidget*>("moneyFlowKept"));
     }
 
     void hoveringTheFlowChartShowsAPeriodsNumbers() {

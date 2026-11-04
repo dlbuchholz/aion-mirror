@@ -178,7 +178,76 @@ Cents BalanceReport::balanceOn(const QDate& date) const {
     return balance;
 }
 
+Cents MoneyFlow::totalCents() const {
+    Cents total = fromSavingsCents();
+    for (const FlowPart& part : income) total += part.cents;
+    return total;
+}
+
 namespace Reports {
+
+MoneyFlow moneyFlow(int userId, int accountId, const ReportRange& range) {
+    MoneyFlow flow;
+    flow.range = range;
+    if (!range.isValid()) return flow;
+    QSqlQuery query(DatabaseManager::instance().database());
+    query.prepare(
+        "SELECT COALESCE(t.category_id, 0), c.name, c.color, " + IsSpendingSql + ", "
+        "SUM(CASE WHEN " + IsSpendingSql + " THEN " + SpendingCentsSql + " ELSE t.amount END) "
+        "FROM transactions t JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+        "WHERE a.user_id = :user_id AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql
+        + (accountId >= 0 ? " AND t.account_id = :account_id " : " ") + "GROUP BY COALESCE(t.category_id, 0), " + IsSpendingSql);
+    query.bindValue(":user_id", userId);
+    query.bindValue(":first", range.first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", range.last.toString("yyyy-MM-dd"));
+    if (accountId >= 0) query.bindValue(":account_id", accountId);
+    if (!query.exec()) {
+        qWarning() << "Reports:" << query.lastError().text();
+        return flow;
+    }
+    QList<FlowPart> moneyBack;
+    QList<FlowPart> spent;
+    while (query.next()) {
+        FlowPart part;
+        part.categoryId = query.value(0).toInt();
+        part.name = part.categoryId == 0 ? QString("No category") : query.value(1).toString();
+        part.color = query.value(2).toString();
+        part.cents = query.value(4).toLongLong();
+        if (!query.value(3).toBool()) {
+            flow.incomeCents += part.cents;
+            if (part.cents > 0) flow.income.append(part);
+            continue;
+        }
+        flow.spendingCents += part.cents;
+        if (part.cents > 0) {
+            spent.append(part);
+        } else if (part.cents < 0) {
+            part.cents = -part.cents;
+            part.isMoneyBack = true;
+            moneyBack.append(part);
+        }
+    }
+    const auto largestFirst = [](const FlowPart& a, const FlowPart& b) {
+        return a.cents != b.cents ? a.cents > b.cents : a.name.localeAwareCompare(b.name) < 0;
+    };
+    std::sort(flow.income.begin(), flow.income.end(), largestFirst);
+    std::sort(moneyBack.begin(), moneyBack.end(), largestFirst);
+    flow.income += moneyBack;
+    std::sort(spent.begin(), spent.end(), largestFirst);
+    // One part more would only be one category, so it's shown instead of a rest of one
+    if (spent.size() <= MoneyFlow::ShownSpending + 1) {
+        flow.spending = spent;
+    } else {
+        flow.spending = spent.mid(0, MoneyFlow::ShownSpending);
+        FlowPart rest;
+        rest.isRest = true;
+        const int others = int(spent.size()) - MoneyFlow::ShownSpending;
+        rest.name = QString("%1 other categories").arg(others);
+        for (const FlowPart& part : spent.mid(MoneyFlow::ShownSpending)) rest.cents += part.cents;
+        flow.spending.append(rest);
+    }
+    return flow;
+}
 
 BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& today) {
     BudgetReport report;

@@ -64,6 +64,9 @@ private slots:
             QCOMPARE(flow.incomeCents, Cents(0));
         }
         Reports::spendingByCategory(1, -1, range, today);
+        const MoneyFlow money = Reports::moneyFlow(1, -1, range);
+        QVERIFY(money.income.isEmpty() && money.spending.isEmpty());
+        QCOMPARE(money.totalCents(), Cents(0));
     }
 
     void spendingPerCategoryLargestFirst() {
@@ -341,6 +344,68 @@ private slots:
         QVERIFY(Reports::budgetVsActual(1, {QDate(2026, 11, 1), QDate(2026, 11, 30)}, today).categories.isEmpty());
     }
 
+    void moneyFlowsFromIncomeToSpendingAndWhatWasKept() {
+        const int salary = categoryId("Salary");
+        add(giro, 300000, QDate(2026, 10, 1), salary, "income");
+        add(savings, 20000, QDate(2026, 10, 2), 0, "income");            // Income without a category
+        add(giro, 90000, QDate(2026, 10, 3), rent, "expense");
+        add(giro, 30000, QDate(2026, 10, 4), groceries, "expense");
+        add(giro, 5000, QDate(2026, 10, 5), groceries, "income");        // Money back lowers groceries
+        add(giro, 50000, QDate(2026, 10, 6), categoryId("Transfer"), "expense");   // Not spending
+
+        const ReportRange october{QDate(2026, 10, 1), QDate(2026, 10, 31)};
+        MoneyFlow flow = Reports::moneyFlow(1, -1, october);
+        QCOMPARE(flow.income.size(), 2);
+        QCOMPARE(flow.income[0].name, QString("Salary"));
+        QCOMPARE(flow.income[1].name, QString("No category"));
+        QCOMPARE(flow.incomeCents, Cents(320000));
+        QCOMPARE(flow.spending.size(), 2);
+        QCOMPARE(flow.spending[0].name, QString("Rent"));
+        QCOMPARE(flow.spending[1].cents, Cents(25000));
+        QCOMPARE(flow.spendingCents, Cents(115000));
+        QCOMPARE(flow.keptCents(), Cents(205000));
+        QCOMPARE(flow.fromSavingsCents(), Cents(0));
+        QCOMPARE(flow.totalCents(), Cents(320000));
+        QCOMPARE(Reports::moneyFlow(1, savings, october).spending.size(), 0);   // One account only
+
+        // More out than in: the difference comes from savings
+        add(giro, 400000, QDate(2026, 10, 7), rent, "expense");
+        flow = Reports::moneyFlow(1, -1, october);
+        QCOMPARE(flow.keptCents(), Cents(0));
+        QCOMPARE(flow.fromSavingsCents(), Cents(195000));
+        QCOMPARE(flow.totalCents(), Cents(515000));
+
+        // More back than spent: on the left, as money back
+        add(giro, 40000, QDate(2026, 10, 8), groceries, "income");
+        flow = Reports::moneyFlow(1, -1, october);
+        QCOMPARE(flow.income.last().name, QString("Groceries"));
+        QVERIFY(flow.income.last().isMoneyBack);
+        QCOMPARE(flow.income.last().cents, Cents(15000));
+        QCOMPARE(flow.spending.size(), 1);
+    }
+
+    void moneyFlowShowsTheLargestAndTheRestTogether() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        for (int i = 0; i < 11; ++i) {
+            QVERIFY(query.exec(QString("INSERT INTO categories (user_id, name, type) VALUES (1, 'Spend %1', 'expense')").arg(i)));
+            add(giro, 1000 * (i + 1), QDate(2026, 10, 10), query.lastInsertId().toInt(), "expense");
+        }
+        const ReportRange october{QDate(2026, 10, 1), QDate(2026, 10, 31)};
+        const MoneyFlow flow = Reports::moneyFlow(1, -1, october);
+        QCOMPARE(flow.spending.size(), MoneyFlow::ShownSpending + 1);
+        QCOMPARE(flow.spending.first().name, QString("Spend 10"));
+        QVERIFY(flow.spending.last().isRest);
+        QCOMPARE(flow.spending.last().name, QString("3 other categories"));
+        QCOMPARE(flow.spending.last().cents, Cents(1000 + 2000 + 3000));
+
+        // One more than shown is shown on its own, not as a rest of one
+        QVERIFY(query.exec("DELETE FROM transactions WHERE amount IN (1000, 2000)"));
+        const MoneyFlow nine = Reports::moneyFlow(1, -1, october);
+        QCOMPARE(nine.spending.size(), MoneyFlow::ShownSpending + 1);
+        QVERIFY(!nine.spending.last().isRest);
+        QCOMPARE(nine.spending.last().name, QString("Spend 2"));
+    }
+
     void otherUsersAreLeftOut() {
         db.seedDefaultUser(2, "other", "Other");
         const int theirs = AccountDAO::createAccount(2, "Theirs", "Checking", 0);
@@ -392,6 +457,14 @@ private slots:
             trends += Reports::categoryTrend(1, -1, category, range, today).totalCents;
         }
         QCOMPARE(trends, flow.spendingCents);
+
+        // The money flow: the same totals, and both sides of the diagram as much
+        const MoneyFlow money = Reports::moneyFlow(1, -1, range);
+        QCOMPARE(money.incomeCents, flow.incomeCents);
+        QCOMPARE(money.spendingCents, flow.spendingCents);
+        Cents right = money.keptCents();
+        for (const FlowPart& part : money.spending) right += part.cents;
+        QCOMPARE(right, money.totalCents());
 
         // Accounts add up to all of them together
         QCOMPARE(Reports::incomeVsSpending(1, giro, range).spendingCents + Reports::incomeVsSpending(1, savings, range).spendingCents,
