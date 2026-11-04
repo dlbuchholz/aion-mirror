@@ -91,6 +91,15 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(dashboard, &DashboardPage::budgetRequested, this, [this]() { showPage(SidebarWidget::Page::Budget); });
 
     // Reports lead on to the transactions they counted
+    connect(ui->budgetPage, &BudgetPage::transactionsRequested, this,
+            [this, transactions](int categoryId, const QDate& from, const QDate& to) {
+        transactions->showCategoryInRange(categoryId, TransactionsPage::ALL_ACCOUNTS, from, to);
+        showPage(SidebarWidget::Page::Transactions);
+    });
+    connect(ui->budgetPage, &BudgetPage::transactionRequested, this, [this, transactions](int transactionId) {
+        showPage(SidebarWidget::Page::Transactions);
+        transactions->openTransaction(transactionId);
+    });
     connect(ui->reportsPage, &ReportsPage::transactionsRequested, this,
             [this, transactions](int categoryId, int accountId, const QDate& from, const QDate& to) {
         transactions->showCategoryInRange(categoryId, accountId < 0 ? TransactionsPage::ALL_ACCOUNTS : accountId, from, to);

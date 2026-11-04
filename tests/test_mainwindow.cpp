@@ -186,6 +186,27 @@ private slots:
         QCOMPARE(shownTransactions(window), 1);
     }
 
+    void budgetsLeadToTheTransactionsTheyCounted() {
+        const QDate today = QDate::currentDate();
+        spend(giro, 1000, groceries);
+        spend(savings, 2000, groceries);
+        spend(giro, 3000, 0);
+        MainWindow window(1);
+        const QDate first(today.year(), today.month(), 1);
+        emit window.findChild<BudgetPage*>()->transactionsRequested(groceries, first, first.addMonths(1).addDays(-1));
+        QCOMPARE(currentPage(window), window.findChild<TransactionsPage*>());
+        QCOMPARE(shownTransactions(window), 2);          // Both accounts, as the budget counts them
+    }
+
+    void anUnfoldedBudgetOpensOneOfItsTransactions() {
+        const int transactionId = spend(savings, 2000, groceries);
+        MainWindow window(1);
+        auto* transactions = window.findChild<TransactionsPage*>();
+        emit window.findChild<BudgetPage*>()->transactionRequested(transactionId);
+        QCOMPARE(currentPage(window), transactions);
+        QCOMPARE(transactions->findChild<TransactionEditor*>()->editedTransactionId(), transactionId);
+    }
+
     void theReportsWidthButtonReachesTheSettings() {
         Settings::instance().setReportsCentred(true);
         MainWindow window(1);

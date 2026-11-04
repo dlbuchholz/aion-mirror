@@ -150,6 +150,21 @@ private slots:
         const MonthBudget budget = dao.budgetsForMonth(1, oct()).first();
         QCOMPARE(budget.spentCents, Cents(35840 - 5500));
         QCOMPARE(budget.leftCents(), Cents(40000 - 35840 + 5500));
+        QCOMPARE(budget.transactionCount, 3);                     // The refund too
+
+        // The same transactions one by one, oldest first, money back below zero
+        const QList<BudgetTransaction> list = dao.transactions(1, groceries, oct());
+        QCOMPARE(list.size(), 3);
+        QCOMPARE(list[0].date, QDate(2026, 10, 1));
+        QCOMPARE(list[0].spentCents, Cents(31200));
+        QCOMPARE(list[0].payee, QString("Shop"));
+        QVERIFY(list[0].transactionId > 0);
+        QCOMPARE(list[1].spentCents, Cents(-5500));
+        QCOMPARE(list[2].date, QDate(2026, 10, 31));
+        QCOMPARE(dao.transactions(1, groceries, nov()).size(), 1);
+        QCOMPARE(dao.transactions(1, rent, oct()).size(), 0);
+        QCOMPARE(dao.budgetsForMonth(1, nov()).first().transactionCount, 1);
+        QCOMPARE(dao.budgetsForMonth(1, sep()).size(), 0);
     }
 
     void moreBackThanSpentGoesBelowZero() {
@@ -177,8 +192,11 @@ private slots:
         QCOMPARE(rest.size(), 2);
         QCOMPARE(rest[0].categoryName, QString("Rent"));         // Largest first
         QCOMPARE(rest[0].spentCents, Cents(89000));
+        QCOMPARE(rest[0].transactionCount, 1);
         QCOMPARE(rest[1].categoryId, 0);
         QCOMPARE(rest[1].categoryName, QString("No category"));
+        spend(360, QDate(2026, 10, 9), 0);
+        QCOMPARE(dao.unbudgetedSpending(1, oct())[1].transactionCount, 2);
     }
 
     void startingBalancesArentSpending() {
@@ -190,6 +208,10 @@ private slots:
         spend(4640, QDate(2026, 10, 4), 0);
 
         QCOMPARE(dao.budgetsForMonth(1, oct()).first().spentCents, Cents(0));
+        QCOMPARE(dao.budgetsForMonth(1, oct()).first().transactionCount, 0);
+        QVERIFY(dao.transactions(1, initial, oct()).isEmpty());
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, accountId, "Employer", 250000, QDate(2026, 10, 5), "", 0, "income")) > 0);
+        QCOMPARE(dao.transactions(1, 0, oct()).size(), 1);        // No category, and only what was spent
         QVERIFY(dao.removeLimit(1, initial, oct(), true));
         const QList<UnbudgetedSpending> rest = dao.unbudgetedSpending(1, oct());
         QCOMPARE(rest.size(), 1);
@@ -203,6 +225,7 @@ private slots:
         const QList<UnbudgetedSpending> rest = BudgetDAO().unbudgetedSpending(1, oct());
         QCOMPARE(rest.size(), 1);
         QCOMPARE(rest[0].categoryId, 0);
+        QVERIFY(BudgetDAO().transactions(1, categoryId("Transfer"), oct()).isEmpty());
     }
 
     void budgetsBelongToTheirUser() {

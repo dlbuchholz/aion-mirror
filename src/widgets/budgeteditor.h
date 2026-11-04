@@ -12,6 +12,7 @@ class QLabel;
 class QMenu;
 class QPushButton;
 class QRadioButton;
+class QToolButton;
 
 // Side panel for adding or changing one category's limit in a month. Like the transaction
 // editor it does not touch the database: the budget page persists what the signals carry.
@@ -33,6 +34,7 @@ public:
 signals:
     void saveRequested(int categoryId, Cents limitCents, bool everyMonth);
     void removeRequested(int categoryId, bool fromThisMonthOn);
+    void transactionsRequested(int categoryId);      // The edited budget's, in its month
     void closed();
 
 protected:
@@ -52,6 +54,7 @@ private:
     QRadioButton* everyMonthButton = nullptr;
     QRadioButton* onlyThisMonthButton = nullptr;
     QLabel* hintLabel = nullptr;
+    QToolButton* transactionsLink = nullptr;         // Only for an existing budget
     QLabel* errorLabel = nullptr;
     QPushButton* removeButton = nullptr;
     QMenu* removeMenu = nullptr;                     // Regular limits: from this month on, or only this month

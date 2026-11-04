@@ -1,4 +1,5 @@
 #include "budgetpage.h"
+#include "budgetdetail.h"
 #include "budgeteditor.h"
 #include "categorycolors.h"
 #include "category.h"
@@ -12,6 +13,7 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
@@ -42,8 +44,12 @@ QString leftText(Cents left) {
                     : QString("%1 left").arg(settings.formatCurrency(left));
 }
 
-// One budget: category with a "monthly" / "only <Month>" tag, spent of limit, progress bar
-// and what is left. Clicking opens it in the editor.
+QString countText(int count) {
+    return count == 1 ? QString("1 transaction") : QString("%1 transactions").arg(count);
+}
+
+// One budget: category with a "monthly" / "only <Month>" tag, how many transactions, spent of
+// limit, progress bar and what is left. Clicking unfolds it (the detail below it).
 class BudgetRow : public QAbstractButton {
 public:
     BudgetRow(const MonthBudget& budget, const QDate& month, QWidget* parent)
@@ -55,15 +61,21 @@ public:
         setAttribute(Qt::WA_Hover);
         setFixedHeight(62);
         setAccessibleName(budget.categoryName);
-        setAccessibleDescription(QString("%1 of %2 · %3").arg(Settings::instance().formatSpending(budget.spentCents),
-                                                              Settings::instance().formatCurrency(budget.limitCents),
-                                                              leftText(budget.leftCents())));
+        setAccessibleDescription(QString("%1 · %2 of %3 · %4").arg(countText(budget.transactionCount),
+                                                                   Settings::instance().formatSpending(budget.spentCents),
+                                                                   Settings::instance().formatCurrency(budget.limitCents),
+                                                                   leftText(budget.leftCents())));
         setToolTip(budget.repeats ? QString("Regular limit since %1").arg(QLocale(QLocale::English).toString(budget.validFrom, "MMMM yyyy"))
                                   : QString("Set for %1 only").arg(monthName(month)));
     }
 
     int categoryId() const { return budget.categoryId; }
     void setOpen(bool isOpen) { open = isOpen; update(); }
+    bool isExpanded() const { return expanded; }
+    void setExpanded(bool isExpanded) {
+        expanded = isExpanded;
+        update();
+    }
 
 protected:
     void paintEvent(QPaintEvent*) override {
@@ -72,13 +84,17 @@ protected:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        const QRect area = rect().adjusted(0, 1, 0, -1);
-        if (open || underMouse() || hasFocus()) {
+        // Unfolded, it joins the detail below: rounded only at the top
+        const QRect area = rect().adjusted(0, expanded ? 0 : 1, 0, expanded ? 0 : -1);
+        if (open || expanded || underMouse() || hasFocus()) {
             QPainterPath path;
             path.addRoundedRect(QRectF(area), 6, 6);
-            painter.fillPath(path, open ? colors.itemSelected : colors.itemHover);
+            if (expanded) path.addRect(QRectF(area.left(), area.center().y(), area.width(), area.height() / 2.0 + 1));
+            painter.fillPath(path.simplified(), open ? colors.itemSelected : colors.itemHover);
         }
-        const QRect content = area.adjusted(12, 8, -12, -10);
+        const QPixmap chevron = Icons::icon(expanded ? "chevron-down" : "chevron-right", colors.textMuted, 14).pixmap(14, 14);
+        painter.drawPixmap(area.left() + 10, area.top() + 14, chevron);
+        const QRect content = area.adjusted(32, 8, -12, -10);
         const int leftWidth = 150;                    // "left" / "over" column
 
         // Top line: category and tag on the left, spent of limit on the right
@@ -89,8 +105,9 @@ protected:
         const QFontMetrics smallMetrics(smallFont);
         const QRect topLine(content.left(), content.top(), content.width(), 22);
 
-        const QString amounts = QString("%1 of %2").arg(settings.formatSpending(budget.spentCents),
-                                                        settings.formatCurrency(budget.limitCents));
+        const QString amounts = QString("%1 · %2 of %3").arg(countText(budget.transactionCount),
+                                                             settings.formatSpending(budget.spentCents),
+                                                             settings.formatCurrency(budget.limitCents));
         painter.setFont(smallFont);
         painter.setPen(colors.textSecondary);
         painter.drawText(topLine.adjusted(0, 0, -leftWidth - 24, 0), Qt::AlignRight | Qt::AlignVCenter, amounts);
@@ -155,6 +172,7 @@ private:
     MonthBudget budget;
     QString tag;
     bool open = false;
+    bool expanded = false;
 };
 
 } // namespace
@@ -268,6 +286,7 @@ BudgetPage::BudgetPage(QWidget* parent)
     connect(editor, &BudgetEditor::saveRequested, this, &BudgetPage::onSaveRequested);
     connect(editor, &BudgetEditor::removeRequested, this, &BudgetPage::onRemoveRequested);
     connect(editor, &BudgetEditor::closed, this, &BudgetPage::closeEditor);
+    connect(editor, &BudgetEditor::transactionsRequested, this, &BudgetPage::showTransactions);
     body->addWidget(editor);
     root->addLayout(body, 1);
 
@@ -342,7 +361,50 @@ void BudgetPage::highlightRow(int categoryId) {
     }
 }
 
+void BudgetPage::showTransactions(int categoryId) {
+    emit transactionsRequested(categoryId, shownMonth, shownMonth.addMonths(1).addDays(-1));
+}
+
+void BudgetPage::setExpanded(int categoryId) {
+    delete detail;
+    detail = nullptr;
+    expandedCategoryId = 0;
+    for (QAbstractButton* button : std::as_const(budgetRows)) {
+        auto* row = static_cast<BudgetRow*>(button);
+        row->setExpanded(categoryId > 0 && row->categoryId() == categoryId);
+    }
+    const auto budget = std::find_if(budgets.cbegin(), budgets.cend(), [categoryId](const MonthBudget& candidate) {
+        return candidate.categoryId == categoryId;
+    });
+    if (budget == budgets.cend()) return;            // None (0), or not budgeted in this month
+    expandedCategoryId = categoryId;
+
+    // Last month to compare with, with or without a budget then
+    BudgetDAO dao;
+    const QDate previous = shownMonth.addMonths(-1);
+    Cents lastMonthSpent = 0;
+    for (const BudgetTransaction& transaction : dao.transactions(userId, categoryId, previous)) {
+        lastMonthSpent += transaction.spentCents;
+    }
+    Cents lastMonthLimit = 0;
+    for (const MonthBudget& earlier : dao.budgetsForMonth(userId, previous)) {
+        if (earlier.categoryId == categoryId) lastMonthLimit = earlier.limitCents;
+    }
+
+    detail = new BudgetDetail(*budget, shownMonth, dao.transactions(userId, categoryId, shownMonth),
+                              lastMonthSpent, lastMonthLimit, QDate::currentDate(), this);
+    connect(detail, &BudgetDetail::editRequested, this, [this, categoryId]() { editBudget(categoryId); });
+    connect(detail, &BudgetDetail::transactionsRequested, this, [this, categoryId]() { showTransactions(categoryId); });
+    connect(detail, &BudgetDetail::transactionRequested, this, &BudgetPage::transactionRequested);
+    for (QAbstractButton* row : std::as_const(budgetRows)) {
+        if (static_cast<BudgetRow*>(row)->categoryId() == categoryId) {
+            rowsLayout->insertWidget(rowsLayout->indexOf(row) + 1, detail);
+        }
+    }
+}
+
 void BudgetPage::clearRows() {
+    detail = nullptr;                                // Goes with the rows
     budgetRows.clear();
     for (QVBoxLayout* layout : {rowsLayout, unbudgetedLayout}) {
         while (QLayoutItem* item = layout->takeAt(0)) {
@@ -364,10 +426,23 @@ void BudgetPage::reload() {
     for (const MonthBudget& budget : budgets) {
         auto* row = new BudgetRow(budget, shownMonth, this);
         const int categoryId = budget.categoryId;
-        connect(row, &QAbstractButton::clicked, this, [this, categoryId]() { editBudget(categoryId); });
+        connect(row, &QAbstractButton::clicked, this, [this, categoryId]() {
+            setExpanded(expandedCategoryId == categoryId ? 0 : categoryId);
+        });
+        row->setContextMenuPolicy(Qt::CustomContextMenu);
+        const int count = budget.transactionCount;
+        connect(row, &QWidget::customContextMenuRequested, this, [this, row, categoryId, count](const QPoint& position) {
+            QMenu menu(this);
+            QAction* show = menu.addAction(QString("Show %1").arg(countText(count)), this,
+                                           [this, categoryId]() { showTransactions(categoryId); });
+            show->setEnabled(count > 0);
+            menu.addAction("Edit budget…", this, [this, categoryId]() { editBudget(categoryId); });
+            menu.exec(row->mapToGlobal(position));
+        });
         rowsLayout->addWidget(row);
         budgetRows.append(row);
     }
+    setExpanded(expandedCategoryId);
     highlightRow(editor->isVisible() ? editor->editedCategoryId() : 0);
     emptyLabel->setText(QString("No budgets for %1 yet.\nAdd one to keep an eye on what a category may cost each month.")
                             .arg(monthName(shownMonth)));
@@ -376,15 +451,24 @@ void BudgetPage::reload() {
     // Spending without a budget, each with a quick way to add one
     const Settings& settings = Settings::instance();
     for (const UnbudgetedSpending& spending : unbudgeted) {
-        auto* row = new QWidget(this);
+        auto* row = new HoverRow(this);
         row->setObjectName("unbudgetedRow");
         row->setAccessibleName(spending.categoryName);
+        row->setToolTip(QString("Show the %1 in %2").arg(countText(spending.transactionCount), monthName(shownMonth)));
+        const int spendingCategoryId = spending.categoryId;
+        connect(row, &QAbstractButton::clicked, this, [this, spendingCategoryId]() { showTransactions(spendingCategoryId); });
         auto* layout = new QHBoxLayout(row);
         layout->setContentsMargins(12, 4, 6, 4);
         auto* name = new QLabel(spending.categoryName, row);
+        auto* count = new QLabel(countText(spending.transactionCount), row);
+        count->setObjectName("unbudgetedCount");
+        count->setForegroundRole(QPalette::PlaceholderText);
         auto* amount = new QLabel(settings.formatCurrency(spending.spentCents), row);
         amount->setObjectName("unbudgetedAmount");
+        for (QLabel* label : {name, count, amount}) label->setAttribute(Qt::WA_TransparentForMouseEvents);   // Clicks are the row's
         layout->addWidget(name, 1);
+        layout->addWidget(count);
+        layout->addSpacing(12);
         layout->addWidget(amount);
         if (spending.categoryId > 0) {
             auto* add = new QToolButton(row);
@@ -408,6 +492,7 @@ void BudgetPage::reload() {
             layout->addSpacing(8);
             auto* hint = new QLabel("Give these transactions a category to budget them", row);
             hint->setForegroundRole(QPalette::PlaceholderText);
+            hint->setAttribute(Qt::WA_TransparentForMouseEvents);
             layout->addWidget(hint);
         }
         unbudgetedLayout->addWidget(row);

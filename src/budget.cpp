@@ -66,11 +66,17 @@ QString previousMonth(const QString& month) {
 }
 
 // Expenses per category (0 = no category) of the user's accounts in a month, less refunds, without
-// balance adjustments and transfers. Below zero when more came back than was spent.
-QHash<int, Cents> spendingByCategory(int userId, const QDate& month) {
+// balance adjustments and transfers. Below zero when more came back than was spent. The count is of
+// the same transactions, refunds included.
+struct Spent {
+    Cents cents = 0;
+    int count = 0;
+};
+
+QHash<int, Spent> spendingByCategory(int userId, const QDate& month) {
     const QDate first(month.year(), month.month(), 1);
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("SELECT COALESCE(t.category_id, 0), SUM(" + SpendingCentsSql + ") FROM transactions t "
+    query.prepare("SELECT COALESCE(t.category_id, 0), SUM(" + SpendingCentsSql + "), COUNT(*) FROM transactions t "
                   "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
                   "WHERE a.user_id = :user_id AND " + IsSpendingSql + " AND t.date BETWEEN :first AND :last AND "
                   + CountedAsIncomeOrSpendingSql + " "
@@ -79,9 +85,9 @@ QHash<int, Cents> spendingByCategory(int userId, const QDate& month) {
     query.bindValue(":first", first.toString("yyyy-MM-dd"));
     query.bindValue(":last", first.addMonths(1).addDays(-1).toString("yyyy-MM-dd"));
 
-    QHash<int, Cents> spent;
+    QHash<int, Spent> spent;
     if (exec(query)) {
-        while (query.next()) spent.insert(query.value(0).toInt(), query.value(1).toLongLong());
+        while (query.next()) spent.insert(query.value(0).toInt(), {query.value(1).toLongLong(), query.value(2).toInt()});
     }
     return spent;
 }
@@ -152,7 +158,7 @@ QString BudgetDAO::monthKey(const QDate& date) {
 QList<MonthBudget> BudgetDAO::budgetsForMonth(int userId, const QDate& month) {
     const QString key = monthKey(month);
     const QList<BudgetRow> rows = rowsFor(userId);
-    const QHash<int, Cents> spent = spendingByCategory(userId, month);
+    const QHash<int, Spent> spent = spendingByCategory(userId, month);
     const QHash<int, QString> names = categoryNames();
     const QHash<int, QString> colors = categoryColors();
 
@@ -170,7 +176,8 @@ QList<MonthBudget> BudgetDAO::budgetsForMonth(int userId, const QDate& month) {
         budget.categoryName = names.value(categoryId);
         budget.categoryColor = colors.value(categoryId);
         budget.limitCents = row->amount;
-        budget.spentCents = spent.value(categoryId);
+        budget.spentCents = spent.value(categoryId).cents;
+        budget.transactionCount = spent.value(categoryId).count;
         budget.repeats = row->repeats;
         budget.validFrom = QDate::fromString(row->startMonth + "-01", "yyyy-MM-dd");
         budgets.append(budget);
@@ -187,15 +194,40 @@ QList<UnbudgetedSpending> BudgetDAO::unbudgetedSpending(int userId, const QDate&
     const QHash<int, QString> names = categoryNames();
 
     QList<UnbudgetedSpending> result;
-    const QHash<int, Cents> spent = spendingByCategory(userId, month);
+    const QHash<int, Spent> spent = spendingByCategory(userId, month);
     for (auto it = spent.cbegin(); it != spent.cend(); ++it) {
-        if (!budgeted.contains(it.key()) && it.value() > 0) {
-            result.append({it.key(), it.key() == 0 ? QString("No category") : names.value(it.key()), it.value()});
+        if (!budgeted.contains(it.key()) && it.value().cents > 0) {
+            result.append({it.key(), it.key() == 0 ? QString("No category") : names.value(it.key()), it.value().cents,
+                           it.value().count});
         }
     }
     std::sort(result.begin(), result.end(), [](const UnbudgetedSpending& a, const UnbudgetedSpending& b) {
         return a.spentCents > b.spentCents;          // Largest first
     });
+    return result;
+}
+
+QList<BudgetTransaction> BudgetDAO::transactions(int userId, int categoryId, const QDate& month) {
+    const QDate first(month.year(), month.month(), 1);
+    QSqlQuery query(DatabaseManager::instance().database());
+    // The same transactions as in spendingByCategory
+    query.prepare("SELECT t.id, t.date, COALESCE(t.payee, ''), " + SpendingCentsSql + " FROM transactions t "
+                  "JOIN accounts a ON a.id = t.account_id LEFT JOIN categories c ON c.id = t.category_id "
+                  "WHERE a.user_id = :user_id AND COALESCE(t.category_id, 0) = :category AND " + IsSpendingSql
+                  + " AND t.date BETWEEN :first AND :last AND " + CountedAsIncomeOrSpendingSql + " "
+                  "ORDER BY t.date, t.id");
+    query.bindValue(":user_id", userId);
+    query.bindValue(":category", categoryId);
+    query.bindValue(":first", first.toString("yyyy-MM-dd"));
+    query.bindValue(":last", first.addMonths(1).addDays(-1).toString("yyyy-MM-dd"));
+
+    QList<BudgetTransaction> result;
+    if (exec(query)) {
+        while (query.next()) {
+            result.append({query.value(0).toInt(), QDate::fromString(query.value(1).toString(), "yyyy-MM-dd"),
+                           query.value(2).toString(), query.value(3).toLongLong()});
+        }
+    }
     return result;
 }
 

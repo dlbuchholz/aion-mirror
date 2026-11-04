@@ -107,6 +107,17 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     });
     layout->addLayout(form);
 
+    // An existing budget leads to what was spent on it
+    transactionsLink = new QToolButton(this);
+    transactionsLink->setObjectName("budgetTransactionsLink");
+    transactionsLink->setAutoRaise(true);
+    transactionsLink->setCursor(Qt::PointingHandCursor);
+    QPalette linkPalette = transactionsLink->palette();
+    linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
+    transactionsLink->setPalette(linkPalette);
+    connect(transactionsLink, &QToolButton::clicked, this, [this]() { emit transactionsRequested(categoryId); });
+    layout->addWidget(transactionsLink, 0, Qt::AlignLeft);
+
     errorLabel = new QLabel(this);
     errorLabel->setWordWrap(true);
     QPalette errorPalette = errorLabel->palette();
@@ -171,6 +182,7 @@ void BudgetEditor::newBudget(const QDate& newMonth, const QList<Category>& categ
     limitEdit->setValue(Money::toDouble(suggestedLimit));
     everyMonthButton->setChecked(true);
     removeButton->hide();
+    transactionsLink->hide();
 
     if (categories.isEmpty()) {
         showError("Every expense category already has a budget this month. Add categories under Settings → Categories.");
@@ -196,6 +208,13 @@ void BudgetEditor::editBudget(const QDate& newMonth, const MonthBudget& budget) 
     removeMenu->addAction(QString("Only in %1").arg(name), this, [this]() { emit removeRequested(categoryId, false); });
     removeButton->setMenu(budget.repeats ? removeMenu : nullptr);
     removeButton->show();
+    // Nothing to show before the first transaction
+    const int count = budget.transactionCount;
+    transactionsLink->setText(count == 0 ? QString("No transactions in %1 yet").arg(name)
+                              : count == 1 ? QString("Show the transaction in %1 ›").arg(name)
+                                           : QString("Show the %1 transactions in %2 ›").arg(count).arg(name));
+    transactionsLink->setEnabled(count > 0);
+    transactionsLink->show();
 
     limitEdit->setFocus();
     limitEdit->selectAll();

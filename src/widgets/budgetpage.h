@@ -5,6 +5,7 @@
 #include <QWidget>
 #include "budget.h"
 
+class BudgetDetail;
 class BudgetEditor;
 class QAbstractButton;
 class QFrame;
@@ -13,8 +14,9 @@ class QPushButton;
 class QToolButton;
 class QVBoxLayout;
 
-// One month's category budgets: totals, a row per budget with its progress, the spending
-// that has no budget yet, and an editor panel for adding and changing limits.
+// One month's category budgets: totals, a row per budget with its progress (one at a time unfolds
+// to its month in detail), the spending that has no budget yet, and an editor panel for adding
+// and changing limits.
 class BudgetPage : public QWidget {
     Q_OBJECT
 
@@ -29,6 +31,9 @@ public:
 
 signals:
     void budgetsChanged();
+    // A category's transactions (0 = no category) in the shown month, from first to last day
+    void transactionsRequested(int categoryId, const QDate& from, const QDate& to);
+    void transactionRequested(int transactionId);    // One of them, from an unfolded budget
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -39,6 +44,7 @@ private slots:
     void onSaveRequested(int categoryId, Cents limitCents, bool everyMonth);
     void onRemoveRequested(int categoryId, bool fromThisMonthOn);
     void closeEditor();
+    void showTransactions(int categoryId);           // In the shown month
 
 private:
     QFrame* createTile(const QString& caption, QLabel** valueLabel);
@@ -46,11 +52,13 @@ private:
     void updateIcons();                              // Re-tint icons after a theme change
     void clearRows();
     void highlightRow(int categoryId);               // The budget open in the editor (0 = none)
+    void setExpanded(int categoryId);                // Unfolds that budget's row (0 = none)
 
     int userId = -1;
     QDate shownMonth;                                // First day of the shown month
     QList<MonthBudget> budgets;
     QList<UnbudgetedSpending> unbudgeted;
+    int expandedCategoryId = 0;                      // Stays unfolded across reloads, and months it has a budget in
 
     QLabel* monthLabel = nullptr;
     QToolButton* previousButton = nullptr;
@@ -66,6 +74,7 @@ private:
     QLabel* emptyLabel = nullptr;
     QLabel* unbudgetedTitle = nullptr;
     QVBoxLayout* unbudgetedLayout = nullptr;
+    BudgetDetail* detail = nullptr;                  // Below the unfolded row
     BudgetEditor* editor = nullptr;
 };
 

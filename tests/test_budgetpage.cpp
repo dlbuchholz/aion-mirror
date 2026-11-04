@@ -3,6 +3,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLabel>
+#include <QLayout>
 #include <QMenu>
 #include <QPushButton>
 #include <QRadioButton>
@@ -11,7 +12,9 @@
 #include "account.h"
 #include "budget.h"
 #include "settings.h"
+#include "theme.h"
 #include "tests/test_db_fixture.h"
+#include "widgets/budgetdetail.h"
 #include "widgets/budgeteditor.h"
 #include "widgets/budgetpage.h"
 
@@ -40,6 +43,16 @@ class TestBudgetPage : public QObject {
             if (button->accessibleName() == category) return button;
         }
         return nullptr;
+    }
+
+    // Unfolds the budget and opens it in the editor
+    static void edit(BudgetPage& page, const QString& category) {
+        QAbstractButton* budget = row(page, category);
+        QVERIFY(budget);
+        budget->click();
+        auto* detail = page.findChild<BudgetDetail*>();
+        QVERIFY(detail);
+        detail->findChild<QPushButton*>("budgetDetailEdit")->click();
     }
 
     static QString money(Cents cents) { return Settings::instance().formatCurrency(cents); }
@@ -80,7 +93,7 @@ private slots:
 
         QAbstractButton* groceriesRow = row(page, "Groceries");
         QVERIFY(groceriesRow);
-        QCOMPARE(groceriesRow->accessibleDescription(), QString("%1 of %2 · %3 left").arg(money(31200), money(40000), money(8800)));
+        QCOMPARE(groceriesRow->accessibleDescription(), QString("1 transaction · %1 of %2 · %3 left").arg(money(31200), money(40000), money(8800)));
         QCOMPARE(label(page, "budgetedTotal"), money(40000));
         QCOMPARE(label(page, "spentTotal"), money(31200));
         QCOMPARE(label(page, "leftTotal"), money(8800));
@@ -131,7 +144,7 @@ private slots:
         QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
         BudgetPage page;
         page.setUserId(1);
-        row(page, "Groceries")->click();
+        edit(page, "Groceries");
 
         auto* editor = page.findChild<BudgetEditor*>();
         QCOMPARE(editor->editedCategoryId(), groceries);
@@ -151,7 +164,7 @@ private slots:
         QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
         BudgetPage page;
         page.setUserId(1);
-        row(page, "Groceries")->click();
+        edit(page, "Groceries");
 
         auto* remove = page.findChild<QPushButton*>("budgetRemoveButton");
         QVERIFY(remove->menu());                               // Regular limits offer both ways
@@ -168,7 +181,7 @@ private slots:
         QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, thisMonth, 40000));
         BudgetPage page;
         page.setUserId(1);
-        row(page, "Groceries")->click();
+        edit(page, "Groceries");
         auto* remove = page.findChild<QPushButton*>("budgetRemoveButton");
         QVERIFY(!remove->menu());
         remove->click();
@@ -192,6 +205,94 @@ private slots:
         QVERIFY(editor->findChild<QComboBox*>("budgetCategoryCombo")->findData(groceries) < 0);  // Already budgeted
     }
 
+    void budgetsLeadToTheirTransactions() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
+        QVERIFY(BudgetDAO().setLimitForMonth(1, rent, thisMonth.addMonths(-1), 90000));   // Nothing spent then
+        spend(2500, groceries);
+        spend(1200, groceries);
+        spend(4640, rent);
+        spend(1000, 0);
+        BudgetPage page;
+        page.setUserId(1);
+        QSignalSpy requested(&page, &BudgetPage::transactionsRequested);
+        const QDate lastDay = thisMonth.addMonths(1).addDays(-1);
+        const auto lastRequest = [&requested]() {
+            const QList<QVariant> request = requested.last();
+            return std::tuple{request[0].toInt(), request[1].toDate(), request[2].toDate()};
+        };
+
+        // From the editor of a budget, not of a new one
+        auto* editor = page.findChild<BudgetEditor*>();
+        auto* link = editor->findChild<QToolButton*>("budgetTransactionsLink");
+        page.findChild<QPushButton*>("addBudgetButton")->click();
+        QVERIFY(link->isHidden());
+        edit(page, "Groceries");
+        QVERIFY(!link->isHidden());
+        const QString monthName = QLocale(QLocale::English).toString(thisMonth, "MMMM");
+        QCOMPARE(link->text(), QString("Show the 2 transactions in %1 ›").arg(monthName));
+        QVERIFY(link->isEnabled());
+        QVERIFY(row(page, "Groceries")->accessibleDescription().startsWith("2 transactions ·"));
+        link->click();
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(lastRequest(), std::tuple(groceries, thisMonth, lastDay));
+
+        // From a budget row's menu
+        QStringList entries;
+        QTimer::singleShot(0, &page, [&entries]() {
+            auto* menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+            if (!menu) return;
+            const QList<QAction*> actions = menu->actions();
+            menu->close();                               // First, so a failing check can't leave it open
+            for (QAction* action : actions) entries << action->text();
+            if (!actions.isEmpty()) actions.first()->trigger();
+        });
+        emit row(page, "Groceries")->customContextMenuRequested(QPoint(4, 4));
+        QCOMPARE(entries, (QStringList{"Show 2 transactions", "Edit budget…"}));
+        QCOMPARE(requested.size(), 2);
+        QCOMPARE(lastRequest(), std::tuple(groceries, thisMonth, lastDay));
+
+        // From spending without a budget, also without a category; adding a budget stays its own
+        QAbstractButton* rentRow = nullptr;
+        QAbstractButton* noCategoryRow = nullptr;
+        for (QAbstractButton* unbudgeted : page.findChildren<QAbstractButton*>("unbudgetedRow")) {
+            (unbudgeted->accessibleName() == "Rent" ? rentRow : noCategoryRow) = unbudgeted;
+        }
+        QVERIFY(rentRow && noCategoryRow);
+        QCOMPARE(rentRow->findChild<QLabel*>("unbudgetedCount")->text(), QString("1 transaction"));
+        QCOMPARE(rentRow->toolTip(), QString("Show the 1 transaction in %1").arg(monthName));
+        rentRow->click();
+        QCOMPARE(lastRequest(), std::tuple(rent, thisMonth, lastDay));
+        noCategoryRow->click();
+        QCOMPARE(lastRequest(), std::tuple(0, thisMonth, lastDay));
+        QCOMPARE(requested.size(), 4);
+        rentRow->findChild<QToolButton*>("addBudgetForCategory")->click();
+        QCOMPARE(requested.size(), 4);
+
+        // Another month: its days, and nothing to show for a budget without transactions
+        page.findChild<QToolButton*>("previousMonthButton")->click();
+        emit editor->transactionsRequested(groceries);
+        QCOMPARE(lastRequest(), std::tuple(groceries, thisMonth.addMonths(-1), thisMonth.addDays(-1)));
+        edit(page, "Rent");
+        QCOMPARE(link->text(), QString("No transactions in %1 yet").arg(QLocale(QLocale::English).toString(thisMonth.addMonths(-1), "MMMM")));
+        QVERIFY(!link->isEnabled());
+        bool showEnabled = true;
+        QTimer::singleShot(0, &page, [&showEnabled]() {
+            auto* menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+            if (!menu) return;
+            menu->close();
+            showEnabled = menu->actions().first()->isEnabled();
+        });
+        emit row(page, "Rent")->customContextMenuRequested(QPoint(4, 4));
+        QVERIFY(!showEnabled);
+
+        MonthBudget single;
+        single.categoryId = groceries;
+        single.limitCents = 100;
+        single.transactionCount = 1;
+        editor->editBudget(thisMonth, single);
+        QCOMPARE(link->text(), QString("Show the transaction in %1 ›").arg(monthName));
+    }
+
     void navigatesBetweenMonths() {
         QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, thisMonth, 40000));
         BudgetPage page;
@@ -208,12 +309,201 @@ private slots:
         QVERIFY(row(page, "Groceries"));
     }
 
-    void enterOpensABudgetRow() {
+    void enterUnfoldsABudgetRow() {
         QVERIFY(BudgetDAO().setMonthlyLimit(1, rent, thisMonth, 90000));
         BudgetPage page;
         page.setUserId(1);
         QTest::keyClick(row(page, "Rent"), Qt::Key_Return);
-        QVERIFY(page.findChild<BudgetEditor*>()->isVisibleTo(&page));
+        QVERIFY(page.findChild<BudgetDetail*>());
+        QVERIFY(page.findChild<BudgetEditor*>()->isHidden());
+    }
+
+    void rowsUnfoldOneAtATime() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
+        QVERIFY(BudgetDAO().setLimitForMonth(1, rent, thisMonth, 90000));
+        BudgetPage page;
+        page.setUserId(1);
+        QVERIFY(!page.findChild<BudgetDetail*>());
+        auto* layout = page.findChild<QWidget*>("budgetContent")->layout()->itemAt(0)->layout();
+        const auto detailFollows = [&](const QString& category) {
+            const int index = layout->indexOf(row(page, category));
+            QWidget* next = layout->itemAt(index + 1) ? layout->itemAt(index + 1)->widget() : nullptr;
+            return index >= 0 && qobject_cast<BudgetDetail*>(next) != nullptr;
+        };
+
+        row(page, "Groceries")->click();
+        QVERIFY(detailFollows("Groceries"));
+        row(page, "Rent")->click();
+        QCOMPARE(page.findChildren<BudgetDetail*>().size(), 1);
+        QVERIFY(detailFollows("Rent"));
+        page.reload();                                   // New transactions, say
+        QVERIFY(detailFollows("Rent"));
+        row(page, "Rent")->click();                      // Folds again
+        QVERIFY(!page.findChild<BudgetDetail*>());
+
+        // A month without that budget folds it, and it stays folded on the way back
+        row(page, "Rent")->click();
+        page.findChild<QToolButton*>("nextMonthButton")->click();
+        QVERIFY(!page.findChild<BudgetDetail*>());
+        page.findChild<QToolButton*>("previousMonthButton")->click();
+        QVERIFY(!page.findChild<BudgetDetail*>());
+        // ... while a budget in both months stays unfolded
+        row(page, "Groceries")->click();
+        page.findChild<QToolButton*>("nextMonthButton")->click();
+        QVERIFY(detailFollows("Groceries"));
+    }
+
+    void anUnfoldedBudgetLeadsOn() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth.addMonths(-1), 40000));
+        spend(2500, groceries);
+        Transaction earlier(-1, accountId, "Market", 9900, thisMonth.addMonths(-1), "", groceries, "expense");
+        QVERIFY(TransactionDAO().addTransaction(earlier) > 0);
+        BudgetPage page;
+        page.setUserId(1);
+        QSignalSpy one(&page, &BudgetPage::transactionRequested);
+        QSignalSpy all(&page, &BudgetPage::transactionsRequested);
+        row(page, "Groceries")->click();
+        auto* detail = page.findChild<BudgetDetail*>();
+        QCOMPARE(detail->findChild<QLabel*>("lastMonthValue")->text(), QString("%1 of %2").arg(money(9900), money(40000)));
+
+        const QList<HoverRow*> listed = detail->findChildren<HoverRow*>("budgetDetailTransaction");
+        QCOMPARE(listed.size(), 1);
+        listed.first()->click();
+        QCOMPARE(one.size(), 1);
+        QCOMPARE(one.first().first().toInt(), BudgetDAO().transactions(1, groceries, thisMonth).first().transactionId);
+        detail->findChild<QToolButton*>("budgetDetailTransactions")->click();
+        QCOMPARE(all.size(), 1);
+        QCOMPARE(all.first().first().toInt(), groceries);
+        detail->findChild<QPushButton*>("budgetDetailEdit")->click();
+        QCOMPARE(page.findChild<BudgetEditor*>()->editedCategoryId(), groceries);
+        QVERIFY(page.findChild<BudgetDetail*>());        // Stays unfolded next to the editor
+    }
+
+    // November 2026 with six purchases, 312,00 € of 400,00 €
+    static QList<BudgetTransaction> november() {
+        const QList<std::pair<int, Cents>> days = {{1, 6420}, {4, 3890}, {7, 7140}, {9, 2210}, {11, 4130}, {17, 7410}};
+        QList<BudgetTransaction> list;
+        for (int i = 0; i < days.size(); ++i) {
+            list.append({i + 1, QDate(2026, 11, days[i].first), QString("P%1").arg(i + 1), days[i].second});
+        }
+        return list;
+    }
+    static MonthBudget groceriesBudget(Cents spent) {
+        MonthBudget budget;
+        budget.categoryId = 7;
+        budget.categoryName = "Groceries";
+        budget.limitCents = 40000;
+        budget.spentCents = spent;
+        return budget;
+    }
+    static QString text(QWidget& widget, const char* name) {
+        auto* found = widget.findChild<QLabel*>(name);
+        return found ? found->text() : QString("(none)");
+    }
+    static QColor color(QWidget& widget, const char* name) {
+        return widget.findChild<QLabel*>(name)->palette().color(QPalette::WindowText);
+    }
+
+    void anUnfoldedBudgetShowsHowTheMonthIsGoing() {
+        const QDate month(2026, 11, 1);
+        BudgetDetail detail(groceriesBudget(31200), month, november(), 35000, 40000, QDate(2026, 11, 18));
+        QCOMPARE(text(detail, "perDayValueCaption"), QString("Per day so far"));
+        QCOMPARE(text(detail, "perDayValue"), Settings::instance().formatSpending(31200 / 18));
+        QCOMPARE(text(detail, "paceValue"), Settings::instance().formatSpending(31200 * 30 / 18));
+        QCOMPARE(color(detail, "paceValue"), Theme::colors().danger);           // 520,00 € is over the limit
+        QCOMPARE(text(detail, "leftPerDayValue"), money(8800 / 13));            // The 18th to the 30th
+        QCOMPARE(text(detail, "lastMonthValueCaption"), QString("October"));
+        QCOMPARE(text(detail, "lastMonthValue"), QString("%1 of %2").arg(money(35000), money(40000)));
+        QVERIFY(color(detail, "lastMonthValue") != Theme::colors().danger);
+
+        // The newest four, newest first, each with its amount
+        const QList<HoverRow*> listed = detail.findChildren<HoverRow*>("budgetDetailTransaction");
+        QCOMPARE(listed.size(), BudgetDetail::ShownTransactions);
+        QCOMPARE(listed.first()->accessibleName(), QString("P6"));
+        QCOMPARE(listed.last()->accessibleName(), QString("P3"));
+        QCOMPARE(listed.first()->findChild<QLabel*>("budgetDetailAmount")->text(), Settings::instance().formatCurrency(-7410, true));
+        QCOMPARE(detail.findChild<QToolButton*>("budgetDetailTransactions")->text(), QString("Show all 6 transactions ›"));
+        QVERIFY(!detail.findChild<QLabel*>("budgetDetailEmpty"));
+        QSignalSpy one(&detail, &BudgetDetail::transactionRequested);
+        listed.last()->click();
+        QCOMPARE(one.last().first().toInt(), 3);
+        emit detail.findChild<BudgetMonthChart*>()->transactionClicked(5);
+        QCOMPARE(one.last().first().toInt(), 5);
+
+        // Over the limit, and last month over its own
+        BudgetDetail over(groceriesBudget(45000), month, november(), 45000, 40000, QDate(2026, 11, 18));
+        QCOMPARE(text(over, "leftPerDayValue"), QString("Nothing left"));
+        QCOMPARE(color(over, "leftPerDayValue"), Theme::colors().danger);
+        QCOMPARE(color(over, "lastMonthValue"), Theme::colors().danger);
+        BudgetDetail usedUp(groceriesBudget(40000), month, november(), 0, 0, QDate(2026, 11, 18));
+        QCOMPARE(text(usedUp, "leftPerDayValue"), QString("Nothing left"));
+    }
+
+    void pastAndFutureMonthsHaveNoPace() {
+        const QDate month(2026, 11, 1);
+        BudgetDetail past(groceriesBudget(31200), month, november(), 5000, 0, QDate(2026, 12, 5));
+        QCOMPARE(text(past, "perDayValueCaption"), QString("Per day"));
+        QCOMPARE(text(past, "perDayValue"), Settings::instance().formatSpending(31200 / 30));
+        QCOMPARE(text(past, "paceValue"), QString("(none)"));
+        QCOMPARE(text(past, "leftPerDayValue"), QString("(none)"));
+        QCOMPARE(text(past, "lastMonthValue"), QString("%1, no budget").arg(Settings::instance().formatSpending(5000)));
+
+        BudgetDetail future(groceriesBudget(0), month, {}, 0, 0, QDate(2026, 10, 20));
+        QCOMPARE(text(future, "perDayValue"), QString("(none)"));
+        QCOMPARE(text(future, "paceValue"), QString("(none)"));
+        QCOMPARE(text(future, "budgetDetailEmpty"), QString("No transactions in November yet."));
+        QVERIFY(!future.findChild<QToolButton*>("budgetDetailTransactions"));
+        QVERIFY(future.findChildren<HoverRow*>().isEmpty());
+
+        BudgetDetail single(groceriesBudget(6420), month, november().mid(0, 1), 0, 0, QDate(2026, 11, 2));
+        QCOMPARE(single.findChild<QToolButton*>("budgetDetailTransactions")->text(), QString("Show it on the Transactions page ›"));
+    }
+
+    void theChartFindsItsDots() {
+        const QDate month(2026, 11, 1);
+        BudgetMonthChart chart(month, 40000, november(), QDate(2026, 11, 18));
+        chart.resize(400, 170);
+        QCOMPARE(chart.dotText(5), QString("17 Nov · P6 · %1").arg(Settings::instance().formatSpending(7410)));
+        for (int i = 1; i < 6; ++i) {
+            QVERIFY(chart.dotCenter(i).x() > chart.dotCenter(i - 1).x());       // Later days to the right
+            QVERIFY(chart.dotCenter(i).y() < chart.dotCenter(i - 1).y());       // More spent, higher
+        }
+        QVERIFY(chart.rect().contains(chart.dotCenter(5).toPoint()));
+        QCOMPARE(chart.transactionAt(chart.dotCenter(2)), 2);
+        QCOMPARE(chart.transactionAt(chart.dotCenter(2) + QPointF(3, 3)), 2);
+        QCOMPARE(chart.transactionAt(QPointF(0, 0)), -1);
+
+        QSignalSpy clicked(&chart, &BudgetMonthChart::transactionClicked);
+        QTest::mouseClick(&chart, Qt::LeftButton, {}, chart.dotCenter(3).toPoint());
+        QCOMPARE(clicked.size(), 1);
+        QCOMPARE(clicked.first().first().toInt(), 4);
+        QTest::mouseClick(&chart, Qt::LeftButton, {}, QPoint(1, 1));
+        QTest::mouseClick(&chart, Qt::RightButton, {}, chart.dotCenter(3).toPoint());
+        QCOMPARE(clicked.size(), 1);
+
+        // Hovering a dot makes it bigger and the cursor a hand
+        const QImage plain = chart.grab().toImage();
+        QMouseEvent onDot(QEvent::MouseMove, chart.dotCenter(3), chart.mapToGlobal(chart.dotCenter(3)), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&chart, &onDot);
+        QCOMPARE(chart.cursor().shape(), Qt::PointingHandCursor);
+        QVERIFY(chart.grab().toImage() != plain);
+        QMouseEvent away(QEvent::MouseMove, QPointF(1, 1), chart.mapToGlobal(QPointF(1, 1)), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&chart, &away);
+        QCOMPARE(chart.cursor().shape(), Qt::ArrowCursor);
+        QCOMPARE(chart.grab().toImage(), plain);
+    }
+
+    void moneyBackStepsTheLineDown() {
+        QList<BudgetTransaction> list = november().mid(0, 2);
+        list.append({9, QDate(2026, 11, 8), "Shop", -3000});
+        BudgetMonthChart chart(QDate(2026, 11, 1), 40000, list, QDate(2026, 11, 18));
+        chart.resize(400, 170);
+        QVERIFY(chart.dotCenter(2).y() > chart.dotCenter(1).y());
+        // More back than spent goes below the start, and stays in the chart
+        BudgetMonthChart below(QDate(2026, 11, 1), 40000, {{1, QDate(2026, 11, 3), "", -40000}}, QDate(2026, 11, 18));
+        below.resize(400, 170);
+        QVERIFY(below.rect().contains(below.dotCenter(0).toPoint()));
+        QVERIFY(below.dotText(0).contains(" · No payee · "));
     }
 
     void aBudgetThatCantBeSavedKeepsTheEditorOpen() {
@@ -241,6 +531,14 @@ private slots:
         QVERIFY(budget->grab().toImage() != plain);
         QTest::keyClick(budget, Qt::Key_A);
         QVERIFY(page.findChild<BudgetEditor*>()->isHidden());
+        QVERIFY(!page.findChild<BudgetDetail*>());
+
+        // Unfolded, it keeps a background without the mouse, joining the detail below
+        budget->setAttribute(Qt::WA_UnderMouse, false);
+        const QPoint bottomRight(budget->width() - 2, budget->height() - 1);
+        const QColor folded = budget->grab().toImage().pixelColor(bottomRight);
+        budget->click();
+        QVERIFY(budget->grab().toImage().pixelColor(bottomRight) != folded);   // The hover colour is translucent
     }
 
     void withoutAUserThereIsNothingToShow() {
@@ -256,7 +554,7 @@ private slots:
         BudgetPage page;
         page.setUserId(1);
         QSignalSpy changed(&page, &BudgetPage::budgetsChanged);
-        row(page, "Groceries")->click();
+        edit(page, "Groceries");
         QVERIFY(TestDbFixture::refuse("DELETE", "budgets"));
         page.findChild<QPushButton*>("budgetRemoveButton")->click();
         auto* editor = page.findChild<BudgetEditor*>();
