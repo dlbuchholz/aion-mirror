@@ -132,6 +132,23 @@ It finds the newest `msvc*_64` Qt kit under `C:\Qt` or `D:\Qt`. For a kit elsewh
 `-QtDir C:\path\to\6.12.0\msvc2022_64` once or set `AION_QT_DIR`. The tests run off screen, so their
 windows don't appear. `Get-Help .\scripts\build.ps1 -Examples` lists the other actions.
 
+To run one test program without ctest, put the kit's `bin` first in `PATH` and set the same variables:
+
+```powershell
+$env:Path = "D:\Qt\6.12.0\msvc2022_64\bin;$env:Path"
+$env:QT_QPA_PLATFORM = 'offscreen'
+$env:QT_FORCE_STDERR_LOGGING = '1'
+.\build-vs\Debug\test_account.exe
+```
+
+- Without Qt's `bin` in `PATH` the program stops at once with exit code `-1073741515` (0xC0000135,
+  a DLL not found) and prints nothing. Other programs on `PATH` (KeePassXC, MiKTeX) bring their own
+  `Qt6Core.dll`, which a Release build may pick up instead of the kit's.
+- Without a console window (when an IDE, a script or an agent starts the program with pipes), Qt Test
+  sends its results to the debugger output (`OutputDebugString`) instead of stdout.
+  `QT_FORCE_STDERR_LOGGING=1` brings them back, or write them to a file with `-o result.txt,txt`.
+- A test program's exit code is the number of failed tests, so `53` means 53 failures, not a crash.
+
 ## Before you send a change
 
 - Build without new warnings. To check, configure with `-DAION_WARNINGS_AS_ERRORS=ON`. MSVC and GCC
