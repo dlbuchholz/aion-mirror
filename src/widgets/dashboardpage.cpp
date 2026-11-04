@@ -1,4 +1,5 @@
 #include "dashboardpage.h"
+#include "amountcolor.h"
 #include "budget.h"
 #include "categorycolors.h"
 #include "icons.h"
@@ -155,7 +156,7 @@ protected:
 
         const Cents amount = transaction.signedCents;
         const int amountWidth = 120;
-        painter.setPen(amount > 0 ? colors.positive : colors.textPrimary);
+        painter.setPen(amountColor(amount, transaction.categoryName));
         painter.drawText(QRect(content.right() - amountWidth, content.top(), amountWidth, content.height()),
                          Qt::AlignRight | Qt::AlignVCenter, Settings::instance().formatCurrency(amount, amount > 0));
         int right = content.right() - amountWidth - 12;
@@ -229,6 +230,7 @@ protected:
         }
 
         const int barWidth = qBound(8, groupWidth() / 5, 22);
+        const QColor expenseColor = Settings::instance().isExpensesInRed() ? colors.danger : colors.textMuted;
         for (int i = 0; i < months.size(); ++i) {
             const QRect group = groupRect(i);
             if (i == hovered) {
@@ -238,7 +240,7 @@ protected:
             }
             const bool current = i == months.size() - 1;
             const QList<QPair<Cents, QColor>> bars = {{months[i].incomeCents, colors.positive},
-                                                      {months[i].expenseCents, colors.textMuted}};
+                                                      {months[i].expenseCents, expenseColor}};
             int x = group.center().x() - barWidth - 2;
             for (const auto& bar : bars) {
                 const double height = double(bar.first) / double(highest) * plot.height();
@@ -271,7 +273,7 @@ protected:
         painter.setFont(legendFont);
         const QFontMetrics metrics(legendFont);
         int right = rect().right();
-        for (const auto& entry : QList<QPair<QString, QColor>>{{"Expenses", colors.textMuted}, {"Income", colors.positive}}) {
+        for (const auto& entry : QList<QPair<QString, QColor>>{{"Expenses", expenseColor}, {"Income", colors.positive}}) {
             const int width = metrics.horizontalAdvance(entry.first);
             painter.setPen(colors.textSecondary);
             painter.drawText(QRect(right - width, 0, width, 16), Qt::AlignRight | Qt::AlignVCenter, entry.first);
@@ -533,6 +535,8 @@ void DashboardPage::updateTiles() {
     setDetail(incomeTile.detail, QString("%1 in %2").arg(count(month.incomeCount, "transaction"), monthName));
 
     expensesTile.value->setText(settings.formatCurrency(month.expenseCents));
+    setTextColor(expensesTile.value, month.expenseCents > 0 && settings.isExpensesInRed() ? colors.danger
+                                                                                       : palette().color(QPalette::WindowText));
     const Cents before = data.lastMonthToDateExpenseCents;
     if (before > 0) {
         const int change = qRound((double(month.expenseCents) - double(before)) / double(before) * 100.0);

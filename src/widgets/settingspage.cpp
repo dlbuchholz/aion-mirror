@@ -282,6 +282,13 @@ void SettingsPage::buildAppearanceSection()
     form->addRow(categoryColorsCheck);
     watch(categoryColorsCheck);
 
+    expensesRedCheck = new QCheckBox("Show expenses in red", this);
+    expensesRedCheck->setObjectName("expensesRedCheck");
+    expensesRedCheck->setToolTip("In the transaction lists, the Expenses totals and the income and spending charts. "
+                                  "Transfers and balance corrections stay as they are.");
+    form->addRow(expensesRedCheck);
+    watch(expensesRedCheck);
+
     reportsCentredCheck = new QCheckBox("Show reports in a centred column instead of the full width", this);
     reportsCentredCheck->setObjectName("reportsCentredCheck");
     reportsCentredCheck->setToolTip(QString("At most %1 pixels wide, so elements stay close on a large screen")
@@ -443,6 +450,7 @@ void SettingsPage::loadSettings()
     selectionCheckboxesCheck->setChecked(settings.isSelectionCheckboxesEnabled());
     suggestCategoriesCheck->setChecked(settings.isCategorySuggestionEnabled());
     categoryColorsCheck->setChecked(settings.isCategoryColorsInOverviewsEnabled());
+    expensesRedCheck->setChecked(settings.isExpensesInRed());
     reportsCentredCheck->setChecked(settings.isReportsCentred());
     allBudgetsCheck->setChecked(settings.isSidebarShowingAllBudgets());
     budgetSortCombo->setCurrentIndex(budgetSortCombo->findData(int(settings.getSidebarBudgetSort())));
@@ -485,6 +493,7 @@ void SettingsPage::saveSettings()
 
     settings.setTheme(themeCombo->currentData().toString());
     settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());
+    settings.setExpensesInRed(expensesRedCheck->isChecked());
     settings.setReportsCentred(reportsCentredCheck->isChecked());
     settings.setSidebarShowingAllBudgets(allBudgetsCheck->isChecked());
     settings.setSidebarBudgetSort(static_cast<Settings::BudgetSort>(budgetSortCombo->currentData().toInt()));

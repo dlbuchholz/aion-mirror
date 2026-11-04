@@ -416,6 +416,14 @@ void Settings::setCategoryColorsInOverviewsEnabled(bool enabled) {
     settings.setValue("appearance/categoryColorsInOverviews", enabled);
 }
 
+bool Settings::isExpensesInRed() const {
+    return settings.value("appearance/expensesInRed", false).toBool();
+}
+
+void Settings::setExpensesInRed(bool red) {
+    settings.setValue("appearance/expensesInRed", red);
+}
+
 bool Settings::isReportsCentred() const {
     return settings.value("appearance/reportsCentred", true).toBool();
 }

@@ -18,6 +18,7 @@
 #include <functional>
 
 #include "account.h"
+#include "amountcolor.h"
 #include "dialog/importmanagerdialog.h"
 #include "rule.h"
 #include "settings.h"
@@ -67,6 +68,47 @@ private slots:
         QVERIFY(secondId > 0);
     }
     void cleanup() { db.close(); }
+
+    void expensesCanBeShownInRed() {
+        QHash<QString, int> categories;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) categories.insert(category.getName(), category.getCategoryId());
+        const QDate today = QDate::currentDate();
+        TransactionDAO().addTransaction(Transaction(-1, firstId, "REWE", 4200, today, "", categories["Groceries"], "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, firstId, "To savings", 50000, today, "", categories["Transfer"], "expense"));
+        TransactionDAO().addTransaction(Transaction(-1, firstId, "Employer", 100000, today, "", categories["Salary"], "income"));
+        Settings::instance().setExpensesInRed(false);
+        auto restore = qScopeGuard([] { Settings::instance().setExpensesInRed(false); });
+
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(firstId);
+        page.resize(900, 600);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        const Theme::Colors colors = Theme::colors();
+        auto* expenses = page.findChild<QLabel*>("expensesTotal");
+        auto* list = page.findChild<QListView*>("transactionList");
+
+        // Off, the default: money out looks like the text, money in is green
+        QCOMPARE(amountColor(-4200, "Groceries"), colors.textPrimary);
+        QCOMPARE(amountColor(100000, "Salary"), colors.positive);
+        QVERIFY(!expenses->text().contains(colors.danger.name()));
+        const QImage plain = list->grab().toImage();
+
+        // On: spending is red, in the list and the total; transfers and balance adjustments aren't spending
+        Settings::instance().setExpensesInRed(true);
+        page.applySettings();
+        page.reload();
+        QCOMPARE(amountColor(-4200, "Groceries"), colors.danger);
+        QCOMPARE(amountColor(-4200, QString()), colors.danger);                 // No category is still spending
+        for (const QString& name : {QString("Transfer"), QString("Initial balance"), QString("Balance correction")}) {
+            QCOMPARE(amountColor(-4200, name), colors.textPrimary);
+        }
+        QCOMPARE(amountColor(100000, "Salary"), colors.positive);
+        QCOMPARE(amountColor(0, "Groceries"), colors.textPrimary);
+        QVERIFY(expenses->text().contains(colors.danger.name()));
+        QVERIFY(list->grab().toImage() != plain);
+    }
 
     void newTransactionUsesShownAccount() {
         TransactionsPage page;

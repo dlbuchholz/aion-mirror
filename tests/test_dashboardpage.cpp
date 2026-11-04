@@ -9,6 +9,7 @@
 #include "account.h"
 #include "budget.h"
 #include "settings.h"
+#include "theme.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/dashboardpage.h"
 
@@ -156,6 +157,29 @@ private slots:
         const QImage plain = category->grab().toImage();
         category->setAttribute(Qt::WA_UnderMouse);
         QVERIFY(category->grab().toImage() != plain);
+    }
+
+    void recentExpensesCanBeRed() {
+        spend(1000, groceries);
+        Settings::instance().setExpensesInRed(false);
+        DashboardPage page;
+        page.setUserId(1);
+        QAbstractButton* recent = page.findChildren<QAbstractButton*>("recentRow").value(0);
+        QVERIFY(recent);
+        const QImage plain = recent->grab().toImage();
+        auto* chart = page.findChild<QWidget*>("cashFlowChart");
+        chart->resize(600, 240);
+        const QImage plainChart = chart->grab().toImage();
+        auto* tile = page.findChild<QLabel*>("expensesValue");
+        QCOMPARE(tile->palette().color(QPalette::WindowText), page.palette().color(QPalette::WindowText));
+        Settings::instance().setExpensesInRed(true);
+        QVERIFY(recent->grab().toImage() != plain);
+        QVERIFY(chart->grab().toImage() != plainChart);  // The expense bars and their legend
+        page.applySettings();                            // The tile follows once the settings are applied
+        QCOMPARE(tile->palette().color(QPalette::WindowText), Theme::colors().danger);
+        Settings::instance().setExpensesInRed(false);
+        page.applySettings();
+        QCOMPARE(tile->palette().color(QPalette::WindowText), page.palette().color(QPalette::WindowText));
     }
 
     void withoutAUserThereIsNothingToShow() {

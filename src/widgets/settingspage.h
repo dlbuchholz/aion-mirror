@@ -90,6 +90,7 @@ private:
     QCheckBox *selectionCheckboxesCheck = nullptr;
     QCheckBox *suggestCategoriesCheck = nullptr;
     QCheckBox *categoryColorsCheck = nullptr;
+    QCheckBox *expensesRedCheck = nullptr;
     QCheckBox *reportsCentredCheck = nullptr;
     QCheckBox *allBudgetsCheck = nullptr;
     QComboBox *budgetSortCombo = nullptr;

@@ -615,6 +615,26 @@ private slots:
         QVERIFY(!page.findChild<QWidget*>("moneyFlowKept"));
     }
 
+    void spendingBarsCanBeRed() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        TransactionDAO().addTransaction(Transaction(-1, giro, "Shop", 50000, QDate::currentDate(), "", 0, "expense"));
+        Settings::instance().setExpensesInRed(false);
+
+        ReportsPage page;
+        page.setUserId(1);
+        showOnScreen(page);
+        cards(page)[1]->click();
+        QCoreApplication::processEvents();
+        auto* chart = page.findChild<QWidget*>("flowChart");
+        auto* preview = page.findChild<QWidget*>("flowPreview");
+        const QImage plain = chart->grab().toImage();
+        const QImage plainPreview = preview->grab().toImage();
+        Settings::instance().setExpensesInRed(true);
+        QVERIFY(chart->grab().toImage() != plain);
+        QVERIFY(preview->grab().toImage() != plainPreview);  // The card's too
+        Settings::instance().setExpensesInRed(false);
+    }
+
     void hoveringTheFlowChartShowsAPeriodsNumbers() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         const QDate today = QDate::currentDate();

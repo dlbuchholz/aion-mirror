@@ -278,6 +278,7 @@ protected:
 
         const QRect plot = plotRect();
         const int barWidth = qBound(compact ? 3 : 6, groupWidth() / 4, compact ? 10 : 22);
+        const QColor spendingColor = Settings::instance().isExpensesInRed() ? colors.danger : colors.textMuted;
         QFont labelFont = font();
         labelFont.setPointSizeF(font().pointSizeF() * 0.9);
         const QFontMetrics labelMetrics(labelFont);
@@ -294,7 +295,7 @@ protected:
             }
             int x = group.center().x() - barWidth - 1;
             for (const auto& [cents, color] : QList<QPair<Cents, QColor>>{{flow.incomeCents, colors.positive},
-                                                                          {flow.spendingCents, colors.textMuted}}) {
+                                                                          {flow.spendingCents, spendingColor}}) {
                 const double barHeight = double(cents) / double(highest) * plot.height();
                 if (barHeight > 0) {
                     const double shown = qMax(barHeight, 2.0);
@@ -321,7 +322,7 @@ protected:
         // Legend in the top right corner
         painter.setFont(labelFont);
         int right = rect().right();
-        for (const auto& [label, color] : QList<QPair<QString, QColor>>{{"Spending", colors.textMuted}, {"Income", colors.positive}}) {
+        for (const auto& [label, color] : QList<QPair<QString, QColor>>{{"Spending", spendingColor}, {"Income", colors.positive}}) {
             const int textWidth = labelMetrics.horizontalAdvance(label);
             painter.setPen(colors.textSecondary);
             painter.drawText(QRect(right - textWidth, 0, textWidth, 16), Qt::AlignRight | Qt::AlignVCenter, label);

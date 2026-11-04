@@ -1,4 +1,5 @@
 #include "transactionspage.h"
+#include "amountcolor.h"
 #include "report.h"
 #include "account.h"
 #include "categorycolors.h"
@@ -90,7 +91,7 @@ public:
         const int amountWidth = 130;
         QRect amountRect(row.right() - 12 - amountWidth, row.top(), amountWidth, row.height());
         painter->setFont(option.font);
-        painter->setPen(amount > 0 ? colors.positive : colors.textPrimary);
+        painter->setPen(amountColor(amount, index.data(TransactionListModel::CategoryRole).toString()));
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter,
                           Settings::instance().formatCurrency(amount, amount > 0));
         int right = amountRect.left() - 16;
@@ -468,6 +469,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     footer->addStretch();
     incomeLabel = new QLabel(this);
     expensesLabel = new QLabel(this);
+    expensesLabel->setObjectName("expensesTotal");
     netLabel = new QLabel(this);
     for (QLabel* label : {incomeLabel, expensesLabel, netLabel}) {
         footer->addSpacing(16);
@@ -729,7 +731,10 @@ void TransactionsPage::updateTotals() {
     const Theme::Colors colors = Theme::colors();
     incomeLabel->setText(QString("Income <span style='color:%1'>%2</span>")
                              .arg(colors.positive.name(), settings.formatCurrency(totals.income, true)));
-    expensesLabel->setText(QString("Expenses <b>%1</b>").arg(settings.formatCurrency(-totals.expenses)));
+    const QString expenses = settings.formatCurrency(-totals.expenses);
+    expensesLabel->setText(totals.expenses > 0 && settings.isExpensesInRed()
+                               ? QString("Expenses <b style='color:%1'>%2</b>").arg(colors.danger.name(), expenses)
+                               : QString("Expenses <b>%1</b>").arg(expenses));
     netLabel->setText(QString("Net <b>%1</b>").arg(settings.formatCurrency(totals.net(), true)));
 }
 

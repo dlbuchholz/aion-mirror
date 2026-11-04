@@ -90,6 +90,10 @@ public:
     bool isCategoryColorsInOverviewsEnabled() const;
     void setCategoryColorsInOverviewsEnabled(bool enabled);
 
+    // Expenses in red in the transaction lists, instead of like the text (off by default)
+    bool isExpensesInRed() const;
+    void setExpensesInRed(bool red);
+
     // Reports in a centred column (ReportsPage::CentredWidth), instead of the full width (on by default)
     bool isReportsCentred() const;
     void setReportsCentred(bool centred);
