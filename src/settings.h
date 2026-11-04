@@ -98,11 +98,11 @@ public:
     bool isReportsCentred() const;
     void setReportsCentred(bool centred);
 
-    // Every budget in the sidebar, instead of the five most used (off by default)
+    // Every budget in the sidebar, instead of as many as fit without scrolling (off by default)
     bool isSidebarShowingAllBudgets() const;
     void setSidebarShowingAllBudgets(bool showAll);
 
-    // Order of the sidebar's budgets, which also picks the five shown: amounts largest first, names A–Z
+    // Order of the sidebar's budgets, which also picks those shown first: amounts largest first, names A–Z
     enum class BudgetSort {
         Percentage,     // Share of the limit spent (default)
         Spent,

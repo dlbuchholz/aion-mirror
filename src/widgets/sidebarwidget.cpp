@@ -24,7 +24,6 @@ constexpr int COLLAPSED_WIDTH = 52;
 constexpr int ICON_X = 9;                            // Left edge of the icon column
 constexpr int TEXT_X = 38;                           // Left edge of the label column
 constexpr int PADDING_RIGHT = 9;
-constexpr int SIDEBAR_BUDGETS = 5;                   // Budgets shown unless all are wanted
 
 QString initialsFor(const QString& name) {
     const QStringList parts = name.split(' ', Qt::SkipEmptyParts);
@@ -246,6 +245,7 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     root->addWidget(scrollArea, 1);
     root->addStretch(0);                             // Keeps the rail items packed while the sections are hidden
     sectionsArea = scrollArea;
+    sectionsArea->viewport()->installEventFilter(this);   // fitBudgets() when the room changes
     styleScrollBar();
 
     connect(accountsSection.header, &QAbstractButton::clicked, this, [this]() {
@@ -324,6 +324,7 @@ void SidebarWidget::setSectionExpanded(Section& section, bool expanded) {
     section.header->setTrailingIcon(expanded ? "chevron-down" : "chevron-right");
     section.header->setTrailingText(expanded && !section.summaryWhenExpanded ? QString() : section.summary);
     Settings::instance().setSidebarSectionExpanded(section.key, expanded);
+    if (sectionsArea) fitBudgets();                  // Folding either section changes the room for budgets
 }
 
 void SidebarWidget::clearSection(Section& section) {
@@ -447,6 +448,8 @@ void SidebarWidget::loadAccounts() {
 
 void SidebarWidget::loadBudgets() {
     clearSection(budgetSection);
+    budgetItems.clear();                             // Deleted with the section's items
+    moreBudgetsItem = nullptr;
 
     const QDate today = QDate::currentDate();
     budgetSection.header->setText(QString("Budget · %1").arg(today.toString("MMMM")));
@@ -460,7 +463,7 @@ void SidebarWidget::loadBudgets() {
         emit pageRequested(Page::Budget);
     };
 
-    // In the chosen order, and only the first few unless all are wanted; the Budget page has the rest
+    // In the chosen order; unless all are wanted only as many as fit, and the Budget page has the rest
     QList<MonthBudget> budgets = budgetDao.budgetsForMonth(userId, today);
     const bool showAll = settings.isSidebarShowingAllBudgets();
     const Settings::BudgetSort sort = settings.getSidebarBudgetSort();
@@ -477,11 +480,9 @@ void SidebarWidget::loadBudgets() {
         }
         return double(a.spentCents) / double(a.limitCents) > double(b.spentCents) / double(b.limitCents);
     });
-    for (int i = 0; i < budgets.size(); ++i) {
-        const MonthBudget& budget = budgets[i];
+    for (const MonthBudget& budget : std::as_const(budgets)) {
         totalSpent += budget.spentCents;
         totalLimit += budget.limitCents;
-        if (!showAll && i >= SIDEBAR_BUDGETS) continue;
 
         auto* item = new SidebarItem(SidebarItem::Kind::Row);
         item->setObjectName("budgetItem");
@@ -495,13 +496,14 @@ void SidebarWidget::loadBudgets() {
         }
         budgetSection.bodyLayout->addWidget(item);
         connect(item, &QAbstractButton::clicked, this, showBudgetPage);
+        budgetItems.append(item);
     }
-    if (!showAll && budgets.size() > SIDEBAR_BUDGETS) {
-        auto* moreItem = new SidebarItem(SidebarItem::Kind::Row);
-        moreItem->setObjectName("moreBudgetsItem");
-        moreItem->setText(QString("+ %1 more on the Budget page").arg(budgets.size() - SIDEBAR_BUDGETS));
-        budgetSection.bodyLayout->addWidget(moreItem);
-        connect(moreItem, &QAbstractButton::clicked, this, showBudgetPage);
+    // Unless all are wanted, as many as fit (fitBudgets) and a link to the rest
+    if (!showAll && !budgets.isEmpty()) {
+        moreBudgetsItem = new SidebarItem(SidebarItem::Kind::Row);
+        moreBudgetsItem->setObjectName("moreBudgetsItem");
+        budgetSection.bodyLayout->addWidget(moreBudgetsItem);
+        connect(moreBudgetsItem, &QAbstractButton::clicked, this, showBudgetPage);
     }
 
     if (totalLimit <= 0) {
@@ -514,6 +516,35 @@ void SidebarWidget::loadBudgets() {
         budgetSection.summary = QString("%1%").arg(qRound(double(totalSpent) / double(totalLimit) * 100.0));
     }
     setSectionExpanded(budgetSection, budgetSection.expanded);
+}
+
+// Unless all are wanted: as many budgets as fit without scrolling, the rest behind "+ N more". Runs
+// again whenever the room changes: the window's height, a section folded, the sidebar expanded.
+void SidebarWidget::fitBudgets() {
+    if (!moreBudgetsItem) return;
+    for (SidebarItem* item : std::as_const(budgetItems)) item->setVisible(true);
+    moreBudgetsItem->setVisible(false);
+    int shown = int(budgetItems.size());
+    if (budgetSection.expanded && sectionsArea->isVisible()) {          // Otherwise there's nothing to measure
+        budgetSection.body->updateGeometry();        // Its new height now, not after the next layout pass
+        const int needed = sectionsArea->widget()->layout()->sizeHint().height();   // With every budget
+        const int available = sectionsArea->viewport()->height();
+        if (needed > available) {
+            const int spacing = budgetSection.bodyLayout->spacing();
+            const int row = budgetItems.first()->sizeHint().height() + spacing;
+            const int excess = needed + moreBudgetsItem->sizeHint().height() + spacing - available;
+            shown = qMax(0, shown - (excess + row - 1) / row);
+        }    }
+    for (int i = shown; i < budgetItems.size(); ++i) budgetItems[i]->setVisible(false);
+    moreBudgetsItem->setVisible(shown < budgetItems.size());
+    moreBudgetsItem->setText(QString("+ %1 more on the Budget page").arg(budgetItems.size() - shown));
+}
+
+bool SidebarWidget::eventFilter(QObject* watched, QEvent* event) {
+    if (sectionsArea && watched == sectionsArea->viewport() && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        fitBudgets();
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void SidebarWidget::showUserMenu() {

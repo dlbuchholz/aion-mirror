@@ -1,4 +1,6 @@
 #include <QtTest>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QAbstractButton>
 #include <QLabel>
 #include <QMenu>
@@ -164,16 +166,59 @@ private slots:
         }
         const auto shown = [](SidebarWidget& sidebar) {
             QStringList names;
-            for (QAbstractButton* budget : sidebar.findChildren<QAbstractButton*>("budgetItem")) names << budget->text();
+            for (QAbstractButton* budget : sidebar.findChildren<QAbstractButton*>("budgetItem")) {
+                if (!budget->isHidden()) names << budget->text();
+            }
             return names;
         };
+        const QStringList fullest = {"Travel", "Rent", "Transport", "Groceries", "Utilities", "Gifts", "Entertainment"};
 
         SidebarWidget sidebar;
         sidebar.setUserId(1);
-        QCOMPARE(shown(sidebar), (QStringList{"Travel", "Rent", "Transport", "Groceries", "Utilities"}));
+        sidebar.setAttribute(Qt::WA_DontShowOnScreen);
+        sidebar.resize(sidebar.width(), 1400);
+        sidebar.show();
+        QCoreApplication::processEvents();
         auto* more = sidebar.findChild<QAbstractButton*>("moreBudgetsItem");
         QVERIFY(more);
-        QCOMPARE(more->text(), QString("+ 2 more on the Budget page"));
+        auto* scrollBar = sidebar.findChild<QScrollArea*>()->verticalScrollBar();
+
+        // Tall enough: every budget, fullest first, nothing more to link to
+        QTRY_COMPARE(shown(sidebar), fullest);
+        QVERIFY(more->isHidden());
+
+        // Shorter by three budgets: as many as fit, without scrolling, and the rest behind the link
+        auto* area = sidebar.findChild<QScrollArea*>();
+        const int overhead = sidebar.height() - area->viewport()->height();
+        const int content = area->widget()->sizeHint().height();
+        const int row = sidebar.findChild<QAbstractButton*>("budgetItem")->sizeHint().height();
+        const int shorter = overhead + content - 3 * row;
+        sidebar.resize(sidebar.width(), shorter);
+        QTRY_VERIFY(more->isVisible());
+        const QStringList some = shown(sidebar);
+        QVERIFY2(!some.isEmpty() && some.size() < fullest.size(), qPrintable(some.join(", ")));
+        QCOMPARE(some, fullest.mid(0, some.size()));
+        QCOMPARE(more->text(), QString("+ %1 more on the Budget page").arg(fullest.size() - some.size()));
+        QTRY_COMPARE(scrollBar->maximum(), 0);
+
+        // Folding the accounts makes room for more
+        sidebar.findChild<QAbstractButton*>("accountsHeader")->click();
+        QTRY_VERIFY(shown(sidebar).size() > some.size());
+        QTRY_COMPARE(scrollBar->maximum(), 0);
+        sidebar.findChild<QAbstractButton*>("accountsHeader")->click();
+        QTRY_COMPARE(shown(sidebar), some);
+
+        // No room at all: only the link
+        sidebar.resize(sidebar.width(), 300);
+        QTRY_COMPARE(shown(sidebar), QStringList());
+        QCOMPARE(more->text(), QString("+ 7 more on the Budget page"));
+
+        // Maximised again: all of them
+        sidebar.resize(sidebar.width(), 1400);
+        QTRY_COMPARE(shown(sidebar), fullest);
+        QVERIFY(more->isHidden());
+        sidebar.resize(sidebar.width(), shorter);
+        QTRY_VERIFY(more->isVisible());
         QSignalSpy pages(&sidebar, &SidebarWidget::pageRequested);
         more->click();
         QCOMPARE(pages.count(), 1);
@@ -181,10 +226,12 @@ private slots:
         // The month's total counts every budget, also while the section is open: 395 of 700 €
         QCOMPARE(sidebar.findChild<QAbstractButton*>("budgetHeader")->accessibleDescription(), QString("56%"));
 
+        // All wanted: every budget, scrolling when they don't fit
         Settings::instance().setSidebarShowingAllBudgets(true);
         sidebar.refresh();
-        QCOMPARE(shown(sidebar).size(), 7);
+        QTRY_COMPARE(shown(sidebar).size(), 7);
         QVERIFY(!sidebar.findChild<QAbstractButton*>("moreBudgetsItem"));
+        QTRY_VERIFY(scrollBar->maximum() > 0);
         Settings::instance().setSidebarShowingAllBudgets(false);
     }
 

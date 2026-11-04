@@ -49,6 +49,7 @@ signals:
 protected:
     void paintEvent(QPaintEvent* event) override;
     void changeEvent(QEvent* event) override;        // The scroll bar follows the theme
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     struct Section {
@@ -70,6 +71,7 @@ private:
     void loadUser();
     void loadAccounts();
     void loadBudgets();
+    void fitBudgets();
     void showUserMenu();
     void showBudgetSortMenu(const QPoint& position);
 
@@ -80,6 +82,8 @@ private:
     QScrollArea* sectionsArea = nullptr;
     Section accountsSection;
     Section budgetSection;
+    QList<SidebarItem*> budgetItems;                 // In the chosen order
+    SidebarItem* moreBudgetsItem = nullptr;          // None when all are wanted
     SidebarItem* userItem = nullptr;
     SidebarItem* collapseItem = nullptr;
     QLabel* brandName = nullptr;                     // "Aion" next to the logo, hidden in the collapsed rail

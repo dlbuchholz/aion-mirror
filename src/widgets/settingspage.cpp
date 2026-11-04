@@ -298,7 +298,7 @@ void SettingsPage::buildAppearanceSection()
 
     allBudgetsCheck = new QCheckBox("Show all budgets in the sidebar", this);
     allBudgetsCheck->setObjectName("allBudgetsCheck");
-    allBudgetsCheck->setToolTip("Otherwise the sidebar shows the first five in the order below and links to the Budget page for the rest");
+    allBudgetsCheck->setToolTip("Otherwise the sidebar shows as many as fit without scrolling, in the order below, and links to the Budget page for the rest");
     form->addRow(allBudgetsCheck);
     watch(allBudgetsCheck);
 
