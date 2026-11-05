@@ -1,9 +1,9 @@
-<!-- Measured at 0c0ef1c46835d63fac9759625103f82db85f5f6d by scripts/coverage.sh -->
+<!-- Measured at b428321b63dbbf9d6f46a0058bac26d498b7448b by scripts/coverage.sh -->
 # Test coverage
 
 ![Coverage](docs/coverage-badge.svg)
 
-**98%** · 11514 / 11705 lines · 44 test suites · 593 test cases · 2026-11-03 · `0c0ef1c`
+**98%** · 12409 / 12634 lines · 44 test suites · 615 test cases · 2026-11-05 · `b428321`
 
 ## Files
 
@@ -11,10 +11,11 @@
 |---|---:|---:|---|
 | [src/main.cpp](src/main.cpp) | 0% | 0 / 60 | *none* |
 | [src/updatecheck.cpp](src/updatecheck.cpp) | 0% | 0 / 5 | *none* |
-| [src/categorycolors.cpp](src/categorycolors.cpp) | 51% | 20 / 39 | budgetpage, categorysettings, dashboardpage and 6 more |
+| [src/categorycolors.cpp](src/categorycolors.cpp) | 51% | 20 / 39 | budgetpage, categorysettings, dashboardpage and 7 more |
 | [src/db/databasemanager.cpp](src/db/databasemanager.cpp) | 74% | 35 / 47 | aboutwidget, account, addaccountwidget and 34 more |
 | [src/rule.h](src/rule.h) | 83% | 5 / 6 | applyrulesdialog, balance, csvimport and 6 more |
 | [src/commandline.cpp](src/commandline.cpp) | 89% | 17 / 19 | commandline |
+| [src/widgets/budgetdetail.cpp](src/widgets/budgetdetail.cpp) | 90% | 247 / 273 | budgetpage, mainwindow |
 | [src/db/backup.cpp](src/db/backup.cpp) | 95% | 166 / 174 | backup, backupbeforeupdate, databasesession and 5 more |
 | [src/db/migrationmanager.cpp](src/db/migrationmanager.cpp) | 95% | 143 / 150 | aboutwidget, account, addaccountwidget and 34 more |
 | [src/widgets/categorytag.cpp](src/widgets/categorytag.cpp) | 97% | 34 / 35 | applyrulesdialog, balance, categorysettings and 4 more |
@@ -30,19 +31,20 @@
 | [src/dialog/deleteaccountdialog.cpp](src/dialog/deleteaccountdialog.cpp) | 99% | 116 / 117 | deleteaccount, mainwindow |
 | [src/dialog/importmanagerdialog.cpp](src/dialog/importmanagerdialog.cpp) | 99% | 1043 / 1056 | balance, csvimport, rendering, transactionspage |
 | [src/dialog/rawsettingsdialog.cpp](src/dialog/rawsettingsdialog.cpp) | 99% | 80 / 81 | rawsettingsdialog, settingspage |
-| [src/report.cpp](src/report.cpp) | 99% | 311 / 315 | mainwindow, rendering, report and 3 more |
+| [src/report.cpp](src/report.cpp) | 99% | 397 / 403 | mainwindow, rendering, report and 3 more |
 | [src/spreadsheet.cpp](src/spreadsheet.cpp) | 99% | 337 / 342 | balance, csvimport, spreadsheet |
 | [src/theme.h](src/theme.h) | 99% | 91 / 92 | aboutwidget, backup, balance and 17 more |
 | [src/widgets/aboutwidget.cpp](src/widgets/aboutwidget.cpp) | 99% | 99 / 100 | aboutwidget, branding, mainwindow and 2 more |
 | [src/widgets/accounttypessettings.cpp](src/widgets/accounttypessettings.cpp) | 99% | 133 / 134 | categorysettings, mainwindow, rendering, settingspage |
-| [src/widgets/sidebarwidget.cpp](src/widgets/sidebarwidget.cpp) | 99% | 407 / 413 | mainwindow, rendering, sidebarwidget |
-| [src/widgets/transactionspage.cpp](src/widgets/transactionspage.cpp) | 99% | 770 / 774 | mainwindow, rendering, transactionspage |
+| [src/widgets/sidebarwidget.cpp](src/widgets/sidebarwidget.cpp) | 99% | 430 / 436 | mainwindow, rendering, sidebarwidget |
+| [src/widgets/transactionspage.cpp](src/widgets/transactionspage.cpp) | 99% | 774 / 778 | mainwindow, rendering, transactionspage |
 | [src/account.cpp](src/account.cpp) | 100% | 261 / 262 | account, addaccountwidget, applyrulesdialog and 26 more |
+| [src/amountcolor.h](src/amountcolor.h) | 100% | 5 / 5 | budgetpage, dashboardpage, rendering, transactionspage |
 | [src/balance.cpp](src/balance.cpp) | 100% | 22 / 22 | balance, csvimport, databasefailures and 5 more |
-| [src/budget.cpp](src/budget.cpp) | 100% | 170 / 170 | balance, budget, budgetpage and 8 more |
+| [src/budget.cpp](src/budget.cpp) | 100% | 190 / 190 | balance, budget, budgetpage and 8 more |
 | [src/budget.h](src/budget.h) | 100% | 1 / 1 | budget, budgetpage, dashboardpage, rendering |
 | [src/category.cpp](src/category.cpp) | 100% | 176 / 176 | account, addaccountwidget, applyrulesdialog and 26 more |
-| [src/category.h](src/category.h) | 100% | 6 / 6 | applyrulesdialog, balance, categorysettings and 8 more |
+| [src/category.h](src/category.h) | 100% | 6 / 6 | applyrulesdialog, balance, categorysettings and 9 more |
 | [src/csvimport.cpp](src/csvimport.cpp) | 100% | 338 / 338 | balance, csvimport, databasefailures and 2 more |
 | [src/csvimport.h](src/csvimport.h) | 100% | 1 / 1 | balance, csvimport |
 | [src/csvparser.cpp](src/csvparser.cpp) | 100% | 36 / 36 | balance, csvimport, csvparser |
@@ -53,25 +55,25 @@
 | [src/dialog/editaccountdialog.cpp](src/dialog/editaccountdialog.cpp) | 100% | 53 / 53 | editaccount, mainwindow |
 | [src/dialog/renamedpayeesdialog.cpp](src/dialog/renamedpayeesdialog.cpp) | 100% | 87 / 87 | databasefailures, rulessettings |
 | [src/dialog/renamedpayeesdialog.h](src/dialog/renamedpayeesdialog.h) | 100% | 1 / 1 | databasefailures, rulessettings |
-| [src/mainwindow.cpp](src/mainwindow.cpp) | 100% | 129 / 129 | mainwindow, rendering |
+| [src/mainwindow.cpp](src/mainwindow.cpp) | 100% | 139 / 139 | mainwindow, rendering |
 | [src/money.cpp](src/money.cpp) | 100% | 30 / 30 | account, addaccountwidget, applyrulesdialog and 23 more |
-| [src/report.h](src/report.h) | 100% | 9 / 9 | mainwindow, rendering, report and 2 more |
-| [src/settings.cpp](src/settings.cpp) | 100% | 310 / 311 | aboutwidget, applyrulesdialog, backup and 25 more |
+| [src/report.h](src/report.h) | 100% | 11 / 11 | mainwindow, rendering, report and 2 more |
+| [src/settings.cpp](src/settings.cpp) | 100% | 320 / 321 | aboutwidget, applyrulesdialog, backup and 25 more |
 | [src/settings.h](src/settings.h) | 100% | 1 / 1 | aboutwidget, applyrulesdialog, backup and 25 more |
 | [src/transaction.cpp](src/transaction.cpp) | 100% | 287 / 288 | account, addaccountwidget, applyrulesdialog and 24 more |
 | [src/transactionlistmodel.h](src/transactionlistmodel.h) | 100% | 1 / 1 | mainwindow, rendering, transactionlistmodel, transactionspage |
 | [src/user.cpp](src/user.cpp) | 100% | 63 / 63 | account, addaccountwidget, applyrulesdialog and 27 more |
 | [src/widgets/addaccountwidget.cpp](src/widgets/addaccountwidget.cpp) | 100% | 38 / 38 | addaccountwidget, mainwindow |
-| [src/widgets/budgeteditor.cpp](src/widgets/budgeteditor.cpp) | 100% | 184 / 184 | budgetpage, mainwindow, rendering |
-| [src/widgets/budgetpage.cpp](src/widgets/budgetpage.cpp) | 100% | 373 / 373 | budgetpage, mainwindow, rendering |
+| [src/widgets/budgeteditor.cpp](src/widgets/budgeteditor.cpp) | 100% | 200 / 200 | budgetpage, mainwindow, rendering |
+| [src/widgets/budgetpage.cpp](src/widgets/budgetpage.cpp) | 100% | 440 / 440 | budgetpage, mainwindow, rendering |
 | [src/widgets/categoriessettings.cpp](src/widgets/categoriessettings.cpp) | 100% | 408 / 409 | categorysettings, mainwindow, rendering, settingspage |
 | [src/widgets/categorytag.h](src/widgets/categorytag.h) | 100% | 1 / 1 | balance, categorysettings, mainwindow and 3 more |
-| [src/widgets/dashboardpage.cpp](src/widgets/dashboardpage.cpp) | 100% | 513 / 514 | dashboardpage, mainwindow, rendering |
-| [src/widgets/reportspage.cpp](src/widgets/reportspage.cpp) | 100% | 1178 / 1179 | mainwindow, rendering, reportspage |
+| [src/widgets/dashboardpage.cpp](src/widgets/dashboardpage.cpp) | 100% | 516 / 517 | dashboardpage, mainwindow, rendering |
+| [src/widgets/reportspage.cpp](src/widgets/reportspage.cpp) | 100% | 1560 / 1567 | mainwindow, rendering, reportspage |
 | [src/widgets/reportspage.h](src/widgets/reportspage.h) | 100% | 2 / 2 | reportspage |
 | [src/widgets/rulessettings.cpp](src/widgets/rulessettings.cpp) | 100% | 599 / 601 | mainwindow, rendering, rulessettings, settingspage |
 | [src/widgets/rulessettings.h](src/widgets/rulessettings.h) | 100% | 1 / 1 | rulessettings |
-| [src/widgets/settingspage.cpp](src/widgets/settingspage.cpp) | 100% | 376 / 376 | mainwindow, rendering, settingspage |
+| [src/widgets/settingspage.cpp](src/widgets/settingspage.cpp) | 100% | 396 / 396 | mainwindow, rendering, settingspage |
 | [src/widgets/sidebarwidget.h](src/widgets/sidebarwidget.h) | 100% | 1 / 1 | sidebarwidget |
 | [src/widgets/transactioneditor.cpp](src/widgets/transactioneditor.cpp) | 100% | 380 / 381 | mainwindow, rendering, transactionspage |
 
@@ -83,6 +85,7 @@
 - **src/db/databasemanager.cpp** (12 lines): [17](src/db/databasemanager.cpp#L17), [19–21](src/db/databasemanager.cpp#L19-L21), [25](src/db/databasemanager.cpp#L25), [58–60](src/db/databasemanager.cpp#L58-L60), [63–66](src/db/databasemanager.cpp#L63-L66)
 - **src/rule.h** (1 lines): [17](src/rule.h#L17)
 - **src/commandline.cpp** (2 lines): [36](src/commandline.cpp#L36), [47](src/commandline.cpp#L47)
+- **src/widgets/budgetdetail.cpp** (26 lines): [78–85](src/widgets/budgetdetail.cpp#L78-L85), [87–90](src/widgets/budgetdetail.cpp#L87-L90), [92](src/widgets/budgetdetail.cpp#L92), [251–255](src/widgets/budgetdetail.cpp#L251-L255), [364](src/widgets/budgetdetail.cpp#L364), [366–372](src/widgets/budgetdetail.cpp#L366-L372)
 - **src/db/backup.cpp** (8 lines): [35–36](src/db/backup.cpp#L35-L36), [38](src/db/backup.cpp#L38), [149–150](src/db/backup.cpp#L149-L150), [152](src/db/backup.cpp#L152), [229](src/db/backup.cpp#L229), [245](src/db/backup.cpp#L245)
 - **src/db/migrationmanager.cpp** (7 lines): [41–45](src/db/migrationmanager.cpp#L41-L45), [104](src/db/migrationmanager.cpp#L104), [221](src/db/migrationmanager.cpp#L221)
 - **src/widgets/categorytag.cpp** (1 lines): [30](src/widgets/categorytag.cpp#L30)
@@ -98,19 +101,19 @@
 - **src/dialog/deleteaccountdialog.cpp** (1 lines): [53](src/dialog/deleteaccountdialog.cpp#L53)
 - **src/dialog/importmanagerdialog.cpp** (13 lines): [365](src/dialog/importmanagerdialog.cpp#L365), [367–371](src/dialog/importmanagerdialog.cpp#L367-L371), [373](src/dialog/importmanagerdialog.cpp#L373), [743](src/dialog/importmanagerdialog.cpp#L743), [814](src/dialog/importmanagerdialog.cpp#L814), [1159](src/dialog/importmanagerdialog.cpp#L1159), [1318–1319](src/dialog/importmanagerdialog.cpp#L1318-L1319), [1329](src/dialog/importmanagerdialog.cpp#L1329)
 - **src/dialog/rawsettingsdialog.cpp** (1 lines): [21](src/dialog/rawsettingsdialog.cpp#L21)
-- **src/report.cpp** (4 lines): [88](src/report.cpp#L88), [127](src/report.cpp#L127), [325–326](src/report.cpp#L325-L326)
+- **src/report.cpp** (6 lines): [47–48](src/report.cpp#L47-L48), [115](src/report.cpp#L115), [154](src/report.cpp#L154), [429–430](src/report.cpp#L429-L430)
 - **src/spreadsheet.cpp** (5 lines): [50](src/spreadsheet.cpp#L50), [320](src/spreadsheet.cpp#L320), [401](src/spreadsheet.cpp#L401), [403](src/spreadsheet.cpp#L403), [469](src/spreadsheet.cpp#L469)
 - **src/theme.h** (1 lines): [184](src/theme.h#L184)
 - **src/widgets/aboutwidget.cpp** (1 lines): [47](src/widgets/aboutwidget.cpp#L47)
 - **src/widgets/accounttypessettings.cpp** (1 lines): [43](src/widgets/accounttypessettings.cpp#L43)
-- **src/widgets/sidebarwidget.cpp** (6 lines): [82](src/widgets/sidebarwidget.cpp#L82), [319](src/widgets/sidebarwidget.cpp#L319), [527–529](src/widgets/sidebarwidget.cpp#L527-L529), [554](src/widgets/sidebarwidget.cpp#L554)
-- **src/widgets/transactionspage.cpp** (4 lines): [354–355](src/widgets/transactionspage.cpp#L354-L355), [742](src/widgets/transactionspage.cpp#L742), [808](src/widgets/transactionspage.cpp#L808)
+- **src/widgets/sidebarwidget.cpp** (6 lines): [81](src/widgets/sidebarwidget.cpp#L81), [319](src/widgets/sidebarwidget.cpp#L319), [558–560](src/widgets/sidebarwidget.cpp#L558-L560), [585](src/widgets/sidebarwidget.cpp#L585)
+- **src/widgets/transactionspage.cpp** (4 lines): [355–356](src/widgets/transactionspage.cpp#L355-L356), [747](src/widgets/transactionspage.cpp#L747), [813](src/widgets/transactionspage.cpp#L813)
 - **src/account.cpp** (1 lines): [45](src/account.cpp#L45)
 - **src/settings.cpp** (1 lines): [176](src/settings.cpp#L176)
 - **src/transaction.cpp** (1 lines): [154](src/transaction.cpp#L154)
 - **src/widgets/categoriessettings.cpp** (1 lines): [529](src/widgets/categoriessettings.cpp#L529)
-- **src/widgets/dashboardpage.cpp** (1 lines): [516](src/widgets/dashboardpage.cpp#L516)
-- **src/widgets/reportspage.cpp** (1 lines): [941](src/widgets/reportspage.cpp#L941)
+- **src/widgets/dashboardpage.cpp** (1 lines): [518](src/widgets/dashboardpage.cpp#L518)
+- **src/widgets/reportspage.cpp** (7 lines): [110](src/widgets/reportspage.cpp#L110), [867–871](src/widgets/reportspage.cpp#L867-L871), [1342](src/widgets/reportspage.cpp#L1342)
 - **src/widgets/rulessettings.cpp** (2 lines): [44](src/widgets/rulessettings.cpp#L44), [363](src/widgets/rulessettings.cpp#L363)
 - **src/widgets/transactioneditor.cpp** (1 lines): [246](src/widgets/transactioneditor.cpp#L246)
 
@@ -298,7 +301,7 @@
 
 </details>
 
-<details><summary><b>test_budgetpage</b> · 17 test cases · 17 files</summary>
+<details><summary><b>test_budgetpage</b> · 24 test cases · 19 files</summary>
 
 [tests/test_budgetpage.cpp](tests/test_budgetpage.cpp)
 
@@ -310,8 +313,15 @@
 - Removing only this month
 - Removing a single month needs no choice
 - Unbudgeted spending suggests a limit
+- Budgets lead to their transactions
 - Navigates between months
-- Enter opens a budget row
+- Enter unfolds a budget row
+- Rows unfold one at a time
+- An unfolded budget leads on
+- An unfolded budget shows how the month is going
+- Past and future months have no pace
+- The chart finds its dots
+- Money back steps the line down
 - A budget that cant be saved keeps the editor open
 - Rows light up under the mouse and ignore other keys
 - Without a user there is nothing to show
@@ -431,7 +441,7 @@
 
 </details>
 
-<details><summary><b>test_dashboardpage</b> · 13 test cases · 18 files</summary>
+<details><summary><b>test_dashboardpage</b> · 14 test cases · 20 files</summary>
 
 [tests/test_dashboardpage.cpp](tests/test_dashboardpage.cpp)
 
@@ -443,6 +453,7 @@
 - Overspending is called out
 - Empty cards invite
 - Rows light up under the mouse
+- Recent expenses can be red
 - Without a user there is nothing to show
 - Category bars can leave out the colors
 - Budgets show the closest to the limit first
@@ -535,7 +546,7 @@
 
 </details>
 
-<details><summary><b>test_mainwindow</b> · 9 test cases · 43 files</summary>
+<details><summary><b>test_mainwindow</b> · 12 test cases · 44 files</summary>
 
 [tests/test_mainwindow.cpp](tests/test_mainwindow.cpp)
 
@@ -544,6 +555,9 @@
 - Sidebar switches pages and accounts
 - Dashboard shortcuts open the right place
 - Reports lead to the transactions they counted
+- Budgets lead to the transactions they counted
+- An unfolded budget opens one of its transactions
+- The reports width button reaches the settings
 - Rule drafts open in the rules settings
 - Accounts changed from the sidebar show everywhere
 - Changed transactions reach the other pages
@@ -593,7 +607,7 @@
 
 </details>
 
-<details><summary><b>test_rendering</b> · 4 test cases · 45 files</summary>
+<details><summary><b>test_rendering</b> · 4 test cases · 46 files</summary>
 
 [tests/test_rendering.cpp](tests/test_rendering.cpp)
 
@@ -621,7 +635,7 @@
 
 </details>
 
-<details><summary><b>test_reportdata</b> · 17 test cases · 12 files</summary>
+<details><summary><b>test_reportdata</b> · 20 test cases · 12 files</summary>
 
 [tests/test_reportdata.cpp](tests/test_reportdata.cpp)
 
@@ -638,14 +652,17 @@
 - Trend averages only over what has begun
 - Payees largest first with spellings together
 - Budgets added up over the months
+- A months budgets day by day
 - Budgets take whole months that have begun
+- Money flows from income to spending and what was kept
+- Money flow shows the largest and the rest together
 - Other users are left out
 - All reports agree on the same money
 - Planned payments dont change todays balance
 
 </details>
 
-<details><summary><b>test_reportspage</b> · 22 test cases · 18 files</summary>
+<details><summary><b>test_reportspage</b> · 27 test cases · 18 files</summary>
 
 [tests/test_reportspage.cpp](tests/test_reportspage.cpp)
 
@@ -657,9 +674,14 @@
 - Income vs spending on the card and in detail
 - Balance over time on the card and in detail
 - Top payees on the card and in detail
+- Reports fill the width or are centred
+- The width button switches and is remembered
+- Long names dont widen their card
 - Budget vs actual on the card and in detail
 - Category trend follows the largest or the chosen category
 - Every report draws
+- Money flow on the card and in detail
+- Spending bars can be red
 - Hovering the flow chart shows a periods numbers
 - Hovering the balance chart shows a days balance
 - Clicking a trend bar shows that periods transactions
@@ -815,7 +837,7 @@
 
 </details>
 
-<details><summary><b>test_settingspage</b> · 13 test cases · 24 files</summary>
+<details><summary><b>test_settingspage</b> · 15 test cases · 24 files</summary>
 
 [tests/test_settingspage.cpp](tests/test_settingspage.cpp)
 
@@ -825,7 +847,9 @@
 - Changes wait for apply
 - Revert restores the stored values
 - Custom currency symbol
+- Expenses can be shown in red
 - Category colours in overviews can be turned off
+- Reports can use the full width
 - Category suggestions can be turned off
 - Sidebar budget sort is chosen here or in the sidebar
 - Create rule shows the rules section with the draft
@@ -936,10 +960,11 @@
 
 </details>
 
-<details><summary><b>test_transactionspage</b> · 48 test cases · 24 files</summary>
+<details><summary><b>test_transactionspage</b> · 49 test cases · 26 files</summary>
 
 [tests/test_transactionspage.cpp](tests/test_transactionspage.cpp)
 
+- Expenses can be shown in red
 - New transaction uses shown account
 - Saving writes immediately and closes editor
 - Rules suggest the category of new transactions
