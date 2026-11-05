@@ -131,6 +131,13 @@ struct PayeeReport {
     Cents totalCents = 0;
 };
 
+// All budgets of one month together, or one category's budget in that month
+struct BudgetMonth {
+    ReportRange month;
+    Cents limitCents = 0;
+    Cents spentCents = 0;                            // In the categories with a budget that month
+};
+
 // One category's budget added up over the months it had one
 struct BudgetActual {
     int categoryId = 0;
@@ -140,15 +147,10 @@ struct BudgetActual {
     Cents spentCents = 0;                            // Only in the months with a budget
     int months = 0;                                  // With a budget
     int monthsOver = 0;                              // Of those, past the limit
+    QList<BudgetMonth> byMonth;                      // Each month it had a budget, in order
+    QList<Cents> spentByDay;                         // A single month only, as BudgetReport::spentByDay
     Cents leftCents() const { return limitCents - spentCents; }
     bool kept() const { return spentCents <= limitCents; }
-};
-
-// All budgets of one month together
-struct BudgetMonth {
-    ReportRange month;
-    Cents limitCents = 0;
-    Cents spentCents = 0;                            // In the categories with a budget that month
 };
 
 struct BudgetReport {

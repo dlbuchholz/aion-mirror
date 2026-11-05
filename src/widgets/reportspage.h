@@ -58,6 +58,9 @@ public:
 
     static QString title(Report report);             // "Spending by category"
 
+    // Budget vs. actual for the month this day is in: the Month range for this month, a custom one otherwise
+    void openBudgetMonth(const QDate& month);
+
     // The category trend for this category (0 = no category), instead of the largest one
     void openCategoryTrend(int categoryId);
     std::optional<int> trendCategory() const;        // The one shown; none without any spending
@@ -100,6 +103,7 @@ private:
     std::optional<Report> opened;
 
     static constexpr QMargins Margin{24, 20, 24, 20};
+    static constexpr int ChartHeight = 280;          // Budget vs. actual's charts, at least
     QWidget* column = nullptr;                       // The header and the reports, centred or not (updateWidth)
     QToolButton* backLink = nullptr;
     QLabel* titleLabel = nullptr;

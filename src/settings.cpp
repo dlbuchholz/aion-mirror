@@ -432,6 +432,14 @@ void Settings::setReportsCentred(bool centred) {
     settings.setValue("appearance/reportsCentred", centred);
 }
 
+int Settings::getReportsBudgetView() const {
+    return settings.value("ui/reportsBudgetView", 0).toInt();
+}
+
+void Settings::setReportsBudgetView(int view) {
+    settings.setValue("ui/reportsBudgetView", view);
+}
+
 bool Settings::isSidebarShowingAllBudgets() const {
     return settings.value("appearance/sidebarAllBudgets", false).toBool();
 }

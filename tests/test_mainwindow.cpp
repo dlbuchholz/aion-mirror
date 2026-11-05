@@ -198,6 +198,16 @@ private slots:
         QCOMPARE(shownTransactions(window), 2);          // Both accounts, as the budget counts them
     }
 
+    void theBudgetPagesChartOpensTheReport() {
+        const QDate today = QDate::currentDate();
+        MainWindow window(1);
+        auto* reports = window.findChild<ReportsPage*>();
+        emit window.findChild<BudgetPage*>()->budgetReportRequested(today);
+        QCOMPARE(currentPage(window), reports);
+        QCOMPARE(reports->openedReport(), std::optional(ReportsPage::Report::BudgetVsActual));
+        QCOMPARE(reports->range(), ReportRange::forPreset(ReportRange::Preset::Month, today));
+    }
+
     void anUnfoldedBudgetOpensOneOfItsTransactions() {
         const int transactionId = spend(savings, 2000, groceries);
         MainWindow window(1);

@@ -1,5 +1,6 @@
 #include "reportspage.h"
 #include "account.h"
+#include "budgetcharts.h"
 #include "category.h"
 #include "categorycolors.h"
 #include "icons.h"
@@ -1380,6 +1381,17 @@ void ReportsPage::setRange(ReportRange::Preset newPreset, const ReportRange& ran
     refresh();
 }
 
+void ReportsPage::openBudgetMonth(const QDate& month) {
+    const ReportRange thisMonth = ReportRange::forPreset(ReportRange::Preset::Month, QDate::currentDate());
+    const QDate first(month.year(), month.month(), 1);
+    if (first == thisMonth.first) {
+        setRange(ReportRange::Preset::Month, thisMonth);
+    } else {
+        setRange(ReportRange::Preset::Custom, ReportRange::custom(first, first.addMonths(1).addDays(-1)));
+    }
+    openReport(Report::BudgetVsActual);
+}
+
 void ReportsPage::setUserId(int newUserId) {
     userId = newUserId;
     shownAccountId = ALL_ACCOUNTS;
@@ -1874,9 +1886,108 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
         layout->addWidget(label);
         layout->addSpacing(8);
     }
+    // The chart in views, chosen like the range: all budgets together (the pace in a month, the
+    // months otherwise), each budget against its own limit, and for several months a grid. The
+    // view is remembered. All of them are as tall, so the list below stays put when switching.
+    const bool singleMonth = budgets.months.size() == 1;
+    auto* viewChips = new QHBoxLayout();
+    viewChips->setSpacing(6);
+    auto* viewGroup = new QButtonGroup(widget);
+    const QList<std::pair<QString, QString>> viewNames = {{"together", "All together"}, {"each", "Each budget"}, {"grid", "Grid"}};
+    for (int i = 0; i < (singleMonth ? 2 : 3); ++i) {
+        auto* viewChip = new QToolButton(widget);
+        viewChip->setObjectName("budgetView_" + viewNames[i].first);
+        viewChip->setText(viewNames[i].second);
+        viewChip->setCheckable(true);
+        viewChip->setCursor(Qt::PointingHandCursor);
+        Theme::highlightWhenChecked(viewChip);
+        viewGroup->addButton(viewChip, i);
+        viewChips->addWidget(viewChip);
+    }
+    viewChips->addStretch();
+    layout->addLayout(viewChips);
+    layout->addSpacing(10);
+
+    QList<QWidget*> views;
     auto* chart = new BudgetChart(widget);
     chart->setReport(budgets);
-    layout->addWidget(chart);
+    views.append(chart);
+
+    const auto showMonth = [this](int categoryId, const ReportRange& month) {
+        emit transactionsRequested(categoryId, ALL_ACCOUNTS, month.first, month.last);
+    };
+    QStringList colorNames;
+    for (const BudgetActual& budget : budgets.categories) colorNames << budget.categoryColor;
+    const QList<QColor> lineColors = budgetLineColors(colorNames);
+    auto* each = new QWidget(widget);
+    each->setObjectName("budgetEachView");
+    auto* eachLayout = new QVBoxLayout(each);
+    eachLayout->setContentsMargins(0, 0, 0, 0);
+    QStringList legendEntries;
+    const auto legendEntry = [](const QColor& color, const QString& mark, const QString& text) {
+        return QString("<span style=\"color:%1\">%2</span>&nbsp;%3").arg(color.name(), mark, text.toHtmlEscaped());
+    };
+    for (int i = 0; i < budgets.categories.size(); ++i) legendEntries << legendEntry(lineColors[i], "■", budgets.categories[i].categoryName);
+    if (singleMonth) {
+        QList<BudgetLinesChart::Line> lines;
+        for (int i = 0; i < budgets.categories.size(); ++i) {
+            const BudgetActual& budget = budgets.categories[i];
+            lines.append({budget.categoryId, budget.categoryName, lineColors[i], budget.limitCents, budget.spentByDay});
+        }
+        auto* linesChart = new BudgetLinesChart(each);
+        const ReportRange month = budgets.months.first().month;
+        linesChart->setLines(month, lines);
+        connect(linesChart, &BudgetLinesChart::budgetClicked, this, [showMonth, month](int categoryId) { showMonth(categoryId, month); });
+        eachLayout->addWidget(linesChart, 1);
+        legendEntries << legendEntry(Theme::colors().textSecondary, "┅", "Even pace");
+    } else {
+        QList<ReportRange> months;
+        for (const BudgetMonth& month : budgets.months) months.append(month.month);
+        QList<BudgetMonthsChart::Line> lines;
+        for (int i = 0; i < budgets.categories.size(); ++i) {
+            const BudgetActual& budget = budgets.categories[i];
+            lines.append({budget.categoryId, budget.categoryName, lineColors[i], budget.byMonth});
+        }
+        auto* monthsChart = new BudgetMonthsChart(each);
+        monthsChart->setLines(months, lines);
+        connect(monthsChart, &BudgetMonthsChart::monthClicked, this, showMonth);
+        eachLayout->addWidget(monthsChart, 1);
+
+        auto* grid = new BudgetGrid(widget);
+        grid->setBudgets(months, budgets.categories);
+        connect(grid, &BudgetGrid::monthClicked, this, showMonth);
+        views.append(each);
+        views.append(grid);
+    }
+    if (singleMonth) views.append(each);
+    auto* legend = new QLabel(legendEntries.join("&nbsp;&nbsp;&nbsp; "), each);
+    legend->setObjectName("budgetLegend");
+    legend->setTextFormat(Qt::RichText);
+    legend->setWordWrap(true);
+    legend->setForegroundRole(QPalette::PlaceholderText);
+    eachLayout->addWidget(legend);
+
+    // The charts are as tall as each other, so the list stays put between them; the grid only as
+    // tall as its rows. Only the shown view is visible, so the others take no room.
+    auto* viewArea = new QWidget(widget);
+    viewArea->setObjectName("budgetViews");
+    auto* viewLayout = new QVBoxLayout(viewArea);
+    viewLayout->setContentsMargins(0, 0, 0, 0);
+    for (QWidget* view : std::as_const(views)) {
+        if (view != views.value(2)) view->setMinimumHeight(ChartHeight);
+        viewLayout->addWidget(view);
+    }
+    const auto showView = [views](int index) {
+        for (int i = 0; i < views.size(); ++i) views[i]->setVisible(i == index);
+    };
+    const int shown = qBound(0, Settings::instance().getReportsBudgetView(), int(views.size()) - 1);
+    viewGroup->button(shown)->setChecked(true);
+    showView(shown);
+    layout->addWidget(viewArea);
+    connect(viewGroup, &QButtonGroup::idClicked, this, [showView](int index) {
+        showView(index);
+        Settings::instance().setReportsBudgetView(index);
+    });
     layout->addSpacing(16);
 
     using Column = ReportRow::Column;

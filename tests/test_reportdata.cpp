@@ -302,6 +302,17 @@ private slots:
         QCOMPARE(report.months[2].limitCents, Cents(60000));
         QCOMPARE(report.months[2].spentCents, Cents(65000));
         QVERIFY(report.spentByDay.isEmpty());                            // Only for a single month
+
+        // Each budget month by month, only those it had a budget in
+        const BudgetActual& groceriesBudget = report.categories[1];
+        QCOMPARE(groceriesBudget.byMonth.size(), 3);
+        QCOMPARE(groceriesBudget.byMonth[1].month, ReportRange({QDate(2026, 9, 1), QDate(2026, 9, 30)}));
+        QCOMPARE(groceriesBudget.byMonth[1].limitCents, Cents(10000));
+        QCOMPARE(groceriesBudget.byMonth[1].spentCents, Cents(12000));
+        QCOMPARE(report.categories[0].byMonth.size(), 1);
+        QCOMPARE(report.categories[0].byMonth[0].month.first, QDate(2026, 10, 1));
+        QCOMPARE(report.categories[0].byMonth[0].spentCents, Cents(60000));
+        QVERIFY(groceriesBudget.spentByDay.isEmpty());
     }
 
     void aMonthsBudgetsDayByDay() {
@@ -322,6 +333,21 @@ private slots:
         QCOMPARE(report.spentByDay.last(), Cents(5000));
         QCOMPARE(report.spentCents, Cents(9000));                        // The budget counts what's planned too
         QCOMPARE(report.months.size(), 1);
+        QCOMPARE(report.categories.size(), 1);
+        QCOMPARE(report.categories[0].spentByDay, report.spentByDay);    // The only budget
+
+        // Each budget's days add up to all of them together
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, rent, QDate(2026, 10, 1), 90000));
+        const BudgetReport two = Reports::budgetVsActual(1, ReportRange::forPreset(Preset::Month, today), today);
+        QCOMPARE(two.categories.size(), 2);
+        const BudgetActual& rentBudget = two.categories[0].categoryName == "Rent" ? two.categories[0] : two.categories[1];
+        const BudgetActual& groceriesBudget = two.categories[0].categoryName == "Rent" ? two.categories[1] : two.categories[0];
+        QCOMPARE(rentBudget.spentByDay.size(), 29);
+        QCOMPARE(rentBudget.spentByDay[3], Cents(0));
+        QCOMPARE(rentBudget.spentByDay[4], Cents(9000));
+        QCOMPARE(groceriesBudget.spentByDay[9], Cents(5000));
+        for (int day = 0; day < 29; ++day) QCOMPARE(two.spentByDay[day], rentBudget.spentByDay[day] + groceriesBudget.spentByDay[day]);
+        QVERIFY(BudgetDAO().removeLimit(1, rent, QDate(2026, 10, 1), true));
 
         // A month that's over: every day
         const BudgetReport september = Reports::budgetVsActual(1, {QDate(2026, 9, 1), QDate(2026, 9, 30)}, today);

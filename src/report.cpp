@@ -30,10 +30,12 @@ QDate monthEnd(const QDate& date) {
     return monthStart(date).addMonths(1).addDays(-1);
 }
 
-// The spending in these categories (0 = no category), added up day by day from the month's first
-// up to today or its last day, the way the budgets count it
-QList<Cents> budgetedSpendingByDay(int userId, const QSet<int>& categories, const ReportRange& month, const QDate& today) {
-    QList<Cents> byDay(month.first.daysTo(qMin(month.last, today)) + 1, 0);
+// The spending in each of these categories (0 = no category), added up day by day from the month's
+// first up to today or its last day, the way the budgets count it
+QHash<int, QList<Cents>> budgetedSpendingByDay(int userId, const QSet<int>& categories, const ReportRange& month, const QDate& today) {
+    const QList<Cents> noDays(month.first.daysTo(qMin(month.last, today)) + 1, 0);
+    QHash<int, QList<Cents>> byCategory;
+    for (int category : categories) byCategory.insert(category, noDays);
     QSqlQuery query(DatabaseManager::instance().database());
     query.prepare(
         "SELECT t.date, COALESCE(t.category_id, 0), SUM(" + SpendingCentsSql + ") "
@@ -42,18 +44,21 @@ QList<Cents> budgetedSpendingByDay(int userId, const QSet<int>& categories, cons
         + CountedAsIncomeOrSpendingSql + " GROUP BY t.date, COALESCE(t.category_id, 0)");
     query.bindValue(":user_id", userId);
     query.bindValue(":first", month.first.toString("yyyy-MM-dd"));
-    query.bindValue(":last", month.first.addDays(byDay.size() - 1).toString("yyyy-MM-dd"));
+    query.bindValue(":last", month.first.addDays(noDays.size() - 1).toString("yyyy-MM-dd"));
     if (!query.exec()) {
         qWarning() << "Reports:" << query.lastError().text();
         return {};
     }
     while (query.next()) {
-        if (!categories.contains(query.value(1).toInt())) continue;
+        const auto found = byCategory.find(query.value(1).toInt());
+        if (found == byCategory.end()) continue;
         const int day = int(month.first.daysTo(QDate::fromString(query.value(0).toString(), "yyyy-MM-dd")));
-        if (day >= 0 && day < byDay.size()) byDay[day] += query.value(2).toLongLong();
+        if (day >= 0 && day < found->size()) (*found)[day] += query.value(2).toLongLong();
     }
-    for (int day = 1; day < byDay.size(); ++day) byDay[day] += byDay[day - 1];
-    return byDay;
+    for (QList<Cents>& byDay : byCategory) {
+        for (int day = 1; day < byDay.size(); ++day) byDay[day] += byDay[day - 1];
+    }
+    return byCategory;
 }
 
 } // namespace
@@ -276,8 +281,18 @@ BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& t
             actual.spentCents += budget.spentCents;
             ++actual.months;
             if (budget.spentCents > budget.limitCents) ++actual.monthsOver;
+            actual.byMonth.append({total.month, budget.limitCents, budget.spentCents});
             report.limitCents += budget.limitCents;
             report.spentCents += budget.spentCents;
+        }
+    }
+    // A single month day by day: each budget, and all of them together
+    if (report.months.size() == 1 && !budgeted.isEmpty()) {
+        const QHash<int, QList<Cents>> byDay = budgetedSpendingByDay(userId, budgeted, report.range, today);
+        for (auto it = byDay.cbegin(); it != byDay.cend(); ++it) {
+            byCategory[it.key()].spentByDay = it.value();
+            if (report.spentByDay.isEmpty()) report.spentByDay = QList<Cents>(it.value().size(), 0);
+            for (int day = 0; day < it.value().size(); ++day) report.spentByDay[day] += it.value()[day];
         }
     }
     report.categories = byCategory.values();
@@ -286,7 +301,6 @@ BudgetReport budgetVsActual(int userId, const ReportRange& range, const QDate& t
         const double fullB = double(b.spentCents) / double(b.limitCents);
         return fullA != fullB ? fullA > fullB : a.categoryName.localeAwareCompare(b.categoryName) < 0;
     });
-    if (report.months.size() == 1 && !budgeted.isEmpty()) report.spentByDay = budgetedSpendingByDay(userId, budgeted, report.range, today);
     return report;
 }
 

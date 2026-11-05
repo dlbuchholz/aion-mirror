@@ -35,6 +35,14 @@ struct BudgetTransaction {
     Cents spentCents = 0;                            // Below zero for money that came back
 };
 
+// How many of a month's days have passed by today, today included: 0 before it, all after it
+inline int daysPassed(const QDate& month, const QDate& today) {
+    const QDate first(month.year(), month.month(), 1);
+    if (today < first) return 0;
+    if (today >= first.addMonths(1)) return first.daysInMonth();
+    return today.day();
+}
+
 // Monthly category limits. A regular limit applies from a month onward until it is changed;
 // a single month can have its own value on top of that. Months are passed as any date in them.
 class BudgetDAO {

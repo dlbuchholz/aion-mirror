@@ -11,6 +11,7 @@
 
 #include "account.h"
 #include "budget.h"
+#include "categorycolors.h"
 #include "settings.h"
 #include "theme.h"
 #include "tests/test_db_fixture.h"
@@ -506,6 +507,88 @@ private slots:
         QVERIFY(below.dotText(0).contains(" · No payee · "));
     }
 
+    void theTilesSayHowTheMonthIsGoing() {
+        const Settings& settings = Settings::instance();
+        const QDate today = QDate::currentDate();
+        const int days = thisMonth.daysInMonth();
+        BudgetPage page;
+        page.setUserId(1);
+        auto* spentNote = page.findChild<QLabel*>("spentNote");
+        auto* leftNote = page.findChild<QLabel*>("leftNote");
+        QVERIFY(spentNote->isHidden() && leftNote->isHidden());   // Nothing to say without budgets
+
+        // Nothing spent yet: below an even pace, all of it left for the days to come
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth.addMonths(-1), 40000));
+        page.reload();
+        QVERIFY(!spentNote->isHidden() && !leftNote->isHidden());
+        QCOMPARE(spentNote->text(), QString("%1 below even pace").arg(settings.formatCurrency(40000 * today.day() / days)));
+        QCOMPARE(leftNote->text(), QString("%1 a day until month end").arg(settings.formatCurrency(40000 / (days - today.day() + 1))));
+
+        // Over the limit
+        spend(45000, groceries);
+        page.reload();
+        QCOMPARE(spentNote->text(), QString("%1 above even pace").arg(settings.formatCurrency(45000 - 40000 * today.day() / days)));
+        QCOMPARE(leftNote->text(), QString("Nothing left"));
+
+        // A month that's over says how it ended; one to come says nothing
+        Transaction before(-1, accountId, "Shop", 30000, thisMonth.addMonths(-1), "", groceries, "expense");
+        QVERIFY(TransactionDAO().addTransaction(before) > 0);
+        page.findChild<QToolButton*>("previousMonthButton")->click();
+        QCOMPARE(spentNote->text(), QString("Within the limit"));
+        QVERIFY(leftNote->isHidden());
+        QVERIFY(TransactionDAO().addTransaction(before) > 0);
+        page.reload();
+        QCOMPARE(spentNote->text(), QString("Over the limit"));
+        page.showMonth(thisMonth.addMonths(2));
+        QVERIFY(spentNote->isHidden() && leftNote->isHidden());
+    }
+
+    void theTilesGoByTheDay() {
+        const QDate march(2026, 3, 1);
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, march, 31000));          // 10,00 € a day
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, accountId, "Shop", 4000, QDate(2026, 3, 2), "", groceries, "expense")) > 0);
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, accountId, "Shop", 9000, QDate(2026, 3, 25), "", groceries, "expense")) > 0);
+        const QString money6000 = money(6000);
+        BudgetPage page;
+        page.today = [] { return QDate(2026, 3, 10); };
+        page.setUserId(1);
+        page.showMonth(march);
+        auto* spentNote = page.findChild<QLabel*>("spentNote");
+        auto* leftNote = page.findChild<QLabel*>("leftNote");
+
+        // By the 10th: 40,00 € of an even 100,00 €; the planned 90,00 € already counts as gone, so
+        // 180,00 € are left for 22 days
+        QCOMPARE(spentNote->text(), QString("%1 below even pace").arg(money6000));
+        QCOMPARE(leftNote->text(), QString("%1 a day until month end").arg(money(18000 / 22)));
+
+        // The last day still goes by the pace, with everything spent by then
+        page.today = [] { return QDate(2026, 3, 31); };
+        page.reload();
+        QCOMPARE(spentNote->text(), QString("%1 below even pace").arg(money(31000 - 13000)));
+        QCOMPARE(leftNote->text(), QString("%1 a day until month end").arg(money(18000)));
+
+        // The day after, how it ended
+        page.today = [] { return QDate(2026, 4, 1); };
+        page.reload();
+        QCOMPARE(spentNote->text(), QString("Within the limit"));
+        QVERIFY(leftNote->isHidden());
+    }
+
+    void theHeaderLeadsToTheReport() {
+        BudgetPage page;
+        page.setUserId(1);
+        auto* link = page.findChild<QToolButton*>("budgetReportLink");
+        QVERIFY(link->isHidden());                       // Nothing to report without budgets
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
+        page.reload();
+        QVERIFY(!link->isHidden());
+        QSignalSpy requested(&page, &BudgetPage::budgetReportRequested);
+        link->click();
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(requested.first().first().toDate(), thisMonth);
+        page.findChild<QToolButton*>("previousMonthButton")->click();
+        QVERIFY(link->isHidden());                       // No budget the month before
+    }
     void aBudgetThatCantBeSavedKeepsTheEditorOpen() {
         BudgetPage page;
         page.setUserId(1);
@@ -547,6 +630,9 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(&page, "addBudget", Q_ARG(int, 0), Q_ARG(Cents, 0)));
         QVERIFY(page.findChildren<QAbstractButton*>("budgetRow").isEmpty());
         QVERIFY(page.findChild<BudgetEditor*>()->isHidden());
+        QVERIFY(page.findChild<QToolButton*>("budgetReportLink")->isHidden());
+        QVERIFY(page.findChild<QLabel*>("spentNote")->isHidden());
+        QVERIFY(page.findChild<QLabel*>("leftNote")->isHidden());
     }
 
     void aBudgetThatCantBeRemovedStays() {

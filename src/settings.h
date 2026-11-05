@@ -98,6 +98,10 @@ public:
     bool isReportsCentred() const;
     void setReportsCentred(bool centred);
 
+    // The tab of the Budget vs. actual report's chart: all together (0, default), each budget (1), grid (2)
+    int getReportsBudgetView() const;
+    void setReportsBudgetView(int view);
+
     // Every budget in the sidebar, instead of as many as fit without scrolling (off by default)
     bool isSidebarShowingAllBudgets() const;
     void setSidebarShowingAllBudgets(bool showAll);

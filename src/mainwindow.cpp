@@ -96,6 +96,10 @@ MainWindow::MainWindow(int userId, QWidget *parent)
         transactions->showCategoryInRange(categoryId, TransactionsPage::ALL_ACCOUNTS, from, to);
         showPage(SidebarWidget::Page::Transactions);
     });
+    connect(ui->budgetPage, &BudgetPage::budgetReportRequested, this, [this](const QDate& month) {
+        showPage(SidebarWidget::Page::Reports);      // Reloads the reports first
+        ui->reportsPage->openBudgetMonth(month);
+    });
     connect(ui->budgetPage, &BudgetPage::transactionRequested, this, [this, transactions](int transactionId) {
         showPage(SidebarWidget::Page::Transactions);
         transactions->openTransaction(transactionId);

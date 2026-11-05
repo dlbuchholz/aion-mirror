@@ -25,13 +25,6 @@ QString payeeText(const QString& payee) {
     return payee.isEmpty() ? QString("No payee") : payee;
 }
 
-// How many of the month's days have passed, today included
-int daysPassed(const QDate& month, const QDate& today) {
-    if (today < month) return 0;
-    if (today >= month.addMonths(1)) return month.daysInMonth();
-    return today.day();
-}
-
 bool isCurrentMonth(const QDate& month, const QDate& today) {
     return today.year() == month.year() && today.month() == month.month();
 }

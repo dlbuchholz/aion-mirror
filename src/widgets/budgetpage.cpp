@@ -1,6 +1,7 @@
 #include "budgetpage.h"
 #include "budgetdetail.h"
 #include "budgeteditor.h"
+#include "report.h"
 #include "categorycolors.h"
 #include "category.h"
 #include "icons.h"
@@ -223,6 +224,21 @@ BudgetPage::BudgetPage(QWidget* parent)
     header->addWidget(thisMonthButton);
     header->addStretch();
 
+    // The month in the Budget vs. actual report
+    reportLink = new QToolButton(this);
+    reportLink->setObjectName("budgetReportLink");
+    reportLink->setText("Budget vs. actual ›");
+    reportLink->setToolTip("Open this month in Reports");
+    reportLink->setAutoRaise(true);
+    reportLink->setCursor(Qt::PointingHandCursor);
+    QPalette linkPalette = reportLink->palette();
+    linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
+    reportLink->setPalette(linkPalette);
+    reportLink->hide();                              // Until there are budgets
+    connect(reportLink, &QToolButton::clicked, this, [this]() { emit budgetReportRequested(shownMonth); });
+    header->addWidget(reportLink);
+    header->addSpacing(8);
+
     addButton = new QPushButton("Add budget", this);
     addButton->setObjectName("addBudgetButton");
     addButton->setToolTip("Add budget (Ctrl+N)");
@@ -235,8 +251,8 @@ BudgetPage::BudgetPage(QWidget* parent)
     auto* tiles = new QHBoxLayout();
     tiles->setSpacing(12);
     tiles->addWidget(createTile("Budgeted", &budgetedLabel));
-    tiles->addWidget(createTile("Spent", &spentLabel));
-    QFrame* leftTile = createTile("Left", &leftLabel);
+    tiles->addWidget(createTile("Spent", &spentLabel, &spentNote));
+    QFrame* leftTile = createTile("Left", &leftLabel, &leftNote);
     leftCaption = leftTile->findChild<QLabel*>("tileCaption");
     tiles->addWidget(leftTile);
     root->addLayout(tiles);
@@ -298,7 +314,7 @@ BudgetPage::BudgetPage(QWidget* parent)
     updateHeader();
 }
 
-QFrame* BudgetPage::createTile(const QString& caption, QLabel** valueLabel) {
+QFrame* BudgetPage::createTile(const QString& caption, QLabel** valueLabel, QLabel** noteLabel) {
     auto* tile = new QFrame(this);
     tile->setObjectName("budgetTile");
     tile->setFrameShape(QFrame::StyledPanel);
@@ -315,7 +331,44 @@ QFrame* BudgetPage::createTile(const QString& caption, QLabel** valueLabel) {
     (*valueLabel)->setFont(valueFont);
     layout->addWidget(captionLabel);
     layout->addWidget(*valueLabel);
+    if (noteLabel) {                                 // How it's going, below the amount
+        *noteLabel = new QLabel(tile);
+        (*noteLabel)->setObjectName(caption.toLower() + "Note");
+        (*noteLabel)->setForegroundRole(QPalette::PlaceholderText);
+        (*noteLabel)->hide();
+        layout->addWidget(*noteLabel);
+    }
+    layout->addStretch();
     return tile;
+}
+
+void BudgetPage::updateNotes(const BudgetReport& report, const QDate& day) {
+    const Settings& settings = Settings::instance();
+    QString spent;
+    QString left;
+    if (report.months.size() == 1 && report.months.first().limitCents > 0 && !report.spentByDay.isEmpty()) {
+        const ReportRange month = report.months.first().month;
+        const Cents limit = report.months.first().limitCents;
+        const Cents soFar = report.spentByDay.last();
+        if (day > month.last) {                      // Over: how it ended
+            spent = soFar > limit ? QString("Over the limit") : QString("Within the limit");
+        } else {
+            // Against an even pace up to today, as in the report; what's left spread over the days to come
+            const Cents pace = limit * report.spentByDay.size() / month.days();
+            const Cents difference = soFar - pace;
+            spent = difference == 0 ? QString("On even pace")
+                                    : QString("%1 %2 even pace").arg(settings.formatCurrency(qAbs(difference)),
+                                                                     difference > 0 ? "above" : "below");
+            const Cents leftCents = limit - report.months.first().spentCents;
+            const int daysLeft = int(day.daysTo(month.last)) + 1;
+            left = leftCents > 0 ? QString("%1 a day until month end").arg(settings.formatCurrency(leftCents / daysLeft))
+                                 : QString("Nothing left");
+        }
+    }
+    spentNote->setText(spent);
+    spentNote->setVisible(!spent.isEmpty());
+    leftNote->setText(left);
+    leftNote->setVisible(!left.isEmpty());
 }
 
 void BudgetPage::updateIcons() {
@@ -444,6 +497,11 @@ void BudgetPage::reload() {
     }
     setExpanded(expandedCategoryId);
     highlightRow(editor->isVisible() ? editor->editedCategoryId() : 0);
+
+    // The pace by the same numbers as the report the header leads to
+    const QDate day = today();
+    updateNotes(Reports::budgetVsActual(userId, {shownMonth, shownMonth.addMonths(1).addDays(-1)}, day), day);
+    reportLink->setVisible(!budgets.isEmpty());
     emptyLabel->setText(QString("No budgets for %1 yet.\nAdd one to keep an eye on what a category may cost each month.")
                             .arg(monthName(shownMonth)));
     emptyLabel->setVisible(budgets.isEmpty());

@@ -16,6 +16,7 @@
 #include "transaction.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
+#include "widgets/budgetcharts.h"
 #include "widgets/reportspage.h"
 
 using Preset = ReportRange::Preset;
@@ -28,6 +29,19 @@ class TestReportsPage : public QObject {
     static QString text(ReportsPage& page, const char* name) { return page.findChild<QLabel*>(name)->text(); }
     static QToolButton* chip(ReportsPage& page, Preset preset) {
         return page.findChild<QToolButton*>("reportsRange_" + ReportRange::key(preset));
+    }
+    static QToolButton* viewChip(ReportsPage& page, const QString& view) {
+        return page.findChild<QToolButton*>("budgetView_" + view);
+    }
+    static QWidget* shownView(ReportsPage& page) {
+        const QList<QWidget*> views = page.findChild<QWidget*>("budgetViews")->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
+        QWidget* shown = nullptr;
+        for (QWidget* view : views) {
+            if (view->isHidden()) continue;
+            if (shown) return nullptr;                   // Only ever one
+            shown = view;
+        }
+        return shown;
     }
     static QList<QAbstractButton*> cards(ReportsPage& page) {
         return page.findChildren<QAbstractButton*>("reportCard");
@@ -381,6 +395,88 @@ private slots:
         QVERIFY(!QToolTip::isVisible());
     }
 
+    void budgetVsActualInTabs() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        const QDate first(today.year(), today.month(), 1);
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, first.addMonths(-2), 10000));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 4000, today, "", groceries, "expense"));
+        Settings::instance().setReportsBudgetView(0);
+
+        // A month: all together as its pace, or each budget day by day
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        page.openReport(ReportsPage::Report::BudgetVsActual);
+        QVERIFY(viewChip(page, "together")->isChecked());
+        QVERIFY(!viewChip(page, "grid"));
+        QCOMPARE(shownView(page)->objectName(), QString("budgetChart"));
+        QCOMPARE(shownView(page)->minimumHeight(), 280);
+        viewChip(page, "each")->click();
+        QCOMPARE(shownView(page)->objectName(), QString("budgetEachView"));
+        QCOMPARE(Settings::instance().getReportsBudgetView(), 1);
+        auto* lines = page.findChild<BudgetLinesChart*>();
+        QVERIFY(lines);
+        QCOMPARE(lines->lastDay(), today.day());
+        QVERIFY(page.findChild<QLabel*>("budgetLegend")->text().contains("Groceries"));
+        QSignalSpy requested(&page, &ReportsPage::transactionsRequested);
+        emit lines->budgetClicked(groceries);
+        QCOMPARE(requested.size(), 1);
+        QCOMPARE(requested.last()[0].toInt(), groceries);
+        QCOMPARE(requested.last()[1].toInt(), int(ReportsPage::ALL_ACCOUNTS));
+        QCOMPARE(requested.last()[2].toDate(), first);
+        QCOMPARE(requested.last()[3].toDate(), first.addMonths(1).addDays(-1));
+
+        // Several months: the bars, each budget month by month, and the grid; the view is remembered
+        chip(page, Preset::ThreeMonths)->click();
+        QVERIFY(viewChip(page, "grid"));
+        QVERIFY(viewChip(page, "each")->isChecked());
+        QVERIFY(!page.findChild<BudgetLinesChart*>());
+        auto* months = page.findChild<BudgetMonthsChart*>();
+        auto* grid = page.findChild<BudgetGrid*>();
+        QVERIFY(months && grid);
+        QCOMPARE(shownView(page)->objectName(), QString("budgetEachView"));
+        viewChip(page, "grid")->click();
+        QCOMPARE(shownView(page), grid);
+        QVERIFY(grid->minimumHeight() < 280);                  // Only as tall as its rows
+        QCOMPARE(page.findChild<QWidget*>("budgetEachView")->minimumHeight(), 280);
+        QCOMPARE(Settings::instance().getReportsBudgetView(), 2);
+        const ReportRange lastMonth{first.addMonths(-1), first.addDays(-1)};
+        emit grid->monthClicked(groceries, lastMonth);
+        QCOMPARE(requested.last()[2].toDate(), lastMonth.first);
+        QCOMPARE(requested.last()[3].toDate(), lastMonth.last);
+        emit months->monthClicked(groceries, ReportRange{first, first.addMonths(1).addDays(-1)});
+        QCOMPARE(requested.size(), 3);
+        QCOMPARE(requested.last()[2].toDate(), first);
+
+        // Back to a month there's no grid: each budget, and the grid stays remembered for later
+        chip(page, Preset::Month)->click();
+        QVERIFY(viewChip(page, "each")->isChecked());
+        QCOMPARE(shownView(page)->objectName(), QString("budgetEachView"));
+        QCOMPARE(Settings::instance().getReportsBudgetView(), 2);
+        Settings::instance().setReportsBudgetView(0);
+    }
+
+    void theBudgetPageOpensItsMonth() {
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::ThreeMonths)->click();
+        const QDate today = QDate::currentDate();
+        page.openBudgetMonth(today);
+        QCOMPARE(page.openedReport(), std::optional(ReportsPage::Report::BudgetVsActual));
+        QCOMPARE(page.range(), ReportRange::forPreset(Preset::Month, today));
+        QVERIFY(chip(page, Preset::Month)->isChecked());
+
+        const QDate earlier = QDate(today.year(), today.month(), 1).addMonths(-2);
+        page.openBudgetMonth(earlier.addDays(9));
+        QCOMPARE(page.range(), ReportRange({earlier, earlier.addMonths(1).addDays(-1)}));
+        QVERIFY(chip(page, Preset::Custom)->isChecked());
+        chip(page, Preset::SixMonths)->click();
+    }
+
     void budgetVsActualOnTheCardAndInDetail() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         QSqlQuery query(DatabaseManager::instance().database());
@@ -412,8 +508,9 @@ private slots:
         QVERIFY(chart);
         page.show();
         QVERIFY(QTest::qWaitForWindowExposed(&page));
-        QTRY_VERIFY(chart->y() > page.findChild<QLabel*>("budgetSummary")->y());                 // Below the summary,
-        QVERIFY(chart->y() < page.findChild<QAbstractButton*>("budgetRow")->y());                 // above the list
+        const auto top = [&page](QWidget* widget) { return widget->mapTo(&page, QPoint()).y(); };
+        QTRY_VERIFY(top(chart) > top(page.findChild<QLabel*>("budgetSummary")));               // Below the summary,
+        QVERIFY(top(chart) < top(page.findChild<QAbstractButton*>("budgetRow")));               // above the list
         const QString summary = text(page, "budgetSummary");
         if (today.day() == today.daysInMonth()) {
             QCOMPARE(summary, QString("%1 of %2 spent").arg(settings.formatCurrency(4000), settings.formatCurrency(10000)));
