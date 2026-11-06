@@ -400,7 +400,7 @@ QString formatName(Format format) {
     case Format::Ods: return "LibreOffice";
     case Format::None: break;
     }
-    return QString();
+    return QString();  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QList<Sheet> read(const QByteArray& data, Format format, QString* error) {

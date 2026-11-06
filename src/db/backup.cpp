@@ -149,7 +149,7 @@ bool isDue(Settings::BackupSchedule schedule, const QDateTime& last, const QDate
     case Settings::BackupSchedule::Off:
         break;
     }
-    return false;
+    return false;  // GCOVR_EXCL_LINE: every value returns above
 }
 
 bool scheduled(QString* errorMessage) {

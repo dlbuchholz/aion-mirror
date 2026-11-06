@@ -156,7 +156,7 @@ QString ReportRange::key(Preset preset) {
     for (const auto& [candidate, name] : PresetKeys) {
         if (candidate == preset) return name;
     }
-    return QString();
+    return QString();  // GCOVR_EXCL_LINE: PresetKeys has every preset
 }
 
 std::optional<ReportRange::Preset> ReportRange::presetFromKey(const QString& key) {

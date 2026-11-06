@@ -74,7 +74,9 @@ foreach ($test in $tests) {
     $partial = Join-Path $output "$test.cov"
     $suiteXml = Join-Path $output "$test.xml"
     Write-Host "Running $test"
-    & $OpenCppCoverage --quiet --sources $sources --export_type "binary:$partial" --export_type "cobertura:$suiteXml" -- $exe *> $null
+    # Lines marked GCOVR_EXCL_LINE can't run (see CONTRIBUTING.md), as gcovr leaves them out by itself
+    & $OpenCppCoverage --quiet --sources $sources --excluded_line_regex ".*GCOVR_EXCL_LINE.*" `
+        --export_type "binary:$partial" --export_type "cobertura:$suiteXml" -- $exe *> $null
     if ($LASTEXITCODE -ne 0) { $failed += $test }
     $partials += $partial
 

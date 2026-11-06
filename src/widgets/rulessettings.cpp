@@ -41,7 +41,7 @@ QList<Operator> operatorsFor(Field field) {
     case Field::Type:
     case Field::Account: return {Operator::Is};
     }
-    return {};
+    return {};  // GCOVR_EXCL_LINE: every value returns above
 }
 
 // Text wrapped to at most maxLines lines, the last ending in "…" when the rest doesn't fit. Takes

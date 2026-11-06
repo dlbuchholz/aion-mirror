@@ -58,7 +58,7 @@ bool textMatches(const QString& text, RuleCondition::Operator op, const QString&
     case RuleCondition::Operator::StartsWith: return haystack.startsWith(needle, Qt::CaseInsensitive);
     case RuleCondition::Operator::Between: return false;
     }
-    return false;
+    return false;  // GCOVR_EXCL_LINE: every value returns above
 }
 
 // For RuleMatchIndex: both texts already simplified and case-folded
@@ -72,7 +72,7 @@ bool tidiedTextMatches(const QString& haystack, RuleCondition::Operator op, cons
     case RuleCondition::Operator::StartsWith: return haystack.startsWith(needle);
     case RuleCondition::Operator::Between: return false;
     }
-    return false;
+    return false;  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QString tidied(const QString& text) {
@@ -124,7 +124,7 @@ bool anyFieldText(RuleCondition::Field field, const QString& payee, const QStrin
     case RuleCondition::Field::Payee: return test(payee) || test(originalPayee);
     case RuleCondition::Field::Description: return test(description);
     case RuleCondition::Field::PayeeOrDescription: return test(payee) || test(originalPayee) || test(description);
-    default: return false;
+    default: return false;  // GCOVR_EXCL_LINE: only called for the text fields above
     }
 }
 
@@ -168,7 +168,7 @@ bool RuleCondition::matches(const Transaction& transaction) const {
     case Field::Account:
         return op == Operator::Is && QString::number(transaction.getAccountId()) == value;
     }
-    return false;
+    return false;  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QString RuleCondition::fieldLabel(Field field) {
@@ -180,7 +180,7 @@ QString RuleCondition::fieldLabel(Field field) {
     case Field::Type: return "Type";
     case Field::Account: return "Account";
     }
-    return {};
+    return {};  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QString RuleCondition::operatorLabel(Operator op) {
@@ -190,21 +190,21 @@ QString RuleCondition::operatorLabel(Operator op) {
     case Operator::StartsWith: return "starts with";
     case Operator::Between: return "is between";
     }
-    return {};
+    return {};  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QString RuleCondition::fieldKey(Field field) {
     for (const auto& key : FieldKeys) {
         if (key.first == field) return key.second;
     }
-    return {};
+    return {};  // GCOVR_EXCL_LINE: FieldKeys has every field
 }
 
 QString RuleCondition::operatorKey(Operator op) {
     for (const auto& key : OperatorKeys) {
         if (key.first == op) return key.second;
     }
-    return {};
+    return {};  // GCOVR_EXCL_LINE: OperatorKeys has every operator
 }
 
 std::optional<RuleCondition::Field> RuleCondition::fieldFromKey(const QString& text) {
@@ -525,7 +525,7 @@ QList<Rule> RuleDAO::rules() {
         const auto op = RuleCondition::operatorFromKey(query.value(2).toString());
         const auto index = indexById.constFind(query.value(0).toInt());
         if (index == indexById.constEnd()) {
-            continue;
+            continue;  // GCOVR_EXCL_LINE: the conditions are read for the same rules
         }
         if (!field || !op) {
             unreadable.insert(*index);

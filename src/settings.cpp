@@ -173,7 +173,7 @@ QString Settings::getThousandsSeparatorString() const {
     case ThousandsSeparator::Point: return ".";
     case ThousandsSeparator::Space: return " ";
     }
-    return ",";
+    return ",";  // GCOVR_EXCL_LINE: every value returns above
 }
 
 // Currency Symbol Position

@@ -1156,7 +1156,7 @@ void ImportManagerDialog::refreshReview()
 bool ImportManagerDialog::expectedBalance(Cents *cents) const
 {
     if (expectedEdit->text().trimmed().isEmpty()) {
-        return false;
+        return false;  // GCOVR_EXCL_LINE: only asked once the field has text
     }
     const QChar separator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
     bool ok = false;

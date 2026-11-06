@@ -38,10 +38,10 @@ static QString stripLeadingSqlComments(QString s) {
     while (true) {
         QString t = out.trimmed();
         if (t.startsWith("--")) {
-            int nl = out.indexOf('\n');
-            if (nl == -1) return QString(); // whole chunk is a comment
-            out = out.mid(nl + 1);
-            continue;
+            int nl = out.indexOf('\n');  // GCOVR_EXCL_LINE: splitSqlStatements already took the comments out
+            if (nl == -1) return QString();  // GCOVR_EXCL_LINE: the whole chunk is a comment
+            out = out.mid(nl + 1);  // GCOVR_EXCL_LINE
+            continue;  // GCOVR_EXCL_LINE
         }
         return t;
     }

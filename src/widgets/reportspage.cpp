@@ -1340,7 +1340,7 @@ QString ReportsPage::title(Report report) {
     case Report::BudgetVsActual: return "Budget vs. actual";
     case Report::MoneyFlow: return "Money flow";
     }
-    return QString();
+    return QString();  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QToolButton* ReportsPage::addChip(const QString& text, ReportRange::Preset chipPreset, QLayout* layout) {

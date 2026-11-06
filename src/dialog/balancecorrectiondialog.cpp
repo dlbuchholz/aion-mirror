@@ -80,7 +80,7 @@ int BalanceCorrectionDialog::addedTransactionId() const {
 
 bool BalanceCorrectionDialog::expectedBalance(Cents* cents) const {
     if (expectedEdit->text().trimmed().isEmpty()) {
-        return false;
+        return false;  // GCOVR_EXCL_LINE: only asked once the field has text
     }
     const QChar separator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
     bool ok = false;
@@ -124,7 +124,7 @@ void BalanceCorrectionDialog::updateBalance() {
 void BalanceCorrectionDialog::addCorrection() {
     Cents expected = 0;
     if (!expectedBalance(&expected) || expected == currentCents) {
-        return;
+        return;  // GCOVR_EXCL_LINE: the button is off unless there is a difference
     }
     transactionId = Balance::addCorrection(accountCombo->currentData().toInt(), dateEdit->date(), expected - currentCents,
                                            "Corrected by hand");

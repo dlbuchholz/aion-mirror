@@ -155,6 +155,9 @@ $env:QT_FORCE_STDERR_LOGGING = '1'
   warn about different things, and CI builds with GCC.
 - Run the whole test suite.
 - If you add code to `src/`, add or update tests in `tests/`.
+- A line that can never run, like the `return` after a `switch` that handles every value, can end
+  with `// GCOVR_EXCL_LINE: <why>`, and the coverage report leaves it out. Use it only for lines that
+  really can't run, not for ones that are just hard to test, like a failing disk.
 
 ## Builds and releases
 

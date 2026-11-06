@@ -78,7 +78,7 @@ public:
         case Kind::SectionHeader: return QSize(0, 28);
         case Kind::Row:           return QSize(0, progress >= 0 ? 40 : 28);
         }
-        return QSize(0, 28);
+        return QSize(0, 28);  // GCOVR_EXCL_LINE: every value returns above
     }
 
 protected:

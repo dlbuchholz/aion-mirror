@@ -72,7 +72,8 @@ def lines_of(report):
     for entry in report["files"]:
         lines = files.setdefault(entry["file"].replace("\\", "/"), {})
         for line in entry["lines"]:
-            if line.get("gcovr/noncode"):
+            # Lines marked GCOVR_EXCL_LINE can't run (see CONTRIBUTING.md)
+            if line.get("gcovr/noncode") or line.get("gcovr/excluded"):
                 continue
             number = line["line_number"]
             lines[number] = lines.get(number, False) or line["count"] > 0
