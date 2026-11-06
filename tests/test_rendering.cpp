@@ -132,6 +132,16 @@ private slots:
         }
     }
 
+    void disabledTextLooksDisabledInBothThemes() {
+        for (const Theme::Type theme : {Theme::Type::Light, Theme::Type::Dark}) {
+            Theme::applyTheme(theme);
+            const QPalette palette = qApp->palette();
+            for (QPalette::ColorRole role : {QPalette::Text, QPalette::WindowText, QPalette::ButtonText}) {
+                QVERIFY(palette.color(QPalette::Disabled, role) != palette.color(QPalette::Active, role));
+            }
+        }
+    }
+
     void systemThemeFollowsTheOperatingSystem() {
         Theme::applyTheme(Theme::Type::System);
         const bool systemDark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;

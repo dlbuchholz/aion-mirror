@@ -174,6 +174,10 @@ private:
         lightPalette.setColor(QPalette::WindowText, Qt::black);
         lightPalette.setColor(QPalette::ToolTipBase, QColor(255, 255, 255));   // Not Qt's yellow
         lightPalette.setColor(QPalette::ToolTipText, QColor(30, 30, 30));
+        // The colours above are for every state, so disabled text would look enabled
+        for (QPalette::ColorRole role : {QPalette::Text, QPalette::WindowText, QPalette::ButtonText}) {
+            lightPalette.setColor(QPalette::Disabled, role, QColor(160, 160, 164));
+        }
 
         qApp->setPalette(lightPalette);
         styleToolTips(QColor(255, 255, 255), QColor(30, 30, 30), QColor(0, 0, 0, 45));
