@@ -52,6 +52,7 @@ private slots:
     void cleanup() { db.close(); }
 
     void withoutTheirTablesReportsStayEmpty() {
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, QDate(2026, 10, 1), 40000));
         QSqlQuery query(DatabaseManager::instance().database());
         QVERIFY(query.exec("DROP VIEW account_balances"));
         QVERIFY(query.exec("DROP TABLE recurring_transactions"));
@@ -67,6 +68,12 @@ private slots:
         const MoneyFlow money = Reports::moneyFlow(1, -1, range);
         QVERIFY(money.income.isEmpty() && money.spending.isEmpty());
         QCOMPARE(money.totalCents(), Cents(0));
+        // The budget is still there, but nothing day by day
+        const BudgetReport budgets = Reports::budgetVsActual(1, range, today);
+        QCOMPARE(budgets.limitCents, Cents(40000));
+        QVERIFY(budgets.spentByDay.isEmpty());
+        QCOMPARE(budgets.categories.size(), 1);
+        QVERIFY(budgets.categories.first().spentByDay.isEmpty());
     }
 
     void spendingPerCategoryLargestFirst() {

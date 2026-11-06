@@ -543,6 +543,33 @@ private slots:
         QCOMPARE(page.trendCategory(), groceries);
     }
 
+    void aFinishedMonthSaysWhatWasSpent() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        const QDate lastMonth = QDate(today.year(), today.month(), 1).addMonths(-1);
+        QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, lastMonth, 10000));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 2500, lastMonth.addDays(3), "", groceries, "expense"));
+
+        ReportsPage page;
+        page.setUserId(1);
+        page.openBudgetMonth(lastMonth);
+        const Settings& settings = Settings::instance();
+        QCOMPARE(text(page, "budgetSummary"), QString("%1 of %2 spent").arg(settings.formatCurrency(2500), settings.formatCurrency(10000)));
+    }
+
+    void withOnlyMoneyBackTheTrendHasNoCategory() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 3000, QDate::currentDate(), "", query.value(0).toInt(), "income"));
+        ReportsPage page;
+        page.setUserId(1);
+        QCOMPARE(page.trendCategory(), std::nullopt);
+    }
+
     void categoryTrendFollowsTheLargestOrTheChosenCategory() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         QSqlQuery query(DatabaseManager::instance().database());
@@ -694,6 +721,7 @@ private slots:
         // A band says what it is and leads to its transactions too: down the right-hand parts
         auto* chart = page.findChild<QWidget*>("moneyFlowChart");
         const int partsX = chart->width() - qMin(220, chart->width() * 3 / 10) - 5;
+        const QImage plain = chart->grab().toImage();
         int groceriesY = -1;
         for (int y = 0; y < chart->height() && groceriesY < 0; y += 2) {
             moveMouse(chart, QPoint(partsX, y));
@@ -704,6 +732,9 @@ private slots:
         releaseMouse(chart, QPoint(partsX, groceriesY), Qt::LeftButton);
         QCOMPARE(requested.size(), 2);
         QCOMPARE(requested[1][0].toInt(), groceries);
+        QVERIFY(chart->grab().toImage() != plain);       // The band stands out until the mouse leaves
+        leave(chart);
+        QCOMPARE(chart->grab().toImage(), plain);
 
         // More out than in: the rest from savings, nothing kept
         TransactionDAO().addTransaction(Transaction(-1, giro, "Landlord", 300000, today, "", 0, "expense"));

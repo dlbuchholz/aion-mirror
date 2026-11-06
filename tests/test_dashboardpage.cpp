@@ -186,6 +186,8 @@ private slots:
         DashboardPage page;
         page.reload();
         QVERIFY(page.findChildren<QAbstractButton*>("categoryRow").isEmpty());
+        page.setPalette(QPalette(Qt::darkBlue));         // A new theme fills no tiles either
+        for (QLabel* label : page.findChildren<QLabel*>()) QVERIFY(label->text() != "No change this month");
     }
 
     void categoryBarsCanLeaveOutTheColors() {

@@ -66,6 +66,8 @@ private slots:
         october.from = QDate(2026, 10, 1);
         october.to = QDate(2026, 10, 31);
         model.setFilter(october);
+        QCOMPARE(model.filter().from, october.from);
+        QCOMPARE(model.filter().to, october.to);
         QCOMPARE(model.totals().count, 3);
         QCOMPARE(model.totals().expenses, Cents(5250));
         QVERIFY(!model.indexForTransaction(4).isValid());
