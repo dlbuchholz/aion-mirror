@@ -153,6 +153,26 @@ private slots:
         QCOMPARE(clicked.first().first().toInt(), 2);
     }
 
+    void chartsLetGoWhenTheMouseLeaves() {
+        BudgetLinesChart lines;
+        lines.resize(760, 220);
+        lines.setLines(November, fourLines());
+        BudgetMonthsChart months;
+        months.resize(760, 220);
+        months.setLines(junToNov(), monthLines(fourBudgetsOverMonths()));
+        const QList<std::pair<QWidget*, QPointF>> charts = {{&lines, lines.pointOn(1, 10)}, {&months, *months.pointOn(0, 3)}};
+        for (const auto& [chart, onLine] : charts) {
+            chart->show();
+            QVERIFY(QTest::qWaitForWindowExposed(chart));
+            const QImage plain = chart->grab().toImage();
+            moveMouse(chart, onLine);
+            QVERIFY(chart->grab().toImage() != plain);
+            QEvent leave(QEvent::Leave);
+            QApplication::sendEvent(chart, &leave);
+            QCOMPARE(chart->grab().toImage(), plain);
+        }
+    }
+
     void linesMakeRoomAndStopAtTheLastDay() {
         // Far over the limit, and more back than spent
         BudgetLinesChart chart;

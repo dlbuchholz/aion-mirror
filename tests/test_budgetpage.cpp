@@ -492,6 +492,53 @@ private slots:
         QApplication::sendEvent(&chart, &away);
         QCOMPARE(chart.cursor().shape(), Qt::ArrowCursor);
         QCOMPARE(chart.grab().toImage(), plain);
+
+        // Leaving lets go of the dot as well
+        QApplication::sendEvent(&chart, &onDot);
+        QVERIFY(chart.grab().toImage() != plain);
+        QEvent leave(QEvent::Leave);
+        QApplication::sendEvent(&chart, &leave);
+        QCOMPARE(chart.grab().toImage(), plain);
+    }
+
+    void theDetailJoinsItsRowAndItsTransactionsLightUp() {
+        BudgetDetail detail(groceriesBudget(31200), QDate(2026, 11, 1), november(), 0, 0, QDate(2026, 11, 18));
+        detail.resize(560, detail.sizeHint().height());
+        detail.layout()->activate();
+        // Square at the top to join the row above, rounded at the bottom
+        const QImage drawn = detail.grab().toImage();
+        QVERIFY(drawn.pixelColor(0, 0) != drawn.pixelColor(0, drawn.height() - 1));
+        QCOMPARE(drawn.pixelColor(0, 0), drawn.pixelColor(0, drawn.height() / 2));
+
+        // Its rows sit on the hover colour already, so they light up stronger than other rows
+        HoverRow* listed = detail.findChildren<HoverRow*>("budgetDetailTransaction").first();
+        HoverRow other;
+        other.resize(listed->size());
+        HoverRow strong;
+        strong.setStrongHighlight(true);
+        strong.resize(listed->size());
+        const QPoint middle(listed->width() / 2, listed->height() / 2);
+        const QColor plain = other.grab().toImage().pixelColor(middle);
+        other.setAttribute(Qt::WA_UnderMouse);
+        strong.setAttribute(Qt::WA_UnderMouse);
+        const QColor lit = other.grab().toImage().pixelColor(middle);
+        QVERIFY(lit != plain);
+        QVERIFY(strong.grab().toImage().pixelColor(middle) != lit);
+        other.show();                                    // Focus lights it up as well
+        QVERIFY(QTest::qWaitForWindowActive(&other));
+        other.setFocus();
+        QVERIFY(other.hasFocus());
+        other.setAttribute(Qt::WA_UnderMouse, false);    // Shown, it's under the test's mouse too
+        QCOMPARE(other.grab().toImage().pixelColor(middle), lit);
+
+        // Enter opens a transaction like a click; other keys don't
+        QSignalSpy requested(&detail, &BudgetDetail::transactionRequested);
+        QTest::keyClick(listed, Qt::Key_A);
+        QCOMPARE(requested.size(), 0);
+        QTest::keyClick(listed, Qt::Key_Return);
+        QTest::keyClick(listed, Qt::Key_Enter);
+        QCOMPARE(requested.size(), 2);
+        QCOMPARE(requested.first().first().toInt(), 6);
     }
 
     void moneyBackStepsTheLineDown() {
