@@ -100,6 +100,7 @@ private:
     QPushButton* correctBalanceButton = nullptr;
     QLineEdit* searchEdit = nullptr;
     QAction* searchAction = nullptr;
+    QWidget* filterBar = nullptr;                    // Search, period, category and type, in the theme's control look
     PeriodPicker* periodPicker = nullptr;
     QComboBox* categoryFilter = nullptr;
     QButtonGroup* typeGroup = nullptr;               // Both, income only or expenses only

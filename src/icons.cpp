@@ -2,6 +2,8 @@
 
 #include <QAbstractButton>
 #include <QEvent>
+#include <QFile>
+#include <QTemporaryDir>
 #include <QGuiApplication>
 #include <QHash>
 #include <QPainter>
@@ -38,6 +40,16 @@ QPixmap tinted(const QString& name, const QColor& color, int size, qreal deviceP
 
 QIcon icon(const QString& name, const QColor& color, int size) {
     return QIcon(tinted(name, color, size, qApp->devicePixelRatio()));
+}
+
+QString file(const QString& name, const QColor& color, int size) {
+    static QTemporaryDir folder;
+    const QString base = QString("%1/%2-%3-%4").arg(folder.path(), name, color.name(QColor::HexArgb).mid(1)).arg(size);
+    if (!QFile::exists(base + ".png")) {
+        tinted(name, color, size * 2, 1.0).save(base + "@2x.png");
+        tinted(name, color, size, 1.0).save(base + ".png");
+    }
+    return base + ".png";
 }
 
 namespace {

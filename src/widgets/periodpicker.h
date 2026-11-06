@@ -14,7 +14,7 @@ class PeriodMenu;
 // The period of the transactions shown: "‹ March 2026 ›". The arrows step to the period before or
 // after, of the same length; the name opens a menu with the usual periods and any month. An
 // invalid range is all time, which has nothing to step to.
-class PeriodPicker : public QWidget {
+class PeriodPicker : public QFrame {
     Q_OBJECT
 
 public:
@@ -40,6 +40,7 @@ private:
     void choose(const ReportRange& range);
     void refresh();
     void updateIcons();
+    void updateNameWidth();
 
     QToolButton* previousButton = nullptr;
     QToolButton* nameButton = nullptr;

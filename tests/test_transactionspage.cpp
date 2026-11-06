@@ -22,6 +22,7 @@
 #include "dialog/importmanagerdialog.h"
 #include "rule.h"
 #include "settings.h"
+#include "theme.h"
 #include "tests/test_db_fixture.h"
 #include "transactionlistmodel.h"
 #include "widgets/periodpicker.h"
@@ -583,7 +584,7 @@ private slots:
         page.findChild<QToolButton*>("periodName")->click();
         auto* menu = page.findChild<PeriodMenu*>();
         QVERIFY(menu->isVisible());
-        for (QToolButton* button : menu->findChildren<QToolButton*>()) {
+        for (QAbstractButton* button : menu->findChildren<QAbstractButton*>()) {
             if (button->text() == text) {
                 button->click();
                 return;
@@ -928,8 +929,12 @@ private slots:
         QVERIFY(!menuButton("month7")->isEnabled());         // Not started yet
         QVERIFY(!menuButton("nextYear")->isEnabled());
         QVERIFY(!menuButton("month6")->isChecked());
+        QVERIFY(menuButton("month6")->property("thisMonth").toBool());   // Outlined
+        QVERIFY(!menuButton("month5")->property("thisMonth").toBool());
+        QVERIFY(!menuButton("month7")->property("thisMonth").toBool());
 
         menuButton("previousYear")->click();
+        QVERIFY(!menuButton("month6")->property("thisMonth").toBool());  // Only in this year
         menuButton("previousYear")->click();
         QCOMPARE(menu->shownYear(), 2024);
         QCOMPARE(menu->findChild<QLabel*>("yearLabel")->text(), QString("2024"));
@@ -1047,6 +1052,19 @@ private slots:
         page.setUserId(1);
         page.findChild<QToolButton*>("typeIncome")->click();
         QCOMPARE(page.findChild<QLabel*>("emptyLabel")->text(), QString("No transactions match these filters."));
+    }
+
+    void theFilterRowFollowsTheTheme() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        Theme::applyTheme(Theme::Type::Dark);
+        TransactionsPage page;
+        auto* row = page.findChild<QWidget*>("filterBar");
+        QCOMPARE(row->styleSheet(), Theme::controlStyleSheet());
+        QVERIFY(row->isAncestorOf(page.findChild<PeriodPicker*>()));
+        QVERIFY(row->isAncestorOf(page.findChild<QComboBox*>("categoryFilter")));
+        Theme::applyTheme(Theme::Type::Light);
+        QCoreApplication::processEvents();
+        QCOMPARE(row->styleSheet(), Theme::controlStyleSheet());   // The light one now
     }
 
     void incomeOrExpensesOnly() {

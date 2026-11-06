@@ -340,9 +340,14 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     root->addLayout(header);
 
     // Filters: search, period, category, unassigned transactions
-    auto* filters = new QHBoxLayout();
+    // The theme's own control look; only this row has it for now
+    filterBar = new QWidget(this);
+    filterBar->setObjectName("filterBar");
+    auto* filters = new QHBoxLayout(filterBar);
+    filters->setContentsMargins(0, 0, 0, 0);
     filters->setSpacing(6);
     searchEdit = new QLineEdit(this);
+    searchEdit->setFixedHeight(Theme::controlHeight);
     searchEdit->setObjectName("searchEdit");
     searchEdit->setPlaceholderText("Search payee, description, category or account  (Ctrl+F)");
     searchEdit->setClearButtonEnabled(true);
@@ -359,37 +364,51 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     categoryFilter = new QComboBox(this);
     categoryFilter->setObjectName("categoryFilter");
     categoryFilter->setMinimumWidth(150);
+    categoryFilter->setFixedHeight(Theme::controlHeight);
     connect(categoryFilter, &QComboBox::currentIndexChanged, this, &TransactionsPage::applyFilter);
     filters->addWidget(categoryFilter);
 
     // Both sides, income only or expenses only; the button's id is its place in types
     typeGroup = new QButtonGroup(this);
     typeGroup->setExclusive(true);
-    auto* typeButtons = new QHBoxLayout();
-    typeButtons->setSpacing(0);
+    auto* typeSegments = new QFrame(filterBar);
+    typeSegments->setObjectName("typeSegments");
+    typeSegments->setProperty("segmented", true);
+    typeSegments->setFixedHeight(Theme::controlHeight);
+    auto* typeButtons = new QHBoxLayout(typeSegments);
+    typeButtons->setContentsMargins(2, 2, 2, 2);
+    typeButtons->setSpacing(2);
     const QList<std::array<QString, 3>> types = {
         {"All", "typeAll", "Income and expenses"},
         {"In", "typeIncome", "Income only"},
         {"Out", "typeExpense", "Expenses only"},
     };
     for (const auto& type : types) {
-        QToolButton* button = addChip(type[0], typeButtons);
+        auto* button = new QToolButton(typeSegments);
+        button->setText(type[0]);
         button->setObjectName(type[1]);
         button->setToolTip(type[2]);
+        button->setCheckable(true);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setFixedHeight(Theme::controlHeight - 6);   // Inside the track's border and margins
+        typeButtons->addWidget(button);
         typeGroup->addButton(button, typeGroup->buttons().size());
     }
     typeGroup->button(0)->setChecked(true);
     connect(typeGroup, &QButtonGroup::idClicked, this, &TransactionsPage::applyFilter);
-    filters->addLayout(typeButtons);
+    filters->addWidget(typeSegments);
 
     unassignedChip = addChip(QString(), filters);
+    unassignedChip->setProperty("chip", true);
+    unassignedChip->setFixedHeight(Theme::controlHeight);
     unassignedChip->setToolTip("Transactions that don't belong to an account yet, for example from an import");
     connect(unassignedChip, &QToolButton::toggled, this, [this](bool checked) {
         showingUnassigned = checked;
         closeEditor();
         reload();
     });
-    root->addLayout(filters);
+    filterBar->setStyleSheet(Theme::controlStyleSheet());
+    root->addWidget(filterBar);
 
     // Bulk actions for multiple selected transactions
     bulkBar = new QFrame(this);
@@ -525,6 +544,7 @@ void TransactionsPage::updateIcons() {
 void TransactionsPage::changeEvent(QEvent* event) {
     if (event->type() == QEvent::PaletteChange && searchAction && incomeLabel) {
         updateIcons();
+        filterBar->setStyleSheet(Theme::controlStyleSheet());   // Its colours are the theme's
         updateTotals();                              // Income colour is part of the label text
     }
     QWidget::changeEvent(event);

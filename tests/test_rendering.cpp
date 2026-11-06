@@ -132,6 +132,49 @@ private slots:
         }
     }
 
+    void iconFilesForStyleSheetsAreTintedAndSharp() {
+        const QString red = Icons::file("chevron-down", QColor(200, 0, 0), 14);
+        QCOMPARE(Icons::file("chevron-down", QColor(200, 0, 0), 14), red);          // Made once
+        QVERIFY(Icons::file("chevron-down", QColor(0, 0, 200), 14) != red);
+        QVERIFY(Icons::file("chevron-down", QColor(200, 0, 0), 16) != red);
+        const QImage image(red);
+        const QImage sharp(QString(red).replace(".png", "@2x.png"));
+        QCOMPARE(image.size(), QSize(14, 14));
+        QCOMPARE(sharp.size(), QSize(28, 28));
+        int painted = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const QColor pixel = image.pixelColor(x, y);
+                if (pixel.alpha() == 255) {
+                    QCOMPARE(pixel.rgb(), QColor(200, 0, 0).rgb());
+                    ++painted;
+                }
+            }
+        }
+        QVERIFY(painted > 0);
+    }
+
+    void theControlStyleFollowsTheTheme() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        Theme::applyTheme(Theme::Type::Light);
+        const QString light = Theme::controlStyleSheet();
+        Theme::applyTheme(Theme::Type::Dark);
+        const QString dark = Theme::controlStyleSheet();
+        QVERIFY(light != dark);
+        for (const QString& sheet : {light, dark}) {
+            QVERIFY(!sheet.contains("BORDER") && !sheet.contains("TEXT") && !sheet.contains("ARROW"));   // All filled in
+            QVERIFY(QFile::exists(sheet.section("image: url(", 1).section(")", 0, 0)));
+        }
+        const auto rgba = [](const QColor& color) {
+            return QString("rgba(%1, %2, %3, %4)").arg(color.red()).arg(color.green()).arg(color.blue()).arg(color.alpha());
+        };
+        QVERIFY(light.contains("color: " + rgba(Theme::colors(false).textPrimary)));
+        QVERIFY(dark.contains("color: " + rgba(Theme::colors(true).textPrimary)));
+        // Fields are white in the light theme, not the dark theme's grey
+        QVERIFY(light.contains("QLineEdit, QComboBox { background-color: " + rgba(Qt::white)));
+        QVERIFY(!dark.contains("QLineEdit, QComboBox { background-color: " + rgba(Qt::white)));
+    }
+
     void disabledTextLooksDisabledInBothThemes() {
         for (const Theme::Type theme : {Theme::Type::Light, Theme::Type::Dark}) {
             Theme::applyTheme(theme);

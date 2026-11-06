@@ -13,6 +13,9 @@ namespace Icons {
 
 QPixmap tinted(const QString& name, const QColor& color, int size, qreal devicePixelRatio);
 QIcon icon(const QString& name, const QColor& color, int size = 16);
+// The tinted icon as a PNG file, for style sheets, which take images only by path. A sharper
+// "@2x" file sits beside it for high-DPI screens. The files last until the app quits.
+QString file(const QString& name, const QColor& color, int size);
 
 // Gives the button the icon in its text colour, and keeps it so when the theme changes. Symbols
 // like ✕ as text would make Windows search its fonts for them, which takes up to a second.
