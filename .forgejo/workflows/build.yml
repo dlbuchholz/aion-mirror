@@ -3,6 +3,7 @@
 # Packages and publishes it (the "staging" pre-release) nightly when develop changed, and when
 # started by hand ("Run workflow" on the Actions page), which can also prepare the version's draft.
 # The Windows 7/8 package is built in nightly runs, with the draft, and when its box is ticked.
+# Nightly and by hand, the tests also run once more with sanitizers (the sanitizers job).
 # Runs on the self-hosted runner (label linux-qt: Fedora with Qt 6, see the runner's Dockerfile).
 name: Build and test
 
@@ -188,6 +189,47 @@ jobs:
           name: fedora-release
           retention-days: 1
           path: dist/${{ steps.package.outputs.name }}.rpm
+
+  # The tests once more, built with AddressSanitizer and UndefinedBehaviorSanitizer
+  # (AION_SANITIZERS): memory errors and undefined behaviour that a normal run passes by luck stop
+  # the test with a report. A Debug build of its own, so only in publishing runs (nightly and by
+  # hand). It doesn't hold up the release. Leaks aren't checked yet: Qt and fontconfig keep memory
+  # until the program ends, which would bury Aion's own reports.
+  sanitizers:
+    name: Linux (sanitizers)
+    needs: plan
+    if: needs.plan.outputs.build == 'true' && needs.plan.outputs.publish == 'true'
+    runs-on: linux-qt
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Restore the compiler cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-sanitizers-${{ github.sha }}
+          restore-keys: ccache-sanitizers-
+
+      - name: Configure
+        run: cmake -S . -B build-sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_USE_SYSTEM_QT=ON -DAION_SANITIZERS=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+
+      - name: Build
+        run: |
+          ccache -z > /dev/null 2>&1 || true
+          cmake --build build-sanitizers
+          ccache -s 2>/dev/null || true
+
+      # The tests run two to three times slower here, so they get more time
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: ctest --test-dir build-sanitizers --output-on-failure --timeout 300
 
   # Linux on Debian, with Debian's Qt (ci/images/debian13.Dockerfile). Also tests with an older
   # Qt version, so not on every push (older_qt).

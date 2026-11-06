@@ -196,6 +196,12 @@ self-hosted runner with four build images:
     starts and uninstalls under Wine;
   - pack the AppImage ([scripts/package-appimage.sh](scripts/package-appimage.sh)) and check that it
     starts;
+  - build Linux once more with `-DAION_SANITIZERS=ON` and run the tests with AddressSanitizer and
+    UndefinedBehaviorSanitizer, which stop a test at a memory error or undefined behaviour that a
+    normal run passes by luck. Leaks aren't checked yet. A failure there fails the run but doesn't
+    hold up the release. To run it yourself (GCC or Clang, Linux or WSL):
+    `cmake -S . -B build-sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_SANITIZERS=ON`, build,
+    then `ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build-sanitizers --output-on-failure`;
   - nightly, with the draft, or when its box is ticked: build the Windows 7/8 package and its
     installer ([installer/aion-win7.nsi](installer/aion-win7.nsi)) the same way, and check that
     every Windows function it calls exists on Windows 7 SP1

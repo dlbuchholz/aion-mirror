@@ -58,6 +58,18 @@ if(AION_COVERAGE)
     target_link_options(aion_warnings INTERFACE --coverage)
 endif()
 
+# AION_SANITIZERS builds with AddressSanitizer and UndefinedBehaviorSanitizer, for the nightly
+# check (GCC or Clang only): a memory error or undefined behaviour stops the program with a report
+option(AION_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
+if(AION_SANITIZERS)
+    if(MSVC)
+        message(FATAL_ERROR "AION_SANITIZERS needs GCC or Clang")
+    endif()
+    target_compile_options(aion_warnings INTERFACE
+        -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g)
+    target_link_options(aion_warnings INTERFACE -fsanitize=address,undefined)
+endif()
+
 # Visual Studio builds compile one file after another unless told otherwise (/MP). Ninja already
 # runs one compiler per file in parallel.
 if(MSVC AND CMAKE_GENERATOR MATCHES "Visual Studio")
