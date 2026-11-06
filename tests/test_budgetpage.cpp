@@ -74,7 +74,12 @@ class TestBudgetPage : public QObject {
     }
 
 private slots:
-    void initTestCase() { db.init(); }
+    void initTestCase() {
+        db.init();
+        // The app's own look on every platform. Without it the system style's light grey sits under
+        // the dark theme's faint white highlights, and on some (windows11) two of them round to one colour.
+        Theme::applyTheme(Theme::Type::Dark);
+    }
     void init() {
         db.yankDb();
         db.seedDefaultUser();
@@ -525,6 +530,7 @@ private slots:
         QVERIFY(lit != plain);
         QVERIFY(strong.grab().toImage().pixelColor(middle) != lit);
         other.show();                                    // Focus lights it up as well
+        other.activateWindow();                          // Wine on xvfb has no window manager to do it
         QVERIFY(QTest::qWaitForWindowActive(&other));
         other.setFocus();
         QVERIFY(other.hasFocus());
