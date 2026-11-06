@@ -41,6 +41,8 @@ public:
 
     // Asks for the days of a custom range, filled with the current ones (a dialog; tests replace it)
     std::function<bool(QDate& from, QDate& to)> askCustomRange;
+    // The day the ranges and reports go by (tests replace it)
+    std::function<QDate()> today = [] { return QDate::currentDate(); };
 
     void setUserId(int userId);
     void reload();                                   // Accounts and transactions changed

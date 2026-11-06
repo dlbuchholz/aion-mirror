@@ -1323,7 +1323,7 @@ ReportsPage::ReportsPage(QWidget* parent)
         setRange(saved, custom);
     } else {
         const ReportRange::Preset start = saved == ReportRange::Preset::Custom ? ReportRange::Preset::SixMonths : saved;
-        setRange(start, ReportRange::forPreset(start, QDate::currentDate()));
+        setRange(start, ReportRange::forPreset(start, today()));
     }
     showOverview();
     updateIcons();
@@ -1358,7 +1358,7 @@ QToolButton* ReportsPage::addChip(const QString& text, ReportRange::Preset chipP
 void ReportsPage::onRangeClicked(int presetId) {
     const auto clicked = static_cast<ReportRange::Preset>(presetId);
     if (clicked != ReportRange::Preset::Custom) {
-        setRange(clicked, ReportRange::forPreset(clicked, QDate::currentDate()));
+        setRange(clicked, ReportRange::forPreset(clicked, today()));
         return;
     }
     // Starts from what's shown; cancelling keeps it
@@ -1382,7 +1382,7 @@ void ReportsPage::setRange(ReportRange::Preset newPreset, const ReportRange& ran
 }
 
 void ReportsPage::openBudgetMonth(const QDate& month) {
-    const ReportRange thisMonth = ReportRange::forPreset(ReportRange::Preset::Month, QDate::currentDate());
+    const ReportRange thisMonth = ReportRange::forPreset(ReportRange::Preset::Month, today());
     const QDate first(month.year(), month.month(), 1);
     if (first == thisMonth.first) {
         setRange(ReportRange::Preset::Month, thisMonth);
@@ -1401,7 +1401,7 @@ void ReportsPage::setUserId(int newUserId) {
 void ReportsPage::reload() {
     // The month ranges move on with the date
     if (preset != ReportRange::Preset::Custom) {
-        shownRange = ReportRange::forPreset(preset, QDate::currentDate());
+        shownRange = ReportRange::forPreset(preset, today());
     }
     accountCombo->clear();
     accountCombo->addItem("All accounts", ALL_ACCOUNTS);
@@ -1460,14 +1460,14 @@ bool ReportsPage::event(QEvent* event) {
 void ReportsPage::refresh() {
     updateHeader();
     if (userId <= 0) return;
-    spending = Reports::spendingByCategory(userId, shownAccountId, shownRange, QDate::currentDate());
+    spending = Reports::spendingByCategory(userId, shownAccountId, shownRange, today());
     flow = Reports::incomeVsSpending(userId, shownAccountId, shownRange);
-    balance = Reports::balanceOverTime(userId, shownAccountId, shownRange, QDate::currentDate());
+    balance = Reports::balanceOverTime(userId, shownAccountId, shownRange, today());
     payees = Reports::topPayees(userId, shownAccountId, shownRange);
-    budgets = Reports::budgetVsActual(userId, shownRange, QDate::currentDate());
+    budgets = Reports::budgetVsActual(userId, shownRange, today());
     moneyFlow = Reports::moneyFlow(userId, shownAccountId, shownRange);
     if (const std::optional<int> category = trendCategory()) {
-        trend = Reports::categoryTrend(userId, shownAccountId, *category, shownRange, QDate::currentDate());
+        trend = Reports::categoryTrend(userId, shownAccountId, *category, shownRange, today());
     } else {
         trend.reset();
     }
@@ -1485,7 +1485,7 @@ std::optional<int> ReportsPage::trendCategory() const {
 
 void ReportsPage::openCategoryTrend(int categoryId) {
     chosenTrendCategory = categoryId;
-    if (userId > 0) trend = Reports::categoryTrend(userId, shownAccountId, categoryId, shownRange, QDate::currentDate());
+    if (userId > 0) trend = Reports::categoryTrend(userId, shownAccountId, categoryId, shownRange, today());
     updateCards();
     openReport(Report::CategoryTrend);
 }
@@ -1513,7 +1513,7 @@ void ReportsPage::updateCards() {
         int direction = 0;
         const QString change = changeText(spending.totalCents, spending.beforeTotalCents, direction);
         spendingCard->setValue(settings.formatSpending(spending.totalCents),
-                               QString("%1 vs. %2").arg(change, shownRange.comparisonText(QDate::currentDate())),
+                               QString("%1 vs. %2").arg(change, shownRange.comparisonText(today())),
                                changeColor(direction));
     } else {
         const int count = int(spending.categories.size());
@@ -1541,7 +1541,7 @@ void ReportsPage::updateCards() {
     const QDate since = balance.range.first;
     balanceCard->setValue(settings.formatCurrency(balance.endCents()),
                           QString("%1 since %2").arg(settings.formatCurrency(moved, true),
-                                                     english.toString(since, since.year() == QDate::currentDate().year() ? "d MMMM" : "d MMMM yyyy")),
+                                                     english.toString(since, since.year() == today().year() ? "d MMMM" : "d MMMM yyyy")),
                           moved > 0 ? Theme::colors().positive : moved < 0 ? Theme::colors().danger : QColor());
     balancePreview->setReport(balance);
 
@@ -1879,7 +1879,7 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
     }
 
     // How it went, then the chart: the pace in a single month, the months otherwise
-    const QString summary = budgetSummary(budgets, QDate::currentDate());
+    const QString summary = budgetSummary(budgets, today());
     if (!summary.isEmpty()) {
         auto* label = new QLabel(summary, widget);
         label->setObjectName("budgetSummary");
@@ -2188,7 +2188,7 @@ void ReportsPage::updateHeader() {
     backLink->setVisible(opened.has_value());
     titleLabel->setText(opened ? title(*opened) : QString("Reports"));
     QString rangeText = shownRange.label();
-    if (opened == Report::SpendingByCategory) rangeText += " · vs. " + shownRange.comparisonText(QDate::currentDate());
+    if (opened == Report::SpendingByCategory) rangeText += " · vs. " + shownRange.comparisonText(today());
     rangeLabel->setText(rangeText);
 }
 

@@ -560,6 +560,28 @@ private slots:
         QCOMPARE(text(page, "budgetSummary"), QString("%1 of %2 spent").arg(settings.formatCurrency(2500), settings.formatCurrency(10000)));
     }
 
+    void onItsLastDayAMonthSaysWhatWasSpent() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate march(2026, 3, 1);
+        QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, march, 31000));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 2500, QDate(2026, 3, 4), "", groceries, "expense"));
+        const Settings& settings = Settings::instance();
+
+        ReportsPage page;
+        page.today = [] { return QDate(2026, 3, 30); };
+        page.setUserId(1);
+        page.openBudgetMonth(march);
+        QVERIFY(chip(page, Preset::Month)->isChecked());  // March is this month here
+        QVERIFY(text(page, "budgetSummary").startsWith(QString("%1 spent by the 30th").arg(settings.formatCurrency(2500))));
+
+        page.today = [] { return QDate(2026, 3, 31); };   // Nothing left to pace
+        page.openBudgetMonth(march);
+        QCOMPARE(text(page, "budgetSummary"), QString("%1 of %2 spent").arg(settings.formatCurrency(2500), settings.formatCurrency(31000)));
+    }
+
     void withOnlyMoneyBackTheTrendHasNoCategory() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         QSqlQuery query(DatabaseManager::instance().database());
