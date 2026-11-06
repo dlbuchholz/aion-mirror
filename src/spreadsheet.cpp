@@ -18,6 +18,7 @@ namespace {
 
 constexpr mz_uint64 MaxFileSize = 256 * 1024 * 1024;   // Unpacked, per file in the archive (zip bombs)
 constexpr int MaxRepeats = 1000;                        // Rows or cells repeated more often are filler
+constexpr int MaxColumns = 16384;                       // Excel's last column is XFD
 
 const QString OfficeNs = QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:office:1.0");
 const QString TableNs = QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:table:1.0");
@@ -167,11 +168,13 @@ QList<bool> readDateStyles(const QByteArray& xmlData) {
 }
 
 int columnIndex(QStringView reference) {
-    // "BC12" -> 54
+    // "BC12" -> 54; -1 past the last column, before a long reference can overflow
     int column = 0;
     for (QChar c : reference) {
-        if (!c.isLetter()) break;
-        column = column * 26 + (c.toUpper().unicode() - 'A' + 1);
+        const char16_t letter = c.toUpper().unicode();
+        if (letter < u'A' || letter > u'Z') break;
+        column = column * 26 + (letter - u'A' + 1);
+        if (column > MaxColumns) return -1;
     }
     return column - 1;
 }
@@ -225,7 +228,7 @@ void readXlsxSheet(Sheet& sheet, const QByteArray& xmlData, const QStringList& s
                     text = numberText(number);
                 }
             }
-            if (column >= 0 && column < 16384) {     // Excel's last column is XFD
+            if (column >= 0 && column < MaxColumns) {
                 while (row.size() <= column) row.append(QString());
                 row[column] = text;
             }
@@ -366,7 +369,7 @@ QList<Sheet> readOds(Zip& zip, QString* error) {
                 }
                 if (text.isEmpty()) {
                     pendingEmpty += repeats;
-                } else if (row.size() + pendingEmpty < 16384) {
+                } else if (row.size() + pendingEmpty < MaxColumns) {
                     for (; pendingEmpty > 0; --pendingEmpty) row.append(QString());
                     for (int i = 0; i < qMin(repeats, MaxRepeats); ++i) row.append(text);
                 }

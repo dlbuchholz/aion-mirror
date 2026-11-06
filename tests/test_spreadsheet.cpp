@@ -346,6 +346,23 @@ private slots:
         QVERIFY2(error.isEmpty(), qPrintable(error));
         QCOMPARE(sheets.value(0).rows.value(0), QStringList({"", "2", "not a number"}));
     }
+
+    void columnsAreLettersUpToXfd() {
+        // Only A to Z name a column; XFD is the last one Excel has, anything past it is left out.
+        // A reference long enough to overflow stops counting early (the sanitizer build checks that).
+        const QByteArray bytes = xlsxWithRawRows("<row r=\"1\"><c r=\"\xC3\x84" "1\"><v>5</v></c>"   // Ä1, in UTF-8
+                                                 "<c r=\"b1\"><v>6</v></c><c r=\"XFD1\"><v>7</v></c>"
+                                                 "<c r=\"XFE1\"><v>8</v></c>"
+                                                 "<c r=\"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1\"><v>9</v></c></row>");
+        QString error;
+        const QStringList row = Spreadsheet::read(bytes, Spreadsheet::Format::Xlsx, &error).value(0).rows.value(0);
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(row.size(), 16384);
+        QCOMPARE(row.value(0), QString());               // Ä isn't a column
+        QCOMPARE(row.value(1), QString("6"));            // Lower case is
+        QCOMPARE(row.count(QString()), 16382);           // Ä, XFE and the long one are left out
+        QCOMPARE(row.last(), QString("7"));
+    }
 };
 
 QTEST_MAIN(TestSpreadsheet)
