@@ -15,6 +15,7 @@
 #include "settings.h"
 #include "startwindow.h"
 #include "systeminfo.h"
+#include "tests/test_file_dialog.h"
 #include "theme.h"
 #include "user.h"
 #include "version.h"
@@ -229,6 +230,34 @@ private slots:
         QCOMPARE(window.findChild<QToolButton*>("databaseButton")->text(), QString("family.db"));
         QVERIFY(!showsUser(window, "Bob Here"));
         QVERIFY(!window.findChild<QLineEdit*>("nameEdit")->parentWidget()->isHidden());   // No users yet
+    }
+
+    void theFileDialogsStartNextToTheOpenDatabase() {
+        const QString current = DatabaseSession::currentDatabasePath();
+        const QString folder = QFileInfo(current).absolutePath();
+        StartWindow window;
+
+        // Opening: any database file in the open one's folder
+        FileDialogSeen open;
+        answerFileDialog(&open, current);
+        QCOMPARE(QFileInfo(window.askDatabaseToOpen()), QFileInfo(current));
+        QVERIFY(open.shown);
+        QCOMPARE(open.title, QString("Open database"));
+        QCOMPARE(open.folder, folder);
+        QCOMPARE(open.filters, QStringList({"Aion database (*.db)", "All files (*)"}));
+        QCOMPARE(open.fileMode, QFileDialog::ExistingFile);
+
+        // Creating: budget.db there; an existing file is refused later, so the dialog doesn't ask
+        FileDialogSeen create;
+        answerFileDialog(&create);
+        QCOMPARE(window.askDatabaseToCreate(), QString());
+        QVERIFY(create.shown);
+        QCOMPARE(create.title, QString("New database"));
+        QCOMPARE(create.acceptMode, QFileDialog::AcceptSave);
+        QCOMPARE(create.folder, folder);
+        QCOMPARE(create.filters, QStringList({"Aion database (*.db)"}));
+        QVERIFY(!create.confirmsOverwrite);
+        QCOMPARE(QFileInfo(create.selected).fileName(), QString("budget.db"));
     }
 
     void aNewDatabaseOverAnExistingFileIsRefused() {

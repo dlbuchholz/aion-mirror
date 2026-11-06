@@ -3,8 +3,10 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QLabel>
+#include <QMessageBox>
 
 #include "systeminfo.h"
+#include "version.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/aboutwidget.h"
 
@@ -42,6 +44,27 @@ private slots:
         about.show();
         about.refresh();
         QCOMPARE(about.findChildren<QLabel*>(), before);
+    }
+
+    void checkingForUpdatesSaysItIsntThereYet() {
+        AboutWidget about;
+        QAbstractButton* check = nullptr;
+        for (QAbstractButton* button : about.findChildren<QAbstractButton*>()) {
+            if (button->text() == "Check for updates") check = button;
+        }
+        QVERIFY(check);
+        QString title;
+        QString said;
+        QTimer::singleShot(0, qApp, [&]() {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                title = box->windowTitle();
+                said = box->text();
+                box->accept();
+            }
+        });
+        check->click();
+        QCOMPARE(title, QString("Check for updates"));
+        QCOMPARE(said, QString("You're using Aion %1.\n\nChecking for updates isn't available yet.").arg(AION_VERSION));
     }
 };
 

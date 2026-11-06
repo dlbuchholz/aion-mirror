@@ -25,6 +25,7 @@
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
+#include "tests/test_file_dialog.h"
 #include "tests/test_spreadsheet_files.h"
 
 class TestBalance : public QObject {
@@ -262,6 +263,33 @@ private slots:
             if (button->text() == "Cancel") button->click();
         }
         QCOMPARE(accounts->currentText(), before);
+    }
+
+    void importDialogChoosesTheFileFromYourFolder() {
+        QTemporaryDir dir;
+        QFile file(dir.filePath("umsaetze.csv"));
+        writeBankFile(file);
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        auto* path = dialog.findChild<QLineEdit*>("filePathEdit");
+        auto* choose = dialog.findChild<QPushButton*>("chooseFileButton");
+
+        // Bank exports from the home folder; cancelling keeps no file
+        FileDialogSeen seen;
+        answerFileDialog(&seen);
+        choose->click();
+        QVERIFY(path->text().isEmpty());
+        QVERIFY(seen.shown);
+        QCOMPARE(seen.title, QString("Choose a file to import"));
+        QCOMPARE(seen.fileMode, QFileDialog::ExistingFile);
+        QCOMPARE(seen.folder, QDir::homePath());
+        QCOMPARE(seen.filters, QStringList({"Bank exports (*.csv *.xlsx *.ods)", "CSV files (*.csv)",
+                                            "Spreadsheets (*.xlsx *.ods)", "All files (*.*)"}));
+
+        // A chosen file is read
+        answerFileDialog(&seen, file.fileName());
+        choose->click();
+        QCOMPARE(QFileInfo(QDir::fromNativeSeparators(path->text())), QFileInfo(file.fileName()));
     }
 
     void importDialogSaysWhenAFileCantBeOpened() {

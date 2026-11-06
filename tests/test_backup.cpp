@@ -6,6 +6,7 @@
 #include "account.h"
 #include "db/backup.h"
 #include "tests/test_db_fixture.h"
+#include "tests/test_file_dialog.h"
 #include "widgets/backupsettings.h"
 
 class TestBackup : public QObject {
@@ -91,6 +92,32 @@ private slots:
         QVERIFY(suggested.endsWith(Backup::suggestedName("case.db", QDate::currentDate())));
         QCOMPARE(transactionsIn(folder.filePath("chosen.db")), 1);
         QVERIFY(settings.findChild<QLabel*>("backupResultLabel")->text().contains("chosen.db"));
+    }
+
+    void theFileDialogsStartAtTheDatabase() {
+        BackupSettings settings;
+        const QString folderOfDatabase = QFileInfo(DatabaseManager::instance().database().databaseName()).absolutePath();
+        const QString suggested = folder.filePath("budget-2026-11-05.db");
+
+        // Backing up: the suggested name, as a database file
+        FileDialogSeen backUp;
+        answerFileDialog(&backUp, suggested);
+        QCOMPARE(QFileInfo(settings.askBackupPath(suggested)), QFileInfo(suggested));
+        QVERIFY(backUp.shown);
+        QCOMPARE(backUp.title, QString("Back up database"));
+        QCOMPARE(backUp.acceptMode, QFileDialog::AcceptSave);
+        QCOMPARE(backUp.filters, QStringList({"Aion database (*.db)"}));
+        QCOMPARE(QFileInfo(backUp.selected), QFileInfo(suggested));
+
+        // Restoring: any database file, starting next to the open one
+        FileDialogSeen restore;
+        answerFileDialog(&restore);
+        QCOMPARE(settings.askRestorePath(), QString());
+        QVERIFY(restore.shown);
+        QCOMPARE(restore.title, QString("Restore from file"));
+        QCOMPARE(restore.fileMode, QFileDialog::ExistingFile);
+        QCOMPARE(restore.folder, folderOfDatabase);
+        QCOMPARE(restore.filters, QStringList({"Aion database (*.db)", "All files (*)"}));
     }
 
     void cancellingWritesNothing() {
