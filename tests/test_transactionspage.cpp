@@ -24,6 +24,7 @@
 #include "settings.h"
 #include "tests/test_db_fixture.h"
 #include "transactionlistmodel.h"
+#include "widgets/periodpicker.h"
 #include "widgets/transactioneditor.h"
 #include "widgets/transactionspage.h"
 
@@ -577,7 +578,25 @@ private slots:
         QCOMPARE(model->totals().count, 1);
     }
 
-    void showCategoryInRangeShowsTheDaysAsAChip() {
+    // Opens the period menu with a click on the period's name and clicks a button in it
+    static void chooseInPeriodMenu(TransactionsPage& page, const QString& text) {
+        page.findChild<QToolButton*>("periodName")->click();
+        auto* menu = page.findChild<PeriodMenu*>();
+        QVERIFY(menu->isVisible());
+        for (QToolButton* button : menu->findChildren<QToolButton*>()) {
+            if (button->text() == text) {
+                button->click();
+                return;
+            }
+        }
+        QFAIL(qPrintable("No " + text + " in the period menu"));
+    }
+
+    static QString periodName(TransactionsPage& page) {
+        return page.findChild<QToolButton*>("periodName")->text();
+    }
+
+    void showCategoryInRangeShowsTheDaysAsThePeriod() {
         QSqlQuery query(DatabaseManager::instance().database());
         QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
         const int groceries = query.value(0).toInt();
@@ -591,30 +610,24 @@ private slots:
         TransactionsPage page;
         page.setUserId(1);
         auto* model = static_cast<TransactionListModel*>(page.findChild<QListView*>("transactionList")->model());
-        auto* chip = page.findChild<QToolButton*>("rangeChip");
-        QVERIFY(chip->isHidden());
+        QCOMPARE(periodName(page), QString("All time"));
 
-        page.showCategoryInRange(groceries, firstId, QDate(2026, 5, 1), QDate(2026, 6, 30));
+        page.showCategoryInRange(groceries, firstId, QDate(2026, 6, 30), QDate(2026, 5, 1));   // Back to front
         QCOMPARE(model->totals().count, 2);                       // That account, those days
-        QVERIFY(!chip->isHidden());
-        QVERIFY(chip->isChecked());
-        QCOMPARE(chip->text(), QString("May – June 2026"));
+        QCOMPARE(periodName(page), QString("May – June 2026"));
 
         page.showCategoryInRange(0, TransactionsPage::ALL_ACCOUNTS, QDate(2026, 6, 1), QDate(2026, 6, 30));
         QCOMPARE(model->totals().count, 1);                       // 0 is no category
 
         // Another period leaves the days
-        const QList<QToolButton*> chips = page.findChildren<QToolButton*>();
-        for (QToolButton* other : chips) {
-            if (other->text() == "All time") other->click();
-        }
-        QVERIFY(chip->isHidden());
+        chooseInPeriodMenu(page, "All time");
+        QCOMPARE(periodName(page), QString("All time"));
         QCOMPARE(model->totals().count, 1);                       // Still no category, all time
 
         page.showPayeeInRange("Rewe", TransactionsPage::ALL_ACCOUNTS, QDate(2026, 5, 1), QDate(2026, 6, 30));
         QCOMPARE(model->totals().count, 2);                       // Any category, those days
         QCOMPARE(page.findChild<QLineEdit*>("searchEdit")->text(), QString("Rewe"));
-        QVERIFY(!chip->isHidden());
+        QCOMPARE(periodName(page), QString("May – June 2026"));
     }
 
     // --- Deleting and bulk changes ---
@@ -866,7 +879,11 @@ private slots:
         QCOMPARE(model->flags(QModelIndex()), Qt::NoItemFlags);
     }
 
-    void thePeriodChipsChooseTheDays() {
+    static TransactionListModel* modelOf(TransactionsPage& page) {
+        return static_cast<TransactionListModel*>(page.findChild<QListView*>("transactionList")->model());
+    }
+
+    void thePeriodMenuHasTheUsualPeriods() {
         const QDate today = QDate::currentDate();
         const QDate lastMonth = today.addMonths(-1);
         TransactionDAO dao;
@@ -875,16 +892,204 @@ private slots:
         QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Long ago", 300, today.addYears(-2), "", 0, "expense")) > 0);
         TransactionsPage page;
         page.setUserId(1);
-        const auto choose = [&page](const QString& text) {
-            for (QToolButton* chip : page.findChildren<QToolButton*>()) {
-                if (chip->text() == text) chip->click();
-            }
-            auto* list = page.findChild<QListView*>("transactionList");
-            return static_cast<TransactionListModel*>(list->model())->totals().count;
+        const QLocale english(QLocale::English);
+
+        chooseInPeriodMenu(page, "Last month");
+        QCOMPARE(modelOf(page)->totals().count, 1);
+        QCOMPARE(periodName(page), english.toString(lastMonth, "MMMM yyyy"));
+        chooseInPeriodMenu(page, "This month");
+        QCOMPARE(modelOf(page)->totals().count, 1);
+        QCOMPARE(periodName(page), english.toString(today, "MMMM yyyy"));
+        chooseInPeriodMenu(page, "This year");
+        QCOMPARE(modelOf(page)->totals().count, lastMonth.year() == today.year() ? 2 : 1);
+        QCOMPARE(periodName(page), QString::number(today.year()));
+        chooseInPeriodMenu(page, "All time");
+        QCOMPARE(modelOf(page)->totals().count, 3);
+    }
+
+    void thePeriodMenuChoosesAnyMonth() {
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "March", 100, QDate(2024, 3, 10), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "March too", 100, QDate(2024, 3, 31), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "April", 200, QDate(2024, 4, 1), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "February", 200, QDate(2024, 2, 29), "", 0, "expense")) > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        page.findChild<PeriodPicker*>()->today = [] { return QDate(2026, 6, 1); };   // June has just started
+        auto* menu = page.findChild<PeriodMenu*>();
+        const auto menuButton = [menu](const char* name) { return menu->findChild<QToolButton*>(name); };
+
+        // Opens on this year; nothing changes until something is chosen
+        page.findChild<QToolButton*>("periodName")->click();
+        QVERIFY(menu->isVisible());
+        QCOMPARE(modelOf(page)->totals().count, 4);
+        QCOMPARE(menu->findChild<QLabel*>("yearLabel")->text(), QString("2026"));
+        QVERIFY(menuButton("month6")->isEnabled());
+        QVERIFY(!menuButton("month7")->isEnabled());         // Not started yet
+        QVERIFY(!menuButton("nextYear")->isEnabled());
+        QVERIFY(!menuButton("month6")->isChecked());
+
+        menuButton("previousYear")->click();
+        menuButton("previousYear")->click();
+        QCOMPARE(menu->shownYear(), 2024);
+        QCOMPARE(menu->findChild<QLabel*>("yearLabel")->text(), QString("2024"));
+        QVERIFY(menuButton("nextYear")->isEnabled());
+        QVERIFY(menuButton("month12")->isEnabled());
+        menuButton("month3")->click();
+        QVERIFY(!menu->isVisible());
+        QCOMPARE(periodName(page), QString("March 2024"));
+        QCOMPARE(modelOf(page)->totals().count, 2);          // Its first to its last day
+
+        // Opening it again shows the month shown; closing it changes nothing
+        page.findChild<QToolButton*>("periodName")->click();
+        QCOMPARE(menu->shownYear(), 2024);
+        QVERIFY(menuButton("month3")->isChecked());
+        menuButton("nextYear")->click();
+        QVERIFY(!menuButton("month3")->isChecked());         // Only in its own year
+        menu->hide();
+        QCOMPARE(periodName(page), QString("March 2024"));
+        QCOMPARE(modelOf(page)->totals().count, 2);
+    }
+
+    void theArrowsStepToThePeriodBeforeAndAfter() {
+        TransactionDAO dao;
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "February", 100, QDate(2024, 2, 29), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "March", 100, QDate(2024, 3, 10), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "April", 100, QDate(2024, 4, 1), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "April too", 100, QDate(2024, 4, 30), "", 0, "expense")) > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* picker = page.findChild<PeriodPicker*>();
+        picker->today = [] { return QDate(2026, 6, 1); };
+        QSignalSpy changed(picker, &PeriodPicker::periodChanged);
+        auto* previous = page.findChild<QToolButton*>("previousPeriod");
+        auto* next = page.findChild<QToolButton*>("nextPeriod");
+        QVERIFY(!previous->isEnabled());                     // All time has nothing before or after
+        QVERIFY(!next->isEnabled());
+
+        page.showPayeeInRange(QString(), TransactionsPage::ALL_ACCOUNTS, QDate(2024, 3, 1), QDate(2024, 3, 31));
+        QCOMPARE(changed.count(), 0);                        // Only for the picker's own changes
+        previous->click();
+        QCOMPARE(periodName(page), QString("February 2024"));
+        QCOMPARE(modelOf(page)->totals().count, 1);
+        QCOMPARE(changed.count(), 1);
+        next->click();
+        next->click();
+        QCOMPARE(periodName(page), QString("April 2024"));
+        QCOMPARE(modelOf(page)->totals().count, 2);
+
+        // Up to the month that has started, not into the future
+        page.showPayeeInRange(QString(), TransactionsPage::ALL_ACCOUNTS, QDate(2026, 5, 1), QDate(2026, 5, 31));
+        QVERIFY(next->isEnabled());                          // June began today
+        next->click();
+        QCOMPARE(periodName(page), QString("June 2026"));
+        QVERIFY(!next->isEnabled());
+        QVERIFY(previous->isEnabled());
+    }
+
+    void stepsKeepThePeriodsLength() {
+        using Range = ReportRange;
+        // Whole months by months, so they keep ending on a month's last day
+        QCOMPARE(PeriodPicker::stepped(Range{QDate(2024, 1, 1), QDate(2024, 1, 31)}, 1),
+                 (Range{QDate(2024, 2, 1), QDate(2024, 2, 29)}));
+        QCOMPARE(PeriodPicker::stepped(Range{QDate(2024, 5, 1), QDate(2024, 6, 30)}, 1),
+                 (Range{QDate(2024, 7, 1), QDate(2024, 8, 31)}));
+        QCOMPARE(PeriodPicker::stepped(Range{QDate(2026, 1, 1), QDate(2026, 12, 31)}, -1),
+                 (Range{QDate(2025, 1, 1), QDate(2025, 12, 31)}));
+        // Other days by days
+        QCOMPARE(PeriodPicker::stepped(Range{QDate(2024, 3, 1), QDate(2024, 3, 10)}, -1),
+                 (Range{QDate(2024, 2, 20), QDate(2024, 2, 29)}));
+        QCOMPARE(PeriodPicker::stepped(Range{QDate(2024, 3, 1), QDate(2024, 3, 10)}, 1),
+                 (Range{QDate(2024, 3, 11), QDate(2024, 3, 20)}));
+        QVERIFY(!PeriodPicker::stepped(Range(), 1).isValid());         // All time stays
+
+        QCOMPARE(PeriodPicker::nameOf(Range()), QString("All time"));
+        QCOMPARE(PeriodPicker::nameOf(Range{QDate(2026, 1, 1), QDate(2026, 12, 31)}), QString("2026"));
+        QCOMPARE(PeriodPicker::nameOf(Range{QDate(2026, 1, 1), QDate(2026, 11, 30)}), QString("January – November 2026"));
+        QCOMPARE(PeriodPicker::nameOf(Range{QDate(2026, 2, 1), QDate(2026, 12, 31)}), QString("February – December 2026"));
+        QCOMPARE(PeriodPicker::nameOf(Range{QDate(2025, 1, 1), QDate(2026, 12, 31)}),
+                 QString("January 2025 – December 2026"));
+    }
+
+    void thePeriodsNameKeepsItsWidthForMonthsAndFitsLongerOnes() {
+        TransactionsPage page;
+        page.setUserId(1);
+        page.resize(1400, 500);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        auto* name = page.findChild<QToolButton*>("periodName");
+        const auto showDays = [&page](const QDate& from, const QDate& to) {
+            page.showPayeeInRange(QString(), TransactionsPage::ALL_ACCOUNTS, from, to);
+            QCoreApplication::processEvents();               // Lays the row out again
         };
-        QCOMPARE(choose("Last month"), 1);
-        QCOMPARE(choose("This year"), lastMonth.year() == today.year() ? 2 : 1);
-        QCOMPARE(choose("All time"), 3);
+        const auto fits = [name]() { return name->fontMetrics().horizontalAdvance(name->text()) <= name->width(); };
+
+        showDays(QDate(2024, 5, 1), QDate(2024, 5, 31));
+        const int width = name->width();
+        for (int month = 1; month <= 12; ++month) {
+            const QDate first(2024, month, 1);
+            showDays(first, first.addMonths(1).addDays(-1));
+            QCOMPARE(name->width(), width);                  // The arrows stay where they are
+            QVERIFY(fits());
+        }
+        // The longest names a report's days can have
+        showDays(QDate(2023, 9, 1), QDate(2024, 12, 31));
+        QCOMPARE(name->text(), QString("September 2023 – December 2024"));
+        QVERIFY(fits());
+        QVERIFY(name->width() > width);
+        showDays(QDate(2023, 9, 30), QDate(2024, 12, 30));
+        QVERIFY(fits());
+    }
+
+    void noIncomeSaysTheFilterHidesTheExpenses() {
+        QVERIFY(addExpense("Rewe", 100) > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        page.findChild<QToolButton*>("typeIncome")->click();
+        QCOMPARE(page.findChild<QLabel*>("emptyLabel")->text(), QString("No transactions match these filters."));
+    }
+
+    void incomeOrExpensesOnly() {
+        TransactionDAO dao;
+        const int salary = dao.addTransaction(Transaction(-1, firstId, "Salary", 5000, QDate(2024, 3, 1), "", 0, "income"));
+        QVERIFY(salary > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Rewe", 100, QDate(2024, 3, 2), "", 0, "expense")) > 0);
+        QVERIFY(dao.addTransaction(Transaction(-1, firstId, "Aldi", 200, QDate(2024, 3, 3), "", 0, "expense")) > 0);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* model = modelOf(page);
+        auto* all = page.findChild<QToolButton*>("typeAll");
+        auto* in = page.findChild<QToolButton*>("typeIncome");
+        auto* out = page.findChild<QToolButton*>("typeExpense");
+        QVERIFY(all->isChecked());
+        QCOMPARE(model->totals().count, 3);
+
+        in->click();
+        QCOMPARE(model->totals().count, 1);
+        QCOMPARE(model->totals().income, Cents(5000));
+        out->click();
+        QVERIFY(!in->isChecked());
+        QCOMPARE(model->totals().count, 2);
+        QCOMPARE(model->totals().expenses, Cents(300));
+        all->click();
+        QCOMPARE(model->totals().count, 3);
+
+        // Going to a transaction or a report's days shows both sides again; a transaction all time
+        in->click();
+        chooseInPeriodMenu(page, "This month");
+        QCOMPARE(model->totals().count, 0);
+        page.openTransaction(salary);
+        QVERIFY(all->isChecked());
+        QCOMPARE(periodName(page), QString("All time"));
+        QCOMPARE(model->totals().count, 3);
+        in->click();
+        page.showPayeeInRange("Rewe", TransactionsPage::ALL_ACCOUNTS, QDate(2024, 3, 1), QDate(2024, 3, 31));
+        QVERIFY(all->isChecked());
+        QCOMPARE(model->totals().count, 1);
+        out->click();
+        page.showCategoryThisMonth(TransactionFilter::ANY_CATEGORY);
+        QVERIFY(all->isChecked());
+        QCOMPARE(periodName(page), QLocale(QLocale::English).toString(QDate::currentDate(), "MMMM yyyy"));
     }
 
     void transactionsWithoutAValidAccountHaveTheirOwnView() {

@@ -6,6 +6,7 @@
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
 #include "icons.h"
+#include "periodpicker.h"
 #include "settings.h"
 #include "theme.h"
 #include "transactioneditor.h"
@@ -24,6 +25,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <array>
 #include <functional>
 #include <QPainter>
 #include <QPainterPath>
@@ -349,29 +351,36 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     filters->addWidget(searchEdit, 1);
     filters->addSpacing(6);
 
-    periodGroup = new QButtonGroup(this);
-    periodGroup->setExclusive(true);
-    const QList<QPair<QString, Period>> periods = {
-        {"All time", Period::AllTime}, {"This month", Period::ThisMonth},
-        {"Last month", Period::LastMonth}, {"This year", Period::ThisYear}
-    };
-    for (const auto& period : periods) {
-        QToolButton* chip = addChip(period.first, filters);
-        periodGroup->addButton(chip, static_cast<int>(period.second));
-    }
-    rangeChip = addChip(QString(), filters);
-    rangeChip->setObjectName("rangeChip");
-    rangeChip->setToolTip("The days of the report you came from. Choose another period to leave them.");
-    rangeChip->hide();
-    periodGroup->addButton(rangeChip, static_cast<int>(Period::Range));
-    periodGroup->button(static_cast<int>(Period::AllTime))->setChecked(true);
-    connect(periodGroup, &QButtonGroup::idClicked, this, &TransactionsPage::applyFilter);
+    periodPicker = new PeriodPicker(this);           // All time to start with
+    periodPicker->setObjectName("periodPicker");
+    connect(periodPicker, &PeriodPicker::periodChanged, this, &TransactionsPage::applyFilter);
+    filters->addWidget(periodPicker);
 
     categoryFilter = new QComboBox(this);
     categoryFilter->setObjectName("categoryFilter");
     categoryFilter->setMinimumWidth(150);
     connect(categoryFilter, &QComboBox::currentIndexChanged, this, &TransactionsPage::applyFilter);
     filters->addWidget(categoryFilter);
+
+    // Both sides, income only or expenses only; the button's id is its place in types
+    typeGroup = new QButtonGroup(this);
+    typeGroup->setExclusive(true);
+    auto* typeButtons = new QHBoxLayout();
+    typeButtons->setSpacing(0);
+    const QList<std::array<QString, 3>> types = {
+        {"All", "typeAll", "Income and expenses"},
+        {"In", "typeIncome", "Income only"},
+        {"Out", "typeExpense", "Expenses only"},
+    };
+    for (const auto& type : types) {
+        QToolButton* button = addChip(type[0], typeButtons);
+        button->setObjectName(type[1]);
+        button->setToolTip(type[2]);
+        typeGroup->addButton(button, typeGroup->buttons().size());
+    }
+    typeGroup->button(0)->setChecked(true);
+    connect(typeGroup, &QButtonGroup::idClicked, this, &TransactionsPage::applyFilter);
+    filters->addLayout(typeButtons);
 
     unassignedChip = addChip(QString(), filters);
     unassignedChip->setToolTip("Transactions that don't belong to an account yet, for example from an import");
@@ -449,6 +458,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     listStack->addWidget(listView);
 
     emptyLabel = new QLabel(this);
+    emptyLabel->setObjectName("emptyLabel");
     emptyLabel->setAlignment(Qt::AlignCenter);
     emptyLabel->setWordWrap(true);
     listStack->addWidget(emptyLabel);
@@ -658,30 +668,11 @@ void TransactionsPage::applyFilter() {
     filter.search = searchEdit->text();
     filter.categoryId = categoryFilter->currentIndex() >= 0 ? categoryFilter->currentData().toInt()
                                                             : TransactionFilter::ANY_CATEGORY;
-
-    const QDate today = QDate::currentDate();
-    const QDate monthStart(today.year(), today.month(), 1);
-    switch (static_cast<Period>(periodGroup->checkedId())) {
-    case Period::ThisMonth:
-        filter.from = monthStart;
-        filter.to = monthStart.addMonths(1).addDays(-1);
-        break;
-    case Period::LastMonth:
-        filter.from = monthStart.addMonths(-1);
-        filter.to = monthStart.addDays(-1);
-        break;
-    case Period::ThisYear:
-        filter.from = QDate(today.year(), 1, 1);
-        filter.to = QDate(today.year(), 12, 31);
-        break;
-    case Period::Range:
-        filter.from = rangeFrom;
-        filter.to = rangeTo;
-        break;
-    case Period::AllTime:
-        break;
-    }
-    rangeChip->setVisible(periodGroup->checkedId() == static_cast<int>(Period::Range));
+    const QStringList types = {QString(), "income", "expense"};    // As the type buttons
+    filter.type = types.value(typeGroup->checkedId());
+    const ReportRange period = periodPicker->period();             // Invalid: all time
+    filter.from = period.first;
+    filter.to = period.last;
 
     const QList<int> selectedIds = selectedTransactionIds();
     model->setFilter(filter);
@@ -690,7 +681,7 @@ void TransactionsPage::applyFilter() {
     const bool empty = model->totals().count == 0;
     if (empty) {
         const bool filtered = !filter.search.trimmed().isEmpty() || filter.from.isValid()
-                              || filter.categoryId != TransactionFilter::ANY_CATEGORY;
+                              || filter.categoryId != TransactionFilter::ANY_CATEGORY || !filter.type.isEmpty();
         emptyLabel->setText(filtered ? "No transactions match these filters."
                                      : "No transactions yet.\nAdd one with \"Add transaction\" or import a file.");
     }
@@ -882,11 +873,14 @@ void TransactionsPage::showCategoryThisMonth(int categoryId) {
     {
         const QSignalBlocker searchBlocker(searchEdit);
         const QSignalBlocker categoryBlocker(categoryFilter);
+        typeGroup->button(0)->setChecked(true);      // Income and expenses
         searchEdit->clear();
         const int index = categoryFilter->findData(categoryId);
         categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
     }
-    periodGroup->button(static_cast<int>(Period::ThisMonth))->setChecked(true);
+    const QDate today = QDate::currentDate();
+    const QDate monthStart(today.year(), today.month(), 1);
+    periodPicker->setPeriod(ReportRange{monthStart, monthStart.addMonths(1).addDays(-1)});
     applyFilter();
 }
 
@@ -903,14 +897,12 @@ void TransactionsPage::showRange(int categoryFilterData, const QString& search, 
     {
         const QSignalBlocker searchBlocker(searchEdit);
         const QSignalBlocker categoryBlocker(categoryFilter);
+        typeGroup->button(0)->setChecked(true);      // Income and expenses
         searchEdit->setText(search);
         const int index = categoryFilter->findData(categoryFilterData);
         categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
     }
-    rangeFrom = qMin(from, to);
-    rangeTo = qMax(from, to);
-    rangeChip->setText(ReportRange{rangeFrom, rangeTo}.label());
-    rangeChip->setChecked(true);
+    periodPicker->setPeriod(ReportRange::custom(from, to));
     applyFilter();
 }
 
@@ -920,10 +912,11 @@ void TransactionsPage::openTransaction(int transactionId) {
     {
         const QSignalBlocker searchBlocker(searchEdit);
         const QSignalBlocker categoryBlocker(categoryFilter);
+        typeGroup->button(0)->setChecked(true);      // Income and expenses
         searchEdit->clear();
         categoryFilter->setCurrentIndex(0);
     }
-    periodGroup->button(static_cast<int>(Period::AllTime))->setChecked(true);
+    periodPicker->setPeriod(ReportRange());          // All time
     applyFilter();
     if (const auto transaction = model->transaction(transactionId)) {
         if (model->isDayCollapsed(transaction->getDate())) {

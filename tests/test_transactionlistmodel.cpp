@@ -138,6 +138,31 @@ private slots:
         QVERIFY(model.indexForTransaction(3).isValid());
     }
 
+    void typeFilterShowsIncomeOrExpenses() {
+        TransactionListModel model;
+        QList<Transaction> transactions = sample();
+        // Transfers count by the side they're on, like any other transaction
+        transactions << Transaction(5, 10, "To savings", 50000, QDate(2026, 10, 6), "", 7, "expense");
+        model.setTransactions(transactions, {{10, "Girokonto"}}, {{2, "Salary"}, {4, "Groceries"}, {7, "Transfer"}});
+
+        TransactionFilter filter;
+        filter.type = "income";
+        model.setFilter(filter);
+        QCOMPARE(model.totals().count, 1);
+        QVERIFY(model.indexForTransaction(2).isValid());
+        QCOMPARE(model.totals().expenses, Cents(0));
+
+        filter.type = "expense";
+        model.setFilter(filter);
+        QCOMPARE(model.totals().count, 4);
+        QVERIFY(model.indexForTransaction(5).isValid());
+        QCOMPARE(model.totals().income, Cents(0));
+
+        filter.type.clear();                         // Both
+        model.setFilter(filter);
+        QCOMPARE(model.totals().count, 5);
+    }
+
     void collapsedDaysKeepHeaderWithSummary() {
         TransactionListModel model;
         load(model);

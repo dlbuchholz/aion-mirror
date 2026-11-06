@@ -1,0 +1,214 @@
+#include "periodpicker.h"
+#include "icons.h"
+#include "theme.h"
+#include <QEvent>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLocale>
+#include <QToolButton>
+#include <QVBoxLayout>
+
+namespace {
+
+
+ReportRange wholeMonth(const QDate& day) {
+    const QDate first(day.year(), day.month(), 1);
+    return ReportRange{first, first.addMonths(1).addDays(-1)};
+}
+
+QToolButton* arrowButton(const QString& name, const QString& toolTip, QWidget* parent) {
+    auto* button = new QToolButton(parent);
+    button->setObjectName(name);
+    button->setToolTip(toolTip);
+    button->setAutoRaise(true);
+    button->setCursor(Qt::PointingHandCursor);
+    return button;
+}
+
+}
+
+PeriodPicker::PeriodPicker(QWidget* parent) : QWidget(parent) {
+    auto* layout = new QHBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    previousButton = arrowButton("previousPeriod", "The period before", this);
+    connect(previousButton, &QToolButton::clicked, this, [this]() { choose(stepped(shown, -1)); });
+    nameButton = new QToolButton(this);
+    nameButton->setObjectName("periodName");
+    nameButton->setCursor(Qt::PointingHandCursor);
+    nameButton->setToolTip("Choose a period");
+    // Room for the longest month, so the arrows stay put while stepping through months. A report's
+    // days can take more, up to the longest name a range can have.
+    const auto widthFor = [this](const QString& name) {
+        nameButton->setText(name);
+        return nameButton->sizeHint().width() + 8;
+    };
+    const QLocale english(QLocale::English);
+    int widest = widthFor("All time");
+    for (int month = 1; month <= 12; ++month) {
+        widest = qMax(widest, widthFor(english.monthName(month) + " 0000"));
+    }
+    nameButton->setMinimumWidth(widest);
+    nameButton->setMaximumWidth(widthFor("September 0000 – December 0000"));
+    menu = new PeriodMenu(this);
+    connect(nameButton, &QToolButton::clicked, this, [this]() {
+        menu->today = today;
+        menu->showBelow(nameButton, shown);
+    });
+    connect(menu, &PeriodMenu::chosen, this, &PeriodPicker::choose);
+    nextButton = arrowButton("nextPeriod", "The period after", this);
+    connect(nextButton, &QToolButton::clicked, this, [this]() { choose(stepped(shown, 1)); });
+
+    layout->addWidget(previousButton);
+    layout->addWidget(nameButton);
+    layout->addWidget(nextButton);
+    updateIcons();
+    refresh();
+}
+
+void PeriodPicker::setPeriod(const ReportRange& range) {
+    shown = range;
+    refresh();
+}
+
+void PeriodPicker::choose(const ReportRange& range) {
+    setPeriod(range);
+    emit periodChanged(range);
+}
+
+ReportRange PeriodPicker::stepped(const ReportRange& range, int direction) {
+    if (!range.isValid()) return range;
+    if (range.isWholeMonths()) {
+        const QDate first = range.first.addMonths(range.months() * direction);
+        return ReportRange{first, first.addMonths(range.months()).addDays(-1)};
+    }
+    return ReportRange{range.first.addDays(range.days() * direction), range.last.addDays(range.days() * direction)};
+}
+
+QString PeriodPicker::nameOf(const ReportRange& range) {
+    if (!range.isValid()) return "All time";
+    if (range.first == QDate(range.first.year(), 1, 1) && range.last == QDate(range.first.year(), 12, 31)) {
+        return QString::number(range.first.year());
+    }
+    return range.label();
+}
+
+void PeriodPicker::refresh() {
+    nameButton->setText(nameOf(shown));
+    previousButton->setEnabled(shown.isValid());
+    nextButton->setEnabled(shown.isValid() && stepped(shown, 1).first <= today());   // Not into the future
+}
+
+void PeriodPicker::updateIcons() {
+    previousButton->setIcon(Icons::icon("chevron-left", Theme::colors().textSecondary));
+    nextButton->setIcon(Icons::icon("chevron-right", Theme::colors().textSecondary));
+}
+
+void PeriodPicker::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::PaletteChange) {
+        updateIcons();
+    }
+    QWidget::changeEvent(event);
+}
+
+PeriodMenu::PeriodMenu(QWidget* parent) : QFrame(parent, Qt::Popup) {
+    setObjectName("periodMenu");
+    setFrameShape(QFrame::StyledPanel);
+    auto* root = new QVBoxLayout(this);
+    root->setContentsMargins(6, 6, 6, 10);
+    root->setSpacing(2);
+
+    const QList<QPair<QString, std::function<ReportRange(const QDate&)>>> shortcuts = {
+        {"All time", [](const QDate&) { return ReportRange(); }},
+        {"This month", [](const QDate& day) { return wholeMonth(day); }},
+        {"Last month", [](const QDate& day) { return wholeMonth(day.addMonths(-1)); }},
+        {"This year", [](const QDate& day) { return ReportRange{QDate(day.year(), 1, 1), QDate(day.year(), 12, 31)}; }},
+    };
+    for (const auto& shortcut : shortcuts) {
+        auto* button = new QToolButton(this);
+        button->setText(shortcut.first);
+        button->setAutoRaise(true);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        button->setStyleSheet("QToolButton { text-align: left; padding: 4px 8px; }");
+        const auto range = shortcut.second;
+        connect(button, &QToolButton::clicked, this, [this, range]() { choose(range(today())); });
+        root->addWidget(button);
+    }
+
+    separator = new QFrame(this);
+    separator->setFrameShape(QFrame::HLine);
+    separator->setFrameShadow(QFrame::Plain);
+    root->addSpacing(4);
+    root->addWidget(separator);
+    root->addSpacing(4);
+
+    auto* header = new QHBoxLayout();
+    previousButton = arrowButton("previousYear", "Previous year", this);
+    connect(previousButton, &QToolButton::clicked, this, [this]() { showYear(year - 1); });
+    yearLabel = new QLabel(this);
+    yearLabel->setObjectName("yearLabel");
+    yearLabel->setAlignment(Qt::AlignCenter);
+    QFont bold = yearLabel->font();
+    bold.setBold(true);
+    yearLabel->setFont(bold);
+    nextButton = arrowButton("nextYear", "Next year", this);
+    connect(nextButton, &QToolButton::clicked, this, [this]() { showYear(year + 1); });
+    header->addWidget(previousButton);
+    header->addWidget(yearLabel, 1);
+    header->addWidget(nextButton);
+    root->addLayout(header);
+
+    auto* grid = new QGridLayout();
+    grid->setContentsMargins(4, 0, 4, 0);
+    grid->setSpacing(4);
+    const QLocale english(QLocale::English);
+    for (int month = 1; month <= 12; ++month) {
+        auto* button = new QToolButton(this);
+        button->setObjectName(QString("month%1").arg(month));
+        button->setText(english.monthName(month, QLocale::ShortFormat));
+        button->setCheckable(true);
+        button->setAutoRaise(true);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setMinimumWidth(48);
+        Theme::highlightWhenChecked(button);
+        connect(button, &QToolButton::clicked, this, [this, month]() { choose(wholeMonth(QDate(year, month, 1))); });
+        grid->addWidget(button, (month - 1) / 4, (month - 1) % 4);
+        monthButtons.append(button);
+    }
+    root->addLayout(grid);
+}
+
+void PeriodMenu::showBelow(QWidget* anchor, const ReportRange& shownPeriod) {
+    current = shownPeriod;
+    // Tinted when opened, so they follow a theme change
+    previousButton->setIcon(Icons::icon("chevron-left", Theme::colors().textSecondary));
+    nextButton->setIcon(Icons::icon("chevron-right", Theme::colors().textSecondary));
+    QPalette linePalette = separator->palette();
+    linePalette.setColor(QPalette::WindowText, Theme::colors().textMuted);
+    separator->setPalette(linePalette);
+    showYear(current.isValid() ? current.last.year() : today().year());
+    adjustSize();
+    move(anchor->mapToGlobal(QPoint(0, anchor->height() + 4)));
+    show();
+}
+
+void PeriodMenu::showYear(int newYear) {
+    year = newYear;
+    yearLabel->setText(QString::number(year));
+    const QDate now = today();
+    nextButton->setEnabled(year < now.year());       // Nothing to choose in later years
+    for (int month = 1; month <= 12; ++month) {
+        QToolButton* button = monthButtons[month - 1];
+        button->setEnabled(QDate(year, month, 1) <= now);
+        button->setChecked(current == wholeMonth(QDate(year, month, 1)));
+    }
+}
+
+void PeriodMenu::choose(const ReportRange& range) {
+    hide();
+    emit chosen(range);
+}

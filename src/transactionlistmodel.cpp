@@ -151,6 +151,9 @@ bool TransactionListModel::matches(const Transaction& transaction) const {
             return false;
         }
     }
+    if (!currentFilter.type.isEmpty() && transaction.getType() != currentFilter.type) {
+        return false;
+    }
 
     const QString search = currentFilter.search.trimmed();
     if (search.isEmpty()) {

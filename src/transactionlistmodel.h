@@ -18,6 +18,7 @@ struct TransactionFilter {
     QDate from;                                      // Inclusive; invalid = no lower bound
     QDate to;                                        // Inclusive; invalid = no upper bound
     int categoryId = ANY_CATEGORY;
+    QString type;                                    // "income" or "expense"; empty = both
 };
 
 // Flat list of transactions, newest first, with a header row before each day

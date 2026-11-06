@@ -17,6 +17,7 @@ class QListView;
 class QPushButton;
 class QStackedWidget;
 class QToolButton;
+class PeriodPicker;
 class TransactionDelegate;
 class TransactionEditor;
 class TransactionListModel;
@@ -70,14 +71,6 @@ private slots:
     void closeEditor();
 
 private:
-    enum class Period {
-        AllTime,
-        ThisMonth,
-        LastMonth,
-        ThisYear,
-        Range                                        // From a report: rangeFrom to rangeTo
-    };
-
     QToolButton* addChip(const QString& text, QLayout* layout);
     void showRange(int categoryFilterData, const QString& search, int accountId, const QDate& from, const QDate& to);
     void applyFilter();
@@ -107,11 +100,9 @@ private:
     QPushButton* correctBalanceButton = nullptr;
     QLineEdit* searchEdit = nullptr;
     QAction* searchAction = nullptr;
-    QButtonGroup* periodGroup = nullptr;
-    QToolButton* rangeChip = nullptr;                // Shown only for Period::Range
-    QDate rangeFrom;
-    QDate rangeTo;
+    PeriodPicker* periodPicker = nullptr;
     QComboBox* categoryFilter = nullptr;
+    QButtonGroup* typeGroup = nullptr;               // Both, income only or expenses only
     QToolButton* unassignedChip = nullptr;
     QFrame* bulkBar = nullptr;
     QLabel* bulkLabel = nullptr;
