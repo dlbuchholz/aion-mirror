@@ -1,6 +1,7 @@
 #include "renamedpayeesdialog.h"
 #include "db/databasemanager.h"
 #include "settings.h"
+#include "theme.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -33,6 +34,7 @@ RenamedPayeesDialog::RenamedPayeesDialog(const QList<Transaction>& renamed, cons
 
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
+    Theme::makeCard(scroll);
     auto* content = new QWidget(scroll);
     auto* contentLayout = new QVBoxLayout(content);
     auto* grid = new QGridLayout();

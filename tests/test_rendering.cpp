@@ -5,6 +5,10 @@
 #include <QStyle>
 #include <QVBoxLayout>
 #include <QListWidget>
+#include <QComboBox>
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QScrollArea>
 #include <QToolButton>
 #include <QAbstractSpinBox>
@@ -15,14 +19,19 @@
 
 #include "account.h"
 #include "budget.h"
+#include "dialog/applyrulesdialog.h"
 #include "dialog/balancecorrectiondialog.h"
+#include "dialog/deleteaccountdialog.h"
+#include "dialog/editaccountdialog.h"
 #include "dialog/importmanagerdialog.h"
 #include "mainwindow.h"
 #include "settings.h"
 #include "startwindow.h"
 #include "tests/test_db_fixture.h"
 #include "theme.h"
+#include "widgets/emptystate.h"
 #include "widgets/periodpicker.h"
+#include "widgets/transactionspage.h"
 #include "widgets/sidebarwidget.h"
 
 // Draws every page and dialog in both themes. Painting code only runs when something is
@@ -256,6 +265,90 @@ private slots:
                 }
             }
         }
+    }
+
+    void emptyStatesHaveAnIconAboveTheirText() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        Theme::applyTheme(Theme::Type::Light);
+        QWidget page;
+        auto* layout = new QVBoxLayout(&page);
+        auto* empty = new EmptyState("budget", "No budgets yet.", &page);
+        layout->addWidget(empty);
+        draw(page, QSize(400, 260));
+        QCOMPARE(empty->foregroundRole(), QPalette::PlaceholderText);
+        QCOMPARE(empty->alignment(), Qt::AlignCenter);
+        // The icon is centred, above the text, and icon and text together sit in the middle
+        const QRect icon = empty->iconRect();
+        QCOMPARE(icon.size(), QSize(EmptyState::IconSize, EmptyState::IconSize));
+        QVERIFY(qAbs(icon.center().x() - empty->width() / 2) <= 1);
+        const int textHeight = empty->fontMetrics().height();
+        const int blockTop = icon.top();
+        const int blockBottom = icon.bottom() + EmptyState::Gap + textHeight;
+        QVERIFY2(qAbs((blockTop + blockBottom) / 2 - empty->height() / 2) <= 2,
+                 qPrintable(QString("%1..%2 of %3").arg(blockTop).arg(blockBottom).arg(empty->height())));
+        // Drawn in the muted colour: its strokes, the darkest of its pixels on the light page, are it
+        const QImage image = empty->grab().toImage();
+        const qreal dpr = image.devicePixelRatio();
+        int darkest = 255;
+        for (int y = int(icon.top() * dpr); y <= int(icon.bottom() * dpr); ++y) {
+            for (int x = int(icon.left() * dpr); x <= int(icon.right() * dpr); ++x) {
+                darkest = qMin(darkest, image.pixelColor(x, y).red());
+            }
+        }
+        QVERIFY2(qAbs(darkest - Theme::colors().textMuted.red()) <= 8, qPrintable(QString::number(darkest)));
+    }
+
+    void formLabelsSitBesideTheirField() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        Theme::applyTheme(Theme::Type::Light);
+        QWidget page;
+        auto* form = new QFormLayout(&page);
+        auto* label = new QLabel("Name", &page);
+        auto* field = new QLineEdit(&page);
+        form->addRow(label, field);
+        auto* typeLabel = new QLabel("Type", &page);             // Beside a drop-down in a row of its own
+        auto* row = new QHBoxLayout();
+        auto* type = new QComboBox(&page);
+        row->addWidget(type);
+        form->addRow(typeLabel, row);
+        auto* versionLabel = new QLabel("Version", &page);       // Beside plain text: stays as high as it is
+        auto* version = new QLabel("1.0", &page);
+        form->addRow(versionLabel, version);
+        draw(page, QSize(300, 160));
+        QCOMPARE(field->height(), Theme::controlHeight);
+        for (const auto& [beside, control] : {std::pair<QLabel*, QWidget*>{label, field}, {typeLabel, type}}) {
+            const int labelMiddle = beside->geometry().center().y();
+            const int controlMiddle = control->mapTo(&page, control->rect().center()).y();
+            QVERIFY2(qAbs(labelMiddle - controlMiddle) <= 1,
+                     qPrintable(QString("%1 at %2, its control at %3").arg(beside->text()).arg(labelMiddle).arg(controlMiddle)));
+        }
+        QVERIFY(versionLabel->height() < Theme::controlHeight);
+    }
+
+    void dialogsHaveCardsAndTheRightButtons() {
+        const int giro = AccountDAO().getAllAccountsForUser(1).first().getAccountId();
+        ApplyRulesDialog rules(1);
+        DeleteAccountDialog del(1, giro);
+        EditAccountDialog edit(1, giro);
+        BalanceCorrectionDialog correction(1, giro);
+        ImportManagerDialog import(1);
+        for (QDialog* dialog : std::initializer_list<QDialog*>{&rules, &del, &edit, &correction, &import}) {
+            draw(*dialog, QSize(780, 600));
+            for (QFrame* frame : dialog->findChildren<QFrame*>()) {
+                if (!frame->isVisibleTo(dialog) || frame->frameShape() != QFrame::StyledPanel) continue;
+                QVERIFY2(frame->property("card").toBool(), qPrintable(QString("%1 in %2").arg(frame->metaObject()->className(),
+                                                                                              dialog->metaObject()->className())));
+            }
+        }
+        auto* deleteButton = del.findChild<QPushButton*>("deleteAccountButton");
+        QCOMPARE(deleteButton->palette().color(QPalette::ButtonText), Theme::colors().danger);   // Red, though set up late
+
+        // An empty list keeps its card, and says so with its icon
+        TransactionsPage page;
+        page.setUserId(99);
+        auto* empty = page.findChild<QLabel*>("emptyLabel");
+        QVERIFY(qobject_cast<EmptyState*>(empty));
+        QVERIFY(empty->property("card").toBool());
     }
 
     void theWholeAppHasTheControlLook() {

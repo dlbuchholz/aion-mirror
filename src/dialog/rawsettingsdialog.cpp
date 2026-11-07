@@ -1,5 +1,6 @@
 #include "rawsettingsdialog.h"
 #include "settings.h"
+#include "theme.h"
 
 #include <QDialogButtonBox>
 #include <QHeaderView>
@@ -30,6 +31,7 @@ RawSettingsDialog::RawSettingsDialog(QWidget *parent)
     layout->addWidget(searchEdit);
 
     table = new QTableWidget(this);
+    Theme::makeCard(table);
     table->setColumnCount(2);
     table->setHorizontalHeaderLabels({"Setting", "Value"});
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);

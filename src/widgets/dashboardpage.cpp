@@ -217,7 +217,7 @@ protected:
         for (const MonthFlow& month : months) highest = qMax(highest, qMax(month.incomeCents, month.expenseCents));
         const QRect plot = plotRect();
         if (highest == 0) {
-            painter.setPen(colors.textSecondary);
+            painter.setPen(colors.textMuted);                   // Muted, like every empty state
             painter.drawText(rect(), Qt::AlignCenter, "No income or expenses in these months yet.");
             return;
         }

@@ -8,14 +8,19 @@
 #include <QFrame>
 #include <QDoubleSpinBox>
 #include <QEvent>
+#include <QComboBox>
+#include <QFormLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QApplication>
 #include <QGuiApplication>
+#include <QStyle>
 #include <QStyleHints>
 #include <QStyleFactory>
 #include <QPalette>
+#include <QPushButton>
 #include "icons.h"
 
 class Theme {
@@ -143,6 +148,14 @@ public:
     // Links and accent-tinted text: the accent, lighter in the dark theme so it reads on dark grey
     static QColor linkColor(bool dark) {
         return dark ? QColor(130, 185, 240) : QColor(24, 95, 165);
+    }
+
+    // Sets a property the style sheet looks at ("danger", "primary"...) and has it look again: a
+    // widget that's already set up, like a dialog's button row's, would keep its old look otherwise
+    static void setStyleProperty(QWidget* widget, const char* name, const QVariant& value) {
+        widget->setProperty(name, value);
+        widget->style()->unpolish(widget);
+        widget->style()->polish(widget);
     }
 
     // Makes a tool button one of the app's links: accent text, no box (Theme::controlStyleSheet).
@@ -397,18 +410,52 @@ private:
         qApp->setStyleSheet(QString("QToolTip { background-color: %1; color: %2; border: 1px solid %3; padding: 4px 6px; }")
                                 .arg(background.name(), text.name(), borderColor)
                             + controlStyleSheet());
-        static SpinBoxInset inset;                   // Once for the app, whichever theme comes first
-        qApp->installEventFilter(&inset);            // Installing it again changes nothing
+        static FieldTweaks tweaks;                   // Once for the app, whichever theme comes first
+        qApp->installEventFilter(&tweaks);           // Installing it again changes nothing
     }
 
-    // A spin box's number starts where the text of every other field does. Style sheets can't
-    // say so: a spin box puts its text field at its left edge, whatever its padding.
-    class SpinBoxInset : public QObject {
+    // What the style sheet can't say, done as each widget is set up:
+    // - A spin box's number starts where the text of every other field does: a spin box puts its
+    //   text field at its left edge, whatever its padding.
+    // - A form's label sits beside its field's text: a form gives a label a box only about as high
+    //   as the label asks for, at the top of the row. Beside a control and as high as one, the label
+    //   centres its text beside the field's (letting it grow instead would let the whole form grow).
+    class FieldTweaks : public QObject {
+    public:
+        // A field, drop-down, spin box or button: as high as a control
+        static bool isControl(const QWidget* widget) {
+            return qobject_cast<const QLineEdit*>(widget) || qobject_cast<const QComboBox*>(widget)
+                   || qobject_cast<const QAbstractSpinBox*>(widget) || qobject_cast<const QPushButton*>(widget);
+        }
+
+        // Whether this widget is a form's label beside a control, alone or first in its row's layout
+        static bool labelsAControl(const QWidget* widget, const QLayout* layout) {
+            if (!layout) return false;
+            if (const auto* form = qobject_cast<const QFormLayout*>(layout)) {
+                for (int row = 0; row < form->rowCount(); ++row) {
+                    const QLayoutItem* label = form->itemAt(row, QFormLayout::LabelRole);
+                    if (!label || label->widget() != widget) continue;
+                    QLayoutItem* field = form->itemAt(row, QFormLayout::FieldRole);
+                    if (!field) return false;
+                    if (field->layout() && field->layout()->count() > 0) field = field->layout()->itemAt(0);
+                    return isControl(field->widget());
+                }
+            }
+            for (int i = 0; i < layout->count(); ++i) {
+                if (labelsAControl(widget, layout->itemAt(i)->layout())) return true;
+            }
+            return false;
+        }
+
     protected:
         bool eventFilter(QObject* watched, QEvent* event) override {
-            if (event->type() == QEvent::Polish
-                && (qobject_cast<QSpinBox*>(watched) || qobject_cast<QDoubleSpinBox*>(watched))) {
+            if (event->type() != QEvent::Polish) return false;
+            if (qobject_cast<QSpinBox*>(watched) || qobject_cast<QDoubleSpinBox*>(watched)) {
                 if (auto* edit = watched->findChild<QLineEdit*>()) edit->setTextMargins(FieldInset, 0, 0, 0);
+            } else if (auto* label = qobject_cast<QLabel*>(watched)) {
+                if (label->parentWidget() && labelsAControl(label, label->parentWidget()->layout())) {
+                    label->setMinimumHeight(controlHeight);
+                }
             }
             return false;
         }

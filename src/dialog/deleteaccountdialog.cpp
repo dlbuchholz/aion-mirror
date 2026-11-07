@@ -106,6 +106,7 @@ DeleteAccountDialog::DeleteAccountDialog(int userId, int accountId, QWidget* par
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
     deleteButton = buttons->addButton("Delete", QDialogButtonBox::DestructiveRole);
     deleteButton->setObjectName("deleteAccountButton");
+    Theme::setStyleProperty(deleteButton, "danger", true);   // Red text; the button row has set it up already
     deleteButton->setAutoDefault(false);
     buttons->button(QDialogButtonBox::Cancel)->setDefault(true);
     connect(deleteButton, &QPushButton::clicked, this, &DeleteAccountDialog::deleteAccount);

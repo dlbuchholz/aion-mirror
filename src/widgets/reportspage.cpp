@@ -3,6 +3,7 @@
 #include "budgetcharts.h"
 #include "category.h"
 #include "categorycolors.h"
+#include "emptystate.h"
 #include "icons.h"
 #include "periodpicker.h"
 #include "settings.h"
@@ -1685,9 +1686,8 @@ QWidget* ReportsPage::spendingDetail(QWidget* parent) {
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
     if (spending.categories.isEmpty()) {
-        auto* empty = new QLabel("No spending in this range.", widget);
+        auto* empty = new EmptyState("reports", "No spending in this range.", widget);
         empty->setObjectName("reportsEmptyLabel");
-        empty->setForegroundRole(QPalette::PlaceholderText);
         layout->addWidget(empty);
         return widget;
     }
@@ -1837,9 +1837,8 @@ QWidget* ReportsPage::payeeDetail(QWidget* parent) {
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
     if (payees.payees.isEmpty()) {
-        auto* empty = new QLabel("No spending in this range.", widget);
+        auto* empty = new EmptyState("reports", "No spending in this range.", widget);
         empty->setObjectName("reportsEmptyLabel");
-        empty->setForegroundRole(QPalette::PlaceholderText);
         layout->addWidget(empty);
         return widget;
     }
@@ -1921,9 +1920,8 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
         layout->addSpacing(10);
     }
     if (budgets.categories.isEmpty()) {
-        auto* empty = new QLabel("No budgets in this range. Set limits per category on the Budget page.", widget);
+        auto* empty = new EmptyState("reports", "No budgets in this range. Set limits per category on the Budget page.", widget);
         empty->setObjectName("reportsEmptyLabel");
-        empty->setForegroundRole(QPalette::PlaceholderText);
         layout->addWidget(empty);
         return widget;
     }
@@ -2147,9 +2145,8 @@ QWidget* ReportsPage::trendDetail(QWidget* parent) {
     layout->setContentsMargins(0, 4, 0, 0);
     layout->setSpacing(0);
     if (!trend) {
-        auto* empty = new QLabel("No spending in this range.", widget);
+        auto* empty = new EmptyState("reports", "No spending in this range.", widget);
         empty->setObjectName("reportsEmptyLabel");
-        empty->setForegroundRole(QPalette::PlaceholderText);
         layout->addWidget(empty);
         return widget;
     }

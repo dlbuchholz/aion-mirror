@@ -5,6 +5,7 @@
 #include "report.h"
 #include "categorycolors.h"
 #include "category.h"
+#include "emptystate.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -247,12 +248,8 @@ BudgetPage::BudgetPage(QWidget* parent)
     rowsLayout->setSpacing(0);
     contentLayout->addLayout(rowsLayout);
 
-    emptyLabel = new QLabel(content);
+    emptyLabel = new EmptyState("budget", QString(), content);
     emptyLabel->setObjectName("budgetEmptyLabel");
-    emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setWordWrap(true);
-    emptyLabel->setContentsMargins(12, 28, 12, 28);
-    emptyLabel->setForegroundRole(QPalette::PlaceholderText);
     contentLayout->addWidget(emptyLabel);
 
     unbudgetedTitle = new QLabel("Spending without a budget", content);

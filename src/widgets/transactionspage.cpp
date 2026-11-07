@@ -5,6 +5,7 @@
 #include "categorycolors.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
+#include "emptystate.h"
 #include "icons.h"
 #include "periodpicker.h"
 #include "settings.h"
@@ -498,10 +499,9 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     connect(listView, &QListView::activated, this, &TransactionsPage::openEditor);
     listStack->addWidget(listView);
 
-    emptyLabel = new QLabel(this);
+    emptyLabel = new EmptyState("transactions", QString(), this);
+    Theme::makeCard(emptyLabel);                     // The list's card stays while it's empty
     emptyLabel->setObjectName("emptyLabel");
-    emptyLabel->setAlignment(Qt::AlignCenter);
-    emptyLabel->setWordWrap(true);
     listStack->addWidget(emptyLabel);
     body->addWidget(listStack, 1);
 

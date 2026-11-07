@@ -1,6 +1,7 @@
 #include "categoriessettings.h"
 #include "categorycolors.h"
 #include "categorytag.h"
+#include "emptystate.h"
 #include "icons.h"
 #include "theme.h"
 
@@ -213,9 +214,7 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     listLayout = new QVBoxLayout();
     listLayout->setSpacing(0);
     contentLayout->addLayout(listLayout);
-    emptyLabel = new QLabel("No categories match.", content);
-    emptyLabel->setForegroundRole(QPalette::PlaceholderText);
-    emptyLabel->setContentsMargins(10, 12, 10, 12);
+    emptyLabel = new EmptyState("search", "No categories match.", content);
     contentLayout->addWidget(emptyLabel);
     contentLayout->addStretch();
     scroll->setWidget(content);

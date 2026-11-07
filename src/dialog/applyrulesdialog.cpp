@@ -2,6 +2,7 @@
 #include "account.h"
 #include "settings.h"
 #include "widgets/categorytag.h"
+#include "theme.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -63,6 +64,7 @@ ApplyRulesDialog::ApplyRulesDialog(int userId, QWidget* parent)
 
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
+    Theme::makeCard(scroll);
     auto* content = new QWidget(scroll);
     listLayout = new QVBoxLayout(content);
     listLayout->setContentsMargins(8, 8, 8, 8);

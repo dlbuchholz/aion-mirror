@@ -3,6 +3,7 @@
 #include "dialog/renamedpayeesdialog.h"
 #include "account.h"
 #include "categorytag.h"
+#include "emptystate.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -375,11 +376,8 @@ RulesSettings::RulesSettings(QWidget* parent)
     listLayout = new QVBoxLayout();
     listLayout->setSpacing(0);
     contentLayout->addLayout(listLayout);
-    emptyLabel = new QLabel("No rules yet. A rule could say: payee contains Landlord → Category: Rent.", content);
+    emptyLabel = new EmptyState("search", "No rules yet. A rule could say: payee contains Landlord → Category: Rent.", content);
     emptyLabel->setObjectName("noRulesLabel");
-    emptyLabel->setForegroundRole(QPalette::PlaceholderText);
-    emptyLabel->setWordWrap(true);
-    emptyLabel->setContentsMargins(10, 12, 10, 12);
     contentLayout->addWidget(emptyLabel);
     contentLayout->addStretch();
     scroll->setWidget(content);
