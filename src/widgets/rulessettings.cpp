@@ -368,7 +368,7 @@ RulesSettings::RulesSettings(QWidget* parent)
 
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(scroll);
     auto* content = new QWidget(scroll);
     auto* contentLayout = new QVBoxLayout(content);
     contentLayout->setContentsMargins(6, 6, 6, 6);
@@ -403,7 +403,7 @@ RulesSettings::RulesSettings(QWidget* parent)
     // The inline editor
     editor = new QFrame(content);
     editor->setObjectName("ruleEditor");
-    editor->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(editor);
     auto* editorLayout = new QVBoxLayout(editor);
     editorLayout->setContentsMargins(12, 10, 12, 10);
     editorLayout->setSpacing(8);

@@ -61,11 +61,10 @@ protected:
 
         const QRectF card = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
         QPainterPath path;
-        path.addRoundedRect(card, 10, 10);
-        painter.fillPath(path, underMouse() ? colors.itemHover : palette().color(QPalette::Base));
-        QColor borderColor = colors.textMuted;
-        borderColor.setAlpha(110);
-        QPen border(underMouse() || hasFocus() ? colors.accent : borderColor);
+        path.addRoundedRect(card, Theme::cardRadius, Theme::cardRadius);   // A card like the others (Theme::makeCard)
+        painter.fillPath(path, Theme::cardBackground(Theme::isDark()));
+        if (underMouse()) painter.fillPath(path, colors.itemHover);
+        QPen border(underMouse() || hasFocus() ? colors.accent : Theme::hairline(Theme::isDark()));
         if (addCard) border.setStyle(Qt::DashLine);
         painter.setPen(border);
         painter.drawPath(path);
@@ -167,7 +166,7 @@ StartWindow::StartWindow(QWidget* parent)
 
     // Inline form for a new user
     addForm = new QFrame(this);
-    addForm->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(addForm);
     auto* formLayout = new QVBoxLayout(addForm);
     formLayout->setContentsMargins(14, 12, 14, 12);
     auto* formTitle = new QLabel("Add user", addForm);

@@ -1078,10 +1078,12 @@ protected:
         const Theme::Colors colors = Theme::colors();
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
+        // A card like the others (Theme::makeCard), lighter while the mouse is over it
         QPainterPath path;
-        path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8);
+        path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), Theme::cardRadius, Theme::cardRadius);
+        painter.fillPath(path, Theme::cardBackground(Theme::isDark()));
         if (underMouse()) painter.fillPath(path, colors.itemHover);
-        painter.setPen(QPen(hasFocus() ? colors.accent : colors.sidebarBorder, hasFocus() ? 2 : 1));
+        painter.setPen(QPen(hasFocus() ? colors.accent : Theme::hairline(Theme::isDark()), hasFocus() ? 2 : 1));
         painter.drawPath(path);
     }
 

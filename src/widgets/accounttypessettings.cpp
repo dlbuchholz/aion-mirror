@@ -48,7 +48,7 @@ AccountTypesSettings::AccountTypesSettings(QWidget* parent)
 
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(scroll);
     auto* content = new QWidget(scroll);
     auto* contentLayout = new QVBoxLayout(content);
     contentLayout->setContentsMargins(10, 8, 10, 8);

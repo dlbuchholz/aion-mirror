@@ -223,6 +223,23 @@ private slots:
         QCOMPARE(budgetRequested.count(), 2);
     }
 
+    void cardTitlesSideBySideLineUp() {
+        DashboardPage page;
+        page.setUserId(1);
+        page.resize(1200, 900);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        // The budget card has a link beside its title, the spending card none; their titles are as high
+        QList<int> tops;
+        for (QLabel* title : page.findChildren<QLabel*>("cardTitle")) {
+            if (title->text().startsWith("Budget") || title->text().startsWith("Spending")) {
+                tops.append(title->mapTo(title->parentWidget(), QPoint(0, 0)).y() + title->height() / 2);
+            }
+        }
+        QCOMPARE(tops.size(), 2);
+        QCOMPARE(tops[0], tops[1]);
+    }
+
     void clickingACategoryOrTransactionAsksToShowIt() {
         const int transactionId = spend(3120, groceries, "Rewe");
         spend(500, 0, "Kiosk");

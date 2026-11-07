@@ -27,7 +27,7 @@ constexpr int NO_CATEGORY = 0;            // Stored as NULL by TransactionDAO
 
 TransactionEditor::TransactionEditor(QWidget* parent)
     : QFrame(parent) {
-    setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(this);
     setFixedWidth(300);
 
     auto* layout = new QVBoxLayout(this);

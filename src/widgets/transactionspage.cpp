@@ -485,7 +485,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     listView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     listView->setMouseTracking(true);
     listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    listView->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(listView);
     connect(listView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TransactionsPage::onSelectionChanged);
     // A plain click (or Enter) on a row opens it; Ctrl/Shift-clicks only extend the selection
     connect(listView, &QListView::clicked, this, [this, transactionList](const QModelIndex& index) {

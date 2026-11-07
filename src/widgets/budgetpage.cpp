@@ -255,7 +255,7 @@ BudgetPage::BudgetPage(QWidget* parent)
     auto* scroll = new QScrollArea(this);
     scroll->setObjectName("budgetScroll");
     scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(scroll);
     auto* content = new QWidget(scroll);
     content->setObjectName("budgetContent");
     auto* contentLayout = new QVBoxLayout(content);
@@ -309,7 +309,7 @@ BudgetPage::BudgetPage(QWidget* parent)
 QFrame* BudgetPage::createTile(const QString& caption, QLabel** valueLabel, QLabel** noteLabel) {
     auto* tile = new QFrame(this);
     tile->setObjectName("budgetTile");
-    tile->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(tile);
     auto* layout = new QVBoxLayout(tile);
     layout->setContentsMargins(14, 10, 14, 10);
     layout->setSpacing(2);

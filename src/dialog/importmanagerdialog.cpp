@@ -64,7 +64,7 @@ void setTextColor(QWidget *widget, const QColor &color)
 QLabel *addTile(QHBoxLayout *layout, const QString &caption, const QString &name, QWidget *parent)
 {
     auto *tile = new QFrame(parent);
-    tile->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(tile);
     auto *tileLayout = new QVBoxLayout(tile);
     tileLayout->setContentsMargins(12, 8, 12, 8);
     tileLayout->setSpacing(2);
@@ -211,7 +211,7 @@ QWidget *ImportManagerDialog::buildFilePage()
     layout->addLayout(formatRow);
 
     formatBox = new QFrame(page);
-    formatBox->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(formatBox);
     auto *formatForm = new QFormLayout(formatBox);
     delimiterCombo = new QComboBox(formatBox);
     delimiterCombo->setObjectName("delimiterCombo");
@@ -231,7 +231,7 @@ QWidget *ImportManagerDialog::buildFilePage()
     // For spreadsheets: which sheets to import
     sheetsBox = new QFrame(page);
     sheetsBox->setObjectName("sheetsBox");
-    sheetsBox->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(sheetsBox);
     auto *sheetsLayout = new QVBoxLayout(sheetsBox);
     sheetsLayout->addWidget(hintLabel("Sheets to import. The first row of the first ticked sheet names the columns; "
                                       "the other sheets' columns are matched to it by name.", sheetsBox));
@@ -272,7 +272,7 @@ QWidget *ImportManagerDialog::buildFilePage()
     // transactions, and the review's balance check offers a correction if the bank's differs.
     newAccountBox = new QFrame(page);
     newAccountBox->setObjectName("newAccountBox");
-    newAccountBox->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(newAccountBox);
     auto *newAccountLayout = new QVBoxLayout(newAccountBox);
     auto *newAccountForm = new QFormLayout();
     newAccountNameEdit = new QLineEdit(newAccountBox);
@@ -671,7 +671,7 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     layout->addWidget(moreOptionsButton);
 
     moreOptionsBox = new QFrame(page);
-    moreOptionsBox->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(moreOptionsBox);
     auto *more = new QFormLayout(moreOptionsBox);
     interpretationCombo = new QComboBox(moreOptionsBox);
     interpretationCombo->setObjectName("interpretationCombo");
@@ -837,7 +837,7 @@ QWidget *ImportManagerDialog::buildCategoriesPage()
     categoriesScroll = new QScrollArea(page);
     categoriesScroll->setObjectName("categoriesScroll");
     categoriesScroll->setWidgetResizable(true);
-    categoriesScroll->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(categoriesScroll);
     categoriesScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     layout->addWidget(categoriesScroll, 1);
     return page;
@@ -1027,7 +1027,7 @@ QWidget *ImportManagerDialog::buildReviewPage()
     // Balance after the import compared with the bank's
     balanceBox = new QFrame(page);
     balanceBox->setObjectName("balanceGroupBox");
-    balanceBox->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(balanceBox);
     auto *grid = new QGridLayout(balanceBox);
     grid->setContentsMargins(12, 10, 12, 10);
     grid->setColumnStretch(0, 1);

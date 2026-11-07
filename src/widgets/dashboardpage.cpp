@@ -398,7 +398,7 @@ DashboardPage::DashboardPage(QWidget* parent)
 DashboardPage::Tile DashboardPage::createTile(const QString& name, const QString& caption, QLayout* layout) {
     auto* tile = new QFrame(this);
     tile->setObjectName(name + "Tile");
-    tile->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(tile);
     auto* tileLayout = new QVBoxLayout(tile);
     tileLayout->setContentsMargins(14, 10, 14, 10);
     tileLayout->setSpacing(2);
@@ -423,13 +423,16 @@ DashboardPage::Tile DashboardPage::createTile(const QString& name, const QString
 QFrame* DashboardPage::createCard(const QString& title, QVBoxLayout** body, QToolButton** link, const QString& linkText) {
     auto* card = new QFrame(this);
     card->setObjectName("dashboardCard");
-    card->setFrameShape(QFrame::StyledPanel);
+    Theme::makeCard(card);
     auto* layout = new QVBoxLayout(card);
     layout->setContentsMargins(10, 10, 10, 10);
     layout->setSpacing(4);
 
+    // As high in every card, with or without a link, so the titles of cards side by side line up
+    constexpr int HeaderHeight = Theme::controlHeight - 4;
     auto* header = new QHBoxLayout();
     header->setContentsMargins(6, 0, 0, 0);
+    header->addStrut(HeaderHeight);
     auto* titleLabel = new QLabel(title, card);
     titleLabel->setObjectName("cardTitle");
     QFont titleFont = titleLabel->font();
@@ -442,6 +445,7 @@ QFrame* DashboardPage::createCard(const QString& title, QVBoxLayout** body, QToo
         (*link)->setObjectName(linkText == "Open budget" ? "openBudgetLink" : "allTransactionsLink");
         (*link)->setAutoRaise(true);
         (*link)->setCursor(Qt::PointingHandCursor);
+        (*link)->setFixedHeight(HeaderHeight);
         links.append(*link);
         header->addWidget(*link);
     }

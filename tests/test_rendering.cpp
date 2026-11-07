@@ -5,6 +5,7 @@
 #include <QStyle>
 #include <QVBoxLayout>
 #include <QListWidget>
+#include <QScrollArea>
 #include <QAbstractSpinBox>
 #include <QSpinBox>
 #include <QLineEdit>
@@ -196,6 +197,51 @@ private slots:
             QVERIFY2(qAbs(fieldBorder.captured(channel).toInt() - expected) <= 1, qPrintable(fieldBorder.captured(0)));
         }
         QVERIFY(!dark.contains("QLineEdit, QComboBox, QAbstractSpinBox { background-color: " + rgba(Qt::white)));
+    }
+
+    void cardsAreRoundedAndEveryPanelIsOne() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        for (const Theme::Type theme : {Theme::Type::Light, Theme::Type::Dark}) {
+            Theme::applyTheme(theme);
+            const bool dark = theme == Theme::Type::Dark;
+            QWidget page;
+            page.setAutoFillBackground(true);
+            auto* layout = new QVBoxLayout(&page);
+            layout->setContentsMargins(10, 10, 10, 10);
+            auto* card = new QFrame(&page);
+            Theme::makeCard(card);
+            layout->addWidget(card);
+            draw(page, QSize(220, 140));
+            const QImage image = page.grab().toImage();                 // The card on the page, at 1:1
+            const qreal dpr = image.devicePixelRatio();
+            const auto at = [&image, dpr, card](int x, int y) {
+                const QPoint point = card->mapTo(card->parentWidget(), QPoint(x, y)) * dpr;
+                return image.pixelColor(point).rgb();
+            };
+            QCOMPARE(at(card->width() / 2, card->height() / 2), Theme::cardBackground(dark).rgb());
+            QCOMPARE(at(1, 1), Theme::pageBackground(dark).rgb());      // Outside the round corner
+            QCOMPARE(at(card->width() / 2, 0), Theme::hairline(dark).rgb());
+
+            // A list or scroll area as a card doesn't paint its square background over the corners
+            QScrollArea area;
+            Theme::makeCard(&area);
+            QVERIFY(area.property("card").toBool());
+            QVERIFY(!area.viewport()->autoFillBackground());
+
+            // Every page's panels are cards: none left with Fusion's square frame
+            MainWindow window(1);
+            auto* sidebar = window.findChild<SidebarWidget*>();
+            for (const auto shown : {SidebarWidget::Page::Dashboard, SidebarWidget::Page::Transactions,
+                                     SidebarWidget::Page::Budget, SidebarWidget::Page::Reports, SidebarWidget::Page::Settings}) {
+                emit sidebar->pageRequested(shown);
+                draw(window, QSize(1300, 800));
+                for (QFrame* frame : window.findChildren<QFrame*>()) {
+                    if (!frame->isVisibleTo(&window) || frame->frameShape() != QFrame::StyledPanel) continue;   // draw() hides the window again
+                    QVERIFY2(frame->property("card").toBool(),
+                             qPrintable(QString("%1 %2").arg(frame->metaObject()->className(), frame->objectName())));
+                }
+            }
+        }
     }
 
     void theWholeAppHasTheControlLook() {

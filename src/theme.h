@@ -4,6 +4,8 @@
 #include <QString>
 #include <QColor>
 #include <QAbstractButton>
+#include <QAbstractScrollArea>
+#include <QFrame>
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QLineEdit>
@@ -116,6 +118,37 @@ public:
     }
 
     static constexpr int controlHeight = 32;        // Fields, drop-downs, steppers and segments in a row
+    static constexpr int cardRadius = 12;           // Every card and panel's corners
+
+    // A see-through colour as the solid one it gives over this background. Rounded borders need
+    // solid colours: a style sheet draws a border's corners and sides one by one, and where a
+    // see-through colour overlaps itself it gets darker, which shows as dots at each corner.
+    static QColor solidOver(const QColor& color, const QColor& background) {
+        const qreal a = color.alphaF();
+        return QColor::fromRgbF(color.redF() * a + background.redF() * (1 - a), color.greenF() * a + background.greenF() * (1 - a),
+                                color.blueF() * a + background.blueF() * (1 - a));
+    }
+
+    // The hairline around fields, buttons and cards, as a solid colour over the page
+    static QColor hairline(bool dark) {
+        return solidOver(dark ? QColor(255, 255, 255, 34) : QColor(0, 0, 0, 38), pageBackground(dark));
+    }
+
+    // A card's surface: a step up from the page in the dark theme, white in the light one
+    static QColor cardBackground(bool dark) {
+        return dark ? QColor(44, 44, 49) : QColor(255, 255, 255);
+    }
+
+    // Makes a frame, list or scroll area one of the app's cards: rounded, with the hairline and the
+    // card's surface (Theme::controlStyleSheet). A scroll area's own background stays out of the
+    // way, so it doesn't paint over the rounded corners.
+    static void makeCard(QFrame* frame) {
+        frame->setProperty("card", true);
+        frame->setFrameShape(QFrame::StyledPanel);  // The style sheet draws it; this keeps its margins
+        if (auto* area = qobject_cast<QAbstractScrollArea*>(frame)) {
+            area->viewport()->setAutoFillBackground(false);
+        }
+    }
 
     // The app's own look for controls, in place of Fusion's square boxes: one height, rounded
     // corners, hairline borders and quiet hovers. applyTheme sets it on the whole app:
@@ -134,6 +167,8 @@ public:
     //                                      its menu's arrow) and [noIndicator] (a menu without the arrow)
     //   QToolButton[warning="true"]        a toggle asking for attention; solid amber while checked
     //   QFrame[selectionBar="true"]        an accent band for actions on what's selected
+    //   QFrame[card="true"]                a card or panel: rounded, on the card surface (Theme::makeCard)
+    //   QScrollBar                         a thin rounded handle, no arrows
     // Its colours are the active theme's, so applyTheme sets it again with each theme.
     static QString controlStyleSheet() {
         const bool dark = darkActive;
@@ -145,16 +180,13 @@ public:
         const QString raised = rgba(dark ? QColor(66, 66, 72) : QColor(255, 255, 255));
         const QString popup = rgba(dark ? QColor(50, 50, 55) : QColor(255, 255, 255));
         const QString track = rgba(dark ? QColor(30, 30, 34) : QColor(232, 232, 235));
-        // Borders are solid colours, mixed against the page beforehand: a style sheet draws a rounded
-        // border's corners and sides one by one, and where a see-through colour overlaps itself it
-        // gets darker, which shows as dots at each corner
+        // Borders are solid colours over the page (solidOver says why)
         const QColor page = pageBackground(dark);
-        const auto solid = [&page, &rgba](const QColor& color) {
-            const qreal a = color.alphaF();
-            return rgba(QColor::fromRgbF(color.redF() * a + page.redF() * (1 - a), color.greenF() * a + page.greenF() * (1 - a),
-                                         color.blueF() * a + page.blueF() * (1 - a)));
-        };
-        const QString border = solid(dark ? QColor(255, 255, 255, 34) : QColor(0, 0, 0, 38));
+        const auto solid = [&page, &rgba](const QColor& color) { return rgba(solidOver(color, page)); };
+        const QString border = rgba(hairline(dark));
+        const QString card = rgba(cardBackground(dark));
+        const QString thumb = rgba(dark ? QColor(255, 255, 255, 50) : QColor(0, 0, 0, 55));
+        const QString thumbHover = rgba(dark ? QColor(255, 255, 255, 90) : QColor(0, 0, 0, 95));
         const QString borderHover = solid(dark ? QColor(255, 255, 255, 70) : QColor(0, 0, 0, 80));
         const QString divider = solid(dark ? QColor(255, 255, 255, 22) : QColor(0, 0, 0, 22));
         const QString hover = rgba(c.itemHover);
@@ -273,16 +305,31 @@ QToolButton[warning="true"]:checked { background-color: WARNFILL; color: ONWARNI
 
 QFrame[selectionBar="true"] { background-color: ACCENTWASH; border: 1px solid ACCENTBORDER; border-radius: 10px; }
 QFrame[selectionBar="true"] QLabel { color: ACCENTTEXT; font-weight: bold; background: transparent; }
+
+QFrame[card="true"] { background-color: CARD; border: 1px solid BORDER; border-radius: RADIUSpx; }
+QAbstractScrollArea[card="true"] { padding: 3px; }
+QScrollArea[card="true"] > QWidget > QWidget { background: transparent; }
+
+QScrollBar:vertical { background: transparent; width: 10px; margin: 4px 2px 4px 0; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 0 4px 2px 4px; }
+QScrollBar::handle { background-color: THUMB; border-radius: 4px; }
+QScrollBar::handle:vertical { min-height: 28px; }
+QScrollBar::handle:horizontal { min-width: 28px; }
+QScrollBar::handle:hover { background-color: THUMBHOVER; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; border: none; background: none; }
+QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 )";
         // Longer names before those they contain, so BORDER doesn't replace the end of ACCENTBORDER
         const QList<QPair<QString, QString>> values = {
+            {"THUMBHOVER", thumbHover}, {"THUMB", thumb},
             {"ACCENTBORDER", accentBorder}, {"ACCENTHOVER", accentHover}, {"ACCENTWASH", accentWash},
             {"ONACCENT", onAccent}, {"ONWARNING", onWarning}, {"WARNBORDER", warnBorder}, {"WARNTINT", warnTint},
             {"WARNFILL", warnFill}, {"WARNING", warning}, {"DANGER", danger},
             {"BORDERHOVER", borderHover}, {"ACCENTTINT", accentTint}, {"ACCENTTEXT", accentText},
             {"SECONDARY", secondary}, {"DISABLED", disabled}, {"DIVIDER", divider}, {"BORDER", border},
             {"ACCENT", accent}, {"RAISED", raised}, {"FIELD", field}, {"TRACK", track}, {"HOVER", hover},
-            {"POPUP", popup}, {"TEXT", text},
+            {"POPUP", popup}, {"TEXT", text}, {"CARD", card},
+            {"RADIUS", QString::number(cardRadius)},
             // Icon files last, by names in lower case: a random folder name could hold a name above
             {"@arrow@", arrow}, {"@up@", arrowUp}, {"@down@", arrowDown}, {"@tick@", tick}, {"@menutick@", menuTick},
         };
