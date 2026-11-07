@@ -199,12 +199,8 @@ QWidget *ImportManagerDialog::buildFilePage()
     formatSummaryLabel->setForegroundRole(QPalette::PlaceholderText);
     changeFormatButton = new QToolButton(page);
     changeFormatButton->setText("Change");
-    changeFormatButton->setAutoRaise(true);
+    Theme::makeLink(changeFormatButton);
     changeFormatButton->setCheckable(true);
-    changeFormatButton->setCursor(Qt::PointingHandCursor);
-    QPalette linkPalette = changeFormatButton->palette();
-    linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
-    changeFormatButton->setPalette(linkPalette);
     formatRow->addWidget(formatSummaryLabel);
     formatRow->addWidget(changeFormatButton);
     formatRow->addStretch();

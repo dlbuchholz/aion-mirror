@@ -1137,6 +1137,12 @@ private slots:
         QCOMPARE(page.findChild<QLabel*>("emptyLabel")->text(), QString("No transactions match these filters."));
     }
 
+    void theSubtitleIsMutedLikeEveryPages() {
+        TransactionsPage page;
+        page.setUserId(1);
+        QCOMPARE(page.findChild<QLabel*>("pageSubtitle")->foregroundRole(), QPalette::PlaceholderText);
+    }
+
     void incomeOrExpensesOnly() {
         TransactionDAO dao;
         const int salary = dao.addTransaction(Transaction(-1, firstId, "Salary", 5000, QDate(2024, 3, 1), "", 0, "income"));

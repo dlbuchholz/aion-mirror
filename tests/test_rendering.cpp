@@ -6,6 +6,7 @@
 #include <QVBoxLayout>
 #include <QListWidget>
 #include <QScrollArea>
+#include <QToolButton>
 #include <QAbstractSpinBox>
 #include <QSpinBox>
 #include <QLineEdit>
@@ -21,6 +22,7 @@
 #include "startwindow.h"
 #include "tests/test_db_fixture.h"
 #include "theme.h"
+#include "widgets/periodpicker.h"
 #include "widgets/sidebarwidget.h"
 
 // Draws every page and dialog in both themes. Painting code only runs when something is
@@ -223,6 +225,15 @@ private slots:
             QCOMPARE(at(card->width() / 2, 0), Theme::hairline(dark).rgb());
 
             // A list or scroll area as a card doesn't paint its square background over the corners
+            // A link: no box, the link colour, in this theme's shade
+            QToolButton link;
+            Theme::makeLink(&link);
+            QVERIFY(link.property("link").toBool() && link.autoRaise());
+            const QColor shade = Theme::linkColor(dark);
+            QVERIFY(qApp->styleSheet().contains(QString("QToolButton[link=\"true\"] { color: rgba(%1, %2, %3, 255)")
+                                                    .arg(shade.red()).arg(shade.green()).arg(shade.blue())));
+            QVERIFY(Theme::linkColor(true).lightness() > Theme::linkColor(false).lightness());   // Lighter on dark grey
+
             QScrollArea area;
             Theme::makeCard(&area);
             QVERIFY(area.property("card").toBool());
@@ -235,6 +246,9 @@ private slots:
                                      SidebarWidget::Page::Budget, SidebarWidget::Page::Reports, SidebarWidget::Page::Settings}) {
                 emit sidebar->pageRequested(shown);
                 draw(window, QSize(1300, 800));
+                for (QToolButton* button : window.findChildren<QToolButton*>()) {   // What goes elsewhere is a link
+                    if (button->text().endsWith("›")) QVERIFY2(button->property("link").toBool(), qPrintable(button->text()));
+                }
                 for (QFrame* frame : window.findChildren<QFrame*>()) {
                     if (!frame->isVisibleTo(&window) || frame->frameShape() != QFrame::StyledPanel) continue;   // draw() hides the window again
                     QVERIFY2(frame->property("card").toBool(),

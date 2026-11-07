@@ -110,11 +110,7 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     // An existing budget leads to what was spent on it
     transactionsLink = new QToolButton(this);
     transactionsLink->setObjectName("budgetTransactionsLink");
-    transactionsLink->setAutoRaise(true);
-    transactionsLink->setCursor(Qt::PointingHandCursor);
-    QPalette linkPalette = transactionsLink->palette();
-    linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
-    transactionsLink->setPalette(linkPalette);
+    Theme::makeLink(transactionsLink);
     connect(transactionsLink, &QToolButton::clicked, this, [this]() { emit transactionsRequested(categoryId); });
     layout->addWidget(transactionsLink, 0, Qt::AlignLeft);
 

@@ -441,12 +441,10 @@ QFrame* DashboardPage::createCard(const QString& title, QVBoxLayout** body, QToo
     header->addWidget(titleLabel, 1);
     if (link) {
         *link = new QToolButton(card);
-        (*link)->setText(linkText);
+        (*link)->setText(linkText + " ›");                 // It goes to another page
         (*link)->setObjectName(linkText == "Open budget" ? "openBudgetLink" : "allTransactionsLink");
-        (*link)->setAutoRaise(true);
-        (*link)->setCursor(Qt::PointingHandCursor);
+        Theme::makeLink(*link);
         (*link)->setFixedHeight(HeaderHeight);
-        links.append(*link);
         header->addWidget(*link);
     }
     layout->addLayout(header);
@@ -460,9 +458,6 @@ QFrame* DashboardPage::createCard(const QString& title, QVBoxLayout** body, QToo
 void DashboardPage::updateIcons() {
     importButton->setIcon(Icons::icon("import", palette().color(QPalette::ButtonText)));
     addButton->setIcon(Icons::icon("plus", Theme::colors().onAccent));
-    for (QToolButton* link : links) {
-        setTextColor(link, Theme::colors().accent);
-    }
 }
 
 void DashboardPage::changeEvent(QEvent* event) {

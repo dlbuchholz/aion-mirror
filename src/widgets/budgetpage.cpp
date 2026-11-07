@@ -1,6 +1,7 @@
 #include "budgetpage.h"
 #include "budgetdetail.h"
 #include "budgeteditor.h"
+#include "periodpicker.h"
 #include "report.h"
 #include "categorycolors.h"
 #include "category.h"
@@ -189,31 +190,15 @@ BudgetPage::BudgetPage(QWidget* parent)
     header->addWidget(titleLabel);
     header->addSpacing(18);
 
-    previousButton = new QToolButton(this);
-    previousButton->setObjectName("previousMonthButton");
-    previousButton->setAutoRaise(true);
-    previousButton->setToolTip("Previous month");
-    connect(previousButton, &QToolButton::clicked, this, [this]() { showMonth(shownMonth.addMonths(-1)); });
-    header->addWidget(previousButton);
-    monthLabel = new QLabel(this);
-    monthLabel->setObjectName("monthLabel");
-    monthLabel->setAlignment(Qt::AlignCenter);
-    QFont monthFont = monthLabel->font();
-    monthFont.setPointSize(11);
-    monthFont.setWeight(QFont::DemiBold);
-    monthLabel->setFont(monthFont);
-    monthLabel->setMinimumWidth(QFontMetrics(monthFont).horizontalAdvance("September 2026") + 16);
-    header->addWidget(monthLabel);
-    nextButton = new QToolButton(this);
-    nextButton->setObjectName("nextMonthButton");
-    nextButton->setAutoRaise(true);
-    nextButton->setToolTip("Next month");
-    connect(nextButton, &QToolButton::clicked, this, [this]() { showMonth(shownMonth.addMonths(1)); });
-    header->addWidget(nextButton);
-    thisMonthButton = new QPushButton("This month", this);
-    thisMonthButton->setObjectName("thisMonthButton");
-    connect(thisMonthButton, &QPushButton::clicked, this, [this]() { showMonth(QDate::currentDate()); });
-    header->addWidget(thisMonthButton);
+    // The month: "‹ November 2026 ›" like the Transactions page; its menu has this month and any
+    // other. Budgets can be planned ahead, so later months are allowed.
+    monthPicker = new PeriodPicker(this);
+    monthPicker->setObjectName("budgetMonth");
+    monthPicker->today = [this]() { return this->today(); };   // The page's, not the local day above
+    monthPicker->futureAllowed = true;
+    monthPicker->setMonthsOnly(true);
+    connect(monthPicker, &PeriodPicker::periodChanged, this, [this](const ReportRange& month) { showMonth(month.first); });
+    header->addWidget(monthPicker, 0, Qt::AlignVCenter);
     header->addStretch();
 
     // The month in the Budget vs. actual report
@@ -221,11 +206,7 @@ BudgetPage::BudgetPage(QWidget* parent)
     reportLink->setObjectName("budgetReportLink");
     reportLink->setText("Budget vs. actual ›");
     reportLink->setToolTip("Open this month in Reports");
-    reportLink->setAutoRaise(true);
-    reportLink->setCursor(Qt::PointingHandCursor);
-    QPalette linkPalette = reportLink->palette();
-    linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
-    reportLink->setPalette(linkPalette);
+    Theme::makeLink(reportLink);
     reportLink->hide();                              // Until there are budgets
     connect(reportLink, &QToolButton::clicked, this, [this]() { emit budgetReportRequested(shownMonth); });
     header->addWidget(reportLink);
@@ -364,14 +345,11 @@ void BudgetPage::updateNotes(const BudgetReport& report, const QDate& day) {
 }
 
 void BudgetPage::updateIcons() {
-    const QColor color = palette().color(QPalette::ButtonText);
-    previousButton->setIcon(Icons::icon("chevron-left", color));
-    nextButton->setIcon(Icons::icon("chevron-right", color));
     addButton->setIcon(Icons::icon("plus", Theme::colors().onAccent));
 }
 
 void BudgetPage::changeEvent(QEvent* event) {
-    if (event->type() == QEvent::PaletteChange && previousButton && leftLabel) {
+    if (event->type() == QEvent::PaletteChange && monthPicker && leftLabel) {
         updateIcons();
         updateHeader();                              // "Over" colour of the left total
     }
@@ -524,13 +502,9 @@ void BudgetPage::reload() {
             auto* add = new QToolButton(row);
             add->setObjectName("addBudgetForCategory");
             add->setText("Add budget");
-            add->setAutoRaise(true);
+            Theme::makeLink(add);
             add->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-            add->setIcon(Icons::icon("plus", Theme::colors().accent));
-            QPalette linkPalette = add->palette();
-            linkPalette.setColor(QPalette::ButtonText, Theme::colors().accent);
-            add->setPalette(linkPalette);
-            add->setCursor(Qt::PointingHandCursor);
+            add->setIcon(Icons::icon("plus", Theme::linkColor(Theme::isDark())));
             // Suggest the spending so far, rounded up to a round number
             const Cents step = 1000;
             const Cents suggested = (spending.spentCents + step - 1) / step * step;
@@ -553,9 +527,7 @@ void BudgetPage::reload() {
 }
 
 void BudgetPage::updateHeader() {
-    monthLabel->setText(QLocale(QLocale::English).toString(shownMonth, "MMMM yyyy"));
-    const QDate today = QDate::currentDate();
-    thisMonthButton->setVisible(shownMonth != QDate(today.year(), today.month(), 1));
+    monthPicker->setPeriod(ReportRange{shownMonth, shownMonth.addMonths(1).addDays(-1)});
 
     Cents limit = 0;
     Cents spent = 0;

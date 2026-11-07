@@ -1203,8 +1203,7 @@ ReportsPage::ReportsPage(QWidget* parent)
     backLink->setObjectName("reportsBackLink");
     backLink->setText("Reports");
     backLink->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    backLink->setAutoRaise(true);
-    backLink->setCursor(Qt::PointingHandCursor);
+    Theme::makeLink(backLink);
     connect(backLink, &QToolButton::clicked, this, &ReportsPage::showOverview);
     titles->addWidget(backLink, 0, Qt::AlignLeft);
     titleLabel = new QLabel("Reports", this);
@@ -2257,8 +2256,7 @@ QString ReportsPage::describe(const ReportRange& range) const {
 }
 
 void ReportsPage::updateIcons() {
-    backLink->setIcon(Icons::icon("chevron-left", Theme::colors().accent));
-    setTextColor(backLink, Theme::colors().accent);
+    backLink->setIcon(Icons::icon("chevron-left", Theme::linkColor(Theme::isDark())));
     const bool centred = Settings::instance().isReportsCentred();
     widthButton->setIcon(Icons::icon(centred ? "maximize" : "minimize", Theme::colors().textPrimary));
     widthButton->setToolTip(centred ? "Use the full width" : "Back to a centred column");

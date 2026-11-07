@@ -10,6 +10,7 @@
 #include <QEvent>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QToolButton>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QStyleHints>
@@ -139,6 +140,19 @@ public:
         return dark ? QColor(44, 44, 49) : QColor(255, 255, 255);
     }
 
+    // Links and accent-tinted text: the accent, lighter in the dark theme so it reads on dark grey
+    static QColor linkColor(bool dark) {
+        return dark ? QColor(130, 185, 240) : QColor(24, 95, 165);
+    }
+
+    // Makes a tool button one of the app's links: accent text, no box (Theme::controlStyleSheet).
+    // Its text ends in " ›" when it goes to another page, not when it acts where it is.
+    static void makeLink(QToolButton* button) {
+        button->setProperty("link", true);
+        button->setAutoRaise(true);
+        button->setCursor(Qt::PointingHandCursor);
+    }
+
     // Makes a frame, list or scroll area one of the app's cards: rounded, with the hairline and the
     // card's surface (Theme::controlStyleSheet). A scroll area's own background stays out of the
     // way, so it doesn't paint over the rounded corners.
@@ -168,6 +182,7 @@ public:
     //   QToolButton[warning="true"]        a toggle asking for attention; solid amber while checked
     //   QFrame[selectionBar="true"]        an accent band for actions on what's selected
     //   QFrame[card="true"]                a card or panel: rounded, on the card surface (Theme::makeCard)
+    //   QToolButton[link="true"]           a link: accent text, no box (Theme::makeLink)
     //   QScrollBar                         a thin rounded handle, no arrows
     // Its colours are the active theme's, so applyTheme sets it again with each theme.
     static QString controlStyleSheet() {
@@ -194,7 +209,7 @@ public:
         QColor tint = c.accent;
         tint.setAlpha(dark ? 60 : 36);
         const QString accentTint = rgba(tint);
-        const QString accentText = rgba(dark ? QColor(130, 185, 240) : QColor(24, 95, 165));
+        const QString accentText = rgba(linkColor(dark));
         const QString text = rgba(c.textPrimary);
         const QString secondary = rgba(c.textSecondary);
         const QString disabled = rgba(dark ? QColor(110, 110, 116) : QColor(170, 170, 174));
@@ -305,6 +320,10 @@ QToolButton[warning="true"]:checked { background-color: WARNFILL; color: ONWARNI
 
 QFrame[selectionBar="true"] { background-color: ACCENTWASH; border: 1px solid ACCENTBORDER; border-radius: 10px; }
 QFrame[selectionBar="true"] QLabel { color: ACCENTTEXT; font-weight: bold; background: transparent; }
+
+QToolButton[link="true"] { color: ACCENTTEXT; background: transparent; border: none; border-radius: 6px; padding: 3px 6px; }
+QToolButton[link="true"]:hover { background-color: HOVER; }
+QToolButton[link="true"]:checked { background-color: ACCENTTINT; }
 
 QFrame[card="true"] { background-color: CARD; border: 1px solid BORDER; border-radius: RADIUSpx; }
 QAbstractScrollArea[card="true"] { padding: 3px; }

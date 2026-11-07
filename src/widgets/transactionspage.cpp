@@ -308,6 +308,8 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     titleFont.setPointSize(16);
     titleLabel->setFont(titleFont);
     subtitleLabel = new QLabel(this);
+    subtitleLabel->setObjectName("pageSubtitle");
+    subtitleLabel->setForegroundRole(QPalette::PlaceholderText);   // Muted, like every page's subtitle
     titles->addWidget(titleLabel);
     titles->addWidget(subtitleLabel);
     header->addLayout(titles, 1);

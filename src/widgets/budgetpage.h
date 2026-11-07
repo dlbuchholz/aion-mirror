@@ -8,6 +8,7 @@
 
 class BudgetDetail;
 class BudgetEditor;
+class PeriodPicker;
 struct BudgetReport;
 class QAbstractButton;
 class QFrame;
@@ -68,10 +69,7 @@ private:
     QList<UnbudgetedSpending> unbudgeted;
     int expandedCategoryId = 0;                      // Stays unfolded across reloads, and months it has a budget in
 
-    QLabel* monthLabel = nullptr;
-    QToolButton* previousButton = nullptr;
-    QToolButton* nextButton = nullptr;
-    QPushButton* thisMonthButton = nullptr;
+    PeriodPicker* monthPicker = nullptr;             // ‹ November 2026 ›
     QPushButton* addButton = nullptr;
     QToolButton* reportLink = nullptr;               // To Budget vs. actual
     QLabel* budgetedLabel = nullptr;

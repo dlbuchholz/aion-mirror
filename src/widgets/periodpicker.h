@@ -8,6 +8,7 @@
 #include <optional>
 #include "report.h"
 
+class QAbstractButton;
 class QLabel;
 class QToolButton;
 class PeriodMenu;
@@ -25,9 +26,13 @@ public:
     // In place of the menu: what the name asks for when clicked, starting from the period shown.
     // Nothing back leaves the period as it is.
     std::function<std::optional<ReportRange>(const ReportRange&)> chooser;
+    // Months that haven't started can be stepped to and chosen too, as for budgets planned ahead
+    bool futureAllowed = false;
 
     ReportRange period() const { return shown; }
     void setPeriod(const ReportRange& range);        // Without periodChanged
+    // Only single months: the menu offers this month, last month and the month grid, no longer periods
+    void setMonthsOnly(bool monthsOnly);
     // Keeps room for names up to this long, so the arrows stay put for those too (the longest month by default)
     void setWidestName(const QString& name);
 
@@ -65,10 +70,12 @@ public:
     explicit PeriodMenu(QWidget* parent = nullptr);
 
     std::function<QDate()> today = [] { return QDate::currentDate(); };
+    bool futureAllowed = false;                      // Later months can be chosen too
 
     // Opens below the widget, on the year of the period shown (or this year)
     void showBelow(QWidget* anchor, const ReportRange& current);
     int shownYear() const { return year; }
+    void setMonthsOnly(bool monthsOnly);             // Without all time and this year
 
 signals:
     void chosen(const ReportRange& range);
@@ -81,6 +88,7 @@ private:
     QToolButton* nextButton = nullptr;
     QLabel* yearLabel = nullptr;
     QFrame* separator = nullptr;                     // Between the usual periods and the months
+    QList<QAbstractButton*> longerPeriods;           // All time and this year
     QList<QToolButton*> monthButtons;                // January to December
     ReportRange current;
     int year = 0;

@@ -69,7 +69,6 @@ private:
     QVBoxLayout* categoryLayout = nullptr;
     QLabel* categoryTitle = nullptr;
     QVBoxLayout* recentLayout = nullptr;
-    QList<QToolButton*> links;
 };
 
 #endif // DASHBOARDPAGE_H

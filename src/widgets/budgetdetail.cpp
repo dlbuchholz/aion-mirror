@@ -336,13 +336,9 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     if (!transactions.isEmpty()) {
         auto* all = new QToolButton(this);
         all->setObjectName("budgetDetailTransactions");
-        all->setAutoRaise(true);
-        all->setCursor(Qt::PointingHandCursor);
+        Theme::makeLink(all);
         all->setText(transactions.size() == 1 ? QString("Show it on the Transactions page ›")
                                               : QString("Show all %1 transactions ›").arg(transactions.size()));
-        QPalette linkPalette = all->palette();
-        linkPalette.setColor(QPalette::ButtonText, colors.accent);
-        all->setPalette(linkPalette);
         connect(all, &QToolButton::clicked, this, &BudgetDetail::transactionsRequested);
         footer->addWidget(all);
     }

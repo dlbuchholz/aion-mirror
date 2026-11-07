@@ -18,6 +18,7 @@
 #include "widgets/budgetdetail.h"
 #include "widgets/budgeteditor.h"
 #include "widgets/budgetpage.h"
+#include "widgets/periodpicker.h"
 
 class TestBudgetPage : public QObject {
     Q_OBJECT
@@ -104,7 +105,6 @@ private slots:
         QCOMPARE(label(page, "spentTotal"), money(31200));
         QCOMPARE(label(page, "leftTotal"), money(8800));
         QVERIFY(!page.findChild<QLabel*>("budgetEmptyLabel")->isVisibleTo(&page));
-        QVERIFY(!page.findChild<QPushButton*>("thisMonthButton")->isVisibleTo(&page));
     }
 
     void overspendingIsShownAsOver() {
@@ -275,7 +275,7 @@ private slots:
         QCOMPARE(requested.size(), 4);
 
         // Another month: its days, and nothing to show for a budget without transactions
-        page.findChild<QToolButton*>("previousMonthButton")->click();
+        page.findChild<QToolButton*>("previousPeriod")->click();
         emit editor->transactionsRequested(groceries);
         QCOMPARE(lastRequest(), std::tuple(groceries, thisMonth.addMonths(-1), thisMonth.addDays(-1)));
         edit(page, "Rent");
@@ -303,16 +303,37 @@ private slots:
         QVERIFY(BudgetDAO().setLimitForMonth(1, groceries, thisMonth, 40000));
         BudgetPage page;
         page.setUserId(1);
-        page.findChild<QToolButton*>("previousMonthButton")->click();
+        auto* name = page.findChild<QToolButton*>("periodName");
+        const auto monthName = [](const QDate& month) { return QLocale(QLocale::English).toString(month, "MMMM yyyy"); };
+        QCOMPARE(name->text(), monthName(thisMonth));
+        page.findChild<QToolButton*>("previousPeriod")->click();
         QCOMPARE(page.month(), thisMonth.addMonths(-1));
         QVERIFY(!row(page, "Groceries"));
-        QCOMPARE(label(page, "monthLabel"), QLocale(QLocale::English).toString(thisMonth.addMonths(-1), "MMMM yyyy"));
+        QCOMPARE(name->text(), monthName(thisMonth.addMonths(-1)));
 
-        auto* back = page.findChild<QPushButton*>("thisMonthButton");
-        QVERIFY(back->isVisibleTo(&page));
+        // The name's menu: this month and any month, no longer periods; later months too, for planning
+        name->click();
+        auto* menu = page.findChild<PeriodMenu*>();
+        QVERIFY(menu->isVisible());
+        QStringList shortcuts;
+        QAbstractButton* back = nullptr;
+        for (QPushButton* shortcut : menu->findChildren<QPushButton*>()) {
+            if (shortcut->isVisibleTo(menu)) shortcuts.append(shortcut->text());
+            if (shortcut->text() == "This month") back = shortcut;
+        }
+        QCOMPARE(shortcuts, QStringList({"This month", "Last month"}));
+        QVERIFY(menu->findChild<QToolButton*>("nextYear")->isEnabled());
+        QVERIFY(menu->findChild<QToolButton*>("month12")->isEnabled());
         back->click();
         QCOMPARE(page.month(), thisMonth);
         QVERIFY(row(page, "Groceries"));
+
+        // And on into the months to come
+        auto* next = page.findChild<QToolButton*>("nextPeriod");
+        QVERIFY(next->isEnabled());
+        next->click();
+        QCOMPARE(page.month(), thisMonth.addMonths(1));
+        QCOMPARE(name->text(), monthName(thisMonth.addMonths(1)));
     }
 
     void enterUnfoldsABudgetRow() {
@@ -349,13 +370,13 @@ private slots:
 
         // A month without that budget folds it, and it stays folded on the way back
         row(page, "Rent")->click();
-        page.findChild<QToolButton*>("nextMonthButton")->click();
+        page.findChild<QToolButton*>("nextPeriod")->click();
         QVERIFY(!page.findChild<BudgetDetail*>());
-        page.findChild<QToolButton*>("previousMonthButton")->click();
+        page.findChild<QToolButton*>("previousPeriod")->click();
         QVERIFY(!page.findChild<BudgetDetail*>());
         // ... while a budget in both months stays unfolded
         row(page, "Groceries")->click();
-        page.findChild<QToolButton*>("nextMonthButton")->click();
+        page.findChild<QToolButton*>("nextPeriod")->click();
         QVERIFY(detailFollows("Groceries"));
     }
 
@@ -429,6 +450,7 @@ private slots:
         QCOMPARE(listed.last()->accessibleName(), QString("P3"));
         QCOMPARE(listed.first()->findChild<QLabel*>("budgetDetailAmount")->text(), Settings::instance().formatCurrency(-7410, true));
         QCOMPARE(detail.findChild<QToolButton*>("budgetDetailTransactions")->text(), QString("Show all 6 transactions ›"));
+        QVERIFY(detail.findChild<QToolButton*>("budgetDetailTransactions")->property("link").toBool());   // Looks like every link
         QVERIFY(!detail.findChild<QLabel*>("budgetDetailEmpty"));
         QSignalSpy one(&detail, &BudgetDetail::transactionRequested);
         listed.last()->click();
@@ -586,7 +608,7 @@ private slots:
         // A month that's over says how it ended; one to come says nothing
         Transaction before(-1, accountId, "Shop", 30000, thisMonth.addMonths(-1), "", groceries, "expense");
         QVERIFY(TransactionDAO().addTransaction(before) > 0);
-        page.findChild<QToolButton*>("previousMonthButton")->click();
+        page.findChild<QToolButton*>("previousPeriod")->click();
         QCOMPARE(spentNote->text(), QString("Within the limit"));
         QVERIFY(leftNote->isHidden());
         QVERIFY(TransactionDAO().addTransaction(before) > 0);
@@ -639,7 +661,7 @@ private slots:
         link->click();
         QCOMPARE(requested.size(), 1);
         QCOMPARE(requested.first().first().toDate(), thisMonth);
-        page.findChild<QToolButton*>("previousMonthButton")->click();
+        page.findChild<QToolButton*>("previousPeriod")->click();
         QVERIFY(link->isHidden());                       // No budget the month before
     }
     void aBudgetThatCantBeSavedKeepsTheEditorOpen() {

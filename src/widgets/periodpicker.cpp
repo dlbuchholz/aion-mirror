@@ -56,6 +56,7 @@ PeriodPicker::PeriodPicker(QWidget* parent) : QFrame(parent) {
             return;
         }
         menu->today = today;
+        menu->futureAllowed = futureAllowed;
         menu->showBelow(nameButton, shown);
     });
     connect(menu, &PeriodMenu::chosen, this, &PeriodPicker::choose);
@@ -78,6 +79,10 @@ void PeriodPicker::setPeriod(const ReportRange& range) {
 void PeriodPicker::choose(const ReportRange& range) {
     setPeriod(range);
     emit periodChanged(range);
+}
+
+void PeriodPicker::setMonthsOnly(bool monthsOnly) {
+    menu->setMonthsOnly(monthsOnly);
 }
 
 void PeriodPicker::setWidestName(const QString& name) {
@@ -105,7 +110,8 @@ QString PeriodPicker::nameOf(const ReportRange& range) {
 void PeriodPicker::refresh() {
     nameButton->setText(nameOf(shown));
     previousButton->setEnabled(shown.isValid());
-    nextButton->setEnabled(shown.isValid() && stepped(shown, 1).first <= today());   // Not into the future
+    // Not into the future, unless that's allowed
+    nextButton->setEnabled(shown.isValid() && (futureAllowed || stepped(shown, 1).first <= today()));
 }
 
 // Room for the longest month, so the arrows stay put while stepping through months. A report's
@@ -167,6 +173,7 @@ PeriodMenu::PeriodMenu(QWidget* parent) : QFrame(parent, Qt::Popup | Qt::Framele
         const auto range = shortcut.second;
         connect(button, &QPushButton::clicked, this, [this, range]() { choose(range(today())); });
         root->addWidget(button);
+        if (shortcut.first == "All time" || shortcut.first == "This year") longerPeriods.append(button);
     }
 
     separator = new QFrame(this);
@@ -227,10 +234,10 @@ void PeriodMenu::showYear(int newYear) {
     year = newYear;
     yearLabel->setText(QString::number(year));
     const QDate now = today();
-    nextButton->setEnabled(year < now.year());       // Nothing to choose in later years
+    nextButton->setEnabled(futureAllowed || year < now.year());   // Nothing to choose in later years, unless allowed
     for (int month = 1; month <= 12; ++month) {
         QToolButton* button = monthButtons[month - 1];
-        button->setEnabled(QDate(year, month, 1) <= now);
+        button->setEnabled(futureAllowed || QDate(year, month, 1) <= now);
         button->setChecked(current == wholeMonth(QDate(year, month, 1)));
         const bool thisMonth = year == now.year() && month == now.month();
         if (button->property("thisMonth").toBool() != thisMonth) {
@@ -239,6 +246,10 @@ void PeriodMenu::showYear(int newYear) {
             button->style()->polish(button);
         }
     }
+}
+
+void PeriodMenu::setMonthsOnly(bool monthsOnly) {
+    for (QAbstractButton* button : std::as_const(longerPeriods)) button->setVisible(!monthsOnly);
 }
 
 void PeriodMenu::choose(const ReportRange& range) {

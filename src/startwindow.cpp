@@ -226,8 +226,7 @@ StartWindow::StartWindow(QWidget* parent)
     footer->addWidget(versionLabel);
     auto* updateButton = new QToolButton(this);
     updateButton->setText("Check for updates");
-    updateButton->setAutoRaise(true);
-    updateButton->setCursor(Qt::PointingHandCursor);
+    Theme::makeLink(updateButton);
     connect(updateButton, &QToolButton::clicked, this, [this]() { UpdateCheck::checkInteractively(this); });
     footer->addWidget(updateButton);
     footer->addStretch();
