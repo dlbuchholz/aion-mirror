@@ -15,8 +15,10 @@
 #include "budget.h"
 #include "transaction.h"
 #include "settings.h"
+#include "theme.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/budgetcharts.h"
+#include "widgets/periodpicker.h"
 #include "widgets/reportspage.h"
 
 using Preset = ReportRange::Preset;
@@ -29,6 +31,15 @@ class TestReportsPage : public QObject {
     static QString text(ReportsPage& page, const char* name) { return page.findChild<QLabel*>(name)->text(); }
     static QToolButton* chip(ReportsPage& page, Preset preset) {
         return page.findChild<QToolButton*>("reportsRange_" + ReportRange::key(preset));
+    }
+    // Clicking the period's name asks for the first and last day
+    static void chooseDays(ReportsPage& page) { page.findChild<QToolButton*>("periodName")->click(); }
+    static QString periodName(ReportsPage& page) { return page.findChild<QToolButton*>("periodName")->text(); }
+    static bool noLengthChecked(ReportsPage& page) {
+        for (Preset length : {Preset::Month, Preset::ThreeMonths, Preset::SixMonths, Preset::Year}) {
+            if (chip(page, length)->isChecked()) return false;
+        }
+        return true;
     }
     static QToolButton* viewChip(ReportsPage& page, const QString& view) {
         return page.findChild<QToolButton*>("budgetView_" + view);
@@ -74,11 +85,11 @@ private slots:
             page.setUserId(1);
             QVERIFY(chip(page, Preset::SixMonths)->isChecked());
             QCOMPARE(page.range(), ReportRange::forPreset(Preset::SixMonths, today));
-            QCOMPARE(text(page, "reportsRangeLabel"), page.range().label());
+            QCOMPARE(text(page, "reportsRangeLabel"), QString("6 months, to today"));
 
             chip(page, Preset::Year)->click();
             QCOMPARE(page.range(), ReportRange::forPreset(Preset::Year, today));
-            QCOMPARE(text(page, "reportsRangeLabel"), page.range().label());
+            QCOMPARE(text(page, "reportsRangeLabel"), QString("12 months, to today"));
         }
         ReportsPage again;
         again.setUserId(1);
@@ -95,10 +106,11 @@ private slots:
                 to = QDate(2026, 9, 1);                  // Back to front is fine
                 return true;
             };
-            chip(page, Preset::Custom)->click();
-            QVERIFY(chip(page, Preset::Custom)->isChecked());
+            chooseDays(page);
+            QVERIFY(noLengthChecked(page));                // Not whole months
+            QCOMPARE(periodName(page), QString("1 Sep – 15 Oct 2026"));
             QCOMPARE(page.range(), ReportRange::custom(QDate(2026, 9, 1), QDate(2026, 10, 15)));
-            QCOMPARE(text(page, "reportsRangeLabel"), QString("1 Sep – 15 Oct 2026"));
+            QCOMPARE(text(page, "reportsRangeLabel"), QString("45 days"));
 
             // Cancelling keeps what was there
             chip(page, Preset::Month)->click();
@@ -107,7 +119,7 @@ private slots:
                 askedFrom = from;
                 return false;
             };
-            chip(page, Preset::Custom)->click();
+            chooseDays(page);
             QCOMPARE(askedFrom, page.range().first);     // Starts from the shown range
             QVERIFY(chip(page, Preset::Month)->isChecked());
             QCOMPARE(page.range().months(), 1);
@@ -117,11 +129,151 @@ private slots:
                 to = QDate(2026, 3, 20);
                 return true;
             };
-            chip(page, Preset::Custom)->click();
+            chooseDays(page);
         }
         ReportsPage again;
         again.setUserId(1);
         QCOMPARE(again.range(), ReportRange::custom(QDate(2026, 3, 1), QDate(2026, 3, 20)));
+    }
+
+    void theArrowsStepByTheLength() {
+        const QDate today = QDate::currentDate();
+        const ReportRange threeMonths = ReportRange::forPreset(Preset::ThreeMonths, today);
+        const ReportRange before{threeMonths.first.addMonths(-3), threeMonths.first.addDays(-1)};
+        {
+            ReportsPage page;
+            page.setUserId(1);
+            auto* previous = page.findChild<QToolButton*>("previousPeriod");
+            auto* next = page.findChild<QToolButton*>("nextPeriod");
+            auto* name = page.findChild<QToolButton*>("periodName");
+            chip(page, Preset::ThreeMonths)->click();
+            QCOMPARE(periodName(page), threeMonths.label());
+            QVERIFY(!next->isEnabled());                 // Nothing after this month yet
+            const int width = name->width();
+
+            previous->click();
+            QCOMPARE(page.range(), before);
+            QCOMPARE(periodName(page), before.label());
+            QVERIFY(chip(page, Preset::ThreeMonths)->isChecked());   // Still three months long
+            QCOMPARE(text(page, "reportsRangeLabel"), QString("3 months"));
+            QVERIFY(next->isEnabled());
+            QCOMPARE(name->width(), width);              // The arrows stay put
+            for (int step = 0; step < 4; ++step) previous->click();
+            QCOMPARE(name->width(), width);              // Across a year's end too
+            for (int step = 0; step < 4; ++step) next->click();
+            QCOMPARE(page.range(), before);
+        }
+        {
+            ReportsPage again;                           // A range stepped back to is remembered as it is
+            again.setUserId(1);
+            QCOMPARE(again.range(), before);
+            QVERIFY(chip(again, Preset::ThreeMonths)->isChecked());
+            again.findChild<QToolButton*>("nextPeriod")->click();
+            QCOMPARE(again.range(), threeMonths);
+        }
+        ReportsPage latest;                              // Back at this month, it's the 3 months again
+        latest.setUserId(1);
+        QCOMPARE(Settings::instance().getReportsRange(), ReportRange::key(Preset::ThreeMonths));
+        QCOMPARE(latest.range(), threeMonths);
+
+        // A length starts again from this month
+        latest.findChild<QToolButton*>("previousPeriod")->click();
+        chip(latest, Preset::Year)->click();
+        QCOMPARE(latest.range(), ReportRange::forPreset(Preset::Year, today));
+        chip(latest, Preset::Month)->click();
+        QCOMPARE(text(latest, "reportsRangeLabel"), QString("1 month, to today"));
+    }
+
+    void theStepperGoesByThePagesDate() {
+        ReportsPage page;
+        page.today = [] { return QDate(2026, 3, 15); };
+        page.setUserId(1);                               // Reloads: the months move on to the page's date
+        QCOMPARE(periodName(page), ReportRange::forPreset(Preset::SixMonths, QDate(2026, 3, 15)).label());
+        chip(page, Preset::ThreeMonths)->click();
+        QCOMPARE(periodName(page), QString("January – March 2026"));
+        QVERIFY(!page.findChild<QToolButton*>("nextPeriod")->isEnabled());   // April hasn't started
+
+        // A range that hasn't begun isn't "to today"
+        page.askCustomRange = [](QDate& from, QDate& to) {
+            from = QDate(2026, 5, 1);
+            to = QDate(2026, 5, 31);
+            return true;
+        };
+        chooseDays(page);
+        QCOMPARE(text(page, "reportsRangeLabel"), QString("1 month"));
+        QVERIFY(!page.findChild<PeriodMenu*>()->isVisible());   // The days were asked for, not the menu
+
+        // Cancelling ignores whatever the dialog had
+        page.askCustomRange = [](QDate& from, QDate& to) {
+            from = QDate(2020, 1, 1);
+            to = QDate(2020, 1, 2);
+            return false;
+        };
+        chooseDays(page);
+        QCOMPARE(page.range(), ReportRange::custom(QDate(2026, 5, 1), QDate(2026, 5, 31)));
+    }
+
+    void theNamesWidthStaysForEveryRange() {
+        ReportsPage page;
+        page.setUserId(1);
+        page.resize(1600, 600);
+        page.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&page));
+        auto* name = page.findChild<QToolButton*>("periodName");
+        const auto showDays = [&page](const QDate& from, const QDate& to) {
+            page.askCustomRange = [from, to](QDate& first, QDate& last) {
+                first = from;
+                last = to;
+                return true;
+            };
+            chooseDays(page);
+            QCoreApplication::processEvents();           // Lays the row out again
+        };
+        showDays(QDate(2026, 5, 1), QDate(2026, 5, 31));
+        const int width = name->width();
+        showDays(QDate(2025, 9, 1), QDate(2026, 12, 31));   // As long as a name of months gets
+        QCOMPARE(name->text(), QString("September 2025 – December 2026"));
+        QCOMPARE(name->width(), width);
+        QVERIFY(name->fontMetrics().horizontalAdvance(name->text()) <= name->width());
+    }
+
+    void theHeaderFollowsTheTheme() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        Theme::applyTheme(Theme::Type::Dark);
+        ReportsPage page;
+        auto* controls = page.findChild<QWidget*>("reportsHeaderControls");
+        QCOMPARE(controls->styleSheet(), Theme::controlStyleSheet());
+        Theme::applyTheme(Theme::Type::Light);
+        QCoreApplication::processEvents();
+        QCOMPARE(controls->styleSheet(), Theme::controlStyleSheet());   // The light one now
+    }
+
+    void aSingleDayAndCancellingTheDays() {
+        ReportsPage page;
+        page.setUserId(1);
+        page.askCustomRange = [](QDate& from, QDate& to) {
+            from = to = QDate(2026, 3, 4);
+            return true;
+        };
+        chooseDays(page);
+        QCOMPARE(text(page, "reportsRangeLabel"), QString("1 day"));
+        QVERIFY(noLengthChecked(page));
+        page.askCustomRange = [](QDate& from, QDate& to) {
+            from = QDate(2026, 1, 1);
+            to = QDate(2026, 2, 28);                     // Two whole months: no length of its own
+            return true;
+        };
+        chooseDays(page);
+        QCOMPARE(text(page, "reportsRangeLabel"), QString("2 months"));
+        QVERIFY(noLengthChecked(page));
+        page.askCustomRange = [](QDate& from, QDate& to) {
+            from = QDate(2025, 1, 1);
+            to = QDate(2025, 12, 31);
+            return true;
+        };
+        chooseDays(page);
+        QVERIFY(chip(page, Preset::Year)->isChecked());  // Twelve whole months
+        QCOMPARE(page.findChild<QWidget*>("reportsHeaderControls")->styleSheet(), Theme::controlStyleSheet());
     }
 
     void cardsOpenTheirReport() {
@@ -287,6 +439,13 @@ private slots:
         constexpr int Wide = 1800;
         constexpr int Centred = ReportsPage::CentredWidth;
         Settings::instance().setReportsCentred(false);   // Centred is the default
+        // A small font, set before the page is made: the styled header controls don't take a font
+        // set on the page later
+        const QFont normal = QApplication::font();
+        const auto restoreFont = qScopeGuard([normal] { QApplication::setFont(normal); });
+        QFont small = normal;
+        small.setPointSize(6);
+        QApplication::setFont(small);
         ReportsPage page;
         page.setUserId(1);
         page.resize(Wide, 800);
@@ -303,10 +462,7 @@ private slots:
         QTRY_COMPARE(rightEdge(page.findChild<QWidget*>("flowDetail")), Wide - 24);
 
         // Centred: with as much room on either side, the header ending where the report and the
-        // cards do (a small font, so the header fits; the test platform's is wide)
-        QFont small = page.font();
-        small.setPointSize(6);
-        page.setFont(small);
+        // cards do (the small font from the start, so the header fits; the test platform's is wide)
         page.findChild<QToolButton*>("reportsBackLink")->click();
         Settings::instance().setReportsCentred(true);
         page.applySettings();
@@ -473,7 +629,8 @@ private slots:
         const QDate earlier = QDate(today.year(), today.month(), 1).addMonths(-2);
         page.openBudgetMonth(earlier.addDays(9));
         QCOMPARE(page.range(), ReportRange({earlier, earlier.addMonths(1).addDays(-1)}));
-        QVERIFY(chip(page, Preset::Custom)->isChecked());
+        QVERIFY(chip(page, Preset::Month)->isChecked());   // A month long, two months back
+        QVERIFY(page.findChild<QToolButton*>("previousPeriod")->isEnabled());
         chip(page, Preset::SixMonths)->click();
     }
 
@@ -1004,11 +1161,11 @@ private slots:
         };
 
         answerDialog(QDialogButtonBox::Cancel);
-        chip(page, Preset::Custom)->click();
+        chooseDays(page);
         QCOMPARE(page.range(), before);
 
         answerDialog(QDialogButtonBox::Ok);
-        chip(page, Preset::Custom)->click();
+        chooseDays(page);
         QCOMPARE(page.range(), ReportRange::custom(QDate(2026, 2, 3), QDate(2026, 4, 5)));
     }
 };

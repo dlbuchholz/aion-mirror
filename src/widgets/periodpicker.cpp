@@ -51,6 +51,10 @@ PeriodPicker::PeriodPicker(QWidget* parent) : QFrame(parent) {
     updateNameWidth();
     menu = new PeriodMenu(this);
     connect(nameButton, &QToolButton::clicked, this, [this]() {
+        if (chooser) {
+            if (const std::optional<ReportRange> chosen = chooser(shown)) choose(*chosen);
+            return;
+        }
         menu->today = today;
         menu->showBelow(nameButton, shown);
     });
@@ -74,6 +78,11 @@ void PeriodPicker::setPeriod(const ReportRange& range) {
 void PeriodPicker::choose(const ReportRange& range) {
     setPeriod(range);
     emit periodChanged(range);
+}
+
+void PeriodPicker::setWidestName(const QString& name) {
+    widestName = name;
+    updateNameWidth();
 }
 
 ReportRange PeriodPicker::stepped(const ReportRange& range, int direction) {
@@ -111,6 +120,7 @@ void PeriodPicker::updateNameWidth() {
     for (int month = 1; month <= 12; ++month) {
         widest = qMax(widest, widthFor(english.monthName(month) + " 0000"));
     }
+    if (!widestName.isEmpty()) widest = qMax(widest, widthFor(widestName));
     nameButton->setMinimumWidth(widest);
     nameButton->setMaximumWidth(widthFor("September 0000 – December 0000"));
     nameButton->setText(nameOf(shown));

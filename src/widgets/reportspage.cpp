@@ -4,6 +4,7 @@
 #include "category.h"
 #include "categorycolors.h"
 #include "icons.h"
+#include "periodpicker.h"
 #include "settings.h"
 #include "theme.h"
 
@@ -1216,20 +1217,47 @@ ReportsPage::ReportsPage(QWidget* parent)
     titles->addWidget(rangeLabel);
     header->addLayout(titles, 1);
 
-    auto* choices = new QHBoxLayout();
-    choices->setSpacing(6);
+    // The range's length, the stepper through ranges of that length, the account and the width, in
+    // the theme's control look
+    headerControls = new QWidget(this);
+    headerControls->setObjectName("reportsHeaderControls");
+    auto* choices = new QHBoxLayout(headerControls);
+    choices->setContentsMargins(0, 0, 0, 0);
+    choices->setSpacing(8);
     rangeGroup = new QButtonGroup(this);
     rangeGroup->setExclusive(true);
-    addChip("Month", ReportRange::Preset::Month, choices);
-    addChip("3 months", ReportRange::Preset::ThreeMonths, choices);
-    addChip("6 months", ReportRange::Preset::SixMonths, choices);
-    addChip("Year", ReportRange::Preset::Year, choices);
-    addChip("Custom…", ReportRange::Preset::Custom, choices)->setToolTip("Choose the first and last day");
+    auto* lengths = new QFrame(headerControls);
+    lengths->setObjectName("reportsLengths");
+    lengths->setProperty("segmented", true);
+    lengths->setFixedHeight(Theme::controlHeight);
+    auto* lengthsLayout = new QHBoxLayout(lengths);
+    lengthsLayout->setContentsMargins(2, 2, 2, 2);
+    lengthsLayout->setSpacing(2);
+    addChip("1M", ReportRange::Preset::Month, lengthsLayout)->setToolTip("This month");
+    addChip("3M", ReportRange::Preset::ThreeMonths, lengthsLayout)->setToolTip("The last 3 months");
+    addChip("6M", ReportRange::Preset::SixMonths, lengthsLayout)->setToolTip("The last 6 months");
+    addChip("1Y", ReportRange::Preset::Year, lengthsLayout)->setToolTip("The last 12 months");
     connect(rangeGroup, &QButtonGroup::idClicked, this, &ReportsPage::onRangeClicked);
-    choices->addSpacing(8);
+    choices->addWidget(lengths);
+    periodPicker = new PeriodPicker(headerControls);
+    periodPicker->setObjectName("reportsPeriod");
+    periodPicker->today = [this]() { return today(); };
+    periodPicker->setWidestName("September 0000 – December 0000");   // Two years' months: the arrows stay put
+    periodPicker->findChild<QToolButton*>("periodName")->setToolTip("Choose the first and last day");
+    periodPicker->chooser = [this](const ReportRange& shown) -> std::optional<ReportRange> {
+        QDate from = shown.first;                    // Starts from what's shown; cancelling keeps it
+        QDate to = shown.last;
+        if (!askCustomRange(from, to)) return std::nullopt;
+        return ReportRange::custom(from, to);
+    };
+    connect(periodPicker, &PeriodPicker::periodChanged, this, [this](const ReportRange& range) {
+        setRange(presetFor(range), range);
+    });
+    choices->addWidget(periodPicker);
     accountCombo = new QComboBox(this);
     accountCombo->setObjectName("reportsAccountCombo");
     accountCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    accountCombo->setFixedHeight(Theme::controlHeight);
     connect(accountCombo, &QComboBox::activated, this, [this]() {
         shownAccountId = accountCombo->currentData().toInt();
         refresh();
@@ -1238,6 +1266,9 @@ ReportsPage::ReportsPage(QWidget* parent)
     // The full width or the centred column, the same as in Settings, Appearance
     widthButton = new QToolButton(this);
     widthButton->setObjectName("reportsWidthButton");
+    widthButton->setProperty("button", true);
+    widthButton->setProperty("noIndicator", true);   // No padding: just its icon, square
+    widthButton->setFixedSize(Theme::controlHeight, Theme::controlHeight);
     widthButton->setCursor(Qt::PointingHandCursor);
     connect(widthButton, &QToolButton::clicked, this, [this]() {
         Settings::instance().setReportsCentred(!Settings::instance().isReportsCentred());
@@ -1246,8 +1277,7 @@ ReportsPage::ReportsPage(QWidget* parent)
         emit widthChanged();
     });
     choices->addWidget(widthButton);
-    header->addLayout(choices);
-    header->setAlignment(choices, Qt::AlignTop);
+    header->addWidget(headerControls, 0, Qt::AlignTop);
     root->addLayout(header);
 
     stack = new QStackedWidget(this);
@@ -1325,6 +1355,7 @@ ReportsPage::ReportsPage(QWidget* parent)
         const ReportRange::Preset start = saved == ReportRange::Preset::Custom ? ReportRange::Preset::SixMonths : saved;
         setRange(start, ReportRange::forPreset(start, today()));
     }
+    headerControls->setStyleSheet(Theme::controlStyleSheet());
     showOverview();
     updateIcons();
     updateWidth();
@@ -1343,13 +1374,14 @@ QString ReportsPage::title(Report report) {
     return QString();  // GCOVR_EXCL_LINE: every value returns above
 }
 
+// A segment of the length track
 QToolButton* ReportsPage::addChip(const QString& text, ReportRange::Preset chipPreset, QLayout* layout) {
     auto* chip = new QToolButton(this);
     chip->setObjectName("reportsRange_" + ReportRange::key(chipPreset));
     chip->setText(text);
     chip->setCheckable(true);
     chip->setCursor(Qt::PointingHandCursor);
-    Theme::highlightWhenChecked(chip);
+    chip->setFixedHeight(Theme::controlHeight - 6);  // Inside the track's border and margins
     rangeGroup->addButton(chip, static_cast<int>(chipPreset));
     layout->addWidget(chip);
     return chip;
@@ -1357,24 +1389,41 @@ QToolButton* ReportsPage::addChip(const QString& text, ReportRange::Preset chipP
 
 void ReportsPage::onRangeClicked(int presetId) {
     const auto clicked = static_cast<ReportRange::Preset>(presetId);
-    if (clicked != ReportRange::Preset::Custom) {
-        setRange(clicked, ReportRange::forPreset(clicked, today()));
-        return;
+    setRange(clicked, ReportRange::forPreset(clicked, today()));
+}
+
+// A length's range while it ends with this month, so it moves on with the date; any other range is custom
+ReportRange::Preset ReportsPage::presetFor(const ReportRange& range) const {
+    for (const ReportRange::Preset length : {ReportRange::Preset::Month, ReportRange::Preset::ThreeMonths,
+                                             ReportRange::Preset::SixMonths, ReportRange::Preset::Year}) {
+        if (range == ReportRange::forPreset(length, today())) return length;
     }
-    // Starts from what's shown; cancelling keeps it
-    QDate from = shownRange.first;
-    QDate to = shownRange.last;
-    if (!askCustomRange(from, to)) {
-        rangeGroup->button(static_cast<int>(preset))->setChecked(true);
-        return;
+    return ReportRange::Preset::Custom;
+}
+
+// The length a range has, also when stepped back: whole months, 1, 3, 6 or 12 of them
+std::optional<ReportRange::Preset> ReportsPage::lengthOf(const ReportRange& range) {
+    if (!range.isWholeMonths()) return std::nullopt;
+    switch (range.months()) {
+    case 1: return ReportRange::Preset::Month;
+    case 3: return ReportRange::Preset::ThreeMonths;
+    case 6: return ReportRange::Preset::SixMonths;
+    case 12: return ReportRange::Preset::Year;
+    default: return std::nullopt;
     }
-    setRange(ReportRange::Preset::Custom, ReportRange::custom(from, to));
 }
 
 void ReportsPage::setRange(ReportRange::Preset newPreset, const ReportRange& range) {
     preset = newPreset;
     shownRange = range;
-    rangeGroup->button(static_cast<int>(preset))->setChecked(true);
+    periodPicker->setPeriod(range);
+    if (const std::optional<ReportRange::Preset> length = lengthOf(range)) {
+        rangeGroup->button(static_cast<int>(*length))->setChecked(true);
+    } else if (QAbstractButton* checked = rangeGroup->checkedButton()) {
+        rangeGroup->setExclusive(false);             // An exclusive group can't have none checked
+        checked->setChecked(false);
+        rangeGroup->setExclusive(true);
+    }
     Settings& settings = Settings::instance();
     settings.setReportsRange(ReportRange::key(preset));
     if (preset == ReportRange::Preset::Custom) settings.setReportsCustomDays(range.first, range.last);
@@ -1402,6 +1451,7 @@ void ReportsPage::reload() {
     // The month ranges move on with the date
     if (preset != ReportRange::Preset::Custom) {
         shownRange = ReportRange::forPreset(preset, today());
+        periodPicker->setPeriod(shownRange);
     }
     accountCombo->clear();
     accountCombo->addItem("All accounts", ALL_ACCOUNTS);
@@ -2187,9 +2237,22 @@ std::optional<ReportsPage::Report> ReportsPage::openedReport() const {
 void ReportsPage::updateHeader() {
     backLink->setVisible(opened.has_value());
     titleLabel->setText(opened ? title(*opened) : QString("Reports"));
-    QString rangeText = shownRange.label();
+    QString rangeText = describe(shownRange);
     if (opened == Report::SpendingByCategory) rangeText += " · vs. " + shownRange.comparisonText(today());
     rangeLabel->setText(rangeText);
+}
+
+// How long the range is, as the stepper already shows its days
+QString ReportsPage::describe(const ReportRange& range) const {
+    QString text;
+    if (range.isWholeMonths()) {
+        text = range.months() == 1 ? QString("1 month") : QString("%1 months").arg(range.months());
+    } else {
+        text = range.days() == 1 ? QString("1 day") : QString("%1 days").arg(range.days());
+    }
+    const QDate now = today();
+    if (range.first <= now && now <= range.last) text += ", to today";
+    return text;
 }
 
 void ReportsPage::updateIcons() {
@@ -2204,6 +2267,7 @@ void ReportsPage::updateIcons() {
 void ReportsPage::changeEvent(QEvent* event) {
     if (event->type() == QEvent::PaletteChange && backLink) {
         updateIcons();
+        headerControls->setStyleSheet(Theme::controlStyleSheet());   // Its colours are the theme's
         for (ReportCard* card : std::as_const(cards)) card->update();
     }
     QWidget::changeEvent(event);

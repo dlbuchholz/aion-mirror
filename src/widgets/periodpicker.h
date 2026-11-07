@@ -5,6 +5,7 @@
 #include <QList>
 #include <QWidget>
 #include <functional>
+#include <optional>
 #include "report.h"
 
 class QLabel;
@@ -21,9 +22,14 @@ public:
     explicit PeriodPicker(QWidget* parent = nullptr);
 
     std::function<QDate()> today = [] { return QDate::currentDate(); };
+    // In place of the menu: what the name asks for when clicked, starting from the period shown.
+    // Nothing back leaves the period as it is.
+    std::function<std::optional<ReportRange>(const ReportRange&)> chooser;
 
     ReportRange period() const { return shown; }
     void setPeriod(const ReportRange& range);        // Without periodChanged
+    // Keeps room for names up to this long, so the arrows stay put for those too (the longest month by default)
+    void setWidestName(const QString& name);
 
     // The period before (-1) or after (1): whole months by their number of months, others by days
     static ReportRange stepped(const ReportRange& range, int direction);
@@ -47,6 +53,7 @@ private:
     QToolButton* nextButton = nullptr;
     PeriodMenu* menu = nullptr;
     ReportRange shown;
+    QString widestName;
 };
 
 // The menu under the name: all time, this month, last month and this year, then a year with

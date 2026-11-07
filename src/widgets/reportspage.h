@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <functional>
+#include <optional>
 #include "report.h"
 
 class QButtonGroup;
@@ -18,6 +19,7 @@ class TrendChart;
 class UsageBar;
 class ReportCard;
 class SankeyChart;
+class PeriodPicker;
 
 // Reports: an overview with a card per report, and one report at a time in detail. The range
 // (remembered) and the account are chosen at the top and apply to all of them.
@@ -84,6 +86,9 @@ private:
     QToolButton* addChip(const QString& text, ReportRange::Preset chipPreset, QLayout* layout);
     void onRangeClicked(int presetId);
     void setRange(ReportRange::Preset preset, const ReportRange& range);
+    ReportRange::Preset presetFor(const ReportRange& range) const;
+    static std::optional<ReportRange::Preset> lengthOf(const ReportRange& range);
+    QString describe(const ReportRange& range) const;   // Under the title: "6 months, to today"
     void refresh();                                  // The range or account changed
     void updateHeader();
     void updateIcons();
@@ -110,7 +115,9 @@ private:
     QToolButton* backLink = nullptr;
     QLabel* titleLabel = nullptr;
     QLabel* rangeLabel = nullptr;
-    QButtonGroup* rangeGroup = nullptr;
+    QWidget* headerControls = nullptr;               // Length, period, account and width, in the theme's control look
+    QButtonGroup* rangeGroup = nullptr;              // The lengths: 1M, 3M, 6M and 1Y
+    PeriodPicker* periodPicker = nullptr;
     QComboBox* accountCombo = nullptr;
     QToolButton* widthButton = nullptr;
     QStackedWidget* stack = nullptr;
