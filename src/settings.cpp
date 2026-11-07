@@ -417,7 +417,7 @@ void Settings::setCategoryColorsInOverviewsEnabled(bool enabled) {
 }
 
 bool Settings::isExpensesInRed() const {
-    return settings.value("appearance/expensesInRed", false).toBool();
+    return settings.value("appearance/expensesInRed", true).toBool();   // On unless turned off
 }
 
 void Settings::setExpensesInRed(bool red) {

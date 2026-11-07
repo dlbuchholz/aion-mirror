@@ -182,22 +182,22 @@ private slots:
         QCOMPARE(Settings::instance().formatCurrency(-123450), QString("-1.234,50 Fr."));
     }
 
-    void expensesCanBeShownInRed() {
+    void expensesAreRedUnlessTurnedOff() {
         Settings::instance().restoreDefaults();                               // Restored after the test case
-        QVERIFY(!Settings::instance().isExpensesInRed());                     // Off by default
+        QVERIFY(Settings::instance().isExpensesInRed());                      // On by default
         SettingsPage page;
         page.setUserId(1);
         auto* check = child<QCheckBox>(page, "expensesRedCheck");
-        QVERIFY(!check->isChecked());
-        check->setChecked(true);
+        QVERIFY(check->isChecked());
+        check->setChecked(false);
         QVERIFY(hasUnsavedChanges(page));
-        QVERIFY(!Settings::instance().isExpensesInRed());                     // Not before Apply
+        QVERIFY(Settings::instance().isExpensesInRed());                      // Not before Apply
         child<QPushButton>(page, "applyButton")->click();
-        QVERIFY(Settings::instance().isExpensesInRed());
-        SettingsPage again;
-        QVERIFY(child<QCheckBox>(again, "expensesRedCheck")->isChecked());
-        Settings::instance().restoreDefaults();
         QVERIFY(!Settings::instance().isExpensesInRed());
+        SettingsPage again;
+        QVERIFY(!child<QCheckBox>(again, "expensesRedCheck")->isChecked());
+        Settings::instance().restoreDefaults();
+        QVERIFY(Settings::instance().isExpensesInRed());                      // Back on
     }
 
     void categoryColoursInOverviewsCanBeTurnedOff() {
