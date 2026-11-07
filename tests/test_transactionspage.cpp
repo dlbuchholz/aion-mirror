@@ -20,6 +20,7 @@
 #include "account.h"
 #include "amountcolor.h"
 #include "dialog/importmanagerdialog.h"
+#include "icons.h"
 #include "rule.h"
 #include "settings.h"
 #include "theme.h"
@@ -416,9 +417,7 @@ private slots:
         QVERIFY(bar->findChild<QLabel*>()->text().startsWith("1 transaction selected"));
 
         // Clear selection hides the bar
-        for (QToolButton* button : bar->findChildren<QToolButton*>()) {
-            if (button->text() == "Clear selection") button->click();
-        }
+        bar->findChild<QToolButton*>("clearSelectionButton")->click();
         QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
         QVERIFY(bar->isHidden());
 
@@ -428,6 +427,48 @@ private slots:
         page.showAccount(secondId);
         QVERIFY(list->selectionModel()->selectedIndexes().isEmpty());
         QVERIFY(bar->isHidden());
+    }
+
+    void theSelectionBarShowsTheSelectionsSum() {
+        TransactionDAO dao;
+        const int a = dao.addTransaction(Transaction(-1, firstId, "Rewe", 4250, QDate::currentDate(), "", 0, "expense"));
+        const int b = dao.addTransaction(Transaction(-1, firstId, "Aldi", 1890, QDate::currentDate(), "", 0, "expense"));
+        const int c = dao.addTransaction(Transaction(-1, firstId, "Refund", 1000, QDate::currentDate(), "", 0, "income"));
+        const int d = dao.addTransaction(Transaction(-1, firstId, "Salary", 9000, QDate::currentDate(), "", 0, "income"));
+        Settings::instance().setSelectionCheckboxesEnabled(false);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* list = page.findChild<QListView*>("transactionList");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        auto* label = page.findChild<QFrame*>("bulkBar")->findChild<QLabel*>();
+        const Settings& settings = Settings::instance();
+
+        list->selectionModel()->select(model->indexForTransaction(a), QItemSelectionModel::Select);
+        QVERIFY(!label->text().contains(settings.formatCurrency(-4250, true)));   // Its row shows it
+        list->selectionModel()->select(model->indexForTransaction(b), QItemSelectionModel::Select);
+        QCOMPARE(label->text(), "2 transactions selected  ·  " + settings.formatCurrency(-6140, true));
+        list->selectionModel()->select(model->indexForTransaction(c), QItemSelectionModel::Select);
+        QCOMPARE(label->text(), "3 transactions selected  ·  " + settings.formatCurrency(-5140, true));
+        list->selectionModel()->select(model->indexForTransaction(d), QItemSelectionModel::Select);
+        QCOMPARE(label->text(), "4 transactions selected  ·  " + settings.formatCurrency(3860, true));
+        QVERIFY(label->text().contains("+"));                // More came in than went out
+
+        // With checkboxes there's no hint for one, and its amount is in its row
+        Settings::instance().setSelectionCheckboxesEnabled(true);
+        page.applySettings();
+        list->selectionModel()->clearSelection();
+        list->selectionModel()->select(model->indexForTransaction(a), QItemSelectionModel::Select);
+        QCOMPARE(label->text(), QString("1 transaction selected"));
+    }
+
+    void theSelectionBarsButtonsHaveIcons() {
+        TransactionsPage page;
+        auto* bar = page.findChild<QFrame*>("bulkBar");
+        for (const char* name : {"bulkCategoryButton", "bulkDeleteButton", "clearSelectionButton"}) {
+            QVERIFY2(!bar->findChild<QToolButton*>(name)->icon().isNull(), name);
+        }
+        QVERIFY(bar->findChild<QToolButton*>("bulkDeleteButton")->property("danger").toBool());
+        QCOMPARE(bar->findChild<QToolButton*>("clearSelectionButton")->toolTip(), QString("Clear selection (Esc)"));
     }
 
     void searchingKeepsTheSelectionBarRight() {
@@ -806,6 +847,25 @@ private slots:
         QCOMPARE(changed.count(), 0);
     }
 
+    void correctBalanceIsUnderMoreActions() {
+        TransactionsPage page;
+        page.setUserId(1);
+        page.showAccount(secondId);
+        auto* more = page.findChild<QToolButton*>("moreActions");
+        QCOMPARE(more->popupMode(), QToolButton::InstantPopup);
+        QAction* correct = page.findChild<QAction*>("correctBalanceAction");
+        QVERIFY(more->menu()->actions().contains(correct));
+        QCOMPARE(correct->text(), QString("Correct balance…"));
+        int accountShown = -1;
+        QTimer::singleShot(0, qApp, [&accountShown]() {
+            auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+            accountShown = dialog->findChild<QComboBox*>("correctionAccountCombo")->currentData().toInt();
+            dialog->reject();
+        });
+        correct->trigger();
+        QCOMPARE(accountShown, secondId);                    // For the account shown
+    }
+
     void importsAndNewAccountsReachThePage() {
         TransactionsPage page;
         page.setUserId(1);
@@ -837,6 +897,29 @@ private slots:
         const QList<Transaction> found = TransactionDAO().getShadowedTransactions();
         QCOMPARE(found.size(), 1);
         QCOMPARE(found.first().getPayee(), QString("Lost"));
+    }
+
+    void unassignedTransactionsAskForAttention() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("PRAGMA foreign_keys = OFF"));
+        const bool added = query.exec("INSERT INTO transactions (account_id, payee, amount, date, type) "
+                                      "VALUES (0, 'Lost', 100, '2026-01-01', 'expense')");
+        QVERIFY(query.exec("PRAGMA foreign_keys = ON"));
+        QVERIFY(added);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* chip = page.findChild<QToolButton*>("unassignedChip");
+        QVERIFY(!chip->isHidden());
+        QCOMPARE(chip->text(), QString("1 unassigned"));
+        QVERIFY(chip->property("warning").toBool());
+        const QImage inbox = chip->icon().pixmap(16, 16).toImage();
+        QCOMPARE(inbox, Icons::icon("inbox", Theme::colors().warning).pixmap(16, 16).toImage());
+
+        chip->click();                                       // Shows them, with a cross to leave
+        QCOMPARE(page.findChild<QLabel*>("pageTitle")->text(), QString("Unassigned transactions"));
+        QCOMPARE(chip->icon().pixmap(16, 16).toImage(), Icons::icon("x", Theme::colors().onWarning).pixmap(16, 16).toImage());
+        chip->click();
+        QCOMPARE(chip->icon().pixmap(16, 16).toImage(), inbox);
     }
 
     void askingForSomethingThatIsntThere() {
@@ -1062,9 +1145,12 @@ private slots:
         QCOMPARE(row->styleSheet(), Theme::controlStyleSheet());
         QVERIFY(row->isAncestorOf(page.findChild<PeriodPicker*>()));
         QVERIFY(row->isAncestorOf(page.findChild<QComboBox*>("categoryFilter")));
+        QVERIFY(page.findChild<QWidget*>("headerActions")->isAncestorOf(page.findChild<QToolButton*>("moreActions")));
         Theme::applyTheme(Theme::Type::Light);
         QCoreApplication::processEvents();
-        QCOMPARE(row->styleSheet(), Theme::controlStyleSheet());   // The light one now
+        for (const char* part : {"filterBar", "headerActions", "bulkBar"}) {
+            QVERIFY2(page.findChild<QWidget*>(part)->styleSheet() == Theme::controlStyleSheet(), part);   // The light one now
+        }
     }
 
     void incomeOrExpensesOnly() {

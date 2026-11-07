@@ -162,7 +162,11 @@ private slots:
         const QString dark = Theme::controlStyleSheet();
         QVERIFY(light != dark);
         for (const QString& sheet : {light, dark}) {
-            QVERIFY(!sheet.contains("BORDER") && !sheet.contains("TEXT") && !sheet.contains("ARROW"));   // All filled in
+            QString rest = sheet;
+            rest.remove(QRegularExpression("url\\([^)]*\\)"));         // A temporary folder's name can be in capitals
+            QVERIFY2(!rest.contains(QRegularExpression("[A-Z]{3,}")), qPrintable(rest));   // Every name filled in
+            // ...each by its own value, not a shorter name's value inside a longer name
+            QVERIFY2(!rest.contains(QRegularExpression("[A-Za-z)]rgba\\(")), qPrintable(rest));
             QVERIFY(QFile::exists(sheet.section("image: url(", 1).section(")", 0, 0)));
         }
         const auto rgba = [](const QColor& color) {

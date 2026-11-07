@@ -35,3 +35,6 @@ see `LICENSE` in this folder):
 | `bank.svg`          | `building-bank`         |
 | `maximize.svg`      | `arrows-maximize`       |
 | `minimize.svg`      | `arrows-minimize`       |
+| `dots.svg`          | `dots`                  |
+| `trash.svg`         | `trash`                 |
+| `inbox.svg`         | `inbox`                 |

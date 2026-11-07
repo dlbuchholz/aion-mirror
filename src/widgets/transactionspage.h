@@ -83,6 +83,7 @@ private:
     void setCategoryForSelection(int categoryId);
     int defaultAccountForNew() const;
     void updateIcons();                              // Re-tint icons after a theme change
+    void applyControlStyle();
 
     int userId = -1;
     int accountId = ALL_ACCOUNTS;
@@ -97,7 +98,9 @@ private:
     QLabel* titleLabel = nullptr;
     QLabel* subtitleLabel = nullptr;
     QPushButton* importButton = nullptr;
-    QPushButton* correctBalanceButton = nullptr;
+    QWidget* headerActions = nullptr;                // Import, more actions and Add transaction
+    QToolButton* moreButton = nullptr;               // ⋯, with the actions needed less often
+    QAction* correctBalanceAction = nullptr;
     QLineEdit* searchEdit = nullptr;
     QAction* searchAction = nullptr;
     QWidget* filterBar = nullptr;                    // Search, period, category and type, in the theme's control look
@@ -108,6 +111,8 @@ private:
     QFrame* bulkBar = nullptr;
     QLabel* bulkLabel = nullptr;
     QToolButton* bulkCategoryButton = nullptr;
+    QToolButton* bulkDeleteButton = nullptr;
+    QToolButton* clearSelectionButton = nullptr;
     QStackedWidget* listStack = nullptr;
     QListView* listView = nullptr;
     QLabel* emptyLabel = nullptr;

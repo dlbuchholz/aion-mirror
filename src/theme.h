@@ -33,6 +33,8 @@ public:
         QColor danger;
         QColor positive;                             // Income amounts
         QColor track;
+        QColor warning;                              // Text and icons on a warning tint
+        QColor onWarning;                            // Text and icons on a solid warning fill
     };
 
     // Maps the stored setting value ("Dark", "Light", "System") to a theme type
@@ -97,7 +99,9 @@ public:
                 Qt::white,                   // onAccent
                 QColor(229, 83, 75),         // danger
                 QColor(87, 196, 125),        // positive
-                QColor(255, 255, 255, 38)    // track
+                QColor(255, 255, 255, 38),   // track
+                QColor(250, 199, 117),       // warning
+                QColor(45, 30, 5)            // onWarning
             };
         }
         return {
@@ -112,7 +116,9 @@ public:
             Qt::white,                       // onAccent
             QColor(201, 55, 44),             // danger
             QColor(30, 135, 70),             // positive
-            QColor(0, 0, 0, 26)              // track
+            QColor(0, 0, 0, 26),             // track
+            QColor(133, 79, 11),             // warning
+            QColor(65, 36, 2)                // onWarning
         };
     }
 
@@ -130,6 +136,11 @@ public:
     //   QFrame[segmented="true"]           a track whose QToolButtons are its segments
     //   QFrame[stepper="true"]             "‹ name ›" in one box; the QToolButton[stepperName="true"] between dividers
     //   QFrame[popup="true"]               a rounded popup; QAbstractButton[thisMonth="true"] is outlined
+    //   QPushButton                        a button; [primary="true"] is the solid accent one
+    //   QToolButton[button="true"]         the same, plus [danger], [ghost] (no box), [dropDown] (room for
+    //                                      its menu's arrow) and [noIndicator] (a menu without the arrow)
+    //   QToolButton[warning="true"]        a toggle asking for attention; solid amber while checked
+    //   QFrame[selectionBar="true"]        an accent band for actions on what's selected
     // Set it again when the theme changes, as its colours are the active theme's.
     static QString controlStyleSheet() {
         const bool dark = darkActive;
@@ -154,6 +165,21 @@ public:
         const QString secondary = rgba(c.textSecondary);
         const QString disabled = rgba(dark ? QColor(110, 110, 116) : QColor(170, 170, 174));
         const QString arrow = Icons::file("chevron-down", c.textMuted, 14);
+        const QString onAccent = rgba(c.onAccent);
+        const QString accentHover = rgba(dark ? QColor(60, 145, 230) : QColor(30, 115, 200));
+        const auto accentAlpha = [&c, &rgba](int alpha) {
+            QColor color = c.accent;
+            color.setAlpha(alpha);
+            return rgba(color);
+        };
+        const QString accentWash = accentAlpha(dark ? 28 : 18);
+        const QString accentBorder = accentAlpha(dark ? 110 : 90);
+        const QString danger = rgba(c.danger);
+        const QString warning = rgba(c.warning);
+        const QString onWarning = rgba(c.onWarning);
+        const QString warnTint = rgba(dark ? QColor(239, 159, 39, 40) : QColor(250, 238, 218));
+        const QString warnBorder = rgba(dark ? QColor(239, 159, 39, 110) : QColor(239, 159, 39, 150));
+        const QString warnFill = rgba(QColor(239, 159, 39));
 
         QString sheet = R"(
 QLineEdit, QComboBox { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 0 8px; }
@@ -185,9 +211,32 @@ QFrame[popup="true"] QAbstractButton:checked { background-color: ACCENTTINT; col
 QFrame[popup="true"] QAbstractButton[thisMonth="true"] { border-color: BORDERHOVER; }
 QFrame[popup="true"] QFrame#divider { background-color: DIVIDER; border: none; }
 QFrame[popup="true"] QLabel { color: TEXT; background: transparent; }
+
+QPushButton, QToolButton[button="true"] { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 0 12px; }
+QPushButton:hover, QToolButton[button="true"]:hover { border-color: BORDERHOVER; }
+QPushButton:pressed, QToolButton[button="true"]:pressed { background-color: HOVER; }
+QPushButton[primary="true"] { background-color: ACCENT; color: ONACCENT; border-color: ACCENT; }
+QPushButton[primary="true"]:hover { background-color: ACCENTHOVER; border-color: ACCENTHOVER; }
+QToolButton[button="true"][danger="true"] { color: DANGER; }
+QToolButton[button="true"][ghost="true"] { background: transparent; border-color: transparent; padding: 0 6px; }
+QToolButton[button="true"][ghost="true"]:hover { background-color: HOVER; }
+QToolButton[button="true"][dropDown="true"] { padding-right: 28px; }
+QToolButton[button="true"]::menu-indicator { image: url(ARROW); subcontrol-origin: padding; subcontrol-position: center right; right: 8px; width: 14px; height: 14px; }
+QToolButton[button="true"][noIndicator="true"] { padding: 0; }
+QToolButton[button="true"][noIndicator="true"]::menu-indicator { image: none; width: 0; }
+
+QToolButton[warning="true"] { background-color: WARNTINT; color: WARNING; border: 1px solid WARNBORDER; border-radius: 8px; padding: 0 10px; }
+QToolButton[warning="true"]:hover { border-color: WARNFILL; }
+QToolButton[warning="true"]:checked { background-color: WARNFILL; color: ONWARNING; border-color: WARNFILL; }
+
+QFrame[selectionBar="true"] { background-color: ACCENTWASH; border: 1px solid ACCENTBORDER; border-radius: 10px; }
+QFrame[selectionBar="true"] QLabel { color: ACCENTTEXT; font-weight: bold; background: transparent; }
 )";
-        // Longest names first, so BORDER doesn't replace the start of BORDERHOVER
+        // Longer names before those they contain, so BORDER doesn't replace the end of ACCENTBORDER
         const QList<QPair<QString, QString>> values = {
+            {"ACCENTBORDER", accentBorder}, {"ACCENTHOVER", accentHover}, {"ACCENTWASH", accentWash},
+            {"ONACCENT", onAccent}, {"ONWARNING", onWarning}, {"WARNBORDER", warnBorder}, {"WARNTINT", warnTint},
+            {"WARNFILL", warnFill}, {"WARNING", warning}, {"DANGER", danger},
             {"BORDERHOVER", borderHover}, {"ACCENTTINT", accentTint}, {"ACCENTTEXT", accentText},
             {"SECONDARY", secondary}, {"DISABLED", disabled}, {"DIVIDER", divider}, {"BORDER", border},
             {"ACCENT", accent}, {"RAISED", raised}, {"FIELD", field}, {"TRACK", track}, {"HOVER", hover},

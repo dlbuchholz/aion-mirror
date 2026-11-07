@@ -315,6 +315,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     auto* titles = new QVBoxLayout();
     titles->setSpacing(2);
     titleLabel = new QLabel(this);
+    titleLabel->setObjectName("pageTitle");
     QFont titleFont = titleLabel->font();
     titleFont.setPointSize(16);
     titleLabel->setFont(titleFont);
@@ -323,20 +324,42 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     titles->addWidget(subtitleLabel);
     header->addLayout(titles, 1);
 
-    correctBalanceButton = new QPushButton("Correct balance", this);
-    correctBalanceButton->setObjectName("correctBalanceButton");
-    correctBalanceButton->setToolTip("Match the balance your bank shows by adding a balance correction");
-    connect(correctBalanceButton, &QPushButton::clicked, this, [this]() { correctBalance(accountId); });
-    header->addWidget(correctBalanceButton, 0, Qt::AlignTop);
-    importButton = new QPushButton("Import", this);
+    // The main actions, in the theme's control look: Import, the rarely needed ones under ⋯, and Add
+    headerActions = new QWidget(this);
+    headerActions->setObjectName("headerActions");
+    auto* actions = new QHBoxLayout(headerActions);
+    actions->setContentsMargins(0, 0, 0, 0);
+    actions->setSpacing(8);
+    importButton = new QPushButton("Import", headerActions);
+    importButton->setObjectName("importTransactionsButton");
+    importButton->setFixedHeight(Theme::controlHeight);
     connect(importButton, &QPushButton::clicked, this, &TransactionsPage::importTransactions);
-    header->addWidget(importButton, 0, Qt::AlignTop);
-    auto* addButton = new QPushButton("Add transaction", this);
+    actions->addWidget(importButton);
+    moreButton = new QToolButton(headerActions);
+    moreButton->setObjectName("moreActions");
+    moreButton->setProperty("button", true);
+    moreButton->setProperty("noIndicator", true);
+    moreButton->setToolTip("More actions");
+    moreButton->setFixedSize(Theme::controlHeight, Theme::controlHeight);
+    moreButton->setIconSize(QSize(18, 18));
+    moreButton->setPopupMode(QToolButton::InstantPopup);
+    moreButton->setMenu(new QMenu(moreButton));
+    correctBalanceAction = moreButton->menu()->addAction("Correct balance…");
+    correctBalanceAction->setObjectName("correctBalanceAction");
+    correctBalanceAction->setToolTip("Match the balance your bank shows by adding a balance correction");
+    moreButton->menu()->setToolTipsVisible(true);
+    connect(correctBalanceAction, &QAction::triggered, this, [this]() { correctBalance(accountId); });
+    actions->addWidget(moreButton);
+    auto* addButton = new QPushButton("Add transaction", headerActions);
+    addButton->setObjectName("addTransactionButton");
+    addButton->setProperty("primary", true);
+    addButton->setFixedHeight(Theme::controlHeight);
     addButton->setIcon(Icons::icon("plus", Theme::colors().onAccent));
     addButton->setToolTip("Add transaction (Ctrl+N)");
     makePrimary(addButton);
     connect(addButton, &QPushButton::clicked, this, &TransactionsPage::addTransaction);
-    header->addWidget(addButton, 0, Qt::AlignTop);
+    actions->addWidget(addButton);
+    header->addWidget(headerActions, 0, Qt::AlignTop);
     root->addLayout(header);
 
     // Filters: search, period, category, unassigned transactions
@@ -399,41 +422,52 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     filters->addWidget(typeSegments);
 
     unassignedChip = addChip(QString(), filters);
-    unassignedChip->setProperty("chip", true);
+    unassignedChip->setObjectName("unassignedChip");
+    unassignedChip->setProperty("warning", true);    // Asks for attention: they need an account
     unassignedChip->setFixedHeight(Theme::controlHeight);
+    unassignedChip->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    connect(unassignedChip, &QToolButton::toggled, this, &TransactionsPage::updateIcons);
     unassignedChip->setToolTip("Transactions that don't belong to an account yet, for example from an import");
     connect(unassignedChip, &QToolButton::toggled, this, [this](bool checked) {
         showingUnassigned = checked;
         closeEditor();
         reload();
     });
-    filterBar->setStyleSheet(Theme::controlStyleSheet());
     root->addWidget(filterBar);
 
     // Bulk actions for multiple selected transactions
     bulkBar = new QFrame(this);
     bulkBar->setObjectName("bulkBar");
-    bulkBar->setFrameShape(QFrame::StyledPanel);
+    bulkBar->setProperty("selectionBar", true);      // An accent band in the theme's control look
+    bulkBar->setFixedHeight(Theme::controlHeight + 10);
     auto* bulkLayout = new QHBoxLayout(bulkBar);
-    bulkLayout->setContentsMargins(12, 4, 8, 4);
+    bulkLayout->setContentsMargins(14, 0, 6, 0);
+    bulkLayout->setSpacing(6);
     bulkLabel = new QLabel(bulkBar);
     bulkLayout->addWidget(bulkLabel);
     bulkLayout->addStretch();
-    bulkCategoryButton = new QToolButton(bulkBar);
-    bulkCategoryButton->setObjectName("bulkCategoryButton");
-    bulkCategoryButton->setText("Set category");
+    const auto barButton = [this, bulkLayout](const QString& text, const char* name) {
+        auto* button = new QToolButton(bulkBar);
+        button->setObjectName(name);
+        button->setText(text);
+        button->setProperty("button", true);
+        button->setFixedHeight(Theme::controlHeight - 2);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        bulkLayout->addWidget(button);
+        return button;
+    };
+    bulkCategoryButton = barButton("Set category", "bulkCategoryButton");
+    bulkCategoryButton->setProperty("dropDown", true);
     bulkCategoryButton->setPopupMode(QToolButton::InstantPopup);
     bulkCategoryButton->setMenu(new QMenu(bulkCategoryButton));
-    bulkLayout->addWidget(bulkCategoryButton);
-    auto* bulkDeleteButton = new QToolButton(bulkBar);
-    bulkDeleteButton->setText("Delete");
+    bulkDeleteButton = barButton("Delete", "bulkDeleteButton");
+    bulkDeleteButton->setProperty("danger", true);
     connect(bulkDeleteButton, &QToolButton::clicked, this, &TransactionsPage::deleteSelected);
-    bulkLayout->addWidget(bulkDeleteButton);
-    auto* clearSelectionButton = new QToolButton(bulkBar);
-    clearSelectionButton->setText("Clear selection");
+    clearSelectionButton = barButton(QString(), "clearSelectionButton");
+    clearSelectionButton->setProperty("ghost", true);
     clearSelectionButton->setToolTip("Clear selection (Esc)");
     connect(clearSelectionButton, &QToolButton::clicked, this, [this]() { listView->clearSelection(); });
-    bulkLayout->addWidget(clearSelectionButton);
     bulkBar->hide();
     root->addWidget(bulkBar);
 
@@ -523,6 +557,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
         searchEdit->selectAll();
     });
 
+    applyControlStyle();
     updateIcons();
 }
 
@@ -537,14 +572,31 @@ QToolButton* TransactionsPage::addChip(const QString& text, QLayout* layout) {
 }
 
 void TransactionsPage::updateIcons() {
-    importButton->setIcon(Icons::icon("import", palette().color(QPalette::ButtonText)));
-    searchAction->setIcon(Icons::icon("search", Theme::colors().textSecondary));
+    const Theme::Colors colors = Theme::colors();
+    importButton->setIcon(Icons::icon("import", colors.textSecondary));
+    moreButton->setIcon(Icons::icon("dots", colors.textPrimary, 18));
+    searchAction->setIcon(Icons::icon("search", colors.textSecondary));
+    // An inbox while it asks for attention, a cross to leave the list once it's open
+    unassignedChip->setIcon(unassignedChip->isChecked() ? Icons::icon("x", colors.onWarning)
+                                                        : Icons::icon("inbox", colors.warning));
+    bulkCategoryButton->setIcon(Icons::icon("tag", colors.textSecondary));
+    bulkDeleteButton->setIcon(Icons::icon("trash", colors.danger));
+    clearSelectionButton->setIcon(Icons::icon("x", colors.textSecondary));
+}
+
+// The theme's control look for the header's actions, the filters and the selection bar. Its
+// colours are the active theme's, so it's set again when the theme changes.
+void TransactionsPage::applyControlStyle() {
+    const QString sheet = Theme::controlStyleSheet();
+    for (QWidget* part : {headerActions, filterBar, static_cast<QWidget*>(bulkBar)}) {
+        part->setStyleSheet(sheet);
+    }
 }
 
 void TransactionsPage::changeEvent(QEvent* event) {
     if (event->type() == QEvent::PaletteChange && searchAction && incomeLabel) {
         updateIcons();
-        filterBar->setStyleSheet(Theme::controlStyleSheet());   // Its colours are the theme's
+        applyControlStyle();
         updateTotals();                              // Income colour is part of the label text
     }
     QWidget::changeEvent(event);
@@ -637,7 +689,7 @@ void TransactionsPage::reload() {
     editor->setPayeeSuggestions(model->payees());
     editor->setRules(RuleDAO(userId).rules());
 
-    unassignedChip->setText(QString("Unassigned (%1)").arg(unassignedCount));
+    unassignedChip->setText(QString("%1 unassigned").arg(unassignedCount));
     unassignedChip->setVisible(unassignedCount > 0 || showingUnassigned);
 
     restoreSelection(selectedIds);
@@ -759,10 +811,17 @@ QList<int> TransactionsPage::selectedTransactionIds() const {
 
 void TransactionsPage::updateBulkBar() {
     // Bulk actions whenever something is selected (opening a row in the editor doesn't select it)
-    const int count = selectedTransactionIds().size();
+    const QModelIndexList selected = listView->selectionModel()->selectedIndexes();
+    const int count = selected.size();
     QString text = QString("%1 %2 selected").arg(count).arg(count == 1 ? "transaction" : "transactions");
     if (count == 1 && !delegate->showCheckboxes) {
         text += "  ·  Ctrl+click or Shift+click to select more";
+    } else if (count > 1) {                          // One shows its amount in its row already
+        Cents sum = 0;
+        for (const QModelIndex& index : selected) {
+            sum += index.data(TransactionListModel::SignedAmountRole).toLongLong();
+        }
+        text += "  ·  " + Settings::instance().formatCurrency(sum, true);
     }
     bulkLabel->setText(text);
     bulkBar->setVisible(count > 0);
