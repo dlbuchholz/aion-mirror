@@ -5,6 +5,9 @@
 #include <QStyle>
 #include <QVBoxLayout>
 #include <QListWidget>
+#include <QAbstractSpinBox>
+#include <QSpinBox>
+#include <QLineEdit>
 #include <QSqlQuery>
 #include <QStackedWidget>
 
@@ -185,6 +188,13 @@ private slots:
         QVERIFY(dark.contains("color: " + rgba(Theme::colors(true).textPrimary)));
         // Fields are white in the light theme, not the dark theme's grey
         QVERIFY(light.contains("QLineEdit, QComboBox, QAbstractSpinBox { background-color: " + rgba(Qt::white)));
+        // Their border is the light hairline (black at 38 of 255) mixed into the page's grey, as a solid colour
+        const QRegularExpressionMatch fieldBorder = QRegularExpression("QAbstractSpinBox \\{[^}]*border: 1px solid rgba\\((\\d+), (\\d+), (\\d+), 255\\)").match(light);
+        QVERIFY(fieldBorder.hasMatch());
+        const double expected = Theme::pageBackground(false).red() * (1 - 38 / 255.0);
+        for (int channel = 1; channel <= 3; ++channel) {
+            QVERIFY2(qAbs(fieldBorder.captured(channel).toInt() - expected) <= 1, qPrintable(fieldBorder.captured(0)));
+        }
         QVERIFY(!dark.contains("QLineEdit, QComboBox, QAbstractSpinBox { background-color: " + rgba(Qt::white)));
     }
 
@@ -208,6 +218,8 @@ private slots:
             save->setMinimumWidth(120);
             auto* cancel = new QPushButton("Cancel", &window);
             cancel->setMinimumWidth(120);
+            auto* spin = new QSpinBox(&window);              // Its number inset like any field's text, as high
+            layout->addWidget(spin);
             layout->addWidget(primary);
             layout->addWidget(check);
             layout->addWidget(save);
@@ -217,6 +229,12 @@ private slots:
             QCOMPARE(primary->grab().toImage().pixelColor(6, primary->height() / 2).rgb(), accent.rgb());
             QCOMPARE(save->grab().toImage().pixelColor(6, save->height() / 2).rgb(), accent.rgb());
             QVERIFY(cancel->grab().toImage().pixelColor(6, cancel->height() / 2).rgb() != accent.rgb());
+            QCOMPARE(spin->findChild<QLineEdit*>()->textMargins().left(), Theme::FieldInset);
+            QCOMPARE(spin->height(), Theme::controlHeight);
+            for (const QRegularExpressionMatch& match : QRegularExpression("border(?:-[a-z]+)?: 1px solid rgba\\((\\d+), (\\d+), (\\d+), (\\d+)\\)")
+                                                            .globalMatch(qApp->styleSheet())) {
+                QVERIFY2(match.captured(4) == "255", qPrintable(match.captured(0)));   // Solid, or corners get dark dots
+            }
             QCOMPARE(primary->height(), Theme::controlHeight);
             QStyleOptionButton option;
             option.initFrom(check);

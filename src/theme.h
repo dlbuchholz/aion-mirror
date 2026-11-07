@@ -4,6 +4,10 @@
 #include <QString>
 #include <QColor>
 #include <QAbstractButton>
+#include <QDoubleSpinBox>
+#include <QEvent>
+#include <QLineEdit>
+#include <QSpinBox>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QStyleHints>
@@ -141,9 +145,18 @@ public:
         const QString raised = rgba(dark ? QColor(66, 66, 72) : QColor(255, 255, 255));
         const QString popup = rgba(dark ? QColor(50, 50, 55) : QColor(255, 255, 255));
         const QString track = rgba(dark ? QColor(30, 30, 34) : QColor(232, 232, 235));
-        const QString border = rgba(dark ? QColor(255, 255, 255, 34) : QColor(0, 0, 0, 38));
-        const QString borderHover = rgba(dark ? QColor(255, 255, 255, 70) : QColor(0, 0, 0, 80));
-        const QString divider = rgba(dark ? QColor(255, 255, 255, 22) : QColor(0, 0, 0, 22));
+        // Borders are solid colours, mixed against the page beforehand: a style sheet draws a rounded
+        // border's corners and sides one by one, and where a see-through colour overlaps itself it
+        // gets darker, which shows as dots at each corner
+        const QColor page = pageBackground(dark);
+        const auto solid = [&page, &rgba](const QColor& color) {
+            const qreal a = color.alphaF();
+            return rgba(QColor::fromRgbF(color.redF() * a + page.redF() * (1 - a), color.greenF() * a + page.greenF() * (1 - a),
+                                         color.blueF() * a + page.blueF() * (1 - a)));
+        };
+        const QString border = solid(dark ? QColor(255, 255, 255, 34) : QColor(0, 0, 0, 38));
+        const QString borderHover = solid(dark ? QColor(255, 255, 255, 70) : QColor(0, 0, 0, 80));
+        const QString divider = solid(dark ? QColor(255, 255, 255, 22) : QColor(0, 0, 0, 22));
         const QString hover = rgba(c.itemHover);
         const QString accent = rgba(c.accent);
         QColor tint = c.accent;
@@ -166,12 +179,14 @@ public:
             return rgba(color);
         };
         const QString accentWash = accentAlpha(dark ? 28 : 18);
-        const QString accentBorder = accentAlpha(dark ? 110 : 90);
+        QColor accentEdge = c.accent;
+        accentEdge.setAlpha(dark ? 110 : 90);
+        const QString accentBorder = solid(accentEdge);
         const QString danger = rgba(c.danger);
         const QString warning = rgba(c.warning);
         const QString onWarning = rgba(c.onWarning);
         const QString warnTint = rgba(dark ? QColor(239, 159, 39, 40) : QColor(250, 238, 218));
-        const QString warnBorder = rgba(dark ? QColor(239, 159, 39, 110) : QColor(239, 159, 39, 150));
+        const QString warnBorder = solid(dark ? QColor(239, 159, 39, 110) : QColor(239, 159, 39, 150));
         const QString warnFill = rgba(QColor(239, 159, 39));
 
         QString sheet = R"(
@@ -186,7 +201,7 @@ QTextEdit:focus, QPlainTextEdit:focus { border-color: ACCENT; }
 QComboBox::drop-down, QDateEdit::drop-down { border: none; width: 26px; }
 QComboBox::down-arrow, QDateEdit::down-arrow { image: url(@arrow@); width: 14px; height: 14px; }
 QComboBox QAbstractItemView { background-color: POPUP; color: TEXT; border: 1px solid BORDER; outline: 0; padding: 4px; selection-background-color: HOVER; selection-color: TEXT; }
-QAbstractSpinBox { padding-right: 22px; }
+QAbstractSpinBox { padding-right: 22px; max-height: 30px; }
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { border: none; background: transparent; width: 20px; subcontrol-origin: border; }
 QAbstractSpinBox::up-button { subcontrol-position: top right; margin: 3px 2px 0 0; }
 QAbstractSpinBox::down-button { subcontrol-position: bottom right; margin: 0 2px 3px 0; }
@@ -308,12 +323,35 @@ private:
     // The app's control look, and tooltips: Fusion draws those with a hard frame in the text
     // colour; a soft one fits the app better
     static void styleToolTips(const QColor& background, const QColor& text, const QColor& border) {
-        const QString borderColor = QString("rgba(%1, %2, %3, %4)")
-                                        .arg(border.red()).arg(border.green()).arg(border.blue()).arg(border.alpha());
+        const qreal a = border.alphaF();                   // Solid, mixed against the tooltip's background
+        const QColor edge = QColor::fromRgbF(border.redF() * a + background.redF() * (1 - a),
+                                             border.greenF() * a + background.greenF() * (1 - a),
+                                             border.blueF() * a + background.blueF() * (1 - a));
+        const QString borderColor = QString("rgba(%1, %2, %3, 255)").arg(edge.red()).arg(edge.green()).arg(edge.blue());
         qApp->setStyleSheet(QString("QToolTip { background-color: %1; color: %2; border: 1px solid %3; padding: 4px 6px; }")
                                 .arg(background.name(), text.name(), borderColor)
                             + controlStyleSheet());
+        static SpinBoxInset inset;                   // Once for the app, whichever theme comes first
+        qApp->installEventFilter(&inset);            // Installing it again changes nothing
     }
+
+    // A spin box's number starts where the text of every other field does. Style sheets can't
+    // say so: a spin box puts its text field at its left edge, whatever its padding.
+    class SpinBoxInset : public QObject {
+    protected:
+        bool eventFilter(QObject* watched, QEvent* event) override {
+            if (event->type() == QEvent::Polish
+                && (qobject_cast<QSpinBox*>(watched) || qobject_cast<QDoubleSpinBox*>(watched))) {
+                if (auto* edit = watched->findChild<QLineEdit*>()) edit->setTextMargins(FieldInset, 0, 0, 0);
+            }
+            return false;
+        }
+    };
+
+public:
+    static constexpr int FieldInset = 8;             // From a field's edge to its text, as the style sheet's padding
+
+private:
 
     static void applyLightTheme() {
         darkActive = false;
