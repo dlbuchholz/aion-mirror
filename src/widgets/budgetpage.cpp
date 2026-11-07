@@ -79,20 +79,19 @@ protected:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        // Unfolded, it joins the detail below: rounded only at the top
-        const QRect area = rect().adjusted(0, expanded ? 0 : 1, 0, expanded ? 0 : -1);
-        if (open || expanded || underMouse() || hasFocus()) {
+        // A soft band on hover, or while its editor is open; unfolded, the detail below is its own card
+        const QRect area = rect().adjusted(0, 1, 0, -1);
+        if (open || underMouse() || hasFocus()) {
             QPainterPath path;
             path.addRoundedRect(QRectF(area), 6, 6);
-            if (expanded) path.addRect(QRectF(area.left(), area.center().y(), area.width(), area.height() / 2.0 + 1));
-            painter.fillPath(path.simplified(), open ? colors.itemSelected : colors.itemHover);
+            painter.fillPath(path, open ? colors.itemSelected : colors.itemHover);
         }
         const QPixmap chevron = Icons::icon(expanded ? "chevron-down" : "chevron-right", colors.textMuted, 14).pixmap(14, 14);
         painter.drawPixmap(area.left() + 10, area.top() + 14, chevron);
-        const QRect content = area.adjusted(32, 8, -12, -10);
-        const int leftWidth = 150;                    // "left" / "over" column
+        const QRect content = area.adjusted(32, 8, -14, -10);
 
-        // Top line: category and tag on the left, spent of limit on the right
+        // Top line: category, tag and how many transactions on the left; spent of limit and what's
+        // left on the right
         QFont font = this->font();
         QFont smallFont = font;
         smallFont.setPointSizeF(font.pointSizeF() * 0.9);
@@ -100,15 +99,20 @@ protected:
         const QFontMetrics smallMetrics(smallFont);
         const QRect topLine(content.left(), content.top(), content.width(), 22);
 
-        const QString amounts = QString("%1 · %2 of %3").arg(countText(budget.transactionCount),
-                                                             settings.formatSpending(budget.spentCents),
-                                                             settings.formatCurrency(budget.limitCents));
-        painter.setFont(smallFont);
-        painter.setPen(colors.textSecondary);
-        painter.drawText(topLine.adjusted(0, 0, -leftWidth - 24, 0), Qt::AlignRight | Qt::AlignVCenter, amounts);
-        const int amountsWidth = smallMetrics.horizontalAdvance(amounts);
+        const Cents left = budget.leftCents();
+        const QString spent = settings.formatSpending(budget.spentCents);
+        const QString rest = QString(" of %1 · %2").arg(settings.formatCurrency(budget.limitCents), leftText(left));
+        const int restWidth = metrics.horizontalAdvance(rest);
+        const int amountsWidth = metrics.horizontalAdvance(spent) + restWidth;
+        painter.setFont(font);
+        painter.setPen(left < 0 ? colors.danger : colors.textSecondary);
+        painter.drawText(topLine, Qt::AlignRight | Qt::AlignVCenter, rest);
+        painter.setPen(left < 0 ? colors.danger : colors.textPrimary);
+        painter.drawText(topLine.adjusted(0, 0, -restWidth, 0), Qt::AlignRight | Qt::AlignVCenter, spent);
 
         const int tagWidth = smallMetrics.horizontalAdvance(tag) + 16;
+        const QString count = countText(budget.transactionCount);
+        const int countWidth = smallMetrics.horizontalAdvance(count);
         // The category's colour as a dot before the name
         int nameLeft = topLine.left();
         if (settings.isCategoryColorsInOverviewsEnabled() && !budget.categoryColor.isEmpty()) {
@@ -117,7 +121,7 @@ protected:
             painter.drawEllipse(QRectF(nameLeft, topLine.center().y() - 4, 9, 9));
             nameLeft += 17;
         }
-        const int nameWidth = qMax(0, topLine.right() - nameLeft - leftWidth - amountsWidth - tagWidth - 32);
+        const int nameWidth = qMax(0, topLine.right() - nameLeft - amountsWidth - tagWidth - countWidth - 48);
         const QString name = metrics.elidedText(budget.categoryName, Qt::ElideRight, nameWidth);
         painter.setFont(font);
         painter.setPen(colors.textPrimary);
@@ -130,16 +134,12 @@ protected:
         painter.setFont(smallFont);
         painter.setPen(colors.textSecondary);
         painter.drawText(pill, Qt::AlignCenter, tag);
+        painter.setPen(colors.textMuted);
+        painter.drawText(QRectF(pill.right() + 10, topLine.top(), countWidth + 4, topLine.height()), Qt::AlignLeft | Qt::AlignVCenter, count);
 
-        // Bottom line: progress bar and what is left
-        const Cents left = budget.leftCents();
+        // Bottom line: the progress bar, the whole width
         const QRect bottomLine(content.left(), content.bottom() - 16, content.width(), 18);
-        painter.setFont(font);
-        painter.setPen(left < 0 ? colors.danger : colors.textPrimary);
-        painter.drawText(QRect(content.right() - leftWidth, area.top(), leftWidth, area.height()),
-                         Qt::AlignRight | Qt::AlignVCenter, leftText(left));
-
-        const QRectF track(bottomLine.left(), bottomLine.center().y() - 3, bottomLine.width() - leftWidth - 24, 6);
+        const QRectF track(bottomLine.left(), bottomLine.center().y() - 3, bottomLine.width(), 6);
         QPainterPath trackPath;
         trackPath.addRoundedRect(track, 3, 3);
         painter.fillPath(trackPath, colors.track);

@@ -528,14 +528,21 @@ private slots:
         QCOMPARE(chart.grab().toImage(), plain);
     }
 
-    void theDetailJoinsItsRowAndItsTransactionsLightUp() {
+    void theDetailIsItsOwnCardAndItsTransactionsLightUp() {
         BudgetDetail detail(groceriesBudget(31200), QDate(2026, 11, 1), november(), 0, 0, QDate(2026, 11, 18));
         detail.resize(560, detail.sizeHint().height());
         detail.layout()->activate();
-        // Square at the top to join the row above, rounded at the bottom
+        // A card set in from the sides, rounded at every corner, one shade top to bottom
         const QImage drawn = detail.grab().toImage();
-        QVERIFY(drawn.pixelColor(0, 0) != drawn.pixelColor(0, drawn.height() - 1));
-        QCOMPARE(drawn.pixelColor(0, 0), drawn.pixelColor(0, drawn.height() / 2));
+        const QRectF card = detail.cardRect();
+        QCOMPARE(card.left(), BudgetDetail::Inset + 0.5);
+        const auto at = [&drawn](double x, double y) { return drawn.pixelColor(QPointF(x, y).toPoint() * drawn.devicePixelRatio()); };
+        const QColor outside = at(2, drawn.height() / drawn.devicePixelRatio() / 2);
+        const QColor fill = at(card.center().x(), card.top() + 6);
+        QVERIFY(fill != outside);
+        QCOMPARE(at(card.center().x(), card.bottom() - 4), fill);       // The same shade at the bottom
+        QCOMPARE(at(card.left() + 1, card.top() + 1), outside);           // Round at the top...
+        QCOMPARE(at(card.left() + 1, card.bottom() - 1), outside);        // ...and at the bottom
 
         // Its rows sit on the hover colour already, so they light up stronger than other rows
         HoverRow* listed = detail.findChildren<HoverRow*>("budgetDetailTransaction").first();
@@ -691,12 +698,33 @@ private slots:
         QVERIFY(page.findChild<BudgetEditor*>()->isHidden());
         QVERIFY(!page.findChild<BudgetDetail*>());
 
-        // Unfolded, it keeps a background without the mouse, joining the detail below
+        // Unfolded, no band without the mouse: the detail below is a card of its own
         budget->setAttribute(Qt::WA_UnderMouse, false);
-        const QPoint bottomRight(budget->width() - 2, budget->height() - 1);
-        const QColor folded = budget->grab().toImage().pixelColor(bottomRight);
+        const QPoint edge(4, budget->height() / 2);              // Where only a band would paint
+        const QImage folded = budget->grab().toImage();
         budget->click();
-        QVERIFY(budget->grab().toImage().pixelColor(bottomRight) != folded);   // The hover colour is translucent
+        QVERIFY(page.findChild<BudgetDetail*>());
+        const QImage unfolded = budget->grab().toImage();
+        QCOMPARE(unfolded.pixelColor(edge * unfolded.devicePixelRatio()), folded.pixelColor(edge * folded.devicePixelRatio()));
+        QVERIFY(unfolded != folded);                     // Its chevron points down
+    }
+
+    void aMonthThatsOverSaysHowItEnded() {
+        const MonthBudget within = groceriesBudget(31200);           // Of 400,00
+        BudgetDetail past(within, QDate(2026, 10, 1), november(), 0, 0, QDate(2026, 11, 18));
+        QCOMPARE(past.findChild<QLabel*>("endedValue")->text(), QString("%1 left").arg(money(8800)));
+        QCOMPARE(past.findChild<QLabel*>("endedValueCaption")->text(), QString("Ended"));
+        BudgetDetail over(groceriesBudget(45000), QDate(2026, 10, 1), november(), 0, 0, QDate(2026, 11, 18));
+        auto* overValue = over.findChild<QLabel*>("endedValue");
+        QCOMPARE(overValue->text(), QString("%1 over").arg(money(5000)));
+        QCOMPARE(overValue->palette().color(QPalette::WindowText), Theme::colors().danger);
+        BudgetDetail current(within, QDate(2026, 11, 1), november(), 0, 0, QDate(2026, 11, 18));
+        QVERIFY(!current.findChild<QLabel*>("endedValue"));          // Still going: the pace instead
+        QVERIFY(current.findChild<QLabel*>("paceValue"));
+        BudgetDetail ahead(within, QDate(2026, 12, 1), {}, 0, 0, QDate(2026, 11, 18));
+        QVERIFY(!ahead.findChild<QLabel*>("endedValue"));            // Not even begun
+        BudgetDetail usedUp(groceriesBudget(40000), QDate(2026, 10, 1), november(), 0, 0, QDate(2026, 11, 18));
+        QCOMPARE(usedUp.findChild<QLabel*>("endedValue")->text(), QString("%1 left").arg(money(0)));
     }
 
     void withoutAUserThereIsNothingToShow() {

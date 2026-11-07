@@ -75,6 +75,10 @@ public:
                  Cents lastMonthSpent, Cents lastMonthLimit, const QDate& today, QWidget* parent = nullptr);
 
     static constexpr int ShownTransactions = 4;
+    static constexpr int Inset = 14;                           // Its card, set in from the list's sides
+    static constexpr int BottomGap = 10;                       // Below its card, before the next row
+
+    QRectF cardRect() const;                                   // Where its card is drawn
 
 signals:
     void transactionRequested(int transactionId);

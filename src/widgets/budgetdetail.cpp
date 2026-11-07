@@ -172,18 +172,19 @@ void BudgetMonthChart::paintEvent(QPaintEvent*) {
     painter.setPen(QPen(colors.textMuted, 1));
     painter.drawLine(QPointF(xFor(0), yFor(0)), QPointF(xFor(days), yFor(limitCents)));
 
-    // The limit, named above its line
+    // The limit as a dashed line; the month and the limit named above the chart, clear of the lines
     painter.setPen(QPen(colors.textMuted, 1, Qt::DashLine));
     painter.drawLine(QPointF(area.left(), yFor(limitCents)), QPointF(area.right(), yFor(limitCents)));
     painter.setPen(colors.textSecondary);
-    painter.drawText(QRectF(area.left(), yFor(limitCents) - fontMetrics().height() - 2, area.width(), fontMetrics().height()),
-                     Qt::AlignRight | Qt::AlignBottom,
-                     QString("Limit %1").arg(Settings::instance().formatCurrency(limitCents)));
+    const QLocale english(QLocale::English);
+    const QRectF heading(area.left(), 0, area.width(), fontMetrics().height());
+    painter.drawText(heading, Qt::AlignLeft | Qt::AlignTop, english.toString(month, "MMMM"));
+    painter.drawText(heading, Qt::AlignRight | Qt::AlignTop, QString("Limit %1").arg(Settings::instance().formatCurrency(limitCents)));
 
-    // Days along the bottom, and today
+    // The month's first and last day along the bottom, and today
     const QRectF labels(area.left(), area.bottom() + 4, area.width(), fontMetrics().height());
-    painter.drawText(labels, Qt::AlignLeft | Qt::AlignTop, "1");
-    painter.drawText(labels, Qt::AlignRight | Qt::AlignTop, QString::number(days));
+    painter.drawText(labels, Qt::AlignLeft | Qt::AlignTop, english.toString(month, "d MMM"));
+    painter.drawText(labels, Qt::AlignRight | Qt::AlignTop, english.toString(QDate(month.year(), month.month(), days), "d MMM"));
     if (isCurrentMonth(month, today)) {
         const double x = xFor(today.day() - 0.5);
         painter.setPen(QPen(colors.textMuted, 1, Qt::DotLine));
@@ -256,7 +257,7 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     const QLocale english(QLocale::English);
 
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(16, 6, 16, 12);
+    layout->setContentsMargins(Inset + 14, 14, Inset + 14, BottomGap + 12);   // Inside its card
     layout->setSpacing(10);
 
     // The chart, with how it's going beside it
@@ -284,6 +285,12 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
                 left > 0 ? settings.formatCurrency(left / daysLeft) : QString("Nothing left"), "leftPerDayValue",
                 left > 0 ? QColor() : colors.danger);
     }
+    if (!current && passed > 0) {                                 // A month that's over: how it ended
+        const Cents left = budget.leftCents();
+        addStat(stats, "Ended", left < 0 ? QString("%1 over").arg(settings.formatCurrency(-left))
+                                         : QString("%1 left").arg(settings.formatCurrency(left)),
+                "endedValue", left < 0 ? colors.danger : QColor());
+    }
     const QString lastMonthName = english.toString(month.addMonths(-1), "MMMM");
     addStat(stats, lastMonthName,
             lastMonthLimit > 0 ? QString("%1 of %2").arg(settings.formatSpending(lastMonthSpent), settings.formatCurrency(lastMonthLimit))
@@ -293,6 +300,14 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     top->addLayout(stats, 2);
     layout->addLayout(top);
 
+    auto* divider = new QFrame(this);                             // Between how it's going and what was spent
+    divider->setObjectName("budgetDetailDivider");
+    divider->setFixedHeight(1);
+    divider->setAutoFillBackground(true);
+    QPalette dividerPalette = divider->palette();
+    dividerPalette.setColor(QPalette::Window, Theme::hairline(Theme::isDark()));
+    divider->setPalette(dividerPalette);
+    layout->addWidget(divider);
     // The latest transactions, newest first
     const QString monthName = english.toString(month, "MMMM");
     if (transactions.isEmpty()) {
@@ -350,12 +365,17 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     layout->addLayout(footer);
 }
 
+QRectF BudgetDetail::cardRect() const {
+    return QRectF(rect()).adjusted(Inset + 0.5, 2.5, -Inset - 0.5, -BottomGap - 0.5);
+}
+
 void BudgetDetail::paintEvent(QPaintEvent*) {
-    // Joins the row above it: square at the top, rounded at the bottom
+    // Its own card, set in under the row: one shade, a hairline, round all round
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     QPainterPath path;
-    path.addRoundedRect(QRectF(rect()).adjusted(0, 0, 0, -1), 6, 6);
-    path.addRect(QRectF(0, 0, width(), 8));
-    painter.fillPath(path.simplified(), Theme::colors().itemHover);
+    path.addRoundedRect(cardRect(), 10, 10);
+    painter.fillPath(path, Theme::colors().itemHover);
+    painter.setPen(QPen(Theme::hairline(Theme::isDark()), 1));
+    painter.drawPath(path);
 }
