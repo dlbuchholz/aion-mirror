@@ -16,6 +16,7 @@ see `LICENSE` in this folder):
 | `reports.svg`       | `chart-bar` (simplified)|
 | `settings.svg`      | `adjustments-horizontal`|
 | `chevron-down.svg`  | `chevron-down`          |
+| `chevron-up.svg`    | `chevron-up`            |
 | `chevron-left.svg`  | `chevron-left`          |
 | `chevron-right.svg` | `chevron-right`         |
 | `chevrons-left.svg` | `chevrons-left`         |
@@ -38,3 +39,4 @@ see `LICENSE` in this folder):
 | `dots.svg`          | `dots`                  |
 | `trash.svg`         | `trash`                 |
 | `inbox.svg`         | `inbox`                 |
+| `check.svg`         | `check`                 |

@@ -27,13 +27,6 @@ namespace {
 
 const QLocale english(QLocale::English);
 
-void makePrimary(QPushButton* button) {
-    QPalette palette = button->palette();
-    palette.setColor(QPalette::Button, Theme::colors().accent);
-    palette.setColor(QPalette::ButtonText, Theme::colors().onAccent);
-    button->setPalette(palette);
-}
-
 void setTextColor(QWidget* widget, const QColor& color) {
     QPalette palette = widget->palette();
     palette.setColor(QPalette::WindowText, color);
@@ -360,7 +353,7 @@ DashboardPage::DashboardPage(QWidget* parent)
     header->addWidget(importButton, 0, Qt::AlignTop);
     addButton = new QPushButton("Add transaction", content);
     addButton->setObjectName("dashboardAddButton");
-    makePrimary(addButton);
+    addButton->setProperty("primary", true);         // The solid accent button (Theme::controlStyleSheet)
     connect(addButton, &QPushButton::clicked, this, &DashboardPage::addTransactionRequested);
     header->addWidget(addButton, 0, Qt::AlignTop);
     root->addLayout(header);

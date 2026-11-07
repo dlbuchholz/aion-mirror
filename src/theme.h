@@ -60,22 +60,6 @@ public:
         }
     }
 
-    // Gives a checkable button the accent colour while it is checked (Fusion's pressed look is too subtle)
-    static void highlightWhenChecked(QAbstractButton* button) {
-        auto update = [button](bool checked) {
-            if (checked) {
-                QPalette palette = button->palette();
-                palette.setColor(QPalette::Button, colors().accent);
-                palette.setColor(QPalette::ButtonText, colors().onAccent);
-                button->setPalette(palette);
-            } else {
-                button->setPalette(QPalette());      // Back to the inherited application palette
-            }
-        };
-        QObject::connect(button, &QAbstractButton::toggled, button, update);
-        update(button->isChecked());
-    }
-
     static bool isDark() {
         return darkActive;
     }
@@ -130,18 +114,23 @@ public:
     static constexpr int controlHeight = 32;        // Fields, drop-downs, steppers and segments in a row
 
     // The app's own look for controls, in place of Fusion's square boxes: one height, rounded
-    // corners, hairline borders and quiet hovers. Set on a container, it styles what's inside:
-    //   QLineEdit and QComboBox            fields
+    // corners, hairline borders and quiet hovers. applyTheme sets it on the whole app:
+    //   QLineEdit, QComboBox, spin and     fields; a QComboBox's list and a QDateEdit's calendar
+    //   date boxes, QTextEdit              button too
+    //   QCheckBox, QRadioButton            rounded boxes, ticked or dotted in the accent colour
+    //   QMenu, QToolTip                    soft popups with rounded items
     //   QToolButton[chip="true"]           a toggle; accent tint while checked
-    //   QFrame[segmented="true"]           a track whose QToolButtons are its segments
+    //   QFrame[segmented="true"]           a track whose tool or push buttons are its segments
     //   QFrame[stepper="true"]             "‹ name ›" in one box; the QToolButton[stepperName="true"] between dividers
     //   QFrame[popup="true"]               a rounded popup; QAbstractButton[thisMonth="true"] is outlined
-    //   QPushButton                        a button; [primary="true"] is the solid accent one
+    //   QPushButton                        a button; [primary="true"] and a dialog's default one are the solid
+    //                                      accent ones, [danger="true"] has red text, and a checkable one
+    //                                      is tinted while checked
     //   QToolButton[button="true"]         the same, plus [danger], [ghost] (no box), [dropDown] (room for
     //                                      its menu's arrow) and [noIndicator] (a menu without the arrow)
     //   QToolButton[warning="true"]        a toggle asking for attention; solid amber while checked
     //   QFrame[selectionBar="true"]        an accent band for actions on what's selected
-    // Set it again when the theme changes, as its colours are the active theme's.
+    // Its colours are the active theme's, so applyTheme sets it again with each theme.
     static QString controlStyleSheet() {
         const bool dark = darkActive;
         const Colors c = colors();
@@ -165,6 +154,10 @@ public:
         const QString secondary = rgba(c.textSecondary);
         const QString disabled = rgba(dark ? QColor(110, 110, 116) : QColor(170, 170, 174));
         const QString arrow = Icons::file("chevron-down", c.textMuted, 14);
+        const QString arrowUp = Icons::file("chevron-up", c.textMuted, 12);
+        const QString arrowDown = Icons::file("chevron-down", c.textMuted, 12);
+        const QString tick = Icons::file("check", c.onAccent, 12);
+        const QString menuTick = Icons::file("check", c.textPrimary, 14);
         const QString onAccent = rgba(c.onAccent);
         const QString accentHover = rgba(dark ? QColor(60, 145, 230) : QColor(30, 115, 200));
         const auto accentAlpha = [&c, &rgba](int alpha) {
@@ -182,20 +175,50 @@ public:
         const QString warnFill = rgba(QColor(239, 159, 39));
 
         QString sheet = R"(
-QLineEdit, QComboBox { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 0 8px; }
-QLineEdit:hover, QComboBox:hover { border-color: BORDERHOVER; }
-QLineEdit:focus, QComboBox:focus, QComboBox:on { border-color: ACCENT; }
-QComboBox::drop-down { border: none; width: 26px; }
-QComboBox::down-arrow { image: url(ARROW); width: 14px; height: 14px; }
+QLineEdit, QComboBox, QAbstractSpinBox { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 0 8px; min-height: 30px; }
+QLineEdit:hover, QComboBox:hover, QAbstractSpinBox:hover { border-color: BORDERHOVER; }
+QLineEdit:focus, QComboBox:focus, QComboBox:on, QAbstractSpinBox:focus { border-color: ACCENT; }
+QLineEdit:disabled, QComboBox:disabled, QAbstractSpinBox:disabled { color: DISABLED; background-color: TRACK; border-color: DIVIDER; }
+QComboBox QLineEdit, QAbstractSpinBox QLineEdit { border: none; background: transparent; padding: 0; min-height: 0; }
+QTextEdit, QPlainTextEdit { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 4px; }
+QTextEdit:hover, QPlainTextEdit:hover { border-color: BORDERHOVER; }
+QTextEdit:focus, QPlainTextEdit:focus { border-color: ACCENT; }
+QComboBox::drop-down, QDateEdit::drop-down { border: none; width: 26px; }
+QComboBox::down-arrow, QDateEdit::down-arrow { image: url(@arrow@); width: 14px; height: 14px; }
+QComboBox QAbstractItemView { background-color: POPUP; color: TEXT; border: 1px solid BORDER; outline: 0; padding: 4px; selection-background-color: HOVER; selection-color: TEXT; }
+QAbstractSpinBox { padding-right: 22px; }
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { border: none; background: transparent; width: 20px; subcontrol-origin: border; }
+QAbstractSpinBox::up-button { subcontrol-position: top right; margin: 3px 2px 0 0; }
+QAbstractSpinBox::down-button { subcontrol-position: bottom right; margin: 0 2px 3px 0; }
+QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover { background-color: HOVER; border-radius: 4px; }
+QAbstractSpinBox::up-arrow { image: url(@up@); width: 12px; height: 12px; }
+QAbstractSpinBox::down-arrow { image: url(@down@); width: 12px; height: 12px; }
+
+QCheckBox, QRadioButton { spacing: 8px; }
+QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; background-color: FIELD; border: 1px solid BORDERHOVER; }
+QCheckBox::indicator { border-radius: 4px; }
+QRadioButton::indicator { border-radius: 9px; }
+QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: ACCENT; }
+QCheckBox::indicator:checked { background-color: ACCENT; border-color: ACCENT; image: url(@tick@); }
+QRadioButton::indicator:checked { background-color: ONACCENT; border: 5px solid ACCENT; width: 8px; height: 8px; }
+QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { background-color: TRACK; border-color: DIVIDER; }
+
+QMenu { background-color: POPUP; color: TEXT; border: 1px solid BORDER; padding: 4px; }
+QMenu::item { padding: 6px 24px 6px 26px; border-radius: 6px; background: transparent; }
+QMenu::item:selected { background-color: HOVER; }
+QMenu::item:disabled { color: DISABLED; }
+QMenu::separator { height: 1px; background-color: DIVIDER; margin: 4px 6px; }
+QMenu::indicator { width: 14px; height: 14px; left: 6px; }
+QMenu::indicator:checked { image: url(@menutick@); }
 
 QToolButton[chip="true"] { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 0 10px; }
 QToolButton[chip="true"]:hover { border-color: BORDERHOVER; }
 QToolButton[chip="true"]:checked { background-color: ACCENTTINT; color: ACCENTTEXT; border-color: ACCENT; }
 
 QFrame[segmented="true"] { background-color: TRACK; border: 1px solid BORDER; border-radius: 8px; }
-QFrame[segmented="true"] QToolButton { background: transparent; color: SECONDARY; border: 1px solid transparent; border-radius: 6px; padding: 0 11px; }
-QFrame[segmented="true"] QToolButton:hover { color: TEXT; background-color: HOVER; }
-QFrame[segmented="true"] QToolButton:checked { background-color: RAISED; color: TEXT; border-color: BORDER; }
+QFrame[segmented="true"] QToolButton, QFrame[segmented="true"] QPushButton { background: transparent; color: SECONDARY; border: 1px solid transparent; border-radius: 6px; padding: 0 11px; min-height: 0; }
+QFrame[segmented="true"] QToolButton:hover, QFrame[segmented="true"] QPushButton:hover { color: TEXT; background-color: HOVER; }
+QFrame[segmented="true"] QToolButton:checked, QFrame[segmented="true"] QPushButton:checked { background-color: RAISED; color: TEXT; border-color: BORDER; }
 
 QFrame[stepper="true"] { background-color: FIELD; border: 1px solid BORDER; border-radius: 8px; }
 QFrame[stepper="true"]:hover { border-color: BORDERHOVER; }
@@ -204,7 +227,7 @@ QFrame[stepper="true"] QToolButton:hover { background-color: HOVER; }
 QFrame[stepper="true"] QToolButton[stepperName="true"] { border-radius: 0; border-left: 1px solid DIVIDER; border-right: 1px solid DIVIDER; padding: 0 10px; }
 
 QFrame[popup="true"] { background-color: POPUP; border: 1px solid BORDER; border-radius: 10px; }
-QFrame[popup="true"] QAbstractButton { background: transparent; color: TEXT; border: 1px solid transparent; border-radius: 6px; padding: 5px 10px; text-align: left; }
+QFrame[popup="true"] QAbstractButton { background: transparent; color: TEXT; border: 1px solid transparent; border-radius: 6px; padding: 5px 10px; text-align: left; min-height: 0; }
 QFrame[popup="true"] QAbstractButton:hover { background-color: HOVER; }
 QFrame[popup="true"] QAbstractButton:disabled { color: DISABLED; }
 QFrame[popup="true"] QAbstractButton:checked { background-color: ACCENTTINT; color: ACCENTTEXT; }
@@ -213,15 +236,19 @@ QFrame[popup="true"] QFrame#divider { background-color: DIVIDER; border: none; }
 QFrame[popup="true"] QLabel { color: TEXT; background: transparent; }
 
 QPushButton, QToolButton[button="true"] { background-color: FIELD; color: TEXT; border: 1px solid BORDER; border-radius: 8px; padding: 0 12px; }
+QPushButton { min-height: 30px; }
 QPushButton:hover, QToolButton[button="true"]:hover { border-color: BORDERHOVER; }
 QPushButton:pressed, QToolButton[button="true"]:pressed { background-color: HOVER; }
-QPushButton[primary="true"] { background-color: ACCENT; color: ONACCENT; border-color: ACCENT; }
-QPushButton[primary="true"]:hover { background-color: ACCENTHOVER; border-color: ACCENTHOVER; }
-QToolButton[button="true"][danger="true"] { color: DANGER; }
+QPushButton:checked { background-color: ACCENTTINT; color: ACCENTTEXT; border-color: ACCENT; }
+QPushButton:disabled, QToolButton[button="true"]:disabled { color: DISABLED; border-color: DIVIDER; }
+QPushButton[primary="true"], QPushButton:default { background-color: ACCENT; color: ONACCENT; border-color: ACCENT; }
+QPushButton[primary="true"]:hover, QPushButton:default:hover { background-color: ACCENTHOVER; border-color: ACCENTHOVER; }
+QPushButton[primary="true"]:disabled, QPushButton:default:disabled { background-color: ACCENTTINT; color: DISABLED; border-color: transparent; }
+QPushButton[danger="true"], QToolButton[button="true"][danger="true"] { color: DANGER; }
 QToolButton[button="true"][ghost="true"] { background: transparent; border-color: transparent; padding: 0 6px; }
 QToolButton[button="true"][ghost="true"]:hover { background-color: HOVER; }
 QToolButton[button="true"][dropDown="true"] { padding-right: 28px; }
-QToolButton[button="true"]::menu-indicator { image: url(ARROW); subcontrol-origin: padding; subcontrol-position: center right; right: 8px; width: 14px; height: 14px; }
+QToolButton[button="true"]::menu-indicator { image: url(@arrow@); subcontrol-origin: padding; subcontrol-position: center right; right: 8px; width: 14px; height: 14px; }
 QToolButton[button="true"][noIndicator="true"] { padding: 0; }
 QToolButton[button="true"][noIndicator="true"]::menu-indicator { image: none; width: 0; }
 
@@ -241,7 +268,8 @@ QFrame[selectionBar="true"] QLabel { color: ACCENTTEXT; font-weight: bold; backg
             {"SECONDARY", secondary}, {"DISABLED", disabled}, {"DIVIDER", divider}, {"BORDER", border},
             {"ACCENT", accent}, {"RAISED", raised}, {"FIELD", field}, {"TRACK", track}, {"HOVER", hover},
             {"POPUP", popup}, {"TEXT", text},
-            {"ARROW", arrow},                        // Last: a random folder name could hold a name above
+            // Icon files last, by names in lower case: a random folder name could hold a name above
+            {"@arrow@", arrow}, {"@up@", arrowUp}, {"@down@", arrowDown}, {"@tick@", tick}, {"@menutick@", menuTick},
         };
         for (const auto& [name, value] : values) {
             sheet.replace(name, value);
@@ -277,12 +305,14 @@ private:
         styleToolTips(QColor(56, 56, 62), QColor(236, 236, 238), QColor(255, 255, 255, 40));
     }
 
-    // Fusion draws tooltips with a hard frame in the text colour; a soft one fits the app better
+    // The app's control look, and tooltips: Fusion draws those with a hard frame in the text
+    // colour; a soft one fits the app better
     static void styleToolTips(const QColor& background, const QColor& text, const QColor& border) {
         const QString borderColor = QString("rgba(%1, %2, %3, %4)")
                                         .arg(border.red()).arg(border.green()).arg(border.blue()).arg(border.alpha());
         qApp->setStyleSheet(QString("QToolTip { background-color: %1; color: %2; border: 1px solid %3; padding: 4px 6px; }")
-                                .arg(background.name(), text.name(), borderColor));
+                                .arg(background.name(), text.name(), borderColor)
+                            + controlStyleSheet());
     }
 
     static void applyLightTheme() {

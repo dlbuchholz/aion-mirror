@@ -1137,22 +1137,6 @@ private slots:
         QCOMPARE(page.findChild<QLabel*>("emptyLabel")->text(), QString("No transactions match these filters."));
     }
 
-    void theFilterRowFollowsTheTheme() {
-        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
-        Theme::applyTheme(Theme::Type::Dark);
-        TransactionsPage page;
-        auto* row = page.findChild<QWidget*>("filterBar");
-        QCOMPARE(row->styleSheet(), Theme::controlStyleSheet());
-        QVERIFY(row->isAncestorOf(page.findChild<PeriodPicker*>()));
-        QVERIFY(row->isAncestorOf(page.findChild<QComboBox*>("categoryFilter")));
-        QVERIFY(page.findChild<QWidget*>("headerActions")->isAncestorOf(page.findChild<QToolButton*>("moreActions")));
-        Theme::applyTheme(Theme::Type::Light);
-        QCoreApplication::processEvents();
-        for (const char* part : {"filterBar", "headerActions", "bulkBar"}) {
-            QVERIFY2(page.findChild<QWidget*>(part)->styleSheet() == Theme::controlStyleSheet(), part);   // The light one now
-        }
-    }
-
     void incomeOrExpensesOnly() {
         TransactionDAO dao;
         const int salary = dao.addTransaction(Transaction(-1, firstId, "Salary", 5000, QDate(2024, 3, 1), "", 0, "income"));
@@ -1410,6 +1394,12 @@ private slots:
         auto* editor = page.findChild<TransactionEditor*>();
         auto* categories = editor->findChild<QComboBox*>("categoryCombo");
         QVERIFY(categories->findText("Groceries") >= 0);
+        auto* track = editor->findChild<QFrame*>("typeTrack");           // A segmented track, like All/In/Out
+        QVERIFY(track->property("segmented").toBool());
+        const QList<QPushButton*> types = track->findChildren<QPushButton*>();
+        QCOMPARE(types.size(), 2);
+        QCOMPARE(types[0]->text(), QString("Expense"));
+        QVERIFY(types[0]->isChecked());
         for (QPushButton* button : editor->findChildren<QPushButton*>()) {
             if (button->text() == "Income") {
                 button->click();

@@ -83,7 +83,6 @@ private:
     void setCategoryForSelection(int categoryId);
     int defaultAccountForNew() const;
     void updateIcons();                              // Re-tint icons after a theme change
-    void applyControlStyle();
 
     int userId = -1;
     int accountId = ALL_ACCOUNTS;
@@ -103,7 +102,7 @@ private:
     QAction* correctBalanceAction = nullptr;
     QLineEdit* searchEdit = nullptr;
     QAction* searchAction = nullptr;
-    QWidget* filterBar = nullptr;                    // Search, period, category and type, in the theme's control look
+    QWidget* filterBar = nullptr;                    // Search, period, category and type
     PeriodPicker* periodPicker = nullptr;
     QComboBox* categoryFilter = nullptr;
     QButtonGroup* typeGroup = nullptr;               // Both, income only or expenses only

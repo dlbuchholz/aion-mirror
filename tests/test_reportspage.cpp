@@ -237,17 +237,6 @@ private slots:
         QVERIFY(name->fontMetrics().horizontalAdvance(name->text()) <= name->width());
     }
 
-    void theHeaderFollowsTheTheme() {
-        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
-        Theme::applyTheme(Theme::Type::Dark);
-        ReportsPage page;
-        auto* controls = page.findChild<QWidget*>("reportsHeaderControls");
-        QCOMPARE(controls->styleSheet(), Theme::controlStyleSheet());
-        Theme::applyTheme(Theme::Type::Light);
-        QCoreApplication::processEvents();
-        QCOMPARE(controls->styleSheet(), Theme::controlStyleSheet());   // The light one now
-    }
-
     void aSingleDayAndCancellingTheDays() {
         ReportsPage page;
         page.setUserId(1);
@@ -273,7 +262,6 @@ private slots:
         };
         chooseDays(page);
         QVERIFY(chip(page, Preset::Year)->isChecked());  // Twelve whole months
-        QCOMPARE(page.findChild<QWidget*>("reportsHeaderControls")->styleSheet(), Theme::controlStyleSheet());
     }
 
     void cardsOpenTheirReport() {

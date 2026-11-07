@@ -1,5 +1,9 @@
 #include <QtTest>
 #include <QAbstractButton>
+#include <QCheckBox>
+#include <QPushButton>
+#include <QStyle>
+#include <QVBoxLayout>
 #include <QListWidget>
 #include <QSqlQuery>
 #include <QStackedWidget>
@@ -167,7 +171,12 @@ private slots:
             QVERIFY2(!rest.contains(QRegularExpression("[A-Z]{3,}")), qPrintable(rest));   // Every name filled in
             // ...each by its own value, not a shorter name's value inside a longer name
             QVERIFY2(!rest.contains(QRegularExpression("[A-Za-z)]rgba\\(")), qPrintable(rest));
-            QVERIFY(QFile::exists(sheet.section("image: url(", 1).section(")", 0, 0)));
+            int images = 0;                                          // Arrows and ticks, every one there
+            for (const QRegularExpressionMatch& url : QRegularExpression("url\\(([^)]*)\\)").globalMatch(sheet)) {
+                QVERIFY2(QFile::exists(url.captured(1)), qPrintable(url.captured(1)));
+                ++images;
+            }
+            QVERIFY(images >= 5);
         }
         const auto rgba = [](const QColor& color) {
             return QString("rgba(%1, %2, %3, %4)").arg(color.red()).arg(color.green()).arg(color.blue()).arg(color.alpha());
@@ -175,8 +184,49 @@ private slots:
         QVERIFY(light.contains("color: " + rgba(Theme::colors(false).textPrimary)));
         QVERIFY(dark.contains("color: " + rgba(Theme::colors(true).textPrimary)));
         // Fields are white in the light theme, not the dark theme's grey
-        QVERIFY(light.contains("QLineEdit, QComboBox { background-color: " + rgba(Qt::white)));
-        QVERIFY(!dark.contains("QLineEdit, QComboBox { background-color: " + rgba(Qt::white)));
+        QVERIFY(light.contains("QLineEdit, QComboBox, QAbstractSpinBox { background-color: " + rgba(Qt::white)));
+        QVERIFY(!dark.contains("QLineEdit, QComboBox, QAbstractSpinBox { background-color: " + rgba(Qt::white)));
+    }
+
+    void theWholeAppHasTheControlLook() {
+        const auto restore = qScopeGuard([] { Theme::applyTheme(Theme::Type::Dark); });
+        for (const Theme::Type theme : {Theme::Type::Light, Theme::Type::Dark}) {
+            Theme::applyTheme(theme);
+            QVERIFY(qApp->styleSheet().contains(Theme::controlStyleSheet()));   // Of this theme
+            QVERIFY(qApp->styleSheet().contains("QToolTip {"));
+
+            // Drawn so: a primary button in the accent colour, a ticked checkbox too
+            QWidget window;
+            auto* layout = new QVBoxLayout(&window);
+            auto* primary = new QPushButton("Add", &window);
+            primary->setProperty("primary", true);
+            primary->setMinimumWidth(120);
+            auto* check = new QCheckBox(&window);
+            check->setChecked(true);
+            auto* save = new QPushButton("Save", &window);   // A dialog's main button
+            save->setDefault(true);
+            save->setMinimumWidth(120);
+            auto* cancel = new QPushButton("Cancel", &window);
+            cancel->setMinimumWidth(120);
+            layout->addWidget(primary);
+            layout->addWidget(check);
+            layout->addWidget(save);
+            layout->addWidget(cancel);
+            draw(window, QSize(200, 220));
+            const QColor accent = Theme::colors().accent;
+            QCOMPARE(primary->grab().toImage().pixelColor(6, primary->height() / 2).rgb(), accent.rgb());
+            QCOMPARE(save->grab().toImage().pixelColor(6, save->height() / 2).rgb(), accent.rgb());
+            QVERIFY(cancel->grab().toImage().pixelColor(6, cancel->height() / 2).rgb() != accent.rgb());
+            QCOMPARE(primary->height(), Theme::controlHeight);
+            QStyleOptionButton option;
+            option.initFrom(check);
+            const QRect box = check->style()->subElementRect(QStyle::SE_CheckBoxIndicator, &option, check);
+            QCOMPARE(check->grab().toImage().pixelColor(box.left() + 2, box.center().y()).rgb(), accent.rgb());
+        }
+        Theme::applyTheme(Theme::Type::Light);
+        const QString light = qApp->styleSheet();
+        Theme::applyTheme(Theme::Type::Dark);
+        QVERIFY(qApp->styleSheet() != light);                // Set again with the other theme's colours
     }
 
     void disabledTextLooksDisabledInBothThemes() {

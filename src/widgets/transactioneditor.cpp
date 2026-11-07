@@ -9,6 +9,7 @@
 #include <QDateEdit>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
@@ -50,23 +51,29 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     header->addWidget(closeButton);
     layout->addLayout(header);
 
-    // Expense / income switch
-    auto* typeRow = new QHBoxLayout();
-    typeRow->setSpacing(0);
-    expenseButton = new QPushButton("Expense", this);
-    incomeButton = new QPushButton("Income", this);
+    // Expense / income switch, a segmented track like All/In/Out on the page
+    auto* typeTrack = new QFrame(this);
+    typeTrack->setObjectName("typeTrack");
+    typeTrack->setProperty("segmented", true);
+    typeTrack->setFixedHeight(Theme::controlHeight);
+    auto* typeRow = new QHBoxLayout(typeTrack);
+    typeRow->setContentsMargins(2, 2, 2, 2);
+    typeRow->setSpacing(2);
+    expenseButton = new QPushButton("Expense", typeTrack);
+    incomeButton = new QPushButton("Income", typeTrack);
     typeGroup = new QButtonGroup(this);
     for (QPushButton* button : {expenseButton, incomeButton}) {
         button->setCheckable(true);
         button->setFocusPolicy(Qt::TabFocus);
-        Theme::highlightWhenChecked(button);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setFixedHeight(Theme::controlHeight - 6);   // Inside the track's border and margins
         typeGroup->addButton(button);
         typeRow->addWidget(button);
     }
     connect(typeGroup, &QButtonGroup::buttonClicked, this, [this]() {
         populateCategories(categoryCombo->currentData().toInt());
     });
-    layout->addLayout(typeRow);
+    layout->addWidget(typeTrack);
 
     auto* form = new QFormLayout();
     form->setRowWrapPolicy(QFormLayout::WrapAllRows);
@@ -202,6 +209,7 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     auto* cancelButton = new QPushButton("Cancel", this);
     connect(cancelButton, &QPushButton::clicked, this, &TransactionEditor::closed);
     deleteButton = new QPushButton("Delete", this);
+    deleteButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     connect(deleteButton, &QPushButton::clicked, this, [this]() {
         emit deleteRequested(transactionId);
     });

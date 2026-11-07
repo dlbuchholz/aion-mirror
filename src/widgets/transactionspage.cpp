@@ -286,18 +286,6 @@ private:
     bool consumedPress = false;
 };
 
-namespace {
-
-// Gives a push button the accent colour used for the main action of a view
-void makePrimary(QPushButton* button) {
-    QPalette palette = button->palette();
-    palette.setColor(QPalette::Button, Theme::colors().accent);
-    palette.setColor(QPalette::ButtonText, Theme::colors().onAccent);
-    button->setPalette(palette);
-}
-
-} // namespace
-
 TransactionsPage::TransactionsPage(QWidget* parent)
     : QWidget(parent) {
     confirm = [this](const QString& title, const QString& text) {
@@ -356,14 +344,12 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     addButton->setFixedHeight(Theme::controlHeight);
     addButton->setIcon(Icons::icon("plus", Theme::colors().onAccent));
     addButton->setToolTip("Add transaction (Ctrl+N)");
-    makePrimary(addButton);
     connect(addButton, &QPushButton::clicked, this, &TransactionsPage::addTransaction);
     actions->addWidget(addButton);
     header->addWidget(headerActions, 0, Qt::AlignTop);
     root->addLayout(header);
 
     // Filters: search, period, category, unassigned transactions
-    // The theme's own control look; only this row has it for now
     filterBar = new QWidget(this);
     filterBar->setObjectName("filterBar");
     auto* filters = new QHBoxLayout(filterBar);
@@ -557,7 +543,6 @@ TransactionsPage::TransactionsPage(QWidget* parent)
         searchEdit->selectAll();
     });
 
-    applyControlStyle();
     updateIcons();
 }
 
@@ -566,7 +551,6 @@ QToolButton* TransactionsPage::addChip(const QString& text, QLayout* layout) {
     chip->setText(text);
     chip->setCheckable(true);
     chip->setCursor(Qt::PointingHandCursor);
-    Theme::highlightWhenChecked(chip);
     layout->addWidget(chip);
     return chip;
 }
@@ -584,19 +568,9 @@ void TransactionsPage::updateIcons() {
     clearSelectionButton->setIcon(Icons::icon("x", colors.textSecondary));
 }
 
-// The theme's control look for the header's actions, the filters and the selection bar. Its
-// colours are the active theme's, so it's set again when the theme changes.
-void TransactionsPage::applyControlStyle() {
-    const QString sheet = Theme::controlStyleSheet();
-    for (QWidget* part : {headerActions, filterBar, static_cast<QWidget*>(bulkBar)}) {
-        part->setStyleSheet(sheet);
-    }
-}
-
 void TransactionsPage::changeEvent(QEvent* event) {
     if (event->type() == QEvent::PaletteChange && searchAction && incomeLabel) {
         updateIcons();
-        applyControlStyle();
         updateTotals();                              // Income colour is part of the label text
     }
     QWidget::changeEvent(event);

@@ -30,14 +30,6 @@ QString monthName(const QDate& month) {
     return QLocale(QLocale::English).toString(month, "MMMM");
 }
 
-// Gives a push button the accent colour used for the main action of a view
-void makePrimary(QPushButton* button) {
-    QPalette palette = button->palette();
-    palette.setColor(QPalette::Button, Theme::colors().accent);
-    palette.setColor(QPalette::ButtonText, Theme::colors().onAccent);
-    button->setPalette(palette);
-}
-
 // "88,00 € left" or "12,00 € over"
 QString leftText(Cents left) {
     const Settings& settings = Settings::instance();
@@ -242,7 +234,7 @@ BudgetPage::BudgetPage(QWidget* parent)
     addButton = new QPushButton("Add budget", this);
     addButton->setObjectName("addBudgetButton");
     addButton->setToolTip("Add budget (Ctrl+N)");
-    makePrimary(addButton);
+    addButton->setProperty("primary", true);         // The solid accent button (Theme::controlStyleSheet)
     connect(addButton, &QPushButton::clicked, this, [this]() { addBudget(); });
     header->addWidget(addButton);
     root->addLayout(header);

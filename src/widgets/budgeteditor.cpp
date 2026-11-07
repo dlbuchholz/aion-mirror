@@ -136,6 +136,7 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     auto* cancelButton = new QPushButton("Cancel", this);
     connect(cancelButton, &QPushButton::clicked, this, &BudgetEditor::closed);
     removeButton = new QPushButton("Remove", this);
+    removeButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     removeButton->setObjectName("budgetRemoveButton");
     removeMenu = new QMenu(removeButton);
     connect(removeButton, &QPushButton::clicked, this, [this]() {

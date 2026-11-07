@@ -1355,7 +1355,6 @@ ReportsPage::ReportsPage(QWidget* parent)
         const ReportRange::Preset start = saved == ReportRange::Preset::Custom ? ReportRange::Preset::SixMonths : saved;
         setRange(start, ReportRange::forPreset(start, today()));
     }
-    headerControls->setStyleSheet(Theme::controlStyleSheet());
     showOverview();
     updateIcons();
     updateWidth();
@@ -1950,7 +1949,7 @@ QWidget* ReportsPage::budgetDetail(QWidget* parent) {
         viewChip->setText(viewNames[i].second);
         viewChip->setCheckable(true);
         viewChip->setCursor(Qt::PointingHandCursor);
-        Theme::highlightWhenChecked(viewChip);
+        viewChip->setProperty("chip", true);         // Theme::controlStyleSheet tints it while checked
         viewGroup->addButton(viewChip, i);
         viewChips->addWidget(viewChip);
     }
@@ -2267,7 +2266,6 @@ void ReportsPage::updateIcons() {
 void ReportsPage::changeEvent(QEvent* event) {
     if (event->type() == QEvent::PaletteChange && backLink) {
         updateIcons();
-        headerControls->setStyleSheet(Theme::controlStyleSheet());   // Its colours are the theme's
         for (ReportCard* card : std::as_const(cards)) card->update();
     }
     QWidget::changeEvent(event);

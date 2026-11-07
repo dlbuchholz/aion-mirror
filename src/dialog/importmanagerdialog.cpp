@@ -60,14 +60,6 @@ void setTextColor(QWidget *widget, const QColor &color)
     widget->setPalette(palette);
 }
 
-void makePrimary(QPushButton *button)
-{
-    QPalette palette = button->palette();
-    palette.setColor(QPalette::Button, Theme::colors().accent);
-    palette.setColor(QPalette::ButtonText, Theme::colors().onAccent);
-    button->setPalette(palette);
-}
-
 // A small number tile on the review step
 QLabel *addTile(QHBoxLayout *layout, const QString &caption, const QString &name, QWidget *parent)
 {
@@ -141,12 +133,12 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     nextButton = new QPushButton("Next", this);
     nextButton->setObjectName("nextButton");
     nextButton->setDefault(true);
-    makePrimary(nextButton);
+    nextButton->setProperty("primary", true);       // The solid accent button (Theme::controlStyleSheet)
     connect(nextButton, &QPushButton::clicked, this, &ImportManagerDialog::next);
     buttons->addWidget(nextButton);
     importButton = new QPushButton("Import", this);
     importButton->setObjectName("importButton");
-    makePrimary(importButton);
+    importButton->setProperty("primary", true);
     connect(importButton, &QPushButton::clicked, this, &ImportManagerDialog::import);
     buttons->addWidget(importButton);
     root->addLayout(buttons);
@@ -831,6 +823,8 @@ QWidget *ImportManagerDialog::buildCategoriesPage()
     summaryRow->addWidget(categorySummaryLabel, 1);
     newCategoriesButton = new QToolButton(page);
     newCategoriesButton->setObjectName("newCategoriesButton");
+    newCategoriesButton->setProperty("button", true);   // A framed button with its menu's arrow (Theme::controlStyleSheet)
+    newCategoriesButton->setProperty("dropDown", true);
     newCategoriesButton->setText("All new categories");
     newCategoriesButton->setPopupMode(QToolButton::InstantPopup);
     auto *menu = new QMenu(newCategoriesButton);

@@ -482,6 +482,7 @@ RulesSettings::RulesSettings(QWidget* parent)
     auto* buttons = new QHBoxLayout();
     buttons->addStretch();
     deleteButton = new QPushButton("Delete", editor);
+    deleteButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     deleteButton->setObjectName("deleteRuleButton");
     connect(deleteButton, &QPushButton::clicked, this, &RulesSettings::remove);
     buttons->addWidget(deleteButton);

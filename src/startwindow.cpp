@@ -142,6 +142,8 @@ StartWindow::StartWindow(QWidget* parent)
 
     databaseButton = new QToolButton(this);
     databaseButton->setObjectName("databaseButton");
+    databaseButton->setProperty("button", true);     // A framed button with its menu's arrow (Theme::controlStyleSheet)
+    databaseButton->setProperty("dropDown", true);
     databaseButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     databaseButton->setPopupMode(QToolButton::InstantPopup);
     databaseMenu = new QMenu(databaseButton);

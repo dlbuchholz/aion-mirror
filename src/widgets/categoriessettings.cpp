@@ -291,12 +291,15 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     buttons->addWidget(usageLabel, 1);
     mergeButton = new QToolButton(editor);
     mergeButton->setObjectName("mergeCategoryButton");
+    mergeButton->setProperty("button", true);        // A framed button with its menu's arrow (Theme::controlStyleSheet)
+    mergeButton->setProperty("dropDown", true);
     mergeButton->setText("Merge into…");
     mergeButton->setPopupMode(QToolButton::InstantPopup);
     mergeButton->setMenu(new QMenu(mergeButton));
     mergeButton->setToolTip("Move this category's transactions to another category and delete it");
     buttons->addWidget(mergeButton);
     deleteButton = new QPushButton("Delete", editor);
+    deleteButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     deleteButton->setObjectName("deleteCategoryButton");
     connect(deleteButton, &QPushButton::clicked, this, &CategoriesSettings::remove);
     buttons->addWidget(deleteButton);
