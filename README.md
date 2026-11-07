@@ -3,6 +3,20 @@
 [![Coverage](docs/coverage-badge.svg)](COVERAGE.md)
 [![License: GPL-3.0-or-later](docs/license-badge.svg)](LICENSE)
 
+![The Dashboard and the money flow report in the dark theme, and the Transactions page with a transaction open in the light theme](docs/screenshots/collage.webp)
+
+<details>
+<summary>More screenshots</summary>
+
+| | |
+|---|---|
+| ![The Dashboard: balance, income, expenses, cash flow and budgets](docs/screenshots/dashboard-light.webp) | ![Transactions by day, with a transaction open](docs/screenshots/transactions-dark.webp) |
+| ![A month's budgets, two of them over their limit, and Groceries unfolded with its spending as a chart](docs/screenshots/budget-dark.webp) | ![Reports for the last six months](docs/screenshots/reports-light.webp) |
+
+The data in the screenshots is made up.
+
+</details>
+
 A personal finance app for the desktop.
 Built with Qt 6 Widgets and SQLite.
 

@@ -1,4 +1,8 @@
 #include <QtTest>
+#include <QPainterPath>
+#include <QPainter>
+#include <QListView>
+#include <QDir>
 #include <QAbstractButton>
 #include <QCheckBox>
 #include <QPushButton>
@@ -19,6 +23,10 @@
 
 #include "account.h"
 #include "budget.h"
+#include "db/databasemanager.h"
+#include "user.h"
+#include "transaction.h"
+#include "category.h"
 #include "dialog/applyrulesdialog.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/deleteaccountdialog.h"
@@ -29,8 +37,10 @@
 #include "startwindow.h"
 #include "tests/test_db_fixture.h"
 #include "theme.h"
+#include "widgets/budgetpage.h"
 #include "widgets/emptystate.h"
 #include "widgets/periodpicker.h"
+#include "widgets/reportspage.h"
 #include "widgets/transactionspage.h"
 #include "widgets/sidebarwidget.h"
 
@@ -124,6 +134,148 @@ private slots:
             sidebar->setCollapsed(false, false);
         }
         QVERIFY(backgrounds["light"].lightness() > backgrounds["dark"].lightness());
+    }
+
+    // The README's screenshots: demo data, the best pages in both themes, and a collage. Skipped
+    // unless asked for; to take them again, run on the real window system (no QT_QPA_PLATFORM) with
+    //   AION_SCREENSHOTS=docs/screenshots  test_rendering readmeScreenshots
+    void readmeScreenshots() {
+        if (qEnvironmentVariableIsEmpty("AION_SCREENSHOTS")) QSKIP("Screenshots only");
+        const QString out = qEnvironmentVariable("AION_SCREENSHOTS");
+        const int user = 3;
+        QVERIFY(UserDAO().createUser(User(user, "kevin", "Kevin Gilbert")));
+        Settings::instance().setExpensesInRed(true);      // Restored with the other settings afterwards
+        QSqlQuery query(DatabaseManager::instance().database());
+        CategoryDAO categories(user);
+        const auto categoryId = [&categories](const QString& name) {
+            for (const Category& category : categories.getAllCategories()) {
+                if (category.getName() == name) return category.getCategoryId();
+            }
+            return 0;
+        };
+        QVERIFY(categories.addCategory(Category(-1, "Eating out", "expense", "orange")) > 0);
+        QVERIFY(categories.addCategory(Category(-1, "Transport", "expense", "sky")) > 0);
+        QVERIFY(categories.addCategory(Category(-1, "Shopping", "expense", "pink")) > 0);
+        for (const auto& [name, color] : QList<QPair<QString, QString>>{{"Groceries", "teal"}, {"Rent", "indigo"},
+                 {"Utilities", "amber"}, {"Entertainment", "purple"}, {"Salary", "green"}, {"Bonus", "lime"}}) {
+            QVERIFY(query.exec(QString("UPDATE categories SET color = '%1' WHERE name = '%2' AND user_id = %3").arg(color, name).arg(user)));
+        }
+        const int checking = AccountDAO::createAccount(user, "Checking", "Checking", 0);
+        const int savings = AccountDAO::createAccount(user, "Savings", "Savings", 0);
+        const int card = AccountDAO::createAccount(user, "Credit card", "Checking", 0);
+        TransactionDAO transactions;
+        const QDate today = QDate::currentDate();
+        const auto add = [&transactions](int account, const char* payee, Cents cents, const QDate& day, int category,
+                                         const char* type, const char* description = "") {
+            if (day > QDate::currentDate()) return;
+            transactions.addTransaction(Transaction(-1, account, payee, cents, day, description, category, type));
+        };
+        // Six months, a little different each month
+        for (int back = 5; back >= 0; --back) {
+            const QDate month = QDate(today.year(), today.month(), 1).addMonths(-back);
+            const int wobble = (back * 37) % 11;
+            add(checking, "Acme Studio", 385000, month.addDays(0), categoryId("Salary"), "income", "Salary");
+            add(checking, "Oak Street Apartments", 129500, month.addDays(1), categoryId("Rent"), "expense", "Rent");
+            add(checking, "City Power & Water", 8900 + wobble * 310, month.addDays(4), categoryId("Utilities"), "expense");
+            add(card, "StreamBox", 1399, month.addDays(6), categoryId("Entertainment"), "expense", "Subscription");
+            add(card, "Metro Transit", 4900, month.addDays(2), categoryId("Transport"), "expense", "Monthly pass");
+            for (int week = 0; week < 4; ++week) {
+                add(checking, week % 2 ? "FreshMart" : "Green Grocer", 6240 + ((week + back) * 913) % 3400,
+                    month.addDays(3 + week * 7), categoryId("Groceries"), "expense");
+            }
+            add(card, "Corner Café", 1850 + wobble * 120, month.addDays(9), categoryId("Eating out"), "expense");
+            add(card, "Noodle Bar", 3260 + wobble * 90, month.addDays(17), categoryId("Eating out"), "expense", "Dinner with friends");
+            add(card, "Bookshop", 2499 + wobble * 200, month.addDays(13), categoryId("Shopping"), "expense");
+            add(card, "Cinema Paradiso", 2400, month.addDays(20), categoryId("Entertainment"), "expense");
+            add(checking, "Savings", 50000, month.addDays(2), categoryId("Transfer"), "expense", "Monthly saving");
+            add(savings, "Checking", 50000, month.addDays(2), categoryId("Transfer"), "income", "Monthly saving");
+        }
+        // The one the editor shows: last month's dinner
+        int dinner = -1;
+        {
+            const QDate lastMonth = QDate(today.year(), today.month(), 1).addMonths(-1);
+            dinner = transactions.addTransaction(Transaction(-1, card, "Noodle Bar", 4180, lastMonth.addDays(24), "Birthday dinner",
+                                                             categoryId("Eating out"), "expense"));
+            QVERIFY(dinner > 0);
+        }
+        add(checking, "Acme Studio", 60000, QDate(today.year(), today.month(), 1).addMonths(-2).addDays(14), categoryId("Bonus"), "income", "Project bonus");
+        BudgetDAO budgets;
+        const QDate firstMonth = QDate(today.year(), today.month(), 1).addMonths(-5);
+        QVERIFY(budgets.setMonthlyLimit(user, categoryId("Groceries"), firstMonth, 32000));
+        QVERIFY(budgets.setMonthlyLimit(user, categoryId("Eating out"), firstMonth, 6000));
+        QVERIFY(budgets.setMonthlyLimit(user, categoryId("Entertainment"), firstMonth, 5000));
+        QVERIFY(budgets.setMonthlyLimit(user, categoryId("Shopping"), firstMonth, 2000));    // Over this month
+        QVERIFY(budgets.setMonthlyLimit(user, categoryId("Utilities"), firstMonth, 15000));
+
+        const QSize window(1360, 860);
+        QMap<QString, QImage> shots;
+        for (const Theme::Type theme : {Theme::Type::Light, Theme::Type::Dark}) {
+            Theme::applyTheme(theme);
+            const QString t = theme == Theme::Type::Dark ? "dark" : "light";
+            MainWindow main(user);
+            auto* sidebar = main.findChild<SidebarWidget*>();
+            for (const auto& [page, name] : QList<QPair<SidebarWidget::Page, QString>>{
+                     {SidebarWidget::Page::Dashboard, "dashboard"}, {SidebarWidget::Page::Budget, "budget"},
+                     {SidebarWidget::Page::Reports, "reports"}}) {
+                emit sidebar->pageRequested(page);
+                if (page == SidebarWidget::Page::Budget) {      // Last month, complete, one budget over
+                    main.findChild<BudgetPage*>()->showMonth(QDate(today.year(), today.month(), 1).addMonths(-1));
+                    for (QAbstractButton* row : main.findChildren<QAbstractButton*>("budgetRow")) {
+                        if (row->accessibleName() == "Groceries") row->click();   // Unfolded: its month as a chart
+                    }
+                }
+                shots.insert(name + "-" + t, draw(main, window));
+            }
+            emit sidebar->pageRequested(SidebarWidget::Page::Reports);
+            main.findChild<ReportsPage*>()->openReport(ReportsPage::Report::MoneyFlow);
+            shots.insert("moneyflow-" + t, draw(main, window));
+            emit sidebar->pageRequested(SidebarWidget::Page::Transactions);
+            main.setAttribute(Qt::WA_DontShowOnScreen);
+            main.resize(window);
+            main.show();
+            QCoreApplication::processEvents();
+            main.findChild<TransactionsPage*>()->openTransaction(dinner);
+            QCoreApplication::processEvents();
+            shots.insert("transactions-" + t, main.grab().toImage());
+            main.hide();
+        }
+        // The ones the README shows, under "More screenshots"
+        QDir().mkpath(out);
+        for (const char* name : {"dashboard-light", "transactions-dark", "budget-dark", "reports-light"}) {
+            // Lossless and as drawn, at the screen's pixels: scaling and lossy WebP blur the text
+            QVERIFY(shots[name].save(out + "/" + name + ".webp", "webp", 100));
+        }
+
+        // The collage: the dark Dashboard and money flow at the back, the light Transactions page in front
+        const QSize canvas(2400, 1640);
+        QImage collage(canvas, QImage::Format_ARGB32_Premultiplied);
+        collage.fill(Qt::transparent);
+        QPainter painter(&collage);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        const auto place = [&painter](const QImage& shot, const QRect& where) {
+            const qreal radius = 22;
+            for (int i = 14; i > 0; --i) {                   // A soft shadow
+                QPainterPath shadow;
+                shadow.addRoundedRect(QRectF(where).adjusted(-i, -i + 10, i, i + 10), radius + i, radius + i);
+                painter.fillPath(shadow, QColor(0, 0, 0, 7));
+            }
+            QPainterPath clip;
+            clip.addRoundedRect(QRectF(where), radius, radius);
+            painter.save();
+            painter.setClipPath(clip);
+            painter.drawImage(where, shot.scaled(where.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+            painter.restore();
+            painter.setPen(QPen(QColor(0, 0, 0, 40), 1.5));
+            painter.drawPath(clip);
+        };
+        const int width = 1440;
+        const int height = width * window.height() / window.width();
+        place(shots["moneyflow-dark"], QRect(canvas.width() - width - 40, 40, width, height));
+        place(shots["dashboard-dark"], QRect(40, 110, width, height));
+        place(shots["transactions-light"], QRect((canvas.width() - width) / 2, canvas.height() - height - 40, width, height));
+        painter.end();
+        QVERIFY(collage.save(out + "/collage.webp", "webp", 100));
     }
 
     void dashboardChartShowsMonthsOnHover() {
