@@ -158,6 +158,24 @@ private slots:
         QCOMPARE(RuleMatchIndex({transaction}).count(rule), 0);
     }
 
+    void describesTheConditionsAsOneSentence() {
+        using Field = RuleCondition::Field;
+        using Operator = RuleCondition::Operator;
+        Rule rule;
+        rule.matchAll = true;
+        rule.conditions = {RuleCondition(Field::Type, Operator::Is, "expense"),
+                           RuleCondition(Field::PayeeOrDescription, Operator::StartsWith, "REWE")};
+        // Only the start of the sentence gets a capital letter
+        QCOMPARE(Rules::describe(rule, {}), QString("It's an expense and payee or description starts with \"REWE\""));
+
+        rule.matchAll = false;
+        rule.conditions = {RuleCondition(Field::Description, Operator::Is, "Miete"),
+                           RuleCondition(Field::Account, Operator::Is, "7"),
+                           RuleCondition(Field::Type, Operator::Is, "income")};
+        QCOMPARE(Rules::describe(rule, {{7, "Giro"}}), QString("Description is \"Miete\" or account is Giro or it's income"));
+        QCOMPARE(Rules::describe(rule, {}), QString("Description is \"Miete\" or account is a deleted account or it's income"));
+    }
+
     void unknownNamesAreNotGuessedAt() {
         QVERIFY(!RuleCondition::fieldFromKey("nonsense"));
         QVERIFY(!RuleCondition::operatorFromKey("nonsense"));

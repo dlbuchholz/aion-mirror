@@ -224,6 +224,18 @@ private slots:
         QCOMPARE(rows(settings).first()->findChild<QLabel*>("ruleMatchCount")->text(), QString("2 matches"));
     }
 
+    void oneMatchIsCountedInTheSingular() {
+        QVERIFY(addRule("Stadtwerke", "Utilities") > 0);
+        RulesSettings settings;
+        settings.setUserId(1);
+        QAbstractButton* stadtwerke = nullptr;
+        for (QAbstractButton* row : rows(settings)) {
+            if (row->accessibleName() == "Payee contains \"Stadtwerke\"") stadtwerke = row;
+        }
+        QVERIFY(stadtwerke);
+        QCOMPARE(stadtwerke->findChild<QLabel*>("ruleMatchCount")->text(), QString("1 match"));
+    }
+
     void removingAConditionShowsAnIcon() {
         // An icon, not a ✕ in text (Windows searched its fonts for that for over half a second).
         // A missing SVG gives a blank icon, so look at the pixels.

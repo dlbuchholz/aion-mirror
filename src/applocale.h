@@ -38,6 +38,10 @@ QString monthName(int month, QLocale::FormatType type = QLocale::LongFormat, con
 // A whole number with the language's grouping, "1,234" or "1.234"
 QString number(qint64 value, const QString& language = QString());
 
+// A count with its noun, one or many: count(3, tr("%1 user"), tr("%1 users")) is "3 users". Each
+// form is translated on its own; enough for English and German, which have just these two.
+QString count(qint64 value, const QString& one, const QString& many, const QString& language = QString());
+
 // A file size, "1.5 MB" or "1,5 MB"
 QString dataSize(qint64 bytes, int precision = 2, const QString& language = QString());
 

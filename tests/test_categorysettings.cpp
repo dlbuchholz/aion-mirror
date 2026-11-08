@@ -323,6 +323,28 @@ private slots:
         QVERIFY(asked.contains("Its budgets are removed, \"Groceries\" keeps its own."));
     }
 
+    void rowsSayHowMuchUsesTheCategory() {
+        CategoryDAO dao(1);
+        const int travel = dao.addCategory(Category(-1, "Travel", "expense"));
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        const auto usage = [this]() {
+            CategoriesSettings settings;
+            settings.setUserId(1);
+            for (QLabel* label : row(settings, "Travel")->findChildren<QLabel*>()) {
+                if (label->text().contains("transaction")) return label->text();
+            }
+            return QString();
+        };
+        QCOMPARE(usage(), QString("0 transactions"));
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, account, "DB", 100, QDate(2026, 10, 1), "", travel, "expense")) > 0);
+        QCOMPARE(usage(), QString("1 transaction"));
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, travel, QDate(2026, 10, 1), 1000));
+        QCOMPARE(usage(), QString("1 transaction · budget"));
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, travel, QDate(2026, 11, 1), 2000));
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, account, "DB", 100, QDate(2026, 10, 2), "", travel, "expense")) > 0);
+        QCOMPARE(usage(), QString("2 transactions · 2 budgets"));
+    }
+
     void whatCantBeMergedDeletedOrSavedIsSaid() {
         CategoryDAO dao(1);
         const int travel = dao.addCategory(Category(-1, "Travel", "expense"));

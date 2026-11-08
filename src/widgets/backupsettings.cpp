@@ -28,24 +28,20 @@ QString databasePath() {
     return DatabaseManager::instance().database().databaseName();
 }
 
-QString counted(int count, const QString& singular) {
-    return QString("%1 %2%3").arg(AppLocale::number(count), singular, count == 1 ? "" : "s");
-}
-
 }
 
 BackupSettings::BackupSettings(QWidget* parent)
     : QWidget(parent) {
     askBackupPath = [this](const QString& suggested) {
-        return QFileDialog::getSaveFileName(this, "Back up database", suggested, "Aion database (*.db)");
+        return QFileDialog::getSaveFileName(this, tr("Back up database"), suggested, tr("Aion database (*.db)"));
     };
     askRestorePath = [this]() {
-        return QFileDialog::getOpenFileName(this, "Restore from file", QFileInfo(databasePath()).absolutePath(),
-                                            "Aion database (*.db);;All files (*)");
+        return QFileDialog::getOpenFileName(this, tr("Restore from file"), QFileInfo(databasePath()).absolutePath(),
+                                            tr("Aion database (*.db);;All files (*)"));
     };
     confirmRestore = [this](const QString& text) {
-        QMessageBox box(QMessageBox::Warning, "Restore this backup?", text, QMessageBox::NoButton, this);
-        auto* restoreButton = box.addButton("Restore", QMessageBox::DestructiveRole);
+        QMessageBox box(QMessageBox::Warning, tr("Restore this backup?"), text, QMessageBox::NoButton, this);
+        auto* restoreButton = box.addButton(tr("Restore"), QMessageBox::DestructiveRole);
         box.setDefaultButton(box.addButton(QMessageBox::Cancel));
         box.exec();
         return box.clickedButton() == restoreButton;
@@ -55,7 +51,7 @@ BackupSettings::BackupSettings(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(12);
 
-    auto* heading = new QLabel("Backup", this);
+    auto* heading = new QLabel(tr("Backup"), this);
     QFont headingFont = heading->font();
     headingFont.setPointSize(11);
     headingFont.setBold(true);
@@ -70,11 +66,11 @@ BackupSettings::BackupSettings(QWidget* parent)
     layout->addWidget(introLabel);
 
     auto* buttons = new QHBoxLayout();
-    backUpButton = new QPushButton("Back up now…", this);
+    backUpButton = new QPushButton(tr("Back up now…"), this);
     backUpButton->setObjectName("backUpNowButton");
     connect(backUpButton, &QPushButton::clicked, this, &BackupSettings::backUpNow);
     buttons->addWidget(backUpButton);
-    restoreFileButton = new QPushButton("Restore from file…", this);
+    restoreFileButton = new QPushButton(tr("Restore from file…"), this);
     restoreFileButton->setObjectName("restoreFromFileButton");
     connect(restoreFileButton, &QPushButton::clicked, this, &BackupSettings::restoreFromFile);
     buttons->addWidget(restoreFileButton);
@@ -93,12 +89,12 @@ BackupSettings::BackupSettings(QWidget* parent)
     scheduleForm->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
     scheduleCombo = new QComboBox(this);
     scheduleCombo->setObjectName("backupScheduleCombo");
-    scheduleCombo->addItem("Every day", static_cast<int>(Settings::BackupSchedule::Daily));
-    scheduleCombo->addItem("Every week", static_cast<int>(Settings::BackupSchedule::Weekly));
-    scheduleCombo->addItem("Every month", static_cast<int>(Settings::BackupSchedule::Monthly));
-    scheduleCombo->addItem("Off", static_cast<int>(Settings::BackupSchedule::Off));
+    scheduleCombo->addItem(tr("Every day"), static_cast<int>(Settings::BackupSchedule::Daily));
+    scheduleCombo->addItem(tr("Every week"), static_cast<int>(Settings::BackupSchedule::Weekly));
+    scheduleCombo->addItem(tr("Every month"), static_cast<int>(Settings::BackupSchedule::Monthly));
+    scheduleCombo->addItem(tr("Off"), static_cast<int>(Settings::BackupSchedule::Off));
     scheduleCombo->setCurrentIndex(scheduleCombo->findData(static_cast<int>(settings.getBackupSchedule())));
-    scheduleForm->addRow("Back up", scheduleCombo);
+    scheduleForm->addRow(tr("Back up"), scheduleCombo);
 
     auto* keepRow = new QHBoxLayout();
     keepSpin = new QSpinBox(this);
@@ -106,8 +102,8 @@ BackupSettings::BackupSettings(QWidget* parent)
     keepSpin->setRange(1, 99);
     keepSpin->setValue(settings.getScheduledBackupsToKeep());
     keepRow->addWidget(keepSpin);
-    keepRow->addWidget(new QLabel("scheduled backups", this));
-    scheduleForm->addRow("Keep the last", keepRow);
+    keepRow->addWidget(new QLabel(tr("scheduled backups"), this));
+    scheduleForm->addRow(tr("Keep the last"), keepRow);
     layout->addLayout(scheduleForm);
 
     keepSpin->setEnabled(settings.getBackupSchedule() != Settings::BackupSchedule::Off);
@@ -121,8 +117,8 @@ BackupSettings::BackupSettings(QWidget* parent)
         Settings::instance().setScheduledBackupsToKeep(count);
     });
 
-    auto* scheduleHint = new QLabel("Runs when a database is opened, if it has changed since the last one. "
-                                    "Applies to every database on this computer.", this);
+    auto* scheduleHint = new QLabel(tr("Runs when a database is opened, if it has changed since the last one. "
+                                       "Applies to every database on this computer."), this);
     scheduleHint->setWordWrap(true);
     scheduleHint->setForegroundRole(QPalette::PlaceholderText);
     layout->addWidget(scheduleHint);
@@ -135,13 +131,13 @@ BackupSettings::BackupSettings(QWidget* parent)
     layout->addWidget(failureLabel);
 
     auto* listHeader = new QHBoxLayout();
-    listHeading = new QLabel("Automatic backups", this);
+    listHeading = new QLabel(tr("Automatic backups"), this);
     listHeading->setObjectName("automaticBackupsHeading");
     listHeading->setForegroundRole(QPalette::PlaceholderText);
     listHeader->addWidget(listHeading);
     listHeader->addStretch();
     openFolderButton = new QToolButton(this);
-    openFolderButton->setText("Open folder");
+    openFolderButton->setText(tr("Open folder"));
     openFolderButton->setAutoRaise(true);
     openFolderButton->setCursor(Qt::PointingHandCursor);
     connect(openFolderButton, &QToolButton::clicked, this, []() {
@@ -162,8 +158,8 @@ void BackupSettings::showEvent(QShowEvent* event) {
 }
 
 void BackupSettings::reload() {
-    introLabel->setText(QString("A backup is a copy of %1: all users, accounts and transactions, and the number "
-                                "formats. The theme and other settings on this computer aren't included.")
+    introLabel->setText(tr("A backup is a copy of %1: all users, accounts and transactions, and the number "
+                           "formats. The theme and other settings on this computer aren't included.")
                             .arg(QFileInfo(databasePath()).fileName()));
     updateFailureLabel();
 
@@ -196,11 +192,11 @@ void BackupSettings::reload() {
         sizeLabel->setForegroundRole(QPalette::PlaceholderText);
         sizeLabel->setMinimumWidth(60);
         row->addWidget(sizeLabel);
-        auto* restoreButton = new QPushButton("Restore…", listContent);
+        auto* restoreButton = new QPushButton(tr("Restore…"), listContent);
         restoreButton->setObjectName("restoreBackupButton");
         const QString path = backup.path;
         connect(restoreButton, &QPushButton::clicked, this, [this, path, when]() {
-            restore(path, QString("From %1").arg(when));
+            restore(path, tr("From %1").arg(when));
         });
         row->addWidget(restoreButton);
         rows->addLayout(row);
@@ -219,7 +215,7 @@ void BackupSettings::backUpNow() {
 
     QString error;
     if (Backup::write(path, &error)) {
-        showResult(QString("Saved as %1.").arg(QDir::toNativeSeparators(path)), false);
+        showResult(tr("Saved as %1.").arg(QDir::toNativeSeparators(path)), false);
     } else {
         showResult(error, true);
     }
@@ -236,14 +232,15 @@ void BackupSettings::restore(const QString& path, const QString& description) {
     QString error;
     const std::optional<Backup::Contents> contents = Backup::inspect(path, &error);
     if (!contents) {
-        showResult(QString("This can't be restored. %1").arg(error), true);
+        showResult(tr("This can't be restored. %1").arg(error), true);
         return;
     }
 
-    const QString text = QString("%1: %2, %3, %4.\n\nEverything in the open database is replaced. Your current data "
-                                 "is saved as a backup first, and Aion returns to the start window.")
-                             .arg(description, counted(contents->users, "user"), counted(contents->accounts, "account"),
-                                  counted(contents->transactions, "transaction"));
+    const QString text = tr("%1: %2, %3, %4.\n\nEverything in the open database is replaced. Your current data "
+                            "is saved as a backup first, and Aion returns to the start window.")
+                             .arg(description, AppLocale::count(contents->users, tr("%1 user"), tr("%1 users")),
+                                  AppLocale::count(contents->accounts, tr("%1 account"), tr("%1 accounts")),
+                                  AppLocale::count(contents->transactions, tr("%1 transaction"), tr("%1 transactions")));
     if (!confirmRestore(text)) {
         return;
     }
@@ -253,7 +250,7 @@ void BackupSettings::restore(const QString& path, const QString& description) {
         reload();
         return;
     }
-    showResult("Restored.", false);
+    showResult(tr("Restored."), false);
     reload();
     emit restored();
 }
@@ -270,7 +267,7 @@ void BackupSettings::updateFailureLabel() {
     failureLabel->setStyleSheet(QString("QLabel { color: %1; background: rgba(%2, %3, %4, 30); border: 1px solid %1; "
                                         "border-radius: 6px; padding: 8px 12px; }")
                                     .arg(danger.name()).arg(danger.red()).arg(danger.green()).arg(danger.blue()));
-    failureLabel->setText(QString("The last scheduled backup failed on %1. %2")
+    failureLabel->setText(tr("The last scheduled backup failed on %1. %2")
                               .arg(AppLocale::dateTime(failure.when, AppLocale::DateFormat::ShortDayMonthYearTime), failure.reason));
     failureLabel->setVisible(true);
 }

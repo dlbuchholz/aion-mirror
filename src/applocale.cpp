@@ -74,6 +74,10 @@ QString number(qint64 value, const QString& language) {
     return locale(language).toString(value);
 }
 
+QString count(qint64 value, const QString& one, const QString& many, const QString& language) {
+    return (value == 1 ? one : many).arg(number(value, language));
+}
+
 QString dataSize(qint64 bytes, int precision, const QString& language) {
     return locale(language).formattedDataSize(bytes, precision);
 }

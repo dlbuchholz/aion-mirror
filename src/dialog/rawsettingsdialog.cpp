@@ -14,18 +14,18 @@
 RawSettingsDialog::RawSettingsDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle("Advanced settings");
+    setWindowTitle(tr("Advanced settings"));
     resize(720, 520);
 
     auto *layout = new QVBoxLayout(this);
 
-    auto *warning = new QLabel("These are the raw stored values. Editing them directly can break Aion, "
-                               "so only change a value if you know what it does.", this);
+    auto *warning = new QLabel(tr("These are the raw stored values. Editing them directly can break Aion, "
+                                  "so only change a value if you know what it does."), this);
     warning->setWordWrap(true);
     layout->addWidget(warning);
 
     searchEdit = new QLineEdit(this);
-    searchEdit->setPlaceholderText("Search setting name or value");
+    searchEdit->setPlaceholderText(tr("Search setting name or value"));
     searchEdit->setClearButtonEnabled(true);
     connect(searchEdit, &QLineEdit::textChanged, this, &RawSettingsDialog::applyFilter);
     layout->addWidget(searchEdit);
@@ -33,7 +33,7 @@ RawSettingsDialog::RawSettingsDialog(QWidget *parent)
     table = new QTableWidget(this);
     Theme::makeCard(table);
     table->setColumnCount(2);
-    table->setHorizontalHeaderLabels({"Setting", "Value"});
+    table->setHorizontalHeaderLabels({tr("Setting"), tr("Value")});
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     table->horizontalHeader()->setStretchLastSection(true);
     table->verticalHeader()->setVisible(false);

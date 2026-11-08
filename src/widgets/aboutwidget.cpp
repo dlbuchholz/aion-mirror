@@ -19,7 +19,7 @@ AboutWidget::AboutWidget(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(12);
 
-    auto* heading = new QLabel("About", this);
+    auto* heading = new QLabel(tr("About"), this);
     QFont headingFont = heading->font();
     headingFont.setPointSize(11);
     headingFont.setBold(true);
@@ -32,7 +32,7 @@ AboutWidget::AboutWidget(QWidget* parent)
     auto* logo = new QLabel(this);
     logo->setObjectName("logoLabel");
     logo->setPixmap(Icons::logo(64, devicePixelRatioF()));
-    logo->setAccessibleName("Aion logo");
+    logo->setAccessibleName(tr("Aion logo"));
     identity->addWidget(logo, 0, Qt::AlignTop);
     auto* identityText = new QVBoxLayout();
     identityText->setSpacing(2);
@@ -41,16 +41,16 @@ AboutWidget::AboutWidget(QWidget* parent)
     nameFont.setPointSize(14);
     name->setFont(nameFont);
     identityText->addWidget(name);
-    auto* version = new QLabel(QString("Version %1").arg(SystemInfo::versionText()), this);
+    auto* version = new QLabel(tr("Version %1").arg(SystemInfo::versionText()), this);
     version->setObjectName("aboutVersionLabel");
     identityText->addWidget(version);
-    auto* license = new QLabel("Free software under the GNU GPL, version 3 or later. "
-                               "The name and logo belong to the Aion contributors.", this);
+    auto* license = new QLabel(tr("Free software under the GNU GPL, version 3 or later. "
+                                  "The name and logo belong to the Aion contributors."), this);
     license->setObjectName("aboutLicenseLabel");
     license->setWordWrap(true);
     license->setForegroundRole(QPalette::PlaceholderText);
     identityText->addWidget(license);
-    auto* source = new QLabel("<a href=\"https://codeberg.org/spectre_0/aion\">Source code</a>", this);
+    auto* source = new QLabel(tr("<a href=\"https://codeberg.org/spectre_0/aion\">Source code</a>"), this);
     source->setObjectName("aboutSourceLabel");
     source->setOpenExternalLinks(true);
     identityText->addWidget(source);
@@ -62,16 +62,16 @@ AboutWidget::AboutWidget(QWidget* parent)
     layout->addLayout(infoLayout);
 
     auto* buttons = new QHBoxLayout();
-    auto* copyButton = new QPushButton("Copy technical information", this);
+    auto* copyButton = new QPushButton(tr("Copy technical information"), this);
     copyButton->setObjectName("copyInfoButton");
-    copyButton->setToolTip("Copies the details above as text, for example for a bug report. "
-                           "Your user folder is shown as ~.");
+    copyButton->setToolTip(tr("Copies the details above as text, for example for a bug report. "
+                              "Your user folder is shown as ~."));
     connect(copyButton, &QPushButton::clicked, this, &AboutWidget::copyReport);
     buttons->addWidget(copyButton);
-    auto* updateButton = new QPushButton("Check for updates", this);
+    auto* updateButton = new QPushButton(tr("Check for updates"), this);
     connect(updateButton, &QPushButton::clicked, this, [this]() { UpdateCheck::checkInteractively(this); });
     buttons->addWidget(updateButton);
-    copiedLabel = new QLabel("Copied", this);
+    copiedLabel = new QLabel(tr("Copied"), this);
     copiedLabel->hide();
     buttons->addWidget(copiedLabel);
     buttons->addStretch();

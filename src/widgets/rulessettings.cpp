@@ -2,6 +2,7 @@
 #include "dialog/applyrulesdialog.h"
 #include "dialog/renamedpayeesdialog.h"
 #include "account.h"
+#include "applocale.h"
 #include "categorytag.h"
 #include "emptystate.h"
 #include "icons.h"
@@ -118,12 +119,12 @@ public:
         up->setObjectName("moveRuleUpButton");
         up->setArrowType(Qt::UpArrow);
         up->setAutoRaise(true);
-        up->setToolTip("Try this rule earlier");
+        up->setToolTip(RulesSettings::tr("Try this rule earlier"));
         down = new QToolButton(this);
         down->setObjectName("moveRuleDownButton");
         down->setArrowType(Qt::DownArrow);
         down->setAutoRaise(true);
-        down->setToolTip("Try this rule later");
+        down->setToolTip(RulesSettings::tr("Try this rule later"));
         layout->addWidget(up);
         layout->addWidget(down);
         // Named: the name, then the conditions on one line. Unnamed: the conditions on up to two.
@@ -148,7 +149,7 @@ public:
         if (!newPayee.isEmpty()) {
             auto* rename = new QLabel(QString("→ \"%1\"").arg(newPayee), this);
             rename->setObjectName("ruleRename");
-            rename->setToolTip("Renames the payee");
+            rename->setToolTip(RulesSettings::tr("Renames the payee"));
             rename->setAttribute(Qt::WA_TransparentForMouseEvents);
             layout->addWidget(rename);
         }
@@ -158,7 +159,7 @@ public:
             tag->setAttribute(Qt::WA_TransparentForMouseEvents);
             layout->addWidget(tag);
         }
-        auto* count = new QLabel(QString("%1 %2").arg(matches).arg(matches == 1 ? "match" : "matches"), this);
+        auto* count = new QLabel(AppLocale::count(matches, RulesSettings::tr("%1 match"), RulesSettings::tr("%1 matches")), this);
         count->setObjectName("ruleMatchCount");
         count->setForegroundRole(QPalette::PlaceholderText);
         count->setMinimumWidth(80);
@@ -204,12 +205,12 @@ public:
         textEdit->setObjectName("conditionText");
         textEdit->setPlaceholderText("...");
         amountFrom = amountSpin("conditionAmount");
-        andLabel = new QLabel("and", this);
+        andLabel = new QLabel(RulesSettings::tr("and"), this);
         amountTo = amountSpin("conditionAmountTo");
         typeCombo = new QComboBox(this);
         typeCombo->setObjectName("conditionType");
-        typeCombo->addItem("Expense", "expense");
-        typeCombo->addItem("Income", "income");
+        typeCombo->addItem(RulesSettings::tr("Expense"), "expense");
+        typeCombo->addItem(RulesSettings::tr("Income"), "income");
         accountCombo = new QComboBox(this);
         accountCombo->setObjectName("conditionAccount");
         for (auto it = accounts.cbegin(); it != accounts.cend(); ++it) {
@@ -218,10 +219,10 @@ public:
         accountCombo->model()->sort(0);
         removeButton = new QToolButton(this);
         removeButton->setObjectName("removeConditionButton");
-        removeButton->setText("Remove");             // For screen readers; the button shows only the icon
+        removeButton->setText(RulesSettings::tr("Remove"));             // For screen readers; the button shows only the icon
         Icons::setThemedIcon(removeButton, "x");
         removeButton->setAutoRaise(true);
-        removeButton->setToolTip("Remove this condition");
+        removeButton->setToolTip(RulesSettings::tr("Remove this condition"));
         layout->addWidget(fieldCombo);
         layout->addWidget(operatorCombo);
         layout->addWidget(textEdit, 1);
@@ -273,7 +274,7 @@ public:
             break;
         case Field::Account:
             if (accountCombo->currentIndex() < 0) {
-                *error = "Choose an account, or remove that condition.";
+                *error = RulesSettings::tr("Choose an account, or remove that condition.");
                 return std::nullopt;
             }
             condition.value = QString::number(accountCombo->currentData().toInt());
@@ -281,7 +282,7 @@ public:
         default:
             condition.value = textEdit->text().simplified();
             if (condition.value.isEmpty()) {
-                *error = QString("Enter the text the %1 should match.").arg(fieldLabel(condition.field).toLower());
+                *error = RulesSettings::tr("Enter the text the %1 should match.").arg(RuleCondition::fieldName(condition.field));
                 return std::nullopt;
             }
         }
@@ -348,21 +349,21 @@ RulesSettings::RulesSettings(QWidget* parent)
     root->setSpacing(10);
 
     auto* header = new QHBoxLayout();
-    auto* heading = new QLabel("Rules", this);
+    auto* heading = new QLabel(tr("Rules"), this);
     QFont headingFont = heading->font();
     headingFont.setPointSize(11);
     headingFont.setBold(true);
     heading->setFont(headingFont);
     header->addWidget(heading, 1);
-    addButton = new QPushButton("New rule", this);
+    addButton = new QPushButton(tr("New rule"), this);
     addButton->setObjectName("addRuleButton");
     addButton->setIcon(Icons::icon("plus", palette().color(QPalette::ButtonText)));
     connect(addButton, &QPushButton::clicked, this, [this]() { openEditor(0); });
     header->addWidget(addButton);
     root->addLayout(header);
 
-    auto* hint = new QLabel("Rules give transactions a category. They're tried from top to bottom, and the first "
-                            "one that matches wins. Changes are saved right away.", this);
+    auto* hint = new QLabel(tr("Rules give transactions a category. They're tried from top to bottom, and the first "
+                               "one that matches wins. Changes are saved right away."), this);
     hint->setForegroundRole(QPalette::PlaceholderText);
     hint->setWordWrap(true);
     root->addWidget(hint);
@@ -376,7 +377,7 @@ RulesSettings::RulesSettings(QWidget* parent)
     listLayout = new QVBoxLayout();
     listLayout->setSpacing(0);
     contentLayout->addLayout(listLayout);
-    emptyLabel = new EmptyState("search", "No rules yet. A rule could say: payee contains Landlord → Category: Rent.", content);
+    emptyLabel = new EmptyState("search", tr("No rules yet. A rule could say: payee contains Landlord → Category: Rent."), content);
     emptyLabel->setObjectName("noRulesLabel");
     contentLayout->addWidget(emptyLabel);
     contentLayout->addStretch();
@@ -385,9 +386,9 @@ RulesSettings::RulesSettings(QWidget* parent)
 
     auto* applyRow = new QHBoxLayout();
     applyRow->addStretch();
-    auto* applyButton = new QPushButton("Apply to existing transactions…", this);
+    auto* applyButton = new QPushButton(tr("Apply to existing transactions…"), this);
     applyButton->setObjectName("applyRulesToExistingButton");
-    applyButton->setToolTip("Shows which transactions your rules would change, before anything changes");
+    applyButton->setToolTip(tr("Shows which transactions your rules would change, before anything changes"));
     connect(applyButton, &QPushButton::clicked, this, [this]() {
         ApplyRulesDialog dialog(userId, this);
         if (dialog.exec() == QDialog::Accepted) {
@@ -407,31 +408,31 @@ RulesSettings::RulesSettings(QWidget* parent)
     editorLayout->setSpacing(8);
 
     auto* nameRow = new QHBoxLayout();
-    nameRow->addWidget(new QLabel("Name", editor));
+    nameRow->addWidget(new QLabel(tr("Name"), editor));
     nameEdit = new QLineEdit(editor);
     nameEdit->setObjectName("ruleNameEdit");
-    nameEdit->setPlaceholderText("(Optional name. Without one, the list shows the conditions.)");
+    nameEdit->setPlaceholderText(tr("(Optional name. Without one, the list shows the conditions.)"));
     nameEdit->setMaxLength(100);
     connect(nameEdit, &QLineEdit::returnPressed, this, &RulesSettings::save);
     nameRow->addWidget(nameEdit, 1);
     editorLayout->addLayout(nameRow);
 
     auto* matchRow = new QHBoxLayout();
-    matchRow->addWidget(new QLabel("When", editor));
+    matchRow->addWidget(new QLabel(tr("When"), editor));
     matchCombo = new QComboBox(editor);
     matchCombo->setObjectName("ruleMatchCombo");
-    matchCombo->addItem("all", true);
-    matchCombo->addItem("any", false);
+    matchCombo->addItem(tr("all"), true);
+    matchCombo->addItem(tr("any"), false);
     connect(matchCombo, &QComboBox::currentIndexChanged, this, &RulesSettings::updateMatchCount);
     matchRow->addWidget(matchCombo);
-    matchRow->addWidget(new QLabel("of these match:", editor));
+    matchRow->addWidget(new QLabel(tr("of these match:"), editor));
     matchRow->addStretch();
     editorLayout->addLayout(matchRow);
 
     conditionsLayout = new QVBoxLayout();
     conditionsLayout->setSpacing(6);
     editorLayout->addLayout(conditionsLayout);
-    auto* addConditionButton = new QPushButton("Add condition", editor);
+    auto* addConditionButton = new QPushButton(tr("Add condition"), editor);
     addConditionButton->setObjectName("addConditionButton");
     connect(addConditionButton, &QPushButton::clicked, this, [this]() { addConditionRow(RuleCondition()); });
     auto* addConditionRowLayout = new QHBoxLayout();
@@ -441,7 +442,7 @@ RulesSettings::RulesSettings(QWidget* parent)
 
     // What the rule does: set the category, rename the payee, or both
     auto* categoryRow = new QHBoxLayout();
-    setsCategoryCheck = new QCheckBox("Set category to", editor);
+    setsCategoryCheck = new QCheckBox(tr("Set category to"), editor);
     setsCategoryCheck->setObjectName("ruleSetsCategoryCheck");
     categoryRow->addWidget(setsCategoryCheck);
     categoryCombo = new QComboBox(editor);
@@ -454,13 +455,13 @@ RulesSettings::RulesSettings(QWidget* parent)
     categoryRow->addWidget(matchCountLabel);
     editorLayout->addLayout(categoryRow);
     auto* renameRow = new QHBoxLayout();
-    renamesCheck = new QCheckBox("Rename payee to", editor);
+    renamesCheck = new QCheckBox(tr("Rename payee to"), editor);
     renamesCheck->setObjectName("ruleRenamesCheck");
     renameRow->addWidget(renamesCheck);
     newPayeeEdit = new QLineEdit(editor);
     newPayeeEdit->setObjectName("ruleNewPayeeEdit");
     newPayeeEdit->setPlaceholderText("...");
-    newPayeeEdit->setToolTip("The bank's name is kept, so imports still recognise the transaction");
+    newPayeeEdit->setToolTip(tr("The bank's name is kept, so imports still recognise the transaction"));
     renameRow->addWidget(newPayeeEdit, 1);
     editorLayout->addLayout(renameRow);
     connect(setsCategoryCheck, &QCheckBox::toggled, categoryCombo, &QWidget::setEnabled);
@@ -479,15 +480,15 @@ RulesSettings::RulesSettings(QWidget* parent)
 
     auto* buttons = new QHBoxLayout();
     buttons->addStretch();
-    deleteButton = new QPushButton("Delete", editor);
+    deleteButton = new QPushButton(tr("Delete"), editor);
     deleteButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     deleteButton->setObjectName("deleteRuleButton");
     connect(deleteButton, &QPushButton::clicked, this, &RulesSettings::remove);
     buttons->addWidget(deleteButton);
-    auto* cancelButton = new QPushButton("Cancel", editor);
+    auto* cancelButton = new QPushButton(tr("Cancel"), editor);
     connect(cancelButton, &QPushButton::clicked, this, &RulesSettings::closeEditor);
     buttons->addWidget(cancelButton);
-    auto* saveButton = new QPushButton("Save", editor);
+    auto* saveButton = new QPushButton(tr("Save"), editor);
     saveButton->setObjectName("saveRuleButton");
     saveButton->setDefault(true);
     connect(saveButton, &QPushButton::clicked, this, &RulesSettings::save);
@@ -660,19 +661,19 @@ std::optional<Rule> RulesSettings::editedRule(QString* error) const {
         rule.conditions.append(*condition);
     }
     if (rule.conditions.isEmpty()) {
-        *error = "Add at least one condition.";
+        *error = tr("Add at least one condition.");
         return std::nullopt;
     }
     if (setsCategoryCheck->isChecked() && categoryCombo->currentIndex() < 0) {
-        *error = "Choose the category the rule sets.";
+        *error = tr("Choose the category the rule sets.");
         return std::nullopt;
     }
     if (renamesCheck->isChecked() && rule.newPayee.isEmpty()) {
-        *error = "Enter the new name for the payee.";
+        *error = tr("Enter the new name for the payee.");
         return std::nullopt;
     }
     if (!rule.setsCategory() && !rule.renames()) {
-        *error = "Tick what the rule does: set a category, rename the payee, or both.";
+        *error = tr("Tick what the rule does: set a category, rename the payee, or both.");
         return std::nullopt;
     }
     return rule;
@@ -686,14 +687,14 @@ void RulesSettings::updateMatchCount() {
         return;
     }
     const int count = matchCount(*rule);
-    QString text = QString("Matches %1 existing %2").arg(count).arg(count == 1 ? "transaction" : "transactions");
+    QString text = tr("Matches %1").arg(AppLocale::count(count, tr("%1 existing transaction"), tr("%1 existing transactions")));
     if (draftExamples.size() > 1) {
         const auto matched = std::count_if(draftExamples.begin(), draftExamples.end(),
                                            [&](const Transaction& example) { return rule->matches(example); });
-        text += matched == draftExamples.size() ? QString(" · all %1 selected").arg(draftExamples.size())
-                                                : QString(" · %1 of %2 selected").arg(matched).arg(draftExamples.size());
+        text += matched == draftExamples.size() ? tr(" · all %1 selected").arg(draftExamples.size())
+                                                : tr(" · %1 of %2 selected").arg(matched).arg(draftExamples.size());
     } else if (draftExamples.size() == 1 && !rule->matches(draftExamples.first())) {
-        text += " · not the selected one";
+        text += tr(" · not the selected one");
     }
     matchCountLabel->setText(text);
 }
@@ -713,7 +714,7 @@ void RulesSettings::save() {
     RuleDAO dao(userId);
     const bool saved = editedId > 0 ? dao.updateRule(*rule) : dao.addRule(*rule) > 0;
     if (!saved) {
-        errorLabel->setText("The rule couldn't be saved.");
+        errorLabel->setText(tr("The rule couldn't be saved."));
         errorLabel->show();
         return;
     }
@@ -744,7 +745,7 @@ void RulesSettings::remove() {
     for (const Rule& candidate : std::as_const(rules)) {
         if (candidate.id == editedId) rule = candidate;
     }
-    if (!confirm("Delete rule", QString("Delete the rule \"%1\"?\n\nTransactions keep their categories.")
+    if (!confirm(tr("Delete rule"), tr("Delete the rule \"%1\"?\n\nTransactions keep their categories.")
                                     .arg(Rules::title(rule, accountNames)))) {
         return;
     }
@@ -752,7 +753,7 @@ void RulesSettings::remove() {
     const QList<Transaction> renamed = TransactionDAO().getTransactionsRenamedByRule(rule.id);
     RuleDAO dao(userId);
     if (!dao.deleteRule(editedId)) {
-        errorLabel->setText("The rule couldn't be deleted.");
+        errorLabel->setText(tr("The rule couldn't be deleted."));
         errorLabel->show();
         return;
     }

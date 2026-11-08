@@ -173,22 +173,35 @@ bool RuleCondition::matches(const Transaction& transaction) const {
 
 QString RuleCondition::fieldLabel(Field field) {
     switch (field) {
-    case Field::Payee: return "Payee";
-    case Field::Description: return "Description";
-    case Field::PayeeOrDescription: return "Payee or description";
-    case Field::Amount: return "Amount";
-    case Field::Type: return "Type";
-    case Field::Account: return "Account";
+    case Field::Payee: return tr("Payee");
+    case Field::Description: return tr("Description");
+    case Field::PayeeOrDescription: return tr("Payee or description");
+    case Field::Amount: return tr("Amount");
+    case Field::Type: return tr("Type");
+    case Field::Account: return tr("Account");
+    }
+    return {};  // GCOVR_EXCL_LINE: every value returns above
+}
+
+// Its own text rather than fieldLabel lowered, since German nouns keep their capital letter
+QString RuleCondition::fieldName(Field field) {
+    switch (field) {
+    case Field::Payee: return tr("payee");
+    case Field::Description: return tr("description");
+    case Field::PayeeOrDescription: return tr("payee or description");
+    case Field::Amount: return tr("amount");
+    case Field::Type: return tr("type");
+    case Field::Account: return tr("account");
     }
     return {};  // GCOVR_EXCL_LINE: every value returns above
 }
 
 QString RuleCondition::operatorLabel(Operator op) {
     switch (op) {
-    case Operator::Contains: return "contains";
-    case Operator::Is: return "is";
-    case Operator::StartsWith: return "starts with";
-    case Operator::Between: return "is between";
+    case Operator::Contains: return tr("contains");
+    case Operator::Is: return tr("is");
+    case Operator::StartsWith: return tr("starts with");
+    case Operator::Between: return tr("is between");
     }
     return {};  // GCOVR_EXCL_LINE: every value returns above
 }
@@ -297,26 +310,26 @@ QString Rules::describe(const Rule& rule, const QHash<int, QString>& accountName
         case Field::Amount: {
             const QString from = settings.formatCurrency(condition.value.toLongLong());
             text = condition.op == Operator::Between
-                       ? QString("amount is between %1 and %2").arg(from, settings.formatCurrency(condition.value2.toLongLong()))
-                       : QString("amount is %1").arg(from);
+                       ? RuleCondition::tr("amount is between %1 and %2").arg(from, settings.formatCurrency(condition.value2.toLongLong()))
+                       : RuleCondition::tr("amount is %1").arg(from);
             break;
         }
         case Field::Type:
-            text = condition.value == "income" ? "it's income" : "it's an expense";
+            text = condition.value == "income" ? RuleCondition::tr("it's income") : RuleCondition::tr("it's an expense");
             break;
         case Field::Account:
-            text = QString("account is %1").arg(accountNames.value(condition.value.toInt(), "a deleted account"));
+            text = RuleCondition::tr("account is %1").arg(accountNames.value(condition.value.toInt(), RuleCondition::tr("a deleted account")));
             break;
         default:
-            text = QString("%1 %2 \"%3\"").arg(RuleCondition::fieldLabel(condition.field),
-                                               RuleCondition::operatorLabel(condition.op), condition.value);
+            text = RuleCondition::tr("%1 %2 \"%3\"", "field, operator, value").arg(RuleCondition::fieldName(condition.field),
+                                                                              RuleCondition::operatorLabel(condition.op), condition.value);
         }
-        parts << (parts.isEmpty() ? text : text.left(1).toLower() + text.mid(1));
+        parts << text;
     }
     if (parts.isEmpty()) {
-        return "No conditions";
+        return RuleCondition::tr("No conditions");
     }
-    const QString result = parts.join(rule.matchAll ? " and " : " or ");
+    const QString result = parts.join(rule.matchAll ? RuleCondition::tr(" and ") : RuleCondition::tr(" or "));
     return result.left(1).toUpper() + result.mid(1);
 }
 

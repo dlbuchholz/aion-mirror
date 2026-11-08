@@ -47,6 +47,14 @@ private slots:
         QCOMPARE(AppLocale::dataSize(1536 * 1024, 1, "de"), QString("1,5 MiB"));
     }
 
+    void countsPickTheFormAndGroupTheNumber() {
+        QCOMPARE(AppLocale::count(1, "%1 user", "%1 users", "en"), QString("1 user"));
+        QCOMPARE(AppLocale::count(0, "%1 user", "%1 users", "en"), QString("0 users"));
+        QCOMPARE(AppLocale::count(2, "%1 user", "%1 users", "en"), QString("2 users"));
+        QCOMPARE(AppLocale::count(1500, "%1 Umsatz", "%1 Umsätze", "de"), QString("1.500 Umsätze"));
+        QCOMPARE(AppLocale::count(-1, "%1 day", "%1 days", "en"), QString("-1 days"));
+    }
+
     void aMonthOnItsOwnHasNoFullStop() {
         // Chart axes and the period picker's buttons: "Sep", not the "Sept." used within a date
         QCOMPARE(AppLocale::date(date, F::ShortMonth, "de"), QString("Sep"));

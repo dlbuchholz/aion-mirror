@@ -89,7 +89,7 @@ SettingsPage::SettingsPage(QWidget *parent)
     root->setContentsMargins(24, 20, 24, 16);
     root->setSpacing(16);
 
-    auto *title = new QLabel("Settings", this);
+    auto *title = new QLabel(tr("Settings"), this);
     QFont titleFont = title->font();
     titleFont.setPointSize(16);
     title->setFont(titleFont);
@@ -123,12 +123,12 @@ SettingsPage::SettingsPage(QWidget *parent)
     // Bottom bar: restore defaults and developer settings on the left, apply / revert on the right
     auto *buttonBar = new QHBoxLayout();
     restoreDefaultsButton = new QToolButton(this);
-    restoreDefaultsButton->setText("Restore defaults");
-    restoreDefaultsButton->setToolTip("Reset currency, transaction, appearance and import settings");
+    restoreDefaultsButton->setText(tr("Restore defaults"));
+    restoreDefaultsButton->setToolTip(tr("Reset currency, transaction, appearance and import settings"));
     connect(restoreDefaultsButton, &QToolButton::clicked, this, &SettingsPage::restoreDefaults);
     advancedButton = new QToolButton(this);
-    advancedButton->setText("Advanced settings");
-    advancedButton->setToolTip("Edit every stored setting as raw text");
+    advancedButton->setText(tr("Advanced settings"));
+    advancedButton->setToolTip(tr("Edit every stored setting as raw text"));
     connect(advancedButton, &QToolButton::clicked, this, &SettingsPage::openAdvancedSettings);
     for (QToolButton *button : {restoreDefaultsButton, advancedButton}) {
         button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -139,14 +139,14 @@ SettingsPage::SettingsPage(QWidget *parent)
     updateIcons();
     buttonBar->addStretch();
 
-    unsavedLabel = new QLabel("Unsaved changes", this);
+    unsavedLabel = new QLabel(tr("Unsaved changes"), this);
     unsavedLabel->setObjectName("unsavedLabel");
     buttonBar->addWidget(unsavedLabel);
-    revertButton = new QPushButton("Revert", this);
+    revertButton = new QPushButton(tr("Revert"), this);
     revertButton->setObjectName("revertButton");
     connect(revertButton, &QPushButton::clicked, this, &SettingsPage::revert);
     buttonBar->addWidget(revertButton);
-    applyButton = new QPushButton("Apply", this);
+    applyButton = new QPushButton(tr("Apply"), this);
     applyButton->setObjectName("applyButton");
     applyButton->setDefault(true);
     connect(applyButton, &QPushButton::clicked, this, &SettingsPage::apply);
@@ -189,23 +189,23 @@ QFormLayout* SettingsPage::addFormSection(const QString &title, const QString &i
 
 void SettingsPage::buildCurrencySection()
 {
-    QFormLayout *form = addFormSection("Currency", "currency");
+    QFormLayout *form = addFormSection(tr("Currency"), "currency");
 
     currencyCombo = new QComboBox(this);
     currencyCombo->setObjectName("currencyCombo");
-    currencyCombo->addItem("US dollar ($)", static_cast<int>(Settings::CurrencySymbol::USD));
-    currencyCombo->addItem("Euro (€)", static_cast<int>(Settings::CurrencySymbol::EUR));
-    currencyCombo->addItem("Pound sterling (£)", static_cast<int>(Settings::CurrencySymbol::GBP));
-    currencyCombo->addItem("Yen (¥)", static_cast<int>(Settings::CurrencySymbol::JPY));
-    currencyCombo->addItem("Swiss franc (CHF)", static_cast<int>(Settings::CurrencySymbol::CHF));
-    currencyCombo->addItem("Custom", static_cast<int>(Settings::CurrencySymbol::Custom));
-    form->addRow("Currency", currencyCombo);
+    currencyCombo->addItem(tr("US dollar ($)"), static_cast<int>(Settings::CurrencySymbol::USD));
+    currencyCombo->addItem(tr("Euro (€)"), static_cast<int>(Settings::CurrencySymbol::EUR));
+    currencyCombo->addItem(tr("Pound sterling (£)"), static_cast<int>(Settings::CurrencySymbol::GBP));
+    currencyCombo->addItem(tr("Yen (¥)"), static_cast<int>(Settings::CurrencySymbol::JPY));
+    currencyCombo->addItem(tr("Swiss franc (CHF)"), static_cast<int>(Settings::CurrencySymbol::CHF));
+    currencyCombo->addItem(tr("Custom"), static_cast<int>(Settings::CurrencySymbol::Custom));
+    form->addRow(tr("Currency"), currencyCombo);
     watch(currencyCombo);
 
     customSymbolEdit = new QLineEdit(this);
     customSymbolEdit->setObjectName("customSymbolEdit");
     customSymbolEdit->setMaxLength(5);
-    form->addRow("Custom symbol", customSymbolEdit);
+    form->addRow(tr("Custom symbol"), customSymbolEdit);
     watch(customSymbolEdit);
     connect(currencyCombo, &QComboBox::currentIndexChanged, this, [this]() {
         customSymbolEdit->setEnabled(currencyCombo->currentData().toInt() == static_cast<int>(Settings::CurrencySymbol::Custom));
@@ -213,28 +213,28 @@ void SettingsPage::buildCurrencySection()
 
     symbolPositionCombo = new QComboBox(this);
     symbolPositionCombo->setObjectName("symbolPositionCombo");
-    symbolPositionCombo->addItem("Before the amount ($100)", true);
-    symbolPositionCombo->addItem("After the amount (100 $)", false);
-    form->addRow("Symbol position", symbolPositionCombo);
+    symbolPositionCombo->addItem(tr("Before the amount ($100)"), true);
+    symbolPositionCombo->addItem(tr("After the amount (100 $)"), false);
+    form->addRow(tr("Symbol position"), symbolPositionCombo);
     watch(symbolPositionCombo);
 
     decimalSeparatorCombo = new QComboBox(this);
     decimalSeparatorCombo->setObjectName("decimalSeparatorCombo");
-    decimalSeparatorCombo->addItem("Point (1234.56)", static_cast<int>(Settings::DecimalSeparator::Point));
-    decimalSeparatorCombo->addItem("Comma (1234,56)", static_cast<int>(Settings::DecimalSeparator::Comma));
-    form->addRow("Decimal separator", decimalSeparatorCombo);
+    decimalSeparatorCombo->addItem(tr("Point (1234.56)"), static_cast<int>(Settings::DecimalSeparator::Point));
+    decimalSeparatorCombo->addItem(tr("Comma (1234,56)"), static_cast<int>(Settings::DecimalSeparator::Comma));
+    form->addRow(tr("Decimal separator"), decimalSeparatorCombo);
     watch(decimalSeparatorCombo);
 
     thousandsSeparatorCombo = new QComboBox(this);
     thousandsSeparatorCombo->setObjectName("thousandsSeparatorCombo");
-    thousandsSeparatorCombo->addItem("None (1234)", static_cast<int>(Settings::ThousandsSeparator::None));
-    thousandsSeparatorCombo->addItem("Comma (1,234)", static_cast<int>(Settings::ThousandsSeparator::Comma));
-    thousandsSeparatorCombo->addItem("Point (1.234)", static_cast<int>(Settings::ThousandsSeparator::Point));
-    thousandsSeparatorCombo->addItem("Space (1 234)", static_cast<int>(Settings::ThousandsSeparator::Space));
-    form->addRow("Thousands separator", thousandsSeparatorCombo);
+    thousandsSeparatorCombo->addItem(tr("None (1234)"), static_cast<int>(Settings::ThousandsSeparator::None));
+    thousandsSeparatorCombo->addItem(tr("Comma (1,234)"), static_cast<int>(Settings::ThousandsSeparator::Comma));
+    thousandsSeparatorCombo->addItem(tr("Point (1.234)"), static_cast<int>(Settings::ThousandsSeparator::Point));
+    thousandsSeparatorCombo->addItem(tr("Space (1 234)"), static_cast<int>(Settings::ThousandsSeparator::Space));
+    form->addRow(tr("Thousands separator"), thousandsSeparatorCombo);
     watch(thousandsSeparatorCombo);
 
-    auto *note = new QLabel("Saved in your database, it looks the same on every computer you open it.", this);
+    auto *note = new QLabel(tr("Saved in your database, it looks the same on every computer you open it."), this);
     note->setObjectName("currencyNote");
     note->setWordWrap(true);
     note->setForegroundRole(QPalette::PlaceholderText);
@@ -243,37 +243,37 @@ void SettingsPage::buildCurrencySection()
 
 void SettingsPage::buildTransactionsSection()
 {
-    QFormLayout *form = addFormSection("Transactions", "transactions");
+    QFormLayout *form = addFormSection(tr("Transactions"), "transactions");
 
-    fastEntryCheck = new QCheckBox("Fast entry: after saving a new transaction, start the next one", this);
+    fastEntryCheck = new QCheckBox(tr("Fast entry: after saving a new transaction, start the next one"), this);
     fastEntryCheck->setObjectName("fastEntryCheck");
-    fastEntryCheck->setToolTip("Keeps the editor open with the same date and account, so you can type many transactions in a row");
+    fastEntryCheck->setToolTip(tr("Keeps the editor open with the same date and account, so you can type many transactions in a row"));
     form->addRow(fastEntryCheck);
     watch(fastEntryCheck);
 
-    selectionCheckboxesCheck = new QCheckBox("Show checkboxes for selecting several transactions", this);
+    selectionCheckboxesCheck = new QCheckBox(tr("Show checkboxes for selecting several transactions"), this);
     selectionCheckboxesCheck->setObjectName("selectionCheckboxesCheck");
-    selectionCheckboxesCheck->setToolTip("Without checkboxes, select several transactions with Ctrl+click or Shift+click");
+    selectionCheckboxesCheck->setToolTip(tr("Without checkboxes, select several transactions with Ctrl+click or Shift+click"));
     form->addRow(selectionCheckboxesCheck);
     watch(selectionCheckboxesCheck);
 
-    suggestCategoriesCheck = new QCheckBox("Suggest categories and payee names from my rules when adding a transaction", this);
+    suggestCategoriesCheck = new QCheckBox(tr("Suggest categories and payee names from my rules when adding a transaction"), this);
     suggestCategoriesCheck->setObjectName("suggestCategoriesCheck");
-    suggestCategoriesCheck->setToolTip("Imports have their own choice; see the Review step of the importer");
+    suggestCategoriesCheck->setToolTip(tr("Imports have their own choice; see the Review step of the importer"));
     form->addRow(suggestCategoriesCheck);
     watch(suggestCategoriesCheck);
 }
 
 void SettingsPage::buildAppearanceSection()
 {
-    QFormLayout *form = addFormSection("Appearance", "appearance");
+    QFormLayout *form = addFormSection(tr("Appearance"), "appearance");
 
     themeCombo = new QComboBox(this);
     themeCombo->setObjectName("themeCombo");
-    themeCombo->addItem("Dark", "Dark");
-    themeCombo->addItem("Light", "Light");
-    themeCombo->addItem("Match system", "System");
-    form->addRow("Theme", themeCombo);
+    themeCombo->addItem(tr("Dark"), "Dark");
+    themeCombo->addItem(tr("Light"), "Light");
+    themeCombo->addItem(tr("Match system"), "System");
+    form->addRow(tr("Theme"), themeCombo);
     watch(themeCombo);
 
     // Each language in its own words. "Match system" names the language it comes to.
@@ -282,13 +282,13 @@ void SettingsPage::buildAppearanceSection()
     const QString systemCode = Language::resolve(Language::System);
     for (const Language::Option& option : Language::available()) {
         if (option.code == systemCode) {
-            languageCombo->addItem(QString("Match system (%1)").arg(option.nativeName), Language::System);
+            languageCombo->addItem(tr("Match system (%1)").arg(option.nativeName), Language::System);
         }
     }
     for (const Language::Option& option : Language::available()) {
         languageCombo->addItem(option.nativeName, option.code);
     }
-    form->addRow("Language", languageCombo);
+    form->addRow(tr("Language"), languageCombo);
     watch(languageCombo);
 
     // Shown while the saved language isn't the one Aion started with
@@ -296,11 +296,11 @@ void SettingsPage::buildAppearanceSection()
     restartNote->setObjectName("restartNote");
     auto *restartLayout = new QHBoxLayout(restartNote);
     restartLayout->setContentsMargins(0, 0, 0, 0);
-    auto *restartLabel = new QLabel("Takes effect when Aion restarts.", restartNote);
+    auto *restartLabel = new QLabel(tr("Takes effect when Aion restarts."), restartNote);
     restartLabel->setForegroundRole(QPalette::PlaceholderText);
     auto *restartButton = new QToolButton(restartNote);
     restartButton->setObjectName("restartButton");
-    restartButton->setText("Restart now");
+    restartButton->setText(tr("Restart now"));
     Theme::makeLink(restartButton);
     connect(restartButton, &QToolButton::clicked, this, &SettingsPage::restartRequested);
     restartLayout->addWidget(restartLabel);
@@ -308,41 +308,41 @@ void SettingsPage::buildAppearanceSection()
     restartLayout->addStretch();
     form->addRow(restartNote);
 
-    categoryColorsCheck = new QCheckBox("Use category colours on the Dashboard, the Budget page and in the sidebar", this);
+    categoryColorsCheck = new QCheckBox(tr("Use category colours on the Dashboard, the Budget page and in the sidebar"), this);
     categoryColorsCheck->setObjectName("categoryColorsCheck");
-    categoryColorsCheck->setToolTip("Coloured spending bars and dots before budget names. "
-                                    "Without it they stay neutral; category tags are always coloured.");
+    categoryColorsCheck->setToolTip(tr("Coloured spending bars and dots before budget names. "
+                                       "Without it they stay neutral; category tags are always coloured."));
     form->addRow(categoryColorsCheck);
     watch(categoryColorsCheck);
 
-    expensesRedCheck = new QCheckBox("Show expenses in red", this);
+    expensesRedCheck = new QCheckBox(tr("Show expenses in red"), this);
     expensesRedCheck->setObjectName("expensesRedCheck");
-    expensesRedCheck->setToolTip("In the transaction lists, the Expenses totals and the income and spending charts. "
-                                  "Transfers and balance corrections stay as they are.");
+    expensesRedCheck->setToolTip(tr("In the transaction lists, the Expenses totals and the income and spending charts. "
+                                     "Transfers and balance corrections stay as they are."));
     form->addRow(expensesRedCheck);
     watch(expensesRedCheck);
 
-    reportsCentredCheck = new QCheckBox("Show reports in a centred column instead of the full width", this);
+    reportsCentredCheck = new QCheckBox(tr("Show reports in a centred column instead of the full width"), this);
     reportsCentredCheck->setObjectName("reportsCentredCheck");
-    reportsCentredCheck->setToolTip(QString("At most %1 pixels wide, so elements stay close on a large screen")
+    reportsCentredCheck->setToolTip(tr("At most %1 pixels wide, so elements stay close on a large screen")
                                         .arg(ReportsPage::CentredWidth));
     form->addRow(reportsCentredCheck);
     watch(reportsCentredCheck);
 
-    allBudgetsCheck = new QCheckBox("Show all budgets in the sidebar", this);
+    allBudgetsCheck = new QCheckBox(tr("Show all budgets in the sidebar"), this);
     allBudgetsCheck->setObjectName("allBudgetsCheck");
-    allBudgetsCheck->setToolTip("Otherwise the sidebar shows as many as fit without scrolling, in the order below, and links to the Budget page for the rest");
+    allBudgetsCheck->setToolTip(tr("Otherwise the sidebar shows as many as fit without scrolling, in the order below, and links to the Budget page for the rest"));
     form->addRow(allBudgetsCheck);
     watch(allBudgetsCheck);
 
     budgetSortCombo = new QComboBox(this);
     budgetSortCombo->setObjectName("budgetSortCombo");
-    budgetSortCombo->addItem("Percentage used", int(Settings::BudgetSort::Percentage));
-    budgetSortCombo->addItem("Amount spent", int(Settings::BudgetSort::Spent));
-    budgetSortCombo->addItem("Budgeted amount", int(Settings::BudgetSort::Budgeted));
-    budgetSortCombo->addItem("Name", int(Settings::BudgetSort::Name));
-    budgetSortCombo->setToolTip("Also in the right-click menu of the sidebar's Budget header");
-    form->addRow("Sort sidebar budgets by", budgetSortCombo);
+    budgetSortCombo->addItem(tr("Percentage used"), int(Settings::BudgetSort::Percentage));
+    budgetSortCombo->addItem(tr("Amount spent"), int(Settings::BudgetSort::Spent));
+    budgetSortCombo->addItem(tr("Budgeted amount"), int(Settings::BudgetSort::Budgeted));
+    budgetSortCombo->addItem(tr("Name"), int(Settings::BudgetSort::Name));
+    budgetSortCombo->setToolTip(tr("Also in the right-click menu of the sidebar's Budget header"));
+    form->addRow(tr("Sort sidebar budgets by"), budgetSortCombo);
     watch(budgetSortCombo);
 }
 
@@ -362,23 +362,23 @@ void SettingsPage::reloadReportsWidth()
 
 void SettingsPage::buildImportSection()
 {
-    QFormLayout *form = addFormSection("Import", "import");
+    QFormLayout *form = addFormSection(tr("Import"), "import");
 
-    autoDetectDelimiterCheck = new QCheckBox("Detect the CSV delimiter automatically", this);
+    autoDetectDelimiterCheck = new QCheckBox(tr("Detect the CSV delimiter automatically"), this);
     autoDetectDelimiterCheck->setObjectName("autoDetectDelimiterCheck");
     form->addRow(autoDetectDelimiterCheck);
     watch(autoDetectDelimiterCheck);
 
     defaultDelimiterCombo = new QComboBox(this);
     defaultDelimiterCombo->setObjectName("defaultDelimiterCombo");
-    defaultDelimiterCombo->addItem("Comma ( , )", QString(","));
-    defaultDelimiterCombo->addItem("Semicolon ( ; )", QString(";"));
-    defaultDelimiterCombo->addItem("Tab", QString("\t"));
-    defaultDelimiterCombo->addItem("Pipe ( | )", QString("|"));
-    form->addRow("Default delimiter", defaultDelimiterCombo);
+    defaultDelimiterCombo->addItem(tr("Comma ( , )"), QString(","));
+    defaultDelimiterCombo->addItem(tr("Semicolon ( ; )"), QString(";"));
+    defaultDelimiterCombo->addItem(tr("Tab"), QString("\t"));
+    defaultDelimiterCombo->addItem(tr("Pipe ( | )"), QString("|"));
+    form->addRow(tr("Default delimiter"), defaultDelimiterCombo);
     watch(defaultDelimiterCombo);
 
-    autoDetectDecimalCheck = new QCheckBox("Detect the decimal separator automatically", this);
+    autoDetectDecimalCheck = new QCheckBox(tr("Detect the decimal separator automatically"), this);
     autoDetectDecimalCheck->setObjectName("autoDetectDecimalCheck");
     form->addRow(autoDetectDecimalCheck);
     watch(autoDetectDecimalCheck);
@@ -393,7 +393,7 @@ void SettingsPage::setUserId(int userId)
 
 void SettingsPage::openRuleDraft(const Rule &draft, const QList<Transaction> &examples)
 {
-    const QList<QListWidgetItem *> items = sectionList->findItems("Rules", Qt::MatchExactly);
+    const QList<QListWidgetItem *> items = sectionList->findItems(tr("Rules"), Qt::MatchExactly);
     if (!items.isEmpty()) {
         sectionList->setCurrentItem(items.first());
     }
@@ -409,7 +409,7 @@ void SettingsPage::reloadData()
 
 void SettingsPage::buildAboutSection()
 {
-    addSection("About", "info", new AboutWidget(this));
+    addSection(tr("About"), "info", new AboutWidget(this));
 }
 
 void SettingsPage::buildCategoriesSection()
@@ -417,22 +417,22 @@ void SettingsPage::buildCategoriesSection()
     // Saved right away, so they don't take part in Apply / Revert
     categoriesSettings = new CategoriesSettings(this);
     connect(categoriesSettings, &CategoriesSettings::categoriesChanged, this, &SettingsPage::dataChanged);
-    addSection("Categories", "tag", categoriesSettings);
+    addSection(tr("Categories"), "tag", categoriesSettings);
 
     // Rules point to categories, so they reload when categories change (a merge moves rules along)
     rulesSettings = new RulesSettings(this);
     connect(rulesSettings, &RulesSettings::rulesChanged, this, &SettingsPage::dataChanged);
     connect(rulesSettings, &RulesSettings::transactionsChanged, this, &SettingsPage::dataChanged);
     connect(categoriesSettings, &CategoriesSettings::categoriesChanged, rulesSettings, &RulesSettings::reload);
-    addSection("Rules", "search", rulesSettings);
+    addSection(tr("Rules"), "search", rulesSettings);
 
     accountTypesSettings = new AccountTypesSettings(this);
     connect(accountTypesSettings, &AccountTypesSettings::accountTypesChanged, this, &SettingsPage::dataChanged);
-    addSection("Account types", "bank", accountTypesSettings);
+    addSection(tr("Account types"), "bank", accountTypesSettings);
 
     auto *backupSettings = new BackupSettings(this);
     connect(backupSettings, &BackupSettings::restored, this, &SettingsPage::databaseRestored);
-    addSection("Backup", "database", backupSettings);
+    addSection(tr("Backup"), "database", backupSettings);
 }
 
 void SettingsPage::watch(QComboBox *combo)
@@ -568,9 +568,9 @@ void SettingsPage::revert()
 void SettingsPage::restoreDefaults()
 {
     const auto answer = QMessageBox::question(
-        this, "Restore default settings?",
-        "This resets currency, transaction, appearance and import settings to their defaults. "
-        "Your accounts, transactions, categories and account types are not affected.",
+        this, tr("Restore default settings?"),
+        tr("This resets currency, transaction, appearance and import settings to their defaults. "
+           "Your accounts, transactions, categories and account types are not affected."),
         QMessageBox::RestoreDefaults | QMessageBox::Cancel, QMessageBox::Cancel);
     if (answer != QMessageBox::RestoreDefaults) {
         return;
