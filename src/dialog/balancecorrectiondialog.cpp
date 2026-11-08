@@ -1,4 +1,5 @@
 #include "balancecorrectiondialog.h"
+#include "applocale.h"
 #include "account.h"
 #include "balance.h"
 #include "csvimport.h"
@@ -111,7 +112,7 @@ void BalanceCorrectionDialog::updateBalance() {
     } else {
         statusLabel->setText(QString("Adds a balance correction of %1 on %2.")
                                  .arg(settings.formatCurrency(expected - currentCents, true),
-                                      QLocale(QLocale::English).toString(dateEdit->date(), "d MMMM yyyy")));
+                                      AppLocale::date(dateEdit->date(), AppLocale::DateFormat::DayMonthYear)));
         color = colors.textPrimary;
         canAdd = true;
     }

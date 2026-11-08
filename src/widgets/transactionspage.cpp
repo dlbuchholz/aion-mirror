@@ -1,4 +1,5 @@
 #include "transactionspage.h"
+#include "applocale.h"
 #include "amountcolor.h"
 #include "report.h"
 #include "account.h"
@@ -202,10 +203,9 @@ private:
 
     static QString dayLabel(const QDate& date) {
         const QDate today = QDate::currentDate();
-        const QLocale english(QLocale::English);
         if (date == today) return "Today";
         if (date == today.addDays(-1)) return "Yesterday";
-        return english.toString(date, date.year() == today.year() ? "dddd, d MMMM" : "dddd, d MMMM yyyy");
+        return AppLocale::date(date, date.year() == today.year() ? AppLocale::DateFormat::WeekdayDayMonth : AppLocale::DateFormat::WeekdayDayMonthYear);
     }
 };
 

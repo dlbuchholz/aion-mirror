@@ -1,4 +1,5 @@
 #include "budgeteditor.h"
+#include "applocale.h"
 #include "icons.h"
 #include "settings.h"
 #include "theme.h"
@@ -18,7 +19,7 @@
 
 namespace {
 QString monthName(const QDate& month) {
-    return QLocale(QLocale::English).toString(month, "MMMM");
+    return AppLocale::date(month, AppLocale::DateFormat::Month);
 }
 }
 

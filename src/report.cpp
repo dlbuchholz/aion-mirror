@@ -1,4 +1,5 @@
 #include "report.h"
+#include "applocale.h"
 #include "budget.h"
 #include "category.h"
 #include "db/databasemanager.h"
@@ -12,7 +13,6 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 const QList<QPair<ReportRange::Preset, QString>> PresetKeys = {
     {ReportRange::Preset::Month, "month"},
@@ -127,12 +127,12 @@ QString ReportRange::label() const {
     if (!isValid()) return QString();
     const bool sameYear = first.year() == last.year();
     if (isWholeMonths()) {
-        if (months() == 1) return english.toString(first, "MMMM yyyy");
-        return sameYear ? QString("%1 – %2").arg(english.toString(first, "MMMM"), english.toString(last, "MMMM yyyy"))
-                        : QString("%1 – %2").arg(english.toString(first, "MMMM yyyy"), english.toString(last, "MMMM yyyy"));
+        if (months() == 1) return AppLocale::date(first, AppLocale::DateFormat::MonthYear);
+        return sameYear ? QString("%1 – %2").arg(AppLocale::date(first, AppLocale::DateFormat::Month), AppLocale::date(last, AppLocale::DateFormat::MonthYear))
+                        : QString("%1 – %2").arg(AppLocale::date(first, AppLocale::DateFormat::MonthYear), AppLocale::date(last, AppLocale::DateFormat::MonthYear));
     }
-    if (first == last) return english.toString(first, "d MMM yyyy");
-    return QString("%1 – %2").arg(english.toString(first, sameYear ? "d MMM" : "d MMM yyyy"), english.toString(last, "d MMM yyyy"));
+    if (first == last) return AppLocale::date(first, AppLocale::DateFormat::ShortDayMonthYear);
+    return QString("%1 – %2").arg(AppLocale::date(first, sameYear ? AppLocale::DateFormat::ShortDayMonth : AppLocale::DateFormat::ShortDayMonthYear), AppLocale::date(last, AppLocale::DateFormat::ShortDayMonthYear));
 }
 
 QString ReportRange::weekName() const {
@@ -148,7 +148,7 @@ QString ReportRange::comparisonText(const QDate& today) const {
         text = days() == 1 ? QString("the day before") : QString("the %1 days before").arg(days());
     }
     const bool ongoing = first <= today && today < last;
-    if (ongoing) text += ", up to " + english.toString(comparison(today).last, "d MMMM");
+    if (ongoing) text += ", up to " + AppLocale::date(comparison(today).last, AppLocale::DateFormat::DayMonth);
     return text;
 }
 

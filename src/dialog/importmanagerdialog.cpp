@@ -1,4 +1,5 @@
 #include "importmanagerdialog.h"
+#include "applocale.h"
 #include "account.h"
 #include "category.h"
 #include "csvparser.h"
@@ -29,7 +30,6 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 // The fields shown on the Columns step, in order, with their labels
 const QList<QPair<QString, QString>> &columnFields()
@@ -762,7 +762,7 @@ void ImportManagerDialog::updateExamples()
         if (it.key() == CsvImport::FieldDate) {
             const QDate date = CsvImport::parseDate(value);
             problem = !date.isValid();
-            text = problem ? QString("can't read \"%1\" as a date").arg(value) : english.toString(date, "d MMMM yyyy");
+            text = problem ? QString("can't read \"%1\" as a date").arg(value) : AppLocale::date(date, AppLocale::DateFormat::DayMonthYear);
         } else if (it.key() == CsvImport::FieldAmount || it.key() == CsvImport::FieldBalance) {
             bool ok = false;
             const Cents cents = CsvImport::parseAmount(value, decimalSeparator, &ok);
@@ -1126,7 +1126,7 @@ void ImportManagerDialog::refreshReview()
     balanceBox->setVisible(dryRun.checkDate.isValid());
     if (dryRun.checkDate.isValid()) {
         const Settings &settings = Settings::instance();
-        const QString day = english.toString(dryRun.checkDate, "d MMMM yyyy");
+        const QString day = AppLocale::date(dryRun.checkDate, AppLocale::DateFormat::DayMonthYear);
         balanceAfterCaption->setText(QString("Balance on %1 after the import").arg(day));
         balanceAfterValue->setText(settings.formatCurrency(dryRun.balanceAfterCents));
         balanceBreakdownLabel->setText(QString("Now %1 · from this file %2")
@@ -1256,7 +1256,7 @@ void ImportManagerDialog::import()
     if (result.categoriesCreated > 0) lines << QString("%1 new %2.").arg(result.categoriesCreated).arg(result.categoriesCreated == 1 ? "category" : "categories");
     if (result.correctionCents != 0) {
         lines << QString("Balance correction of %1 on %2.").arg(Settings::instance().formatCurrency(result.correctionCents, true),
-                                                                english.toString(result.checkDate, "d MMMM yyyy"));
+                                                                AppLocale::date(result.checkDate, AppLocale::DateFormat::DayMonthYear));
     }
     if (result.failed > 0) lines << QString("%1 %2 couldn't be read.").arg(result.failed).arg(result.failed == 1 ? "row" : "rows");
     QMessageBox::information(this, "Import complete", lines.join("\n"));

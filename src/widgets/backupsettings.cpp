@@ -1,4 +1,5 @@
 #include "backupsettings.h"
+#include "applocale.h"
 #include "db/backup.h"
 #include "db/databasemanager.h"
 #include "db/databasesession.h"
@@ -28,7 +29,7 @@ QString databasePath() {
 }
 
 QString counted(int count, const QString& singular) {
-    return QString("%1 %2%3").arg(QLocale(QLocale::English).toString(count), singular, count == 1 ? "" : "s");
+    return QString("%1 %2%3").arg(AppLocale::number(count), singular, count == 1 ? "" : "s");
 }
 
 }
@@ -178,12 +179,11 @@ void BackupSettings::reload() {
     rows->setContentsMargins(0, 0, 0, 0);
     rows->setSpacing(4);
 
-    const QLocale english(QLocale::English);
     const QList<Backup::AutomaticBackup> backups = Backup::automaticBackups(databasePath());
     listHeading->setVisible(!backups.isEmpty());
     openFolderButton->setVisible(!backups.isEmpty());
     for (const Backup::AutomaticBackup& backup : backups) {
-        const QString when = english.toString(backup.when, "d MMM yyyy, HH:mm");
+        const QString when = AppLocale::dateTime(backup.when, AppLocale::DateFormat::ShortDayMonthYearTime);
         auto* row = new QHBoxLayout();
         auto* whenLabel = new QLabel(when, listContent);
         whenLabel->setObjectName("backupWhenLabel");
@@ -192,7 +192,7 @@ void BackupSettings::reload() {
         kindLabel->setForegroundRole(QPalette::PlaceholderText);
         kindLabel->setMinimumWidth(110);
         row->addWidget(kindLabel);
-        auto* sizeLabel = new QLabel(english.formattedDataSize(backup.sizeBytes, 0), listContent);
+        auto* sizeLabel = new QLabel(AppLocale::dataSize(backup.sizeBytes, 0), listContent);
         sizeLabel->setForegroundRole(QPalette::PlaceholderText);
         sizeLabel->setMinimumWidth(60);
         row->addWidget(sizeLabel);
@@ -271,7 +271,7 @@ void BackupSettings::updateFailureLabel() {
                                         "border-radius: 6px; padding: 8px 12px; }")
                                     .arg(danger.name()).arg(danger.red()).arg(danger.green()).arg(danger.blue()));
     failureLabel->setText(QString("The last scheduled backup failed on %1. %2")
-                              .arg(QLocale(QLocale::English).toString(failure.when, "d MMM yyyy, HH:mm"), failure.reason));
+                              .arg(AppLocale::dateTime(failure.when, AppLocale::DateFormat::ShortDayMonthYearTime), failure.reason));
     failureLabel->setVisible(true);
 }
 

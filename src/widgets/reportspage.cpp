@@ -1,4 +1,5 @@
 #include "reportspage.h"
+#include "applocale.h"
 #include "account.h"
 #include "budgetcharts.h"
 #include "category.h"
@@ -35,7 +36,6 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 const QList<ReportsPage::Report> AllReports = {
     ReportsPage::Report::SpendingByCategory, ReportsPage::Report::IncomeVsSpending, ReportsPage::Report::Balance,
@@ -368,7 +368,7 @@ private:
     // "Oct" for months, "W40" (the calendar week) for weeks
     QString periodName(const ReportRange& period) const {
         if (report.range.flowUnit() == ReportRange::Unit::Week) return QString("W%1").arg(period.first.weekNumber());
-        return english.toString(period.first, "MMM");
+        return AppLocale::date(period.first, AppLocale::DateFormat::ShortMonth);
     }
     QRect plotRect() const { return compact ? rect() : rect().adjusted(0, 24, 0, -24); }   // Legend above, labels below
     int groupWidth() const { return report.periods.isEmpty() ? 0 : plotRect().width() / int(report.periods.size()); }
@@ -438,7 +438,7 @@ protected:
             int nextFree = plot.left();
             for (const ReportRange& period : periods) {
                 const QString label = report.range.flowUnit() == ReportRange::Unit::Week ? QString("W%1").arg(period.first.weekNumber())
-                                                                                        : english.toString(period.first, "MMM");
+                                                                                        : AppLocale::date(period.first, AppLocale::DateFormat::ShortMonth);
                 const int x = int(xFor(period.first));
                 if (x < nextFree) continue;
                 painter.drawText(QRect(x, plot.bottom() + 6, metrics.horizontalAdvance(label) + 2, 18), Qt::AlignLeft | Qt::AlignVCenter, label);
@@ -492,7 +492,7 @@ protected:
         if (index >= 0) {
             const BalancePoint& point = report.days[index];
             QToolTip::showText(event->globalPosition().toPoint(),
-                               QString("%1\n%2").arg(english.toString(point.date, "d MMMM yyyy"),
+                               QString("%1\n%2").arg(AppLocale::date(point.date, AppLocale::DateFormat::DayMonthYear),
                                                      Settings::instance().formatCurrency(point.balanceCents)),
                                this);
         } else {
@@ -593,7 +593,7 @@ protected:
                 painter.setPen(i == hovered ? colors.textPrimary : colors.textSecondary);
                 const ReportRange& period = trend.periods[i].period;
                 const QString label = trend.range.flowUnit() == ReportRange::Unit::Week ? QString("W%1").arg(period.first.weekNumber())
-                                                                                       : english.toString(period.first, "MMM");
+                                                                                       : AppLocale::date(period.first, AppLocale::DateFormat::ShortMonth);
                 painter.drawText(QRect(group.center().x() - labelWidth / 2, plot.bottom() + 4, labelWidth, 18), Qt::AlignCenter, label);
             }
         }
@@ -722,7 +722,7 @@ private:
         painter.setPen(colors.textSecondary);
         painter.drawText(QRect(0, int(y(month.limitCents)) - 8, plot.left() - 8, 16), Qt::AlignRight | Qt::AlignVCenter, limitText);
         for (const int day : {0, days / 2, days - 1}) {
-            const QString label = day == 0 ? english.toString(month.month.first, "d MMM") : QString::number(day + 1);
+            const QString label = day == 0 ? AppLocale::date(month.month.first, AppLocale::DateFormat::ShortDayMonth) : QString::number(day + 1);
             painter.drawText(QRect(int(x(day)) - 40, plot.bottom() + 4, 80, 18), Qt::AlignCenter, label);
         }
 
@@ -764,7 +764,7 @@ private:
                 painter.drawLine(QPointF(center - barWidth * 0.8, y(month.limitCents)), QPointF(center + barWidth * 0.8, y(month.limitCents)));
             }
             painter.setPen(colors.textSecondary);
-            painter.drawText(QRect(int(center) - 40, plot.bottom() + 4, 80, 18), Qt::AlignCenter, english.toString(month.month.first, "MMM"));
+            painter.drawText(QRect(int(center) - 40, plot.bottom() + 4, 80, 18), Qt::AlignCenter, AppLocale::date(month.month.first, AppLocale::DateFormat::ShortMonth));
         }
         painter.setPen(colors.sidebarBorder);
         painter.drawLine(plot.bottomLeft() + QPoint(0, 1), plot.bottomRight() + QPoint(0, 1));
@@ -1592,7 +1592,7 @@ void ReportsPage::updateCards() {
     const QDate since = balance.range.first;
     balanceCard->setValue(settings.formatCurrency(balance.endCents()),
                           QString("%1 since %2").arg(settings.formatCurrency(moved, true),
-                                                     english.toString(since, since.year() == today().year() ? "d MMMM" : "d MMMM yyyy")),
+                                                     AppLocale::date(since, since.year() == today().year() ? AppLocale::DateFormat::DayMonth : AppLocale::DateFormat::DayMonthYear)),
                           moved > 0 ? Theme::colors().positive : moved < 0 ? Theme::colors().danger : QColor());
     balancePreview->setReport(balance);
 

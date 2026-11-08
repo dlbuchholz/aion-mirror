@@ -1,4 +1,5 @@
 #include "dashboardpage.h"
+#include "applocale.h"
 #include "amountcolor.h"
 #include "budget.h"
 #include "categorycolors.h"
@@ -25,7 +26,6 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 void setTextColor(QWidget* widget, const QColor& color) {
     QPalette palette = widget->palette();
@@ -37,7 +37,7 @@ void setTextColor(QWidget* widget, const QColor& color) {
 QString dayLabel(const QDate& date, const QDate& today) {
     if (date == today) return "Today";
     if (date == today.addDays(-1)) return "Yesterday";
-    return english.toString(date, date.year() == today.year() ? "d MMMM" : "d MMMM yyyy");
+    return AppLocale::date(date, date.year() == today.year() ? AppLocale::DateFormat::DayMonth : AppLocale::DateFormat::DayMonthYear);
 }
 
 // Clickable row with a hover background, keyboard activation and custom painting
@@ -255,7 +255,7 @@ protected:
             painter.setFont(labelFont);
             painter.setPen(current ? colors.textPrimary : colors.textSecondary);
             painter.drawText(QRect(group.left(), plot.bottom() + 4, group.width(), 18), Qt::AlignCenter,
-                             english.toString(months[i].month, "MMM"));
+                             AppLocale::date(months[i].month, AppLocale::DateFormat::ShortMonth));
         }
         painter.setPen(colors.sidebarBorder);
         painter.drawLine(plot.bottomLeft() + QPoint(0, 1), plot.bottomRight() + QPoint(0, 1));
@@ -291,7 +291,7 @@ protected:
             const MonthFlow& month = months[index];
             QToolTip::showText(event->globalPosition().toPoint(),
                                QString("%1\nIncome %2\nExpenses %3\nNet %4")
-                                   .arg(english.toString(month.month, "MMMM yyyy"), settings.formatCurrency(month.incomeCents),
+                                   .arg(AppLocale::date(month.month, AppLocale::DateFormat::MonthYear), settings.formatCurrency(month.incomeCents),
                                         settings.formatCurrency(month.expenseCents), settings.formatCurrency(month.netCents(), true)),
                                this);
         } else {
@@ -489,7 +489,7 @@ void DashboardPage::reload() {
     const QString greeting = Dashboard::greeting(QTime::currentTime());
     greetingLabel->setText(userName.isEmpty() ? greeting : QString("%1, %2").arg(greeting, userName));
     const int left = data.daysLeftInMonth;
-    dateLabel->setText(QString("%1 · %2").arg(english.toString(today, "dddd, d MMMM"),
+    dateLabel->setText(QString("%1 · %2").arg(AppLocale::date(today, AppLocale::DateFormat::WeekdayDayMonth),
                                              left == 0 ? QString("Last day of the month")
                                                        : QString("%1 %2 left this month").arg(left).arg(left == 1 ? "day" : "days")));
 
@@ -512,8 +512,8 @@ void DashboardPage::updateTiles() {
     const Settings& settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
     const MonthFlow& month = data.thisMonth;
-    const QString monthName = english.toString(month.month, "MMMM");
-    const QString lastMonthName = english.toString(data.lastMonth.month, "MMMM");
+    const QString monthName = AppLocale::date(month.month, AppLocale::DateFormat::Month);
+    const QString lastMonthName = AppLocale::date(data.lastMonth.month, AppLocale::DateFormat::Month);
     auto count = [](int n, const char* what) { return QString("%1 %2%3").arg(n).arg(what).arg(n == 1 ? "" : "s"); };
 
     balanceTile.value->setText(settings.formatCurrency(data.totalBalanceCents));
@@ -563,7 +563,7 @@ void DashboardPage::updateBudgets() {
     const Settings& settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
     QList<MonthBudget> budgets = BudgetDAO().budgetsForMonth(userId, data.thisMonth.month);
-    budgetTitle->setText(QString("Budget · %1").arg(english.toString(data.thisMonth.month, "MMMM")));
+    budgetTitle->setText(QString("Budget · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
 
     if (budgets.isEmpty()) {
         auto* empty = new QLabel("No budgets this month. Set limits per category to see how much is left.", this);
@@ -616,7 +616,7 @@ void DashboardPage::updateCategories() {
         delete item->widget();
         delete item;
     }
-    categoryTitle->setText(QString("Spending by category · %1").arg(english.toString(data.thisMonth.month, "MMMM")));
+    categoryTitle->setText(QString("Spending by category · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
     if (data.spendingByCategory.isEmpty()) {
         auto* empty = new QLabel("No expenses this month yet.", this);
         empty->setObjectName("categoryEmptyLabel");

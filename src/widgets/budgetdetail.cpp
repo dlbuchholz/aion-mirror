@@ -1,4 +1,5 @@
 #include "budgetdetail.h"
+#include "applocale.h"
 #include "amountcolor.h"
 #include "settings.h"
 #include "theme.h"
@@ -18,7 +19,7 @@
 namespace {
 
 QString shortDate(const QDate& date) {
-    return QLocale(QLocale::English).toString(date, "d MMM");
+    return AppLocale::date(date, AppLocale::DateFormat::ShortDayMonth);
 }
 
 QString payeeText(const QString& payee) {
@@ -176,15 +177,14 @@ void BudgetMonthChart::paintEvent(QPaintEvent*) {
     painter.setPen(QPen(colors.textMuted, 1, Qt::DashLine));
     painter.drawLine(QPointF(area.left(), yFor(limitCents)), QPointF(area.right(), yFor(limitCents)));
     painter.setPen(colors.textSecondary);
-    const QLocale english(QLocale::English);
     const QRectF heading(area.left(), 0, area.width(), fontMetrics().height());
-    painter.drawText(heading, Qt::AlignLeft | Qt::AlignTop, english.toString(month, "MMMM"));
+    painter.drawText(heading, Qt::AlignLeft | Qt::AlignTop, AppLocale::date(month, AppLocale::DateFormat::Month));
     painter.drawText(heading, Qt::AlignRight | Qt::AlignTop, QString("Limit %1").arg(Settings::instance().formatCurrency(limitCents)));
 
     // The month's first and last day along the bottom, and today
     const QRectF labels(area.left(), area.bottom() + 4, area.width(), fontMetrics().height());
-    painter.drawText(labels, Qt::AlignLeft | Qt::AlignTop, english.toString(month, "d MMM"));
-    painter.drawText(labels, Qt::AlignRight | Qt::AlignTop, english.toString(QDate(month.year(), month.month(), days), "d MMM"));
+    painter.drawText(labels, Qt::AlignLeft | Qt::AlignTop, AppLocale::date(month, AppLocale::DateFormat::ShortDayMonth));
+    painter.drawText(labels, Qt::AlignRight | Qt::AlignTop, AppLocale::date(QDate(month.year(), month.month(), days), AppLocale::DateFormat::ShortDayMonth));
     if (isCurrentMonth(month, today)) {
         const double x = xFor(today.day() - 0.5);
         painter.setPen(QPen(colors.textMuted, 1, Qt::DotLine));
@@ -254,7 +254,6 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     setObjectName("budgetDetail");
     const Settings& settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
-    const QLocale english(QLocale::English);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(Inset + 14, 14, Inset + 14, BottomGap + 12);   // Inside its card
@@ -291,7 +290,7 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
                                          : QString("%1 left").arg(settings.formatCurrency(left)),
                 "endedValue", left < 0 ? colors.danger : QColor());
     }
-    const QString lastMonthName = english.toString(month.addMonths(-1), "MMMM");
+    const QString lastMonthName = AppLocale::date(month.addMonths(-1), AppLocale::DateFormat::Month);
     addStat(stats, lastMonthName,
             lastMonthLimit > 0 ? QString("%1 of %2").arg(settings.formatSpending(lastMonthSpent), settings.formatCurrency(lastMonthLimit))
                                : QString("%1, no budget").arg(settings.formatSpending(lastMonthSpent)),
@@ -309,7 +308,7 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     divider->setPalette(dividerPalette);
     layout->addWidget(divider);
     // The latest transactions, newest first
-    const QString monthName = english.toString(month, "MMMM");
+    const QString monthName = AppLocale::date(month, AppLocale::DateFormat::Month);
     if (transactions.isEmpty()) {
         auto* none = new QLabel(QString("No transactions in %1 yet.").arg(monthName), this);
         none->setObjectName("budgetDetailEmpty");

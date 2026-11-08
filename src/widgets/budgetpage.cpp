@@ -1,4 +1,5 @@
 #include "budgetpage.h"
+#include "applocale.h"
 #include "budgetdetail.h"
 #include "budgeteditor.h"
 #include "periodpicker.h"
@@ -29,7 +30,7 @@
 namespace {
 
 QString monthName(const QDate& month) {
-    return QLocale(QLocale::English).toString(month, "MMMM");
+    return AppLocale::date(month, AppLocale::DateFormat::Month);
 }
 
 // "88,00 € left" or "12,00 € over"
@@ -60,7 +61,7 @@ public:
                                                                    Settings::instance().formatSpending(budget.spentCents),
                                                                    Settings::instance().formatCurrency(budget.limitCents),
                                                                    leftText(budget.leftCents())));
-        setToolTip(budget.repeats ? QString("Regular limit since %1").arg(QLocale(QLocale::English).toString(budget.validFrom, "MMMM yyyy"))
+        setToolTip(budget.repeats ? QString("Regular limit since %1").arg(AppLocale::date(budget.validFrom, AppLocale::DateFormat::MonthYear))
                                   : QString("Set for %1 only").arg(monthName(month)));
     }
 

@@ -1,4 +1,5 @@
 #include "budgetcharts.h"
+#include "applocale.h"
 #include "categorycolors.h"
 #include "settings.h"
 #include "theme.h"
@@ -12,7 +13,6 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 QString percentText(Cents spent, Cents limit) {
     return QString("%1%").arg(limit > 0 ? qRound(double(spent) * 100.0 / double(limit)) : 0);
@@ -179,7 +179,7 @@ QString BudgetLinesChart::hoverText(const QPointF& position) const {
     if (line < 0) return QString();
     const int day = dayAt(position);
     const Line& budget = lines[line];
-    return budgetShareText(budget.name, english.toString(month.first.addDays(day - 1), "d MMM"),
+    return budgetShareText(budget.name, AppLocale::date(month.first.addDays(day - 1), AppLocale::DateFormat::ShortDayMonth),
                            budget.spentByDay.value(day - 1), budget.limitCents);
 }
 
@@ -196,7 +196,7 @@ void BudgetLinesChart::paintEvent(QPaintEvent*) {
     painter.setPen(QPen(colors.textSecondary, 1, Qt::DashLine));            // Even pace
     painter.drawLine(QPointF(xFor(0), yFor(0)), QPointF(xFor(days), yFor(100)));
     painter.setPen(colors.textSecondary);
-    const QList<std::pair<int, QString>> labels = {{0, english.toString(month.first, "d MMM")},
+    const QList<std::pair<int, QString>> labels = {{0, AppLocale::date(month.first, AppLocale::DateFormat::ShortDayMonth)},
                                                    {days / 2, QString::number(days / 2)},
                                                    {days, QString::number(days)}};
     for (const auto& [day, label] : labels) {
@@ -320,7 +320,7 @@ QString BudgetMonthsChart::hoverText(const QPointF& position) const {
     const auto [line, month] = pointAt(position);
     if (line < 0) return QString();
     const BudgetMonth* budget = budgetIn(line, month);
-    return budgetShareText(lines[line].name, english.toString(months[month].first, "MMM yyyy"), budget->spentCents,
+    return budgetShareText(lines[line].name, AppLocale::date(months[month].first, AppLocale::DateFormat::ShortMonthYear), budget->spentCents,
                            budget->limitCents);
 }
 
@@ -333,7 +333,7 @@ void BudgetMonthsChart::paintEvent(QPaintEvent*) {
     painter.setPen(Theme::colors().textSecondary);
     for (int month = 0; month < months.size(); ++month) {
         painter.drawText(QRectF(xFor(month) - 40, area.bottom() + 4, 80, 18), Qt::AlignCenter,
-                         english.toString(months[month].first, "MMM"));
+                         AppLocale::date(months[month].first, AppLocale::DateFormat::ShortMonth));
     }
 
     // Lines between months in a row that both had the budget; the hovered one on top
@@ -448,7 +448,7 @@ void BudgetGrid::paintEvent(QPaintEvent*) {
     painter.setPen(colors.textSecondary);
     for (int month = 0; month < months.size(); ++month) {
         const QRect header = cellRect(-1, month);
-        painter.drawText(header, Qt::AlignCenter, english.toString(months[month].first, "MMM"));
+        painter.drawText(header, Qt::AlignCenter, AppLocale::date(months[month].first, AppLocale::DateFormat::ShortMonth));
     }
     for (int row = 0; row < budgets.size(); ++row) {
         const QRect name(0, RowHeight * (row + 1), nameWidth() - 8, RowHeight);
@@ -482,7 +482,7 @@ void BudgetGrid::mouseMoveEvent(QMouseEvent* event) {
     if (budget) {
         setCursor(Qt::PointingHandCursor);
         QToolTip::showText(event->globalPosition().toPoint(),
-                           budgetShareText(budgets[row].categoryName, english.toString(months[month].first, "MMM yyyy"),
+                           budgetShareText(budgets[row].categoryName, AppLocale::date(months[month].first, AppLocale::DateFormat::ShortMonthYear),
                                            budget->spentCents, budget->limitCents),
                            this);
     } else {

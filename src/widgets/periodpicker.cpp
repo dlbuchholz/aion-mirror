@@ -1,4 +1,5 @@
 #include "periodpicker.h"
+#include "applocale.h"
 #include "icons.h"
 #include "theme.h"
 #include <QEvent>
@@ -121,10 +122,9 @@ void PeriodPicker::updateNameWidth() {
         nameButton->setText(name);
         return nameButton->sizeHint().width() + 8;
     };
-    const QLocale english(QLocale::English);
     int widest = widthFor("All time");
     for (int month = 1; month <= 12; ++month) {
-        widest = qMax(widest, widthFor(english.monthName(month) + " 0000"));
+        widest = qMax(widest, widthFor(AppLocale::monthName(month) + " 0000"));
     }
     if (!widestName.isEmpty()) widest = qMax(widest, widthFor(widestName));
     nameButton->setMinimumWidth(widest);
@@ -202,11 +202,10 @@ PeriodMenu::PeriodMenu(QWidget* parent) : QFrame(parent, Qt::Popup | Qt::Framele
     auto* grid = new QGridLayout();
     grid->setContentsMargins(4, 0, 4, 0);
     grid->setSpacing(4);
-    const QLocale english(QLocale::English);
     for (int month = 1; month <= 12; ++month) {
         auto* button = new QToolButton(this);
         button->setObjectName(QString("month%1").arg(month));
-        button->setText(english.monthName(month, QLocale::ShortFormat));
+        button->setText(AppLocale::monthName(month, QLocale::ShortFormat));
         button->setCheckable(true);
         button->setAutoRaise(true);
         button->setCursor(Qt::PointingHandCursor);
