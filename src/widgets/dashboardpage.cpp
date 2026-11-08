@@ -35,8 +35,8 @@ void setTextColor(QWidget* widget, const QColor& color) {
 }
 
 QString dayLabel(const QDate& date, const QDate& today) {
-    if (date == today) return "Today";
-    if (date == today.addDays(-1)) return "Yesterday";
+    if (date == today) return DashboardPage::tr("Today");
+    if (date == today.addDays(-1)) return DashboardPage::tr("Yesterday");
     return AppLocale::date(date, date.year() == today.year() ? AppLocale::DateFormat::DayMonth : AppLocale::DateFormat::DayMonthYear);
 }
 
@@ -130,7 +130,7 @@ public:
     RecentRow(const RecentTransaction& transaction, const QDate& today, QWidget* parent)
         : DashboardRow(parent), transaction(transaction), day(dayLabel(transaction.date, today)) {
         setObjectName("recentRow");
-        setAccessibleName(transaction.payee.isEmpty() ? QString("No payee") : transaction.payee);
+        setAccessibleName(transaction.payee.isEmpty() ? DashboardPage::tr("No payee") : transaction.payee);
         setAccessibleDescription(Settings::instance().formatCurrency(transaction.signedCents, true));
         setFixedHeight(38);
     }
@@ -218,7 +218,7 @@ protected:
         const QRect plot = plotRect();
         if (highest == 0) {
             painter.setPen(colors.textMuted);                   // Muted, like every empty state
-            painter.drawText(rect(), Qt::AlignCenter, "No income or expenses in these months yet.");
+            painter.drawText(rect(), Qt::AlignCenter, DashboardPage::tr("No income or expenses in these months yet."));
             return;
         }
 
@@ -266,7 +266,7 @@ protected:
         painter.setFont(legendFont);
         const QFontMetrics metrics(legendFont);
         int right = rect().right();
-        for (const auto& entry : QList<QPair<QString, QColor>>{{"Expenses", expenseColor}, {"Income", colors.positive}}) {
+        for (const auto& entry : QList<QPair<QString, QColor>>{{DashboardPage::tr("Expenses"), expenseColor}, {DashboardPage::tr("Income"), colors.positive}}) {
             const int width = metrics.horizontalAdvance(entry.first);
             painter.setPen(colors.textSecondary);
             painter.drawText(QRect(right - width, 0, width, 16), Qt::AlignRight | Qt::AlignVCenter, entry.first);
@@ -290,7 +290,7 @@ protected:
             const Settings& settings = Settings::instance();
             const MonthFlow& month = months[index];
             QToolTip::showText(event->globalPosition().toPoint(),
-                               QString("%1\nIncome %2\nExpenses %3\nNet %4")
+                               DashboardPage::tr("%1\nIncome %2\nExpenses %3\nNet %4")
                                    .arg(AppLocale::date(month.month, AppLocale::DateFormat::MonthYear), settings.formatCurrency(month.incomeCents),
                                         settings.formatCurrency(month.expenseCents), settings.formatCurrency(month.netCents(), true)),
                                this);
@@ -347,11 +347,11 @@ DashboardPage::DashboardPage(QWidget* parent)
     titles->addWidget(greetingLabel);
     titles->addWidget(dateLabel);
     header->addLayout(titles, 1);
-    importButton = new QPushButton("Import", content);
+    importButton = new QPushButton(tr("Import"), content);
     importButton->setObjectName("dashboardImportButton");
     connect(importButton, &QPushButton::clicked, this, &DashboardPage::importRequested);
     header->addWidget(importButton, 0, Qt::AlignTop);
-    addButton = new QPushButton("Add transaction", content);
+    addButton = new QPushButton(tr("Add transaction"), content);
     addButton->setObjectName("dashboardAddButton");
     addButton->setProperty("primary", true);         // The solid accent button (Theme::controlStyleSheet)
     connect(addButton, &QPushButton::clicked, this, &DashboardPage::addTransactionRequested);
@@ -361,15 +361,15 @@ DashboardPage::DashboardPage(QWidget* parent)
     // This month at a glance
     auto* tiles = new QHBoxLayout();
     tiles->setSpacing(10);
-    balanceTile = createTile("balance", "Total balance", tiles);
-    incomeTile = createTile("income", "Income", tiles);
-    expensesTile = createTile("expenses", "Expenses", tiles);
-    savedTile = createTile("saved", "Saved", tiles);
-    averageTile = createTile("average", "Daily average", tiles);
+    balanceTile = createTile("balance", tr("Total balance"), tiles);
+    incomeTile = createTile("income", tr("Income"), tiles);
+    expensesTile = createTile("expenses", tr("Expenses"), tiles);
+    savedTile = createTile("saved", tr("Saved"), tiles);
+    averageTile = createTile("average", tr("Daily average"), tiles);
     root->addLayout(tiles);
 
     QVBoxLayout* cashFlowBody = nullptr;
-    QFrame* cashFlowCard = createCard("Cash flow · last 6 months", &cashFlowBody);
+    QFrame* cashFlowCard = createCard(tr("Cash flow · last 6 months"), &cashFlowBody);
     cashFlowTitle = cashFlowCard->findChild<QLabel*>("cardTitle");
     chart = new CashFlowChart(cashFlowCard);
     cashFlowBody->addWidget(chart);
@@ -378,17 +378,17 @@ DashboardPage::DashboardPage(QWidget* parent)
     auto* columns = new QHBoxLayout();
     columns->setSpacing(12);
     QToolButton* budgetLink = nullptr;
-    QFrame* budgetCard = createCard("Budget", &budgetLayout, &budgetLink, "Open budget");
+    QFrame* budgetCard = createCard(tr("Budget"), &budgetLayout, &budgetLink, tr("Open budget"));
     budgetTitle = budgetCard->findChild<QLabel*>("cardTitle");
     columns->addWidget(budgetCard, 1);
     connect(budgetLink, &QToolButton::clicked, this, &DashboardPage::budgetRequested);
-    QFrame* categoryCard = createCard("Spending by category", &categoryLayout);
+    QFrame* categoryCard = createCard(tr("Spending by category"), &categoryLayout);
     categoryTitle = categoryCard->findChild<QLabel*>("cardTitle");
     columns->addWidget(categoryCard, 1);
     root->addLayout(columns);
 
     QToolButton* transactionsLink = nullptr;
-    root->addWidget(createCard("Recent transactions", &recentLayout, &transactionsLink, "All transactions"));
+    root->addWidget(createCard(tr("Recent transactions"), &recentLayout, &transactionsLink, tr("All transactions")));
     connect(transactionsLink, &QToolButton::clicked, this, &DashboardPage::transactionsRequested);
     root->addStretch();
 
@@ -488,16 +488,19 @@ void DashboardPage::reload() {
 
     const QString greeting = Dashboard::greeting(QTime::currentTime());
     greetingLabel->setText(userName.isEmpty() ? greeting : QString("%1, %2").arg(greeting, userName));
-    const int left = data.daysLeftInMonth;
     dateLabel->setText(QString("%1 · %2").arg(AppLocale::date(today, AppLocale::DateFormat::WeekdayDayMonth),
-                                             left == 0 ? QString("Last day of the month")
-                                                       : QString("%1 %2 left this month").arg(left).arg(left == 1 ? "day" : "days")));
+                                             daysLeftText(data.daysLeftInMonth)));
 
     updateTiles();
     chart->setMonths(data.cashFlow);
     updateBudgets();
     updateCategories();
     updateRecent();
+}
+
+QString DashboardPage::daysLeftText(int left) {
+    return left == 0 ? tr("Last day of the month")
+                     : AppLocale::count(left, tr("%1 day left this month"), tr("%1 days left this month"));
 }
 
 void DashboardPage::setDetail(QLabel* label, const QString& text, const QColor& color) {
@@ -514,17 +517,17 @@ void DashboardPage::updateTiles() {
     const MonthFlow& month = data.thisMonth;
     const QString monthName = AppLocale::date(month.month, AppLocale::DateFormat::Month);
     const QString lastMonthName = AppLocale::date(data.lastMonth.month, AppLocale::DateFormat::Month);
-    auto count = [](int n, const char* what) { return QString("%1 %2%3").arg(n).arg(what).arg(n == 1 ? "" : "s"); };
+    auto transactions = [](int n) { return AppLocale::count(n, tr("%1 transaction"), tr("%1 transactions")); };
 
     balanceTile.value->setText(settings.formatCurrency(data.totalBalanceCents));
     const Cents net = month.netCents();
-    setDetail(balanceTile.detail, net == 0 ? QString("No change this month")
-                                           : QString("%1 this month").arg(settings.formatCurrency(net, true)),
+    setDetail(balanceTile.detail, net == 0 ? tr("No change this month")
+                                           : tr("%1 this month").arg(settings.formatCurrency(net, true)),
               net > 0 ? colors.positive : net < 0 ? colors.danger : QColor());
 
     incomeTile.value->setText(settings.formatCurrency(month.incomeCents));
     setTextColor(incomeTile.value, month.incomeCents > 0 ? colors.positive : palette().color(QPalette::WindowText));
-    setDetail(incomeTile.detail, QString("%1 in %2").arg(count(month.incomeCount, "transaction"), monthName));
+    setDetail(incomeTile.detail, tr("%1 in %2").arg(transactions(month.incomeCount), monthName));
 
     expensesTile.value->setText(settings.formatCurrency(month.expenseCents));
     setTextColor(expensesTile.value, month.expenseCents > 0 && settings.isExpensesInRed() ? colors.danger
@@ -532,27 +535,27 @@ void DashboardPage::updateTiles() {
     const Cents before = data.lastMonthToDateExpenseCents;
     if (before > 0) {
         const int change = qRound((double(month.expenseCents) - double(before)) / double(before) * 100.0);
-        setDetail(expensesTile.detail, change == 0 ? QString("Same as %1").arg(lastMonthName)
-                                                   : QString("%1%2% vs. %3").arg(change > 0 ? "+" : "−").arg(qAbs(change)).arg(lastMonthName));
-        expensesTile.detail->setToolTip(QString("Compared with %1 by the same day: %2")
+        setDetail(expensesTile.detail, change == 0 ? tr("Same as %1").arg(lastMonthName)
+                                                   : tr("%1%2% vs. %3").arg(change > 0 ? "+" : "−").arg(qAbs(change)).arg(lastMonthName));
+        expensesTile.detail->setToolTip(tr("Compared with %1 by the same day: %2")
                                             .arg(lastMonthName, settings.formatCurrency(before)));
     } else {
-        setDetail(expensesTile.detail, QString("%1 in %2").arg(count(month.expenseCount, "transaction"), monthName));
+        setDetail(expensesTile.detail, tr("%1 in %2").arg(transactions(month.expenseCount), monthName));
         expensesTile.detail->setToolTip(QString());
     }
 
     savedTile.value->setText(settings.formatCurrency(net));
     setTextColor(savedTile.value, net < 0 ? colors.danger : palette().color(QPalette::WindowText));
     if (net < 0) {
-        setDetail(savedTile.detail, "More spent than earned");
+        setDetail(savedTile.detail, tr("More spent than earned"));
     } else if (month.incomeCents > 0) {
-        setDetail(savedTile.detail, QString("%1% of income").arg(qRound(double(net) / double(month.incomeCents) * 100.0)));
+        setDetail(savedTile.detail, tr("%1% of income").arg(qRound(double(net) / double(month.incomeCents) * 100.0)));
     } else {
-        setDetail(savedTile.detail, "No income this month yet");
+        setDetail(savedTile.detail, tr("No income this month yet"));
     }
 
     averageTile.value->setText(settings.formatCurrency(data.dailyAverageCents));
-    setDetail(averageTile.detail, "Spent per day so far");
+    setDetail(averageTile.detail, tr("Spent per day so far"));
 }
 
 void DashboardPage::updateBudgets() {
@@ -563,10 +566,10 @@ void DashboardPage::updateBudgets() {
     const Settings& settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
     QList<MonthBudget> budgets = BudgetDAO().budgetsForMonth(userId, data.thisMonth.month);
-    budgetTitle->setText(QString("Budget · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
+    budgetTitle->setText(tr("Budget · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
 
     if (budgets.isEmpty()) {
-        auto* empty = new QLabel("No budgets this month. Set limits per category to see how much is left.", this);
+        auto* empty = new QLabel(tr("No budgets this month. Set limits per category to see how much is left."), this);
         empty->setObjectName("budgetEmptyLabel");
         empty->setWordWrap(true);
         empty->setContentsMargins(6, 8, 6, 8);
@@ -589,8 +592,8 @@ void DashboardPage::updateBudgets() {
     for (int i = 0; i < shown; ++i) {
         const MonthBudget& budget = budgets[i];
         const Cents left = budget.leftCents();
-        const QString value = left < 0 ? QString("%1 over").arg(settings.formatCurrency(-left))
-                                       : QString("%1 left").arg(settings.formatCurrency(left));
+        const QString value = left < 0 ? tr("%1 over").arg(settings.formatCurrency(-left))
+                                       : tr("%1 left").arg(settings.formatCurrency(left));
         auto* row = new ProgressRow(budget.categoryName, value, double(budget.spentCents) / double(budget.limitCents), this);
         row->setObjectName("budgetProgressRow");
         if (left < 0) row->valueColor = colors.danger;
@@ -602,8 +605,8 @@ void DashboardPage::updateBudgets() {
         budgetLayout->addWidget(row);
     }
     const int more = int(budgets.size()) - shown;
-    auto* summary = new QLabel(QString("%1 of %2 spent%3").arg(settings.formatCurrency(spent), settings.formatCurrency(limit),
-                                                              more > 0 ? QString(" · %1 more %2").arg(more).arg(more == 1 ? "budget" : "budgets")
+    auto* summary = new QLabel(tr("%1 of %2 spent%3").arg(settings.formatCurrency(spent), settings.formatCurrency(limit),
+                                                              more > 0 ? AppLocale::count(more, tr(" · %1 more budget"), tr(" · %1 more budgets"))
                                                                        : QString()), this);
     summary->setObjectName("budgetSummary");
     summary->setContentsMargins(10, 6, 10, 2);
@@ -616,9 +619,9 @@ void DashboardPage::updateCategories() {
         delete item->widget();
         delete item;
     }
-    categoryTitle->setText(QString("Spending by category · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
+    categoryTitle->setText(tr("Spending by category · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
     if (data.spendingByCategory.isEmpty()) {
-        auto* empty = new QLabel("No expenses this month yet.", this);
+        auto* empty = new QLabel(tr("No expenses this month yet."), this);
         empty->setObjectName("categoryEmptyLabel");
         empty->setContentsMargins(6, 8, 6, 8);
         empty->setForegroundRole(QPalette::PlaceholderText);
@@ -638,7 +641,7 @@ void DashboardPage::updateCategories() {
         } else {
             row->barColor = Theme::colors().textMuted;   // Neutral bars, no dots
         }
-        row->setToolTip(QString("Show %1 transactions this month").arg(spending.categoryName));
+        row->setToolTip(tr("Show %1 transactions this month").arg(spending.categoryName));
         const int categoryId = spending.categoryId;
         connect(row, &QAbstractButton::clicked, this, [this, categoryId]() { emit categoryRequested(categoryId); });
         categoryLayout->addWidget(row);
@@ -651,7 +654,7 @@ void DashboardPage::updateRecent() {
         delete item;
     }
     if (data.recent.isEmpty()) {
-        auto* empty = new QLabel("No transactions yet. Add one or import a bank export to get started.", this);
+        auto* empty = new QLabel(tr("No transactions yet. Add one or import a bank export to get started."), this);
         empty->setObjectName("recentEmptyLabel");
         empty->setContentsMargins(6, 8, 6, 8);
         empty->setForegroundRole(QPalette::PlaceholderText);

@@ -6,6 +6,7 @@
 #include <QToolButton>
 #include <QToolTip>
 
+#include "applocale.h"
 #include "account.h"
 #include "budget.h"
 #include "settings.h"
@@ -74,6 +75,27 @@ private slots:
         QCOMPARE(text(page, "savedValue"), money(150000));
         QCOMPARE(text(page, "savedDetail"), QString("75% of income"));
         QCOMPARE(text(page, "averageValue"), money(50000 / today.day()));
+    }
+
+    void tilesCountTransactionsInTheSingularToo() {
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, giro, "ACME", 200000, today, "", 0, "income")) > 0);
+        spend(500, rent);
+        spend(700, groceries);
+        DashboardPage page;
+        page.setUserId(1);
+        const QString month = AppLocale::date(today, AppLocale::DateFormat::Month);
+        QCOMPARE(text(page, "incomeDetail"), QString("1 transaction in %1").arg(month));
+        // Nothing spent last month to compare with: counted like the income
+        QCOMPARE(text(page, "expensesDetail"), QString("2 transactions in %1").arg(month));
+    }
+
+    void saysHowManyDaysAreLeft() {
+        QCOMPARE(DashboardPage::daysLeftText(0), QString("Last day of the month"));
+        QCOMPARE(DashboardPage::daysLeftText(1), QString("1 day left this month"));
+        QCOMPARE(DashboardPage::daysLeftText(12), QString("12 days left this month"));
+        DashboardPage page;
+        page.setUserId(1);
+        QVERIFY(text(page, "dateLabel").endsWith(DashboardPage::daysLeftText(today.daysInMonth() - today.day())));
     }
 
     static void moveMouse(QWidget* widget, QPoint position) {

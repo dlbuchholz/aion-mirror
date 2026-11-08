@@ -435,9 +435,256 @@ It&apos;s used by %1. Those transactions keep no category, and its budgets are r
     </message>
 </context>
 <context>
+    <name>Dashboard</name>
+    <message>
+        <source>Good morning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Good afternoon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Good evening</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No category</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>DashboardPage</name>
+    <message>
+        <source>Today</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yesterday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No income or expenses in these months yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expenses</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1
+Income %2
+Expenses %3
+Net %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Total balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Daily average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cash flow · last 6 months</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spending by category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recent transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last day of the month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 day left this month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 days left this month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No change this month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 this month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 in %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Same as %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1%2% vs. %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compared with %1 by the same day: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More spent than earned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1% of income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No income this month yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spent per day so far</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No budgets this month. Set limits per category to see how much is left.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 over</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 spent%3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · %1 more budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · %1 more budgets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spending by category · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No expenses this month yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show %1 transactions this month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No transactions yet. Add one or import a bank export to get started.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <source>Aion</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PeriodMenu</name>
+    <message>
+        <source>All time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previous year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next year</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PeriodPicker</name>
+    <message>
+        <source>The period before</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The period after</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All time</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1056,6 +1303,105 @@ Transactions keep their categories.</source>
     </message>
     <message>
         <source>This resets currency, transaction, appearance and import settings to their defaults. Your accounts, transactions, categories and account types are not affected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SidebarWidget</name>
+    <message>
+        <source>Aion logo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reports</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Accounts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expand</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Collapse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown user</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All accounts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Correct balance…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit account…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete account…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No budgets this month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>+ %1 more on the Budget page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch user…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by percentage used</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by amount spent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by budgeted amount</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by name</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

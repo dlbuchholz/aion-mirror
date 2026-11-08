@@ -23,6 +23,9 @@ public:
     void reload();                                   // Re-read everything (also refreshes the greeting)
     void applySettings();                            // Number formats changed
 
+    // After the date at the top: "12 days left this month", or that it's the last day
+    static QString daysLeftText(int left);
+
 signals:
     void addTransactionRequested();
     void importRequested();

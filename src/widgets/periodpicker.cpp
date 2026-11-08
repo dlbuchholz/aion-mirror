@@ -40,7 +40,7 @@ PeriodPicker::PeriodPicker(QWidget* parent) : QFrame(parent) {
     layout->setSpacing(0);
     const int inner = Theme::controlHeight - 2;
 
-    previousButton = arrowButton("previousPeriod", "The period before", this);
+    previousButton = arrowButton("previousPeriod", tr("The period before"), this);
     previousButton->setFixedSize(inner, inner);
     connect(previousButton, &QToolButton::clicked, this, [this]() { choose(stepped(shown, -1)); });
     nameButton = new QToolButton(this);
@@ -48,7 +48,7 @@ PeriodPicker::PeriodPicker(QWidget* parent) : QFrame(parent) {
     nameButton->setProperty("stepperName", true);
     nameButton->setFixedHeight(inner);
     nameButton->setCursor(Qt::PointingHandCursor);
-    nameButton->setToolTip("Choose a period");
+    nameButton->setToolTip(tr("Choose a period"));
     updateNameWidth();
     menu = new PeriodMenu(this);
     connect(nameButton, &QToolButton::clicked, this, [this]() {
@@ -61,7 +61,7 @@ PeriodPicker::PeriodPicker(QWidget* parent) : QFrame(parent) {
         menu->showBelow(nameButton, shown);
     });
     connect(menu, &PeriodMenu::chosen, this, &PeriodPicker::choose);
-    nextButton = arrowButton("nextPeriod", "The period after", this);
+    nextButton = arrowButton("nextPeriod", tr("The period after"), this);
     nextButton->setFixedSize(inner, inner);
     connect(nextButton, &QToolButton::clicked, this, [this]() { choose(stepped(shown, 1)); });
 
@@ -101,7 +101,7 @@ ReportRange PeriodPicker::stepped(const ReportRange& range, int direction) {
 }
 
 QString PeriodPicker::nameOf(const ReportRange& range) {
-    if (!range.isValid()) return "All time";
+    if (!range.isValid()) return tr("All time");
     if (range.first == QDate(range.first.year(), 1, 1) && range.last == QDate(range.first.year(), 12, 31)) {
         return QString::number(range.first.year());
     }
@@ -122,7 +122,7 @@ void PeriodPicker::updateNameWidth() {
         nameButton->setText(name);
         return nameButton->sizeHint().width() + 8;
     };
-    int widest = widthFor("All time");
+    int widest = widthFor(tr("All time"));
     for (int month = 1; month <= 12; ++month) {
         widest = qMax(widest, widthFor(AppLocale::monthName(month) + " 0000"));
     }
@@ -161,19 +161,20 @@ PeriodMenu::PeriodMenu(QWidget* parent) : QFrame(parent, Qt::Popup | Qt::Framele
     root->setSpacing(1);
 
     const QList<QPair<QString, std::function<ReportRange(const QDate&)>>> shortcuts = {
-        {"All time", [](const QDate&) { return ReportRange(); }},
-        {"This month", [](const QDate& day) { return wholeMonth(day); }},
-        {"Last month", [](const QDate& day) { return wholeMonth(day.addMonths(-1)); }},
-        {"This year", [](const QDate& day) { return ReportRange{QDate(day.year(), 1, 1), QDate(day.year(), 12, 31)}; }},
+        {tr("All time"), [](const QDate&) { return ReportRange(); }},
+        {tr("This month"), [](const QDate& day) { return wholeMonth(day); }},
+        {tr("Last month"), [](const QDate& day) { return wholeMonth(day.addMonths(-1)); }},
+        {tr("This year"), [](const QDate& day) { return ReportRange{QDate(day.year(), 1, 1), QDate(day.year(), 12, 31)}; }},
     };
-    for (const auto& shortcut : shortcuts) {
+    for (int i = 0; i < shortcuts.size(); ++i) {
+        const auto& shortcut = shortcuts.at(i);
         auto* button = new QPushButton(shortcut.first, this);   // Left-aligned, which a QToolButton can't be
         button->setFlat(true);
         button->setCursor(Qt::PointingHandCursor);
         const auto range = shortcut.second;
         connect(button, &QPushButton::clicked, this, [this, range]() { choose(range(today())); });
         root->addWidget(button);
-        if (shortcut.first == "All time" || shortcut.first == "This year") longerPeriods.append(button);
+        if (i == 0 || i == 3) longerPeriods.append(button);     // All time and this year
     }
 
     separator = new QFrame(this);
@@ -184,7 +185,7 @@ PeriodMenu::PeriodMenu(QWidget* parent) : QFrame(parent, Qt::Popup | Qt::Framele
     root->addSpacing(5);
 
     auto* header = new QHBoxLayout();
-    previousButton = arrowButton("previousYear", "Previous year", this);
+    previousButton = arrowButton("previousYear", tr("Previous year"), this);
     connect(previousButton, &QToolButton::clicked, this, [this]() { showYear(year - 1); });
     yearLabel = new QLabel(this);
     yearLabel->setObjectName("yearLabel");
@@ -192,7 +193,7 @@ PeriodMenu::PeriodMenu(QWidget* parent) : QFrame(parent, Qt::Popup | Qt::Framele
     QFont bold = yearLabel->font();
     bold.setBold(true);
     yearLabel->setFont(bold);
-    nextButton = arrowButton("nextYear", "Next year", this);
+    nextButton = arrowButton("nextYear", tr("Next year"), this);
     connect(nextButton, &QToolButton::clicked, this, [this]() { showYear(year + 1); });
     header->addWidget(previousButton);
     header->addWidget(yearLabel, 1);
