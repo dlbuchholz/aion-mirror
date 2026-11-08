@@ -136,6 +136,8 @@ private slots:
         s.setTheme("Light");
         s.setDefaultUserId("C:/data/a.db", -1);
         QCOMPARE(s.getTheme(), QString("Light"));
+        s.setLanguage("de");
+        QCOMPARE(s.getLanguage(), QString("de"));
         QCOMPARE(s.getDefaultUserId("C:/data/a.db"), -1);
         s.setDefaultUserId("C:/data/a.db", 42);
         QCOMPARE(s.getDefaultUserId("C:/data/a.db"), 42);
@@ -152,7 +154,7 @@ private slots:
             "currency/symbolPrefix", "import/autoDetectCsvDelimiter",
             "import/autoDetectDecimalSeparator", "import/defaultCsvDelimiter",
             "transactions/fastEntryEnabled", "transactions/selectionCheckboxes",
-            "app/theme", "app/defaultUsers"
+            "app/theme", "app/defaultUsers", "app/language"
         };
         for (const QString& key : keys) raw.remove(key);
         QCOMPARE(s.getCurrencySymbol(), QString("$"));
@@ -166,6 +168,7 @@ private slots:
         QCOMPARE(s.isSelectionCheckboxesEnabled(), false);
         QCOMPARE(s.getTheme(), QString("Dark"));
         QCOMPARE(s.getDefaultUserId("C:/data/a.db"), -1);
+        QCOMPARE(s.getLanguage(), QString("system"));
     }
 
     void restoreDefaultsKeepsWindowState() {
@@ -175,9 +178,11 @@ private slots:
         s.setFastEntryEnabled(true);
         s.setDefaultCsvDelimiter(';');
         s.setTheme("Light");
+        s.setLanguage("de");
         s.setSidebarCollapsed(true);
 
         s.restoreDefaults();
+        QCOMPARE(s.getLanguage(), QString("system"));
 
         QCOMPARE(s.getCurrencySymbolType(), Settings::CurrencySymbol::USD);
         QCOMPARE(s.getDecimalSeparator(), Settings::DecimalSeparator::Point);

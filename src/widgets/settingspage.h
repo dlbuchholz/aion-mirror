@@ -38,6 +38,7 @@ signals:
     void settingsChanged();                          // Emitted after changes were applied
     void dataChanged();                              // Categories or account types were edited (saved right away)
     void databaseRestored();                         // A backup replaced the open database
+    void restartRequested();                         // "Restart now", after the language was changed
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -64,6 +65,7 @@ private:
     void watch(QLineEdit *lineEdit);
     void markFormChanged();
     void updateChangeState();
+    void updateRestartNote();
 
     void loadSettings();
     void saveSettings();
@@ -97,6 +99,8 @@ private:
 
     // Appearance
     QComboBox *themeCombo = nullptr;
+    QComboBox *languageCombo = nullptr;
+    QWidget *restartNote = nullptr;
 
     // Import
     QCheckBox *autoDetectDelimiterCheck = nullptr;

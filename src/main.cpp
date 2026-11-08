@@ -3,6 +3,7 @@
 
 #include "db/databasesession.h"
 #include "icons.h"
+#include "language.h"
 #include "startwindow.h"
 #include "settings.h"
 #include "theme.h"
@@ -56,6 +57,9 @@ int main(int argc, char *argv[])
     if (const int exitCode = CommandLine::handle(QApplication::arguments(), out); exitCode >= 0) {
         return exitCode;
     }
+
+    // The language of the texts, before the first window or message (the command line stays English)
+    Language::install(Language::resolve(Settings::instance().getLanguage()));
 
     QApplication::setWindowIcon(Icons::appIcon());   // Every window and the taskbar
     if (!openStartupDatabase()) {

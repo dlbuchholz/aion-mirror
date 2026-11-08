@@ -13,6 +13,7 @@
 
 #include "category.h"
 #include "dialog/rawsettingsdialog.h"
+#include "language.h"
 #include "rule.h"
 #include "settings.h"
 #include "tests/test_db_fixture.h"
@@ -236,6 +237,44 @@ private slots:
         QVERIFY(!hasUnsavedChanges(again));
         Settings::instance().restoreDefaults();
         QVERIFY(Settings::instance().isReportsCentred());
+    }
+
+    void languageIsChosenHereAndTakesEffectOnRestart() {
+        // Aion runs in English here, whatever the computer's language
+        QCOMPARE(Language::current(), QString("en"));
+        Settings::instance().setLanguage("en");
+        SettingsPage page;
+        page.setUserId(1);
+        auto* language = child<QComboBox>(page, "languageCombo");
+        QCOMPARE(language->currentData().toString(), QString("en"));
+        QVERIFY(child<QWidget>(page, "restartNote")->isHidden());
+        // One entry follows the system, named after the language it comes to; then each language
+        QCOMPARE(language->itemData(0).toString(), Language::System);
+        QVERIFY(language->itemText(0).startsWith("Match system ("));
+        QCOMPARE(language->findText("Deutsch"), language->findData("de"));
+
+        select(language, "de");
+        QVERIFY(hasUnsavedChanges(page));
+        QVERIFY(child<QWidget>(page, "restartNote")->isHidden());            // Not before Apply
+        child<QPushButton>(page, "applyButton")->click();
+        QCOMPARE(Settings::instance().getLanguage(), QString("de"));
+        QVERIFY(!child<QWidget>(page, "restartNote")->isHidden());
+        QCOMPARE(Language::current(), QString("en"));                        // Still English until the restart
+
+        QSignalSpy restart(&page, &SettingsPage::restartRequested);
+        child<QToolButton>(page, "restartButton")->click();
+        QCOMPARE(restart.count(), 1);
+
+        // Back to the language Aion runs in: nothing to restart for
+        select(language, "en");
+        child<QPushButton>(page, "applyButton")->click();
+        QVERIFY(child<QWidget>(page, "restartNote")->isHidden());
+
+        // A stored language Aion doesn't have shows as following the system
+        Settings::instance().setLanguage("xx");
+        SettingsPage unknown;
+        QCOMPARE(child<QComboBox>(unknown, "languageCombo")->currentData().toString(), Language::System);
+        Settings::instance().restoreDefaults();
     }
 
     void categorySuggestionsCanBeTurnedOff() {

@@ -7,6 +7,7 @@
 #include "reportspage.h"
 #include "rulessettings.h"
 #include "icons.h"
+#include "language.h"
 #include "settings.h"
 #include "theme.h"
 
@@ -275,6 +276,38 @@ void SettingsPage::buildAppearanceSection()
     form->addRow("Theme", themeCombo);
     watch(themeCombo);
 
+    // Each language in its own words. "Match system" names the language it comes to.
+    languageCombo = new QComboBox(this);
+    languageCombo->setObjectName("languageCombo");
+    const QString systemCode = Language::resolve(Language::System);
+    for (const Language::Option& option : Language::available()) {
+        if (option.code == systemCode) {
+            languageCombo->addItem(QString("Match system (%1)").arg(option.nativeName), Language::System);
+        }
+    }
+    for (const Language::Option& option : Language::available()) {
+        languageCombo->addItem(option.nativeName, option.code);
+    }
+    form->addRow("Language", languageCombo);
+    watch(languageCombo);
+
+    // Shown while the saved language isn't the one Aion started with
+    restartNote = new QWidget(this);
+    restartNote->setObjectName("restartNote");
+    auto *restartLayout = new QHBoxLayout(restartNote);
+    restartLayout->setContentsMargins(0, 0, 0, 0);
+    auto *restartLabel = new QLabel("Takes effect when Aion restarts.", restartNote);
+    restartLabel->setForegroundRole(QPalette::PlaceholderText);
+    auto *restartButton = new QToolButton(restartNote);
+    restartButton->setObjectName("restartButton");
+    restartButton->setText("Restart now");
+    Theme::makeLink(restartButton);
+    connect(restartButton, &QToolButton::clicked, this, &SettingsPage::restartRequested);
+    restartLayout->addWidget(restartLabel);
+    restartLayout->addWidget(restartButton);
+    restartLayout->addStretch();
+    form->addRow(restartNote);
+
     categoryColorsCheck = new QCheckBox("Use category colours on the Dashboard, the Budget page and in the sidebar", this);
     categoryColorsCheck->setObjectName("categoryColorsCheck");
     categoryColorsCheck->setToolTip("Coloured spending bars and dots before budget names. "
@@ -462,6 +495,11 @@ void SettingsPage::loadSettings()
             themeCombo->setCurrentIndex(i);
         }
     }
+    selectByData(languageCombo, settings.getLanguage());
+    if (languageCombo->currentIndex() < 0) {
+        selectByData(languageCombo, Language::System);
+    }
+    updateRestartNote();
 
     autoDetectDelimiterCheck->setChecked(settings.isAutoDetectCsvDelimiter());
     selectByData(defaultDelimiterCombo, QString(settings.getDefaultCsvDelimiter()));
@@ -492,6 +530,7 @@ void SettingsPage::saveSettings()
     settings.setCategorySuggestionEnabled(suggestCategoriesCheck->isChecked());
 
     settings.setTheme(themeCombo->currentData().toString());
+    settings.setLanguage(languageCombo->currentData().toString());
     settings.setCategoryColorsInOverviewsEnabled(categoryColorsCheck->isChecked());
     settings.setExpensesInRed(expensesRedCheck->isChecked());
     settings.setReportsCentred(reportsCentredCheck->isChecked());
@@ -512,7 +551,13 @@ void SettingsPage::apply()
         formChanged = false;
     }
     updateChangeState();
+    updateRestartNote();
     emit settingsChanged();
+}
+
+void SettingsPage::updateRestartNote()
+{
+    restartNote->setHidden(Language::resolve(Settings::instance().getLanguage()) == Language::current());
 }
 
 void SettingsPage::revert()

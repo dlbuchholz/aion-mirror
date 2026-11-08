@@ -6,6 +6,7 @@
 #include "widgets/reportspage.h"
 #include "widgets/settingspage.h"
 #include "widgets/transactionspage.h"
+#include "language.h"
 #include "mainwindow.h"
 #include "settings.h"
 #include "theme.h"
@@ -48,6 +49,7 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
     // The restored database may have other users, so everything starts over
     connect(ui->settingsPage, &SettingsPage::databaseRestored, this, &MainWindow::switchUserRequested);
+    connect(ui->settingsPage, &SettingsPage::restartRequested, this, &Language::restartApplication);
     connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {
         // Category names, colours and merges show up everywhere
         ui->transactionsPage->reload();
