@@ -129,6 +129,85 @@
         <source>Add account</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>User ID is not set. Cannot create account.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid Input</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Please enter a valid account name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Please select an account type.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to create account. Please try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ApplyRulesDialog</name>
+    <message>
+        <source>none</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply rules to existing transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your rules would change these transactions: their category, their payee&apos;s name, or both. Nothing changes until you confirm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only transactions without a category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Untick to also change the category of transactions that have one. Payees are renamed either way. Starting balances and balance corrections are never changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You have no rules yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your rules wouldn&apos;t change any transaction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Showing %1 of %2 transactions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change %1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change %1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply rules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The transactions couldn&apos;t be changed. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>BackupSettings</name>
@@ -825,6 +904,69 @@ It&apos;s used by %1. Those transactions keep no category, and its budgets are r
     </message>
 </context>
 <context>
+    <name>CsvImport</name>
+    <message>
+        <source>Date column not mapped or out of range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid date &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amount column not mapped or out of range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amount is missing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to parse amount &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amount is zero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row %1: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import aborted: some rows couldn&apos;t be read (partial import is disabled)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to start database transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import aborted: the category &quot;%1&quot; couldn&apos;t be created</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Database error - %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import aborted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All transactions were rolled back (partial import is disabled)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import aborted: the balance correction couldn&apos;t be saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to commit changes to database</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Dashboard</name>
     <message>
         <source>Good morning</source>
@@ -1026,6 +1168,751 @@ Net %4</source>
     </message>
 </context>
 <context>
+    <name>DeleteAccountDialog</name>
+    <message>
+        <source>Delete account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete &quot;%1&quot;?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>used by %1 rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>used by %1 rules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move transactions to another account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete the transactions too</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You have no other account.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1&apos;s balance goes from %2 to %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Rules for this account will apply to %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You have no other account to move them to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This can&apos;t be undone. Reports and budgets lose this spending.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This can&apos;t be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> %1 rule will stop using this account, and is deleted if it needs it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> %1 rules will stop using this account, and any that need it are deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move %1 and delete %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete %2 and %1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete %2 and %1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The account couldn&apos;t be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>EditAccountDialog</name>
+    <message>
+        <source>Edit account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You already have an account with this name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The account couldn&apos;t be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ImportManagerDialog</name>
+    <message>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bank balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>semicolon separated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>tab separated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>pipe separated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>comma separated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Categories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A CSV, Excel or LibreOffice export from your bank. Aion reads it first and shows you everything before anything is saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No file chosen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comma ( , )</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Semicolon ( ; )</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pipe ( | )</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Columns separated by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Point (1234.56)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comma (1234,56)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Decimal separator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sheets to import. The first row of the first ticked sheet names the columns; the other sheets&apos; columns are matched to it by name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import into</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>For example Girokonto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The balance comes from the imported transactions. If your bank shows a different one, the last step can correct it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New account…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a name for the new account.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You already have an account called &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The account couldn&apos;t be created.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a file to import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bank exports (*.csv *.xlsx *.ods);;CSV files (*.csv);;Spreadsheets (*.xlsx *.ods);;All files (*.*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file couldn&apos;t be opened: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, row %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file can&apos;t be read as CSV: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(Not in the file)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>different columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>same columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>same columns, other order</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 more</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>without %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a file to see what Aion finds in it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · %1 of %2 sheets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2 · decimal comma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2 · decimal point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Which column is what?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion field</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column in the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Example</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bank&apos;s balance after each booking. Only used to check the account&apos;s balance, never saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More options</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From the sign (− expense, + income)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From the sign, reversed (− income, + expense)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everything is income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everything is an expense</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From a type column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income or expense</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A column saying whether a row is income or expense, for example &quot;Soll/Haben&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import identical transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normally rows with the same date, amount, payee and description as a transaction in this account are skipped, so importing overlapping exports doesn&apos;t count them twice. Turn this on if you really have identical transactions, like two coffees on one day.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip rows that can&apos;t be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normally one unreadable row, like a broken date, stops the whole import so nothing is half imported. Turn this on to leave such rows out and import the rest. The review lists the rows that would be left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>empty in this file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>can&apos;t read &quot;%1&quot; as a date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>can&apos;t read &quot;%1&quot; as an amount</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · only for checking the balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Categories in this file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All new categories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import without a category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In Aion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>matches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create &quot;%1&quot; (income)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create &quot;%1&quot; (expense)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 already in Aion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 will be created</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 mapped to other categories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 imported without a category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 category in the file: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 categories in the file: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing has been saved yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Already in Aion, skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Can&apos;t be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use my rules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use my rules (you have none yet)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your rules (Settings &gt; Rules) give rows without a category one, and rename payees</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also for rows the file already has a category for</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A matching rule replaces the category from the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Optional</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ready to import into %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>
+… and %1 more</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>
+
+Nothing will be imported like this. Check the columns, or go back and choose &quot;Skip rows that can&apos;t be read&quot; under More options.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everything in this file is already in Aion.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New categories: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>, </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New categories: %1 and %2 more</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 new transaction gets its category from your rules.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 new transactions get their category from your rules.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 payee is renamed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 payees are renamed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance on %1 after the import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Now %1 · from this file %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your bank says</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From the file&apos;s &quot;%1&quot; column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the balance your bank shows for that day to compare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That isn&apos;t an amount Aion can read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches your bank after the import.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion already shows %1 less than your bank on that day. This file adds nothing, so the difference comes from earlier: for example transactions missing in Aion, or a starting balance that doesn&apos;t fit the imported history.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion already shows %1 more than your bank on that day. This file adds nothing, so the difference comes from earlier: for example transactions missing in Aion, or a starting balance that doesn&apos;t fit the imported history.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 less than your bank after the import. Missing or extra bookings, for example from a gap between exports, can cause this.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 more than your bank after the import. Missing or extra bookings, for example from a gap between exports, can cause this.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a balance correction of %1 so they match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import %1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import %1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add balance correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing imported</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There was nothing new to import.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 already in Aion, skipped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 new category.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 new categories.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance correction of %1 on %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 row couldn&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 rows couldn&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import complete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>
+</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a file first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file has no rows to import.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create the new account first, or choose an existing one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the columns for the date and the amount. Everything else is optional.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <source>Aion</source>
@@ -1105,6 +1992,57 @@ Net %4</source>
     </message>
     <message>
         <source>Value</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>RenamedPayeesDialog</name>
+    <message>
+        <source>Restore original names?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename to &quot;%1&quot;?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> to &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This rule renamed %1. Restore their original names, or keep the names they have now?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This rule renamed %1. Give them the new name &quot;%2&quot; too?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The names couldn&apos;t be changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The names couldn&apos;t be changed. Nothing was changed.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

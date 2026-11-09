@@ -90,6 +90,13 @@ private slots:
     }
     void cleanup() { db.close(); }
 
+    void oneRenamedTransactionIsSaidInTheSingular() {
+        const QList<Transaction> one = {Transaction(-1, 1, "Rewe", 100, QDate(2026, 10, 1), "", 0, "expense")};
+        RenamedPayeesDialog dialog(one, "Rewe", "Rewe Markt", 1);
+        QCOMPARE(dialog.findChild<QLabel*>("renamedPayeesIntro")->text(),
+                 QString("This rule renamed 1 transaction to \"Rewe\". Give them the new name \"Rewe Markt\" too?"));
+    }
+
     void openingAndSavingDontCountEveryRuleAgain() {
         // Counting is the slow part with thousands of transactions. Only counted, not timed anymore..
         const int ruleCount = 15;

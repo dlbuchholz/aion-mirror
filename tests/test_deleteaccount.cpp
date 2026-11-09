@@ -125,6 +125,8 @@ private slots:
         QVERIFY(addRule(giro, true, false) > 0);
         DeleteAccountDialog dialog(1, giro);
         dialog.findChild<QRadioButton*>("deleteTransactionsOption")->setChecked(true);
+        const QString summary = dialog.findChild<QLabel*>("deleteSummaryLabel")->text();
+        QVERIFY2(summary.startsWith("1 transaction, ") && summary.endsWith(" balance, used by 1 rule"), qPrintable(summary));
         bool warned = false;
         for (QLabel* label : dialog.findChildren<QLabel*>()) {
             warned = warned || label->text().contains("1 rule will stop using this account");

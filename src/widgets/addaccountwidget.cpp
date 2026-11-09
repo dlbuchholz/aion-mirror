@@ -23,7 +23,7 @@ AddAccountWidget::AddAccountWidget(QWidget* parent)
 void AddAccountWidget::onCreateAccountClicked() {
     // Validate userId
     if (userId == -1) {
-        QMessageBox::warning(this, "Error", "User ID is not set. Cannot create account.");
+        QMessageBox::warning(this, tr("Error"), tr("User ID is not set. Cannot create account."));
         return;
     }
 
@@ -34,11 +34,11 @@ void AddAccountWidget::onCreateAccountClicked() {
 
     // Validate inputs
     if (accountName.isEmpty()) {
-        QMessageBox::warning(this, "Invalid Input", "Please enter a valid account name.");
+        QMessageBox::warning(this, tr("Invalid Input"), tr("Please enter a valid account name."));
         return;
     }
     if (accountType.isEmpty()) {
-        QMessageBox::warning(this, "Invalid Input", "Please select an account type.");
+        QMessageBox::warning(this, tr("Invalid Input"), tr("Please select an account type."));
         return;
     }
 
@@ -46,7 +46,7 @@ void AddAccountWidget::onCreateAccountClicked() {
     int accountId = AccountDAO::createAccount(userId, accountName, accountType, initialBalance);
 
     if (accountId == -1) {
-        QMessageBox::critical(this, "Error", "Failed to create account. Please try again.");
+        QMessageBox::critical(this, tr("Error"), tr("Failed to create account. Please try again."));
         return;
     }
 
