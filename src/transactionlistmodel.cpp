@@ -101,7 +101,7 @@ QVariant TransactionListModel::data(const QModelIndex& index, int role) const {
         case DayCountRole:   return row.dayTransactions.size();
         case DayNetRole:     return row.dayNet;
         case Qt::ToolTipRole:
-            return QString("Click to fold or unfold · Ctrl+click to select this day · Shift+click to select up to this day");
+            return tr("Click to fold or unfold · Ctrl+click to select this day · Shift+click to select up to this day");
         default:             return QVariant();
         }
     }

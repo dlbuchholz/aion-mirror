@@ -268,6 +268,69 @@ Everything in the open database is replaced. Your current data is saved as a bac
     </message>
 </context>
 <context>
+    <name>BalanceCorrectionDialog</name>
+    <message>
+        <source>Correct balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>If Aion shows a different balance than your bank, add a correction for the difference. It counts towards the balance, not towards income or spending.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance in Aion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>As shown by your bank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your bank&apos;s balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add an account first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the balance your bank shows for the end of that day.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That isn&apos;t an amount Aion can read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion already shows this balance. Nothing to correct.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adds a balance correction of %1 on %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corrected by hand</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The correction couldn&apos;t be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CategoriesSettings</name>
     <message>
         <source>%1 transaction</source>
@@ -1402,6 +1465,357 @@ Transactions keep their categories.</source>
     </message>
     <message>
         <source>Sort by name</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TransactionEditor</name>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expense</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Who did you pay or get paid by?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use this name; what you typed is kept as the original payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No category for this transaction, and no more suggestions for it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Notes (optional)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Originally: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · renamed by a rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · &lt;a href=&quot;restore&quot;&gt;Restore&lt;/a&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your rule suggests the name &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From your rule: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(No category)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose an account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose an account for this transaction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter an amount greater than zero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TransactionListModel</name>
+    <message>
+        <source>Click to fold or unfold · Ctrl+click to select this day · Shift+click to select up to this day</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TransactionsPage</name>
+    <message>
+        <source>No payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Today</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yesterday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More actions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Correct balance…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match the balance your bank shows by adding a balance correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add transaction (Ctrl+N)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search payee, description, category or account  (Ctrl+F)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income and expenses</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expenses only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transactions that don&apos;t belong to an account yet, for example from an import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear selection (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 unassigned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All categories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No transactions match these filters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No transactions yet.
+Add one with &quot;Add transaction&quot; or import a file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <comment>transaction count, net amount</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unassigned transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction without an account. Open it to assign it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions without an account. Open one to assign it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All accounts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance %1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income &lt;span style=&apos;color:%1&apos;&gt;%2&lt;/span&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expenses &lt;b style=&apos;color:%1&apos;&gt;%2&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expenses &lt;b&gt;%1&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Net &lt;b&gt;%1&lt;/b&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>  ·  Ctrl+click or Shift+click to select more</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create rule from this…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create rule from these %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> (all must match)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t save the transaction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t save the changes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete this transaction? This can&apos;t be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete %1 transactions? This can&apos;t be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The transactions couldn&apos;t be deleted. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The category couldn&apos;t be changed. Nothing was changed.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

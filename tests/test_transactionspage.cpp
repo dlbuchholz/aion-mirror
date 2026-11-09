@@ -922,6 +922,45 @@ private slots:
         QCOMPARE(chip->icon().pixmap(16, 16).toImage(), inbox);
     }
 
+    void unassignedTransactionsAreCountedInTheSubtitle() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("PRAGMA foreign_keys = OFF"));
+        const auto addLost = [&query]() {
+            return query.exec("INSERT INTO transactions (account_id, payee, amount, date, type) "
+                              "VALUES (0, 'Lost', 100, '2026-01-01', 'expense')");
+        };
+        QVERIFY(addLost());
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* chip = page.findChild<QToolButton*>("unassignedChip");
+        auto* subtitle = page.findChild<QLabel*>("pageSubtitle");
+        chip->click();
+        QCOMPARE(subtitle->text(), QString("1 transaction without an account. Open it to assign it."));
+
+        QVERIFY(addLost());
+        QVERIFY(query.exec("PRAGMA foreign_keys = ON"));
+        page.reload();
+        QCOMPARE(chip->text(), QString("2 unassigned"));
+        QCOMPARE(subtitle->text(), QString("2 transactions without an account. Open one to assign it."));
+    }
+
+    void theSubtitleCountsTransactionsInTheSingularToo() {
+        addExpense("A", 100);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* subtitle = page.findChild<QLabel*>("pageSubtitle");
+        QVERIFY2(subtitle->text().endsWith(" · 1 transaction"), qPrintable(subtitle->text()));
+        addExpense("B", 100);
+        page.reload();
+        QVERIFY2(subtitle->text().endsWith(" · 2 transactions"), qPrintable(subtitle->text()));
+    }
+
+    void aFoldedDayShowsItsCountAndSum() {
+        const Settings& settings = Settings::instance();
+        QCOMPARE(TransactionsPage::foldedDayText(1, -4200), "1 transaction · " + settings.formatCurrency(-4200));
+        QCOMPARE(TransactionsPage::foldedDayText(3, 500), "3 transactions · " + settings.formatCurrency(500, true));
+    }
+
     void askingForSomethingThatIsntThere() {
         QCOMPARE(TransactionDAO().getTransactionById(9999).getTransactionId(), Transaction().getTransactionId());
         QVERIFY(TransactionDAO().getExistingHashes({}).isEmpty());
