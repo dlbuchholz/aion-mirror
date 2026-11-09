@@ -1,6 +1,8 @@
 #include "db/databasemanager.h"
 #include "category.h"
 
+#include <QCoreApplication>
+
 // Category Implementation
 Category::Category(int id, const QString& name, const QString& type, const QString& color)
     : categoryId(id), name(name), type(type), color(color) {}
@@ -33,17 +35,30 @@ bool Category::isBalanceAdjustment() const {
 CategoryDAO::CategoryDAO(int userId)
     : userId(userId) {}
 
+QString displayCategoryName(const QString& name) {
+    if (name == InitialBalanceCategory) return QCoreApplication::translate("Category", "Initial balance");
+    if (name == BalanceCorrectionCategory) return QCoreApplication::translate("Category", "Balance correction");
+    if (name == TransferCategory) return QCoreApplication::translate("Category", "Transfer");
+    return name;
+}
+
+QString Category::getDisplayName() const {
+    return displayCategoryName(name);
+}
+
 bool CategoryDAO::addDefaultCategories(int userId) {
     // Each with its own colour; the balance adjustments grey, Transfer slate. Red and pink are
-    // left for the user's own.
+    // left for the user's own. The user's own are named in the language of the texts; the
+    // built-in ones stay English in the data (displayCategoryName).
+    const auto named = [](const char* name) { return QCoreApplication::translate("Category", name); };
     const QList<Category> defaults = {
         Category(-1, InitialBalanceCategory, "income", "gray"),
-        Category(-1, "Salary", "income", "teal"),
-        Category(-1, "Bonus", "income", "green"),
-        Category(-1, "Groceries", "expense", "amber"),
-        Category(-1, "Rent", "expense", "blue"),
-        Category(-1, "Utilities", "expense", "coral"),
-        Category(-1, "Entertainment", "expense", "purple"),
+        Category(-1, named(QT_TRANSLATE_NOOP("Category", "Salary")), "income", "teal"),
+        Category(-1, named(QT_TRANSLATE_NOOP("Category", "Bonus")), "income", "green"),
+        Category(-1, named(QT_TRANSLATE_NOOP("Category", "Groceries")), "expense", "amber"),
+        Category(-1, named(QT_TRANSLATE_NOOP("Category", "Rent")), "expense", "blue"),
+        Category(-1, named(QT_TRANSLATE_NOOP("Category", "Utilities")), "expense", "coral"),
+        Category(-1, named(QT_TRANSLATE_NOOP("Category", "Entertainment")), "expense", "purple"),
         Category(-1, BalanceCorrectionCategory, "income", "gray"),
         Category(-1, TransferCategory, "income", "slate"),
     };

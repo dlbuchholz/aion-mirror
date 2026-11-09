@@ -155,7 +155,7 @@ public:
         }
         if (category) {
             auto* tag = new CategoryTag(this);
-            tag->setCategory(category->getName(), category->getColor());
+            tag->setCategory(category->getDisplayName(), category->getColor());
             tag->setAttribute(Qt::WA_TransparentForMouseEvents);
             layout->addWidget(tag);
         }
@@ -593,7 +593,7 @@ void RulesSettings::openEditor(int ruleId, const Rule* draft, const QList<Transa
 
     categoryCombo->clear();
     for (const Category& category : std::as_const(categories)) {
-        categoryCombo->addItem(category.getName(), category.getCategoryId());
+        categoryCombo->addItem(category.getDisplayName(), category.getCategoryId());
     }
 
     Rule rule = draft ? *draft : Rule();

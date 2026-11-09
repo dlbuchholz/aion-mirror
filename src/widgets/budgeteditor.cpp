@@ -172,7 +172,7 @@ void BudgetEditor::newBudget(const QDate& newMonth, const QList<Category>& categ
     titleLabel->setText(tr("New budget"));
     categoryCombo->clear();
     for (const Category& category : categories) {
-        categoryCombo->addItem(category.getName(), category.getCategoryId());
+        categoryCombo->addItem(category.getDisplayName(), category.getCategoryId());
     }
     categoryCombo->setCurrentIndex(qMax(0, categoryCombo->findData(selectedCategoryId)));
     categoryCombo->show();

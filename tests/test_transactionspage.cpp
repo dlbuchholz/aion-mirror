@@ -24,6 +24,7 @@
 #include "rule.h"
 #include "settings.h"
 #include "theme.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "transactionlistmodel.h"
 #include "widgets/periodpicker.h"
@@ -71,6 +72,32 @@ private slots:
         QVERIFY(secondId > 0);
     }
     void cleanup() { db.close(); }
+
+    void builtInCategoriesAreShownAndFoundInTheLanguage() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        int transfer = 0;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == TransferCategory) transfer = category.getCategoryId();
+        }
+        TransactionDAO().addTransaction(Transaction(-1, firstId, "To savings", 50000, QDate::currentDate(), "", transfer, "expense"));
+        addExpense("Kiosk", 100);
+        TransactionsPage page;
+        page.setUserId(1);
+
+        auto* filter = page.findChild<QComboBox*>("categoryFilter");
+        QCOMPARE(filter->itemText(filter->findData(transfer)), QString("Umbuchung"));
+        auto* editorCategory = page.findChild<QComboBox*>("categoryCombo");
+        page.addTransaction();
+        QVERIFY(editorCategory->findText("Umbuchung") >= 0);
+        QVERIFY(editorCategory->findText(TransferCategory) < 0);
+
+        auto* list = page.findChild<QListView*>("transactionList");
+        page.findChild<QLineEdit*>("searchEdit")->setText("Umbuchung");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        QCOMPARE(model->totals().count, 1);                  // The transfer, by the name it's shown with
+        page.findChild<QLineEdit*>("searchEdit")->setText(TransferCategory);
+        QCOMPARE(model->totals().count, 1);                  // and by its own
+    }
 
     void expensesCanBeShownInRed() {
         QHash<QString, int> categories;

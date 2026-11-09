@@ -221,7 +221,7 @@ MoneyFlow moneyFlow(int userId, int accountId, const ReportRange& range) {
     while (query.next()) {
         FlowPart part;
         part.categoryId = query.value(0).toInt();
-        part.name = part.categoryId == 0 ? QString("No category") : query.value(1).toString();
+        part.name = part.categoryId == 0 ? QCoreApplication::translate("Reports", "No category") : query.value(1).toString();
         part.color = query.value(2).toString();
         part.cents = query.value(4).toLongLong();
         if (!query.value(3).toBool()) {
@@ -492,7 +492,7 @@ SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& 
     while (query.next()) {
         CategorySpent spent;
         spent.categoryId = query.value(0).toInt();
-        spent.categoryName = spent.categoryId == 0 ? QString("No category") : query.value(1).toString();
+        spent.categoryName = spent.categoryId == 0 ? QCoreApplication::translate("Reports", "No category") : query.value(1).toString();
         spent.categoryColor = query.value(2).toString();
         spent.spentCents = query.value(3).toLongLong();
         spent.beforeCents = query.value(4).toLongLong();

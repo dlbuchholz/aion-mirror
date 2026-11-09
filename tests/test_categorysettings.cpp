@@ -15,6 +15,7 @@
 #include "budget.h"
 #include "category.h"
 #include "categorycolors.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/accounttypessettings.h"
 #include "widgets/categoriessettings.h"
@@ -52,6 +53,17 @@ private slots:
         for (const QString& name : CategoryColors::names()) {
             QVERIFY2(CategoryColors::label(name).compare(name, Qt::CaseInsensitive) == 0 || name == "gray", qPrintable(name));
         }
+    }
+
+    void builtInCategoriesAreListedAndFoundInTheLanguage() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        QVERIFY(row(settings, "Umbuchung"));
+        QVERIFY(!row(settings, TransferCategory));
+        settings.findChild<QLineEdit*>("categorySearch")->setText("umbu");
+        QVERIFY(row(settings, "Umbuchung"));
+        QVERIFY(!row(settings, "Groceries"));
     }
 
     void listsCategoriesInGroupsWithBuiltInOnesLocked() {

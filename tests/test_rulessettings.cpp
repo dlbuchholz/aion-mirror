@@ -21,6 +21,7 @@
 #include "dialog/renamedpayeesdialog.h"
 #include "rule.h"
 #include "settings.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/rulessettings.h"
 
@@ -89,6 +90,16 @@ private slots:
         transactions.addTransaction(Transaction(-1, giroId, "Stadtwerke", 8000, QDate(2026, 10, 3), "", 0, "expense"));
     }
     void cleanup() { db.close(); }
+
+    void transferIsOfferedInTheLanguage() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        auto* combo = settings.findChild<QComboBox*>("ruleCategoryCombo");
+        QVERIFY(combo->findText("Umbuchung") >= 0);
+        QVERIFY(combo->findText(TransferCategory) < 0);
+    }
 
     void oneRenamedTransactionIsSaidInTheSingular() {
         const QList<Transaction> one = {Transaction(-1, 1, "Rewe", 100, QDate(2026, 10, 1), "", 0, "expense")};

@@ -120,7 +120,7 @@ public:
     CategoryRow(const Category& category, const CategoryUsage& usage, QWidget* parent)
         : QAbstractButton(parent), categoryId(category.getCategoryId()) {
         setObjectName("categoryRow");
-        setAccessibleName(category.getName());
+        setAccessibleName(category.getDisplayName());
         setCursor(category.isBuiltIn() ? Qt::ArrowCursor : Qt::PointingHandCursor);
         setEnabled(true);
         setAttribute(Qt::WA_Hover);
@@ -129,7 +129,7 @@ public:
         layout->setContentsMargins(10, 0, 10, 0);
         layout->setSpacing(12);
         auto* tag = new CategoryTag(this);
-        tag->setCategory(category.getName(), category.getColor());
+        tag->setCategory(category.getDisplayName(), category.getColor());
         tag->setAttribute(Qt::WA_TransparentForMouseEvents);
         layout->addWidget(tag);
         auto* detail = new QLabel(category.isBuiltIn() ? CategoriesSettings::tr("Built in · not counted as income or spending")
@@ -385,7 +385,7 @@ void CategoriesSettings::rebuildList() {
     for (const auto& group : groups) {
         bool labelAdded = false;
         for (const Category& entry : categories) {
-            if (!group.second(entry) || (!search.isEmpty() && !entry.getName().contains(search, Qt::CaseInsensitive))) {
+            if (!group.second(entry) || (!search.isEmpty() && !entry.getDisplayName().contains(search, Qt::CaseInsensitive))) {
                 continue;
             }
             if (!labelAdded) {
@@ -428,7 +428,7 @@ void CategoriesSettings::openEditor(int categoryId) {
             for (const Category& target : categories) {
                 if (target.getCategoryId() == categoryId || target.isBuiltIn() || target.getType() != type) continue;
                 const int targetId = target.getCategoryId();
-                menu->addAction(target.getName(), this, [this, targetId]() { mergeInto(targetId); });
+                menu->addAction(target.getDisplayName(), this, [this, targetId]() { mergeInto(targetId); });
             }
             menu->addSeparator();
         }

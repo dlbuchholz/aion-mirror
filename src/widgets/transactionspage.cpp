@@ -105,7 +105,7 @@ public:
         const QString category = index.data(TransactionListModel::CategoryRole).toString();
         if (!category.isEmpty()) {
             painter->setFont(smallFont);
-            const QString text = smallMetrics.elidedText(category, Qt::ElideRight, categoryWidth - 16);
+            const QString text = smallMetrics.elidedText(displayCategoryName(category), Qt::ElideRight, categoryWidth - 16);
             const int pillWidth = smallMetrics.horizontalAdvance(text) + 16;
             const QRectF pill(right - categoryWidth, row.center().y() - 10, pillWidth, 20);
             QPainterPath pillPath;
@@ -693,7 +693,7 @@ void TransactionsPage::populateCategoryFilter() {
     categoryFilter->clear();
     categoryFilter->addItem(tr("All categories"), TransactionFilter::ANY_CATEGORY);
     for (const Category& category : categories) {
-        categoryFilter->addItem(category.getName(), category.getCategoryId());
+        categoryFilter->addItem(category.getDisplayName(), category.getCategoryId());
     }
     categoryFilter->addItem(tr("No category"), TransactionFilter::NO_CATEGORY);
     const int index = categoryFilter->findData(selected);
@@ -704,7 +704,7 @@ void TransactionsPage::populateCategoryFilter() {
     menu->clear();
     for (const Category& category : categories) {
         const int categoryId = category.getCategoryId();
-        menu->addAction(category.getName(), this, [this, categoryId]() { setCategoryForSelection(categoryId); });
+        menu->addAction(category.getDisplayName(), this, [this, categoryId]() { setCategoryForSelection(categoryId); });
     }
     menu->addSeparator();
     menu->addAction(tr("No category"), this, [this]() { setCategoryForSelection(TransactionFilter::NO_CATEGORY); });

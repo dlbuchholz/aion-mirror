@@ -2,6 +2,7 @@
 #include "applocale.h"
 #include "amountcolor.h"
 #include "budget.h"
+#include "category.h"
 #include "categorycolors.h"
 #include "icons.h"
 #include "settings.h"
@@ -157,7 +158,7 @@ protected:
         const int pillArea = 150;
         if (!transaction.categoryName.isEmpty()) {
             painter.setFont(smallFont);
-            const QString text = smallMetrics.elidedText(transaction.categoryName, Qt::ElideRight, pillArea - 16);
+            const QString text = smallMetrics.elidedText(displayCategoryName(transaction.categoryName), Qt::ElideRight, pillArea - 16);
             const int pillWidth = smallMetrics.horizontalAdvance(text) + 16;
             const QRectF pill(right - pillWidth, content.center().y() - 10, pillWidth, 20);
             QPainterPath pillPath;

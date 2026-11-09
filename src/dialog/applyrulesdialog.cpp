@@ -25,7 +25,7 @@ QWidget* categoryCell(const Category* category, QWidget* parent) {
         return none;
     }
     auto* tag = new CategoryTag(parent);
-    tag->setCategory(category->getName(), category->getColor());
+    tag->setCategory(category->getDisplayName(), category->getColor());
     return tag;
 }
 

@@ -43,6 +43,26 @@
 <context>
     <name>Account</name>
     <message>
+        <source>Checking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Savings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Investment</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Retirement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Virtual</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Initial deposit</source>
         <translation type="unfinished"></translation>
     </message>
@@ -950,6 +970,45 @@ It&apos;s used by %1. Those transactions keep no category, and its budgets are r
     </message>
     <message>
         <source>The category couldn&apos;t be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Category</name>
+    <message>
+        <source>Initial balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transfer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Salary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bonus</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Groceries</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Utilities</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Entertainment</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

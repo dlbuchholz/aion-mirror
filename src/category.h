@@ -23,6 +23,9 @@ inline const QString TransferCategory = "Transfer";
 inline bool isUncountedCategory(const QString& name) {
     return isBalanceAdjustmentCategory(name) || name == TransferCategory;
 }
+// A category's name as shown: the built-in ones keep their English name in the data, where
+// queries and checks find them, and are shown in the language of the texts; the user's own as named
+QString displayCategoryName(const QString& name);
 // SQL condition on transactions "t" that leaves out balance adjustments (transfers stay: they're real payments)
 inline const QString NotBalanceAdjustmentSql =
     "COALESCE(t.category_id, 0) NOT IN (SELECT id FROM categories WHERE name IN ('" + InitialBalanceCategory + "', '"
@@ -49,6 +52,7 @@ public:
 
     int getCategoryId() const;
     QString getName() const;
+    QString getDisplayName() const;  // displayCategoryName(getName())
     QString getType() const; // "income" or "expense"
     QString getColor() const; // Palette name (see CategoryColors), empty = neutral
     bool isBuiltIn() const;  // Balance adjustments and Transfer, which other features rely on: can't be renamed or deleted

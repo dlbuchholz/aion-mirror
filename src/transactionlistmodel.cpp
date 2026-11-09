@@ -163,6 +163,7 @@ bool TransactionListModel::matches(const Transaction& transaction) const {
         transaction.getPayee(),
         transaction.getDescription(),
         categoryNames.value(transaction.getCategoryId()),
+        displayCategoryName(categoryNames.value(transaction.getCategoryId())),   // "Umbuchung" finds transfers
         accountNames.value(transaction.getAccountId())
     };
     for (const QString& text : haystack) {

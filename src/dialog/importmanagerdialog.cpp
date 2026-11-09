@@ -886,7 +886,7 @@ void ImportManagerDialog::refreshFileCategories()
             auto *matchLayout = new QHBoxLayout(match);
             matchLayout->setContentsMargins(0, 0, 0, 0);
             auto *tag = new CategoryTag(match);
-            tag->setCategory(known.getName(), known.getColor());
+            tag->setCategory(known.getDisplayName(), known.getColor());
             matchLayout->addWidget(tag);
             auto *note = new QLabel(tr("matches"), match);
             note->setForegroundRole(QPalette::PlaceholderText);
@@ -908,7 +908,7 @@ void ImportManagerDialog::refreshFileCategories()
             choice->addItem(tr("No category"), "none");
             choice->insertSeparator(choice->count());
             for (const Category &target : choosable) {
-                choice->addItem(target.getName(), QString("id:%1").arg(target.getCategoryId()));
+                choice->addItem(target.getDisplayName(), QString("id:%1").arg(target.getCategoryId()));
             }
             const int remembered = choice->findData(chosenCategories.value(key));
             choice->setCurrentIndex(remembered >= 0 ? remembered : 0);

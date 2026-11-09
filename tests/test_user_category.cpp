@@ -3,6 +3,7 @@
 #include "category.h"
 #include "account.h"
 #include "balance.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 
 class TestUserCategoryDAO : public QObject {
@@ -194,6 +195,31 @@ private slots:
         }
         QCOMPARE(AccountDAO().getAccountTypes(2), AccountDAO().getAccountTypes(1));
         QVERIFY(AccountDAO().getAllAccountTypes(2).first().first != AccountDAO().getAllAccountTypes(1).first().first);
+    }
+
+    void builtInCategoriesAreShownInTheLanguageButStayEnglish() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}, {"Category/Initial balance", "Anfangssaldo"},
+                                     {"Category/Balance correction", "Saldokorrektur"}, {"Category/Groceries", "Lebensmittel"}});
+        QCOMPARE(displayCategoryName(TransferCategory), QString("Umbuchung"));
+        QCOMPARE(displayCategoryName(InitialBalanceCategory), QString("Anfangssaldo"));
+        QCOMPARE(displayCategoryName(BalanceCorrectionCategory), QString("Saldokorrektur"));
+        QCOMPARE(displayCategoryName("Groceries"), QString("Groceries"));      // The user's own, as named
+        QCOMPARE(Category(1, TransferCategory, "income").getDisplayName(), QString("Umbuchung"));
+        QVERIFY(Category(1, TransferCategory, "income").isBuiltIn());            // Still found by its name
+    }
+
+    void newUsersGetTheirDefaultsInTheLanguage() {
+        const FakeTranslator german({{"Category/Salary", "Gehalt"}, {"Category/Groceries", "Lebensmittel"},
+                                     {"Category/Transfer", "Umbuchung"}, {"Account/Checking", "Girokonto"},
+                                     {"Account/Virtual", "Virtuell"}});
+        QVERIFY(UserDAO().createUser(User(2, "sam", "Sam")));
+        QStringList names;
+        for (const Category& category : CategoryDAO(2).getAllCategories()) names << category.getName();
+        QVERIFY2(names.contains("Gehalt") && names.contains("Lebensmittel") && names.contains("Bonus"), qPrintable(names.join(", ")));
+        QVERIFY2(names.contains(TransferCategory) && names.contains(InitialBalanceCategory)
+                     && names.contains(BalanceCorrectionCategory), qPrintable(names.join(", ")));   // Built in: English in the data
+        const QList<QString> types = AccountDAO().getAccountTypes(2);
+        QVERIFY(types.contains("Girokonto") && types.contains("Virtuell") && types.contains("Savings"));
     }
 
     void defaultCategoriesHaveTheirOwnColours() {

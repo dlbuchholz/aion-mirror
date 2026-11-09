@@ -29,7 +29,12 @@ AccountDAO::AccountDAO() {}
 
 bool AccountDAO::addDefaultAccountTypes(int userId) {
     AccountDAO dao;
-    const QStringList defaults = {"Checking", "Savings", "Investment", "Retirement", "Virtual"};
+    // In the language of the texts; they're the user's to rename
+    const QStringList defaults = {
+        QCoreApplication::translate("Account", "Checking"), QCoreApplication::translate("Account", "Savings"),
+        QCoreApplication::translate("Account", "Investment"), QCoreApplication::translate("Account", "Retirement"),
+        QCoreApplication::translate("Account", "Virtual"),
+    };
     for (const QString& name : defaults) {
         if (dao.addAccountType(userId, name) <= 0) {
             return false;

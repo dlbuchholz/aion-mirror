@@ -426,7 +426,7 @@ void TransactionEditor::populateCategories(int selectedCategoryId) {
         // Balance adjustments and transfers go either way, so they're offered for both types
         if (category.getType() == currentType() || category.getCategoryId() == selectedCategoryId
             || isUncountedCategory(category.getName())) {
-            categoryCombo->addItem(category.getName(), category.getCategoryId());
+            categoryCombo->addItem(category.getDisplayName(), category.getCategoryId());
         }
     }
     const int index = categoryCombo->findData(selectedCategoryId);
