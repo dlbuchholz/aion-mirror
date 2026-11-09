@@ -37,6 +37,10 @@ public:
         MoneyFlow
     };
     static constexpr int ALL_ACCOUNTS = -1;
+
+    // Above the budget chart: how the month is going against an even pace, or how many months were over
+    static QString budgetSummary(const BudgetReport& report, const QDate& today);
+
     static constexpr int CentredWidth = 1280;       // The reports' column when centred (Settings, Appearance)
 
     explicit ReportsPage(QWidget* parent = nullptr);

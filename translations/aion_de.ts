@@ -1109,6 +1109,562 @@ Net %4</source>
     </message>
 </context>
 <context>
+    <name>ReportRange</name>
+    <message>
+        <source>Week %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the month before</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the %1 months before</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the day before</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the %1 days before</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, up to %2</source>
+        <comment>the month before, up to 7 October</comment>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Reports</name>
+    <message>
+        <source>%1 other categories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No category</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ReportsPage</name>
+    <message>
+        <source>new</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1th</source>
+        <comment>ordinal day of the month</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1st</source>
+        <comment>ordinal day of the month</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1nd</source>
+        <comment>ordinal day of the month</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1rd</source>
+        <comment>ordinal day of the month</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Within the budgets every month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Over the budgets in %1 of %2 month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Over the budgets in %1 of %2 months</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 spent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 spent by the %2, right on an even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 spent by the %2, %3 over an even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 spent by the %2, %3 under an even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No income or spending in this range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1
+Income %2
+Spending %3
+Net %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>W%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing spent on %1 in this range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Average %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1
+%2 · %3%4</source>
+        <comment>period, amount, transaction count, click hint</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>
+Click to show them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Total %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>, %1 of the income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>
+Click to show its transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back from %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From savings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kept</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not built yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reports</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1M</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>3M</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The last 3 months</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>6M</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The last 6 months</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1Y</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The last 12 months</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the first and last day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spending by category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income vs. spending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance over time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category trend</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Top payees</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget vs. actual</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Money flow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All accounts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No spending in this range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 vs. %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In %1 category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In %1 categories</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No income or spending in this range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spent more</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 more than came in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kept %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 since %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 a week on average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 a month on average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 in %2</source>
+        <comment>amount, transaction count</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No budgets in this range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 kept</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 budgeted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All of the income kept</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, %2 of the income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No spending in this range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Share</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, %2 of all spending, %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1
+Click for its trend</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 in %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Week</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Net</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Income %1, spending %2, net %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Balance at the end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whole range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 at the start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the transactions with %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 other payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 other payees</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budgets are per month, so this covers %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budgets are for all accounts together, so the chosen account doesn&apos;t apply here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No budgets in this range. Set limits per category on the Budget page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All together</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Each budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Limit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Used</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Limit %1, spent %2, left %3, %4 used</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 month with a budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 months with a budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>, over in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1%2
+Click for its trend</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Where it went</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Of the income</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the transactions in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From savings, more than came in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show these %1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · vs. </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 months</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 days</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>, to today</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use the full width</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back to a centred column</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>RuleCondition</name>
     <message>
         <source>Payee</source>

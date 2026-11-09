@@ -4,6 +4,7 @@
 #include "category.h"
 #include "db/databasemanager.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QLocale>
 #include <QSet>
@@ -136,19 +137,24 @@ QString ReportRange::label() const {
 }
 
 QString ReportRange::weekName() const {
-    return first.isValid() ? QString("Week %1").arg(first.weekNumber()) : QString();
+    return first.isValid() ? QCoreApplication::translate("ReportRange", "Week %1").arg(first.weekNumber()) : QString();
 }
 
 QString ReportRange::comparisonText(const QDate& today) const {
     if (!isValid()) return QString();
     QString text;
     if (isWholeMonths()) {
-        text = months() == 1 ? QString("the month before") : QString("the %1 months before").arg(months());
+        text = months() == 1 ? QCoreApplication::translate("ReportRange", "the month before")
+                              : QCoreApplication::translate("ReportRange", "the %1 months before").arg(months());
     } else {
-        text = days() == 1 ? QString("the day before") : QString("the %1 days before").arg(days());
+        text = days() == 1 ? QCoreApplication::translate("ReportRange", "the day before")
+                            : QCoreApplication::translate("ReportRange", "the %1 days before").arg(days());
     }
     const bool ongoing = first <= today && today < last;
-    if (ongoing) text += ", up to " + AppLocale::date(comparison(today).last, AppLocale::DateFormat::DayMonth);
+    if (ongoing) {
+        text = QCoreApplication::translate("ReportRange", "%1, up to %2", "the month before, up to 7 October")
+                   .arg(text, AppLocale::date(comparison(today).last, AppLocale::DateFormat::DayMonth));
+    }
     return text;
 }
 
@@ -247,7 +253,7 @@ MoneyFlow moneyFlow(int userId, int accountId, const ReportRange& range) {
         FlowPart rest;
         rest.isRest = true;
         const int others = int(spent.size()) - MoneyFlow::ShownSpending;
-        rest.name = QString("%1 other categories").arg(others);
+        rest.name = QCoreApplication::translate("Reports", "%1 other categories").arg(others);
         for (const FlowPart& part : spent.mid(MoneyFlow::ShownSpending)) rest.cents += part.cents;
         flow.spending.append(rest);
     }
@@ -359,7 +365,7 @@ CategoryTrend categoryTrend(int userId, int accountId, int categoryId, const Rep
     CategoryTrend trend;
     trend.range = range;
     trend.categoryId = categoryId;
-    trend.categoryName = "No category";
+    trend.categoryName = QCoreApplication::translate("Reports", "No category");
     if (!range.isValid()) return trend;
     if (categoryId != 0) {
         QSqlQuery categoryQuery(DatabaseManager::instance().database());
