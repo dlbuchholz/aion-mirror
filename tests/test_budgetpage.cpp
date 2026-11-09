@@ -10,8 +10,10 @@
 #include <QToolButton>
 
 #include "account.h"
+#include "applocale.h"
 #include "budget.h"
 #include "categorycolors.h"
+#include "language.h"
 #include "settings.h"
 #include "theme.h"
 #include "tests/test_db_fixture.h"
@@ -90,7 +92,10 @@ private slots:
         const QDate today = QDate::currentDate();
         thisMonth = QDate(today.year(), today.month(), 1);
     }
-    void cleanup() { db.close(); }
+    void cleanup() {
+        Language::install("en");
+        db.close();
+    }
 
     void showsBudgetsWithTotals() {
         QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
@@ -378,6 +383,22 @@ private slots:
         row(page, "Groceries")->click();
         page.findChild<QToolButton*>("nextPeriod")->click();
         QVERIFY(detailFollows("Groceries"));
+    }
+
+    void theDatesLeaveRoomForAnyMonth() {
+        // German short months differ in length, "28. Jan." to "28. Sept."
+        QVERIFY(Language::install("de"));
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
+        spend(2500, groceries);
+        BudgetPage page;
+        page.setUserId(1);
+        row(page, "Groceries")->click();
+        const QList<HoverRow*> listed = page.findChild<BudgetDetail*>()->findChildren<HoverRow*>("budgetDetailTransaction");
+        QCOMPARE(listed.size(), 1);
+        const QLabel* date = listed.first()->findChild<QLabel*>();
+        const QString widest = AppLocale::date(QDate(2026, 9, 28), AppLocale::DateFormat::ShortDayMonth);
+        QCOMPARE(widest, QString("28. Sept."));
+        QCOMPARE(date->width(), date->fontMetrics().horizontalAdvance(widest) + 12);
     }
 
     void anUnfoldedBudgetLeadsOn() {

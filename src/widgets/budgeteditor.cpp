@@ -41,10 +41,10 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     titleLabel->setFont(titleFont);
     header->addWidget(titleLabel, 1);
     auto* closeButton = new QToolButton(this);
-    closeButton->setText("Close");                   // For screen readers; the button shows only the icon
+    closeButton->setText(tr("Close"));                   // For screen readers; the button shows only the icon
     Icons::setThemedIcon(closeButton, "x");
     closeButton->setAutoRaise(true);
-    closeButton->setToolTip("Close (Esc)");
+    closeButton->setToolTip(tr("Close (Esc)"));
     connect(closeButton, &QToolButton::clicked, this, &BudgetEditor::closed);
     header->addWidget(closeButton);
     layout->addLayout(header);
@@ -65,7 +65,7 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     categoryLabel->setFont(categoryFont);
     categoryLayout->addWidget(categoryCombo);
     categoryLayout->addWidget(categoryLabel);
-    form->addRow("Category", categoryField);
+    form->addRow(tr("Category"), categoryField);
 
     limitEdit = new QDoubleSpinBox(this);
     limitEdit->setObjectName("budgetLimitEdit");
@@ -76,7 +76,7 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     QFont limitFont = limitEdit->font();
     limitFont.setPointSize(13);
     limitEdit->setFont(limitFont);
-    form->addRow("Limit", limitEdit);
+    form->addRow(tr("Limit"), limitEdit);
 
     // Every month from now on, or this month only
     auto* scopeField = new QWidget(this);
@@ -99,12 +99,12 @@ BudgetEditor::BudgetEditor(QWidget* parent)
     hintLabel->setFont(hintFont);
     hintLabel->setForegroundRole(QPalette::PlaceholderText);
     scopeLayout->addWidget(hintLabel);
-    form->addRow("Applies to", scopeField);
+    form->addRow(tr("Applies to"), scopeField);
     connect(scopeGroup, &QButtonGroup::buttonToggled, this, [this]() {
         const QString name = monthName(month);
         hintLabel->setText(everyMonthButton->isChecked()
-            ? QString("Earlier months keep their limit. Change it again whenever your plans change.")
-            : QString("After %1 the regular limit applies again, if there is one.").arg(name));
+            ? tr("Earlier months keep their limit. Change it again whenever your plans change.")
+            : tr("After %1 the regular limit applies again, if there is one.").arg(name));
     });
     layout->addLayout(form);
 
@@ -125,14 +125,14 @@ BudgetEditor::BudgetEditor(QWidget* parent)
 
     // Save / cancel, remove for existing budgets
     auto* buttons = new QHBoxLayout();
-    auto* saveButton = new QPushButton("Save", this);
+    auto* saveButton = new QPushButton(tr("Save"), this);
     saveButton->setObjectName("budgetSaveButton");
     saveButton->setDefault(true);
-    saveButton->setToolTip("Save (Enter)");
+    saveButton->setToolTip(tr("Save (Enter)"));
     connect(saveButton, &QPushButton::clicked, this, &BudgetEditor::requestSave);
-    auto* cancelButton = new QPushButton("Cancel", this);
+    auto* cancelButton = new QPushButton(tr("Cancel"), this);
     connect(cancelButton, &QPushButton::clicked, this, &BudgetEditor::closed);
-    removeButton = new QPushButton("Remove", this);
+    removeButton = new QPushButton(tr("Remove"), this);
     removeButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     removeButton->setObjectName("budgetRemoveButton");
     removeMenu = new QMenu(removeButton);
@@ -160,8 +160,8 @@ void BudgetEditor::applySettings() {
 void BudgetEditor::setMonth(const QDate& newMonth) {
     month = newMonth;
     const QString name = monthName(month);
-    everyMonthButton->setText(QString("Every month from %1").arg(name));
-    onlyThisMonthButton->setText(QString("Only %1").arg(name));
+    everyMonthButton->setText(tr("Every month from %1").arg(name));
+    onlyThisMonthButton->setText(tr("Only %1").arg(name));
     errorLabel->hide();
 }
 
@@ -169,7 +169,7 @@ void BudgetEditor::newBudget(const QDate& newMonth, const QList<Category>& categ
                              Cents suggestedLimit) {
     setMonth(newMonth);
     categoryId = 0;
-    titleLabel->setText("New budget");
+    titleLabel->setText(tr("New budget"));
     categoryCombo->clear();
     for (const Category& category : categories) {
         categoryCombo->addItem(category.getName(), category.getCategoryId());
@@ -183,7 +183,7 @@ void BudgetEditor::newBudget(const QDate& newMonth, const QList<Category>& categ
     transactionsLink->hide();
 
     if (categories.isEmpty()) {
-        showError("Every expense category already has a budget this month. Add categories under Settings → Categories.");
+        showError(tr("Every expense category already has a budget this month. Add categories under Settings → Categories."));
     }
     (categoryCombo->count() > 0 && selectedCategoryId <= 0 ? static_cast<QWidget*>(categoryCombo) : limitEdit)->setFocus();
     limitEdit->selectAll();
@@ -192,7 +192,7 @@ void BudgetEditor::newBudget(const QDate& newMonth, const QList<Category>& categ
 void BudgetEditor::editBudget(const QDate& newMonth, const MonthBudget& budget) {
     setMonth(newMonth);
     categoryId = budget.categoryId;
-    titleLabel->setText("Edit budget");
+    titleLabel->setText(tr("Edit budget"));
     categoryCombo->hide();
     categoryLabel->setText(budget.categoryName);
     categoryLabel->show();
@@ -202,15 +202,15 @@ void BudgetEditor::editBudget(const QDate& newMonth, const MonthBudget& budget) 
     // A regular limit can stop for good or skip this month; a single month just goes away
     const QString name = monthName(month);
     removeMenu->clear();
-    removeMenu->addAction(QString("From %1 on").arg(name), this, [this]() { emit removeRequested(categoryId, true); });
-    removeMenu->addAction(QString("Only in %1").arg(name), this, [this]() { emit removeRequested(categoryId, false); });
+    removeMenu->addAction(tr("From %1 on").arg(name), this, [this]() { emit removeRequested(categoryId, true); });
+    removeMenu->addAction(tr("Only in %1").arg(name), this, [this]() { emit removeRequested(categoryId, false); });
     removeButton->setMenu(budget.repeats ? removeMenu : nullptr);
     removeButton->show();
     // Nothing to show before the first transaction
     const int count = budget.transactionCount;
-    transactionsLink->setText(count == 0 ? QString("No transactions in %1 yet").arg(name)
-                              : count == 1 ? QString("Show the transaction in %1 ›").arg(name)
-                                           : QString("Show the %1 transactions in %2 ›").arg(count).arg(name));
+    transactionsLink->setText(count == 0 ? tr("No transactions in %1 yet").arg(name)
+                              : count == 1 ? tr("Show the transaction in %1 ›").arg(name)
+                                           : tr("Show the %1 transactions in %2 ›").arg(count).arg(name));
     transactionsLink->setEnabled(count > 0);
     transactionsLink->show();
 
@@ -230,12 +230,12 @@ void BudgetEditor::showError(const QString& message) {
 void BudgetEditor::requestSave() {
     const int category = categoryId > 0 ? categoryId : categoryCombo->currentData().toInt();
     if (category <= 0) {
-        showError("Choose a category for this budget.");
+        showError(tr("Choose a category for this budget."));
         return;
     }
     const Cents limit = Money::fromDouble(limitEdit->value());
     if (limit <= 0) {
-        showError("Enter a limit greater than zero.");
+        showError(tr("Enter a limit greater than zero."));
         limitEdit->setFocus();
         limitEdit->selectAll();
         return;

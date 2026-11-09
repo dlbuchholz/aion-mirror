@@ -331,6 +331,333 @@ Everything in the open database is replaced. Your current data is saved as a bac
     </message>
 </context>
 <context>
+    <name>Budget</name>
+    <message>
+        <source>No category</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BudgetDetail</name>
+    <message>
+        <source>No payee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Per day so far</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Per day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>At this pace by month end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left per day until month end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ended</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 over</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, no budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No transactions in %1 yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open this transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show it on the Transactions page ›</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show all %1 transactions ›</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BudgetEditor</name>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Limit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Applies to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Earlier months keep their limit. Change it again whenever your plans change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>After %1 the regular limit applies again, if there is one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every month from %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every expense category already has a budget this month. Add categories under Settings → Categories.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From %1 on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No transactions in %1 yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the transaction in %1 ›</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the %1 transactions in %2 ›</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a category for this budget.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a limit greater than zero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BudgetLinesChart</name>
+    <message>
+        <source>%1, %2: %3 of %4 (%5)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BudgetMonthChart</name>
+    <message>
+        <source>Limit %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>today</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BudgetPage</name>
+    <message>
+        <source>%1 over</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transaction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 transactions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>monthly</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>only %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2 of %3 · %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Regular limit since %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set for %1 only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> of %1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budget vs. actual ›</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open this month in Reports</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add budget (Ctrl+N)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Budgeted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spending without a budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Over the limit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Within the limit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 above even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 below even pace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 a day until month end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit budget…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No budgets for %1 yet.
+Add one to keep an eye on what a category may cost each month.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the %1 in %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Give these transactions a category to budget them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Over budget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The budget could not be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The budget could not be removed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CategoriesSettings</name>
     <message>
         <source>%1 transaction</source>

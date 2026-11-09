@@ -93,7 +93,7 @@ QList<QColor> budgetLineColors(const QStringList& categoryColors) {
 
 QString budgetShareText(const QString& name, const QString& when, Cents spentCents, Cents limitCents) {
     const Settings& settings = Settings::instance();
-    return QString("%1, %2: %3 of %4 (%5)").arg(name, when, settings.formatSpending(spentCents),
+    return BudgetLinesChart::tr("%1, %2: %3 of %4 (%5)").arg(name, when, settings.formatSpending(spentCents),
                                                 settings.formatCurrency(limitCents), percentText(spentCents, limitCents));
 }
 

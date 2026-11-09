@@ -2,6 +2,7 @@
 #include "category.h"
 #include "db/databasemanager.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QSet>
 #include <QSqlError>
@@ -197,7 +198,7 @@ QList<UnbudgetedSpending> BudgetDAO::unbudgetedSpending(int userId, const QDate&
     const QHash<int, Spent> spent = spendingByCategory(userId, month);
     for (auto it = spent.cbegin(); it != spent.cend(); ++it) {
         if (!budgeted.contains(it.key()) && it.value().cents > 0) {
-            result.append({it.key(), it.key() == 0 ? QString("No category") : names.value(it.key()), it.value().cents,
+            result.append({it.key(), it.key() == 0 ? QCoreApplication::translate("Budget", "No category") : names.value(it.key()), it.value().cents,
                            it.value().count});
         }
     }
