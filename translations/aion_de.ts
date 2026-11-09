@@ -106,14 +106,6 @@
 <context>
     <name>AddAccountWidget</name>
     <message>
-        <source>Form</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Account name</source>
         <translation type="unfinished"></translation>
     </message>
@@ -206,6 +198,57 @@
     </message>
     <message>
         <source>The transactions couldn&apos;t be changed. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Backup</name>
+    <message>
+        <source>Scheduled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A backup can&apos;t replace the database it&apos;s a copy of. Choose another file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The backup couldn&apos;t be written. Check that the folder exists and there&apos;s enough space.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The backup couldn&apos;t be saved under that name. The file may be in use.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It needs an update, but couldn&apos;t be backed up first, so it wasn&apos;t changed. %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your current data couldn&apos;t be backed up first, so nothing was changed. %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Before update</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Before restore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file couldn&apos;t be opened.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file isn&apos;t a database, or it&apos;s damaged.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t an Aion database.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It&apos;s from a newer version of Aion. Update Aion to restore it.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1168,6 +1211,59 @@ Net %4</source>
     </message>
 </context>
 <context>
+    <name>DatabaseSession</name>
+    <message>
+        <source>The file couldn&apos;t be opened as a database. </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file belongs to another program, not Aion.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>It was last used with a newer version of Aion. Update Aion to open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The database couldn&apos;t be updated to the current version. </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file doesn&apos;t exist anymore.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t open %1. %2
+
+Aion opened its default database instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t open %1. %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That&apos;s the database you have open. Choose a backup instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The backup couldn&apos;t be copied. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The database file couldn&apos;t be replaced. It may be in use. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The backup couldn&apos;t be opened, so your current data was put back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That file already exists. Use &quot;Open database file&quot; to open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>DeleteAccountDialog</name>
     <message>
         <source>Delete account</source>
@@ -1915,7 +2011,7 @@ Nothing will be imported like this. Check the columns, or go back and choose &qu
 <context>
     <name>MainWindow</name>
     <message>
-        <source>Aion</source>
+        <source>Add account</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3286,6 +3382,126 @@ Transactions keep their categories.</source>
     </message>
     <message>
         <source>Sort by name</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>StartWindow</name>
+    <message>
+        <source>Add a new user</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add user</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion logo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Welcome to Aion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose who&apos;s using Aion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alex Example</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>alex</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Username</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add and open</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open this user automatically next time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use &quot;Switch user&quot; in the sidebar to come back here</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion database (*.db);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aion database (*.db)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a name and a username.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A user with that name or username already exists. Try another.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Database: %1
+Click to switch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recent databases</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open database file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New database…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t open %1. %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t create %1. %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

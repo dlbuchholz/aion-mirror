@@ -49,8 +49,8 @@ public:
         setFixedHeight(128);
         setMinimumWidth(140);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        setToolTip(addCard ? QString("Add a new user") : QString("Open %1").arg(name));
-        setAccessibleName(addCard ? QString("Add user") : name);
+        setToolTip(addCard ? StartWindow::tr("Add a new user") : StartWindow::tr("Open %1").arg(name));
+        setAccessibleName(addCard ? StartWindow::tr("Add user") : name);
     }
 
 protected:
@@ -93,7 +93,7 @@ protected:
         painter.setFont(nameFont);
         painter.setPen(addCard ? colors.textSecondary : colors.textPrimary);
         painter.drawText(textArea, Qt::AlignCenter,
-                         QFontMetrics(nameFont).elidedText(addCard ? QString("Add user") : name, Qt::ElideRight, textArea.width()));
+                         QFontMetrics(nameFont).elidedText(addCard ? StartWindow::tr("Add user") : name, Qt::ElideRight, textArea.width()));
         if (!addCard) {
             QFont smallFont = font();
             smallFont.setPointSizeF(font().pointSizeF() * 0.9);
@@ -127,16 +127,16 @@ StartWindow::StartWindow(QWidget* parent)
     auto* logo = new QLabel(this);
     logo->setObjectName("logoLabel");
     logo->setPixmap(Icons::logo(52, devicePixelRatioF()));
-    logo->setAccessibleName("Aion logo");
+    logo->setAccessibleName(tr("Aion logo"));
     header->addWidget(logo, 0, Qt::AlignTop);
     auto* titles = new QVBoxLayout();
     titles->setSpacing(2);
-    auto* title = new QLabel("Welcome to Aion", this);
+    auto* title = new QLabel(tr("Welcome to Aion"), this);
     QFont titleFont = title->font();
     titleFont.setPointSize(16);
     title->setFont(titleFont);
     titles->addWidget(title);
-    titles->addWidget(new QLabel("Choose who's using Aion", this));
+    titles->addWidget(new QLabel(tr("Choose who's using Aion"), this));
     header->addLayout(titles, 1);
 
     databaseButton = new QToolButton(this);
@@ -169,7 +169,7 @@ StartWindow::StartWindow(QWidget* parent)
     Theme::makeCard(addForm);
     auto* formLayout = new QVBoxLayout(addForm);
     formLayout->setContentsMargins(14, 12, 14, 12);
-    auto* formTitle = new QLabel("Add user", addForm);
+    auto* formTitle = new QLabel(tr("Add user"), addForm);
     QFont formTitleFont = formTitle->font();
     formTitleFont.setBold(true);
     formTitle->setFont(formTitleFont);
@@ -177,12 +177,12 @@ StartWindow::StartWindow(QWidget* parent)
     auto* fields = new QGridLayout();
     nameEdit = new QLineEdit(addForm);
     nameEdit->setObjectName("nameEdit");
-    nameEdit->setPlaceholderText("Alex Example");
+    nameEdit->setPlaceholderText(tr("Alex Example"));
     usernameEdit = new QLineEdit(addForm);
     usernameEdit->setObjectName("usernameEdit");
-    usernameEdit->setPlaceholderText("alex");
-    fields->addWidget(new QLabel("Name", addForm), 0, 0);
-    fields->addWidget(new QLabel("Username", addForm), 0, 1);
+    usernameEdit->setPlaceholderText(tr("alex"));
+    fields->addWidget(new QLabel(tr("Name"), addForm), 0, 0);
+    fields->addWidget(new QLabel(tr("Username"), addForm), 0, 1);
     fields->addWidget(nameEdit, 1, 0);
     fields->addWidget(usernameEdit, 1, 1);
     formLayout->addLayout(fields);
@@ -194,10 +194,10 @@ StartWindow::StartWindow(QWidget* parent)
     formLayout->addWidget(formError);
     auto* formButtons = new QHBoxLayout();
     formButtons->addStretch();
-    auto* cancelButton = new QPushButton("Cancel", addForm);
+    auto* cancelButton = new QPushButton(tr("Cancel"), addForm);
     cancelButton->setAutoDefault(false);
     connect(cancelButton, &QPushButton::clicked, this, [this]() { setAddFormVisible(false); });
-    auto* saveButton = new QPushButton("Add and open", addForm);
+    auto* saveButton = new QPushButton(tr("Add and open"), addForm);
     saveButton->setObjectName("addUserButton");
     saveButton->setDefault(true);
     connect(saveButton, &QPushButton::clicked, this, &StartWindow::addUser);
@@ -213,38 +213,38 @@ StartWindow::StartWindow(QWidget* parent)
     root->addStretch();
 
     // Footer: open automatically; version, update check and quit
-    rememberCheck = new QCheckBox("Open this user automatically next time", this);
-    rememberCheck->setToolTip("Use \"Switch user\" in the sidebar to come back here");
+    rememberCheck = new QCheckBox(tr("Open this user automatically next time"), this);
+    rememberCheck->setToolTip(tr("Use \"Switch user\" in the sidebar to come back here"));
     root->addWidget(rememberCheck);
 
     auto* footer = new QHBoxLayout();
-    auto* versionLabel = new QLabel(QString("Version %1").arg(SystemInfo::versionText()), this);
+    auto* versionLabel = new QLabel(tr("Version %1").arg(SystemInfo::versionText()), this);
     versionLabel->setObjectName("versionLabel");
     QPalette versionPalette = versionLabel->palette();
     versionPalette.setColor(QPalette::WindowText, Theme::colors().textMuted);
     versionLabel->setPalette(versionPalette);
     footer->addWidget(versionLabel);
     auto* updateButton = new QToolButton(this);
-    updateButton->setText("Check for updates");
+    updateButton->setText(tr("Check for updates"));
     Theme::makeLink(updateButton);
     connect(updateButton, &QToolButton::clicked, this, [this]() { UpdateCheck::checkInteractively(this); });
     footer->addWidget(updateButton);
     footer->addStretch();
-    auto* quitButton = new QPushButton("Quit", this);
+    auto* quitButton = new QPushButton(tr("Quit"), this);
     quitButton->setAutoDefault(false);
     connect(quitButton, &QPushButton::clicked, this, &QDialog::reject);
     footer->addWidget(quitButton);
     root->addLayout(footer);
 
     askDatabaseToOpen = [this]() {
-        return QFileDialog::getOpenFileName(this, "Open database",
+        return QFileDialog::getOpenFileName(this, tr("Open database"),
                                             QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath(),
-                                            "Aion database (*.db);;All files (*)");
+                                            tr("Aion database (*.db);;All files (*)"));
     };
     askDatabaseToCreate = [this]() {
-        return QFileDialog::getSaveFileName(this, "New database",
+        return QFileDialog::getSaveFileName(this, tr("New database"),
                                             QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath() + "/budget.db",
-                                            "Aion database (*.db)", nullptr, QFileDialog::DontConfirmOverwrite);
+                                            tr("Aion database (*.db)"), nullptr, QFileDialog::DontConfirmOverwrite);
     };
 
     updateDatabaseButton();
@@ -307,7 +307,7 @@ void StartWindow::addUser() {
     const QString name = nameEdit->text().trimmed();
     const QString username = usernameEdit->text().trimmed();
     if (name.isEmpty() || username.isEmpty()) {
-        formError->setText("Enter a name and a username.");
+        formError->setText(tr("Enter a name and a username."));
         formError->show();
         (name.isEmpty() ? nameEdit : usernameEdit)->setFocus();
         return;
@@ -315,7 +315,7 @@ void StartWindow::addUser() {
 
     UserDAO userDao;
     if (!userDao.createUser(User(0, username, name))) {
-        formError->setText("A user with that name or username already exists. Try another.");
+        formError->setText(tr("A user with that name or username already exists. Try another."));
         formError->show();
         return;
     }
@@ -325,13 +325,13 @@ void StartWindow::addUser() {
 void StartWindow::updateDatabaseButton() {
     const QString path = DatabaseSession::currentDatabasePath();
     databaseButton->setText(QFileInfo(path).fileName());
-    databaseButton->setToolTip(QString("Database: %1\nClick to switch").arg(QDir::toNativeSeparators(path)));
+    databaseButton->setToolTip(tr("Database: %1\nClick to switch").arg(QDir::toNativeSeparators(path)));
     databaseButton->setIcon(Icons::icon("database", palette().color(QPalette::ButtonText)));
 }
 
 void StartWindow::rebuildDatabaseMenu() {
     databaseMenu->clear();
-    databaseMenu->addSection("Recent databases");
+    databaseMenu->addSection(tr("Recent databases"));
     const QString current = DatabaseSession::currentDatabasePath();
     for (const QString& path : Settings::instance().getRecentDatabases()) {
         if (!QFileInfo::exists(path)) {
@@ -346,8 +346,8 @@ void StartWindow::rebuildDatabaseMenu() {
     }
     databaseMenu->setToolTipsVisible(true);
     databaseMenu->addSeparator();
-    databaseMenu->addAction("Open database file…", this, &StartWindow::openDatabaseFile);
-    databaseMenu->addAction("New database…", this, &StartWindow::createDatabase);
+    databaseMenu->addAction(tr("Open database file…"), this, &StartWindow::openDatabaseFile);
+    databaseMenu->addAction(tr("New database…"), this, &StartWindow::createDatabase);
 }
 
 void StartWindow::switchDatabase(const QString& path) {
@@ -356,7 +356,7 @@ void StartWindow::switchDatabase(const QString& path) {
     }
     QString error;
     if (!DatabaseSession::open(path, &error)) {
-        showMessage(QString("Couldn't open %1. %2").arg(QFileInfo(path).fileName(), error));
+        showMessage(tr("Couldn't open %1. %2").arg(QFileInfo(path).fileName(), error));
         return;
     }
     messageLabel->hide();
@@ -381,7 +381,7 @@ void StartWindow::createDatabase() {
     }
     QString error;
     if (!DatabaseSession::create(path, &error)) {
-        showMessage(QString("Couldn't create %1. %2").arg(QFileInfo(path).fileName(), error));
+        showMessage(tr("Couldn't create %1. %2").arg(QFileInfo(path).fileName(), error));
         return;
     }
     messageLabel->hide();

@@ -2,6 +2,7 @@
 #include "databasemanager.h"
 #include "migrationmanager.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -15,7 +16,8 @@ namespace {
 
 constexpr int KeptAutomaticBackups = 5;              // Of each kind
 const QString TimestampFormat = QStringLiteral("yyyy-MM-dd-HHmmss");
-const QString ScheduledKindLabel = QStringLiteral("Scheduled");
+// The kinds stay English here; Backup settings shows them translated
+const QString ScheduledKindLabel = QString(QT_TRANSLATE_NOOP("Backup", "Scheduled"));
 
 void setError(QString* errorMessage, const QString& message) {
     if (errorMessage) *errorMessage = message;
@@ -84,7 +86,7 @@ bool write(const QString& path, QString* errorMessage) {
     QSqlDatabase database = DatabaseManager::instance().database();
     const QFileInfo target(path);
     if (target.exists() && target.canonicalFilePath() == QFileInfo(database.databaseName()).canonicalFilePath()) {
-        setError(errorMessage, "A backup can't replace the database it's a copy of. Choose another file.");
+        setError(errorMessage, QCoreApplication::translate("Backup", "A backup can't replace the database it's a copy of. Choose another file."));
         return false;
     }
 
@@ -97,14 +99,14 @@ bool write(const QString& path, QString* errorMessage) {
     if (!query.exec()) {
         qWarning() << "Backup failed:" << query.lastError().text();
         QFile::remove(unfinished);
-        setError(errorMessage, "The backup couldn't be written. Check that the folder exists and there's enough space.");
+        setError(errorMessage, QCoreApplication::translate("Backup", "The backup couldn't be written. Check that the folder exists and there's enough space."));
         return false;
     }
     query.finish();
 
     if (!replaceFile(unfinished, path)) {
         QFile::remove(unfinished);
-        setError(errorMessage, "The backup couldn't be saved under that name. The file may be in use.");
+        setError(errorMessage, QCoreApplication::translate("Backup", "The backup couldn't be saved under that name. The file may be in use."));
         return false;
     }
     return true;
@@ -117,7 +119,7 @@ QString folderFor(const QString& databasePath) {
 bool beforeUpdate(QString* errorMessage) {
     QString reason;
     if (!saveAutomatic("before-update", &reason)) {
-        setError(errorMessage, QString("It needs an update, but couldn't be backed up first, so it wasn't changed. %1").arg(reason));
+        setError(errorMessage, QCoreApplication::translate("Backup", "It needs an update, but couldn't be backed up first, so it wasn't changed. %1").arg(reason));
         return false;
     }
     return true;
@@ -126,7 +128,7 @@ bool beforeUpdate(QString* errorMessage) {
 bool beforeRestore(QString* errorMessage) {
     QString reason;
     if (!saveAutomatic("before-restore", &reason)) {
-        setError(errorMessage, QString("Your current data couldn't be backed up first, so nothing was changed. %1").arg(reason));
+        setError(errorMessage, QCoreApplication::translate("Backup", "Your current data couldn't be backed up first, so nothing was changed. %1").arg(reason));
         return false;
     }
     return true;
@@ -200,8 +202,8 @@ QList<AutomaticBackup> automaticBackups(const QString& databasePath) {
         if (match.hasMatch()) {
             backups.append({file.absoluteFilePath(),
                             QDateTime::fromString(match.captured(2), TimestampFormat),
-                            match.captured(1) == "before-update" ? QStringLiteral("Before update")
-                            : match.captured(1) == "before-restore" ? QStringLiteral("Before restore")
+                            match.captured(1) == "before-update" ? QString(QT_TRANSLATE_NOOP("Backup", "Before update"))
+                            : match.captured(1) == "before-restore" ? QString(QT_TRANSLATE_NOOP("Backup", "Before restore"))
                                                                     : ScheduledKindLabel,
                             file.size()});
         }
@@ -221,7 +223,7 @@ std::optional<Contents> inspect(const QString& path, QString* errorMessage) {
         file.setDatabaseName(path);
         file.setConnectOptions("QSQLITE_OPEN_READONLY");
         if (!QFile::exists(path) || !file.open()) {
-            problem = "The file couldn't be opened.";
+            problem = QCoreApplication::translate("Backup", "The file couldn't be opened.");
         } else {
             QSqlQuery query(file);
             const auto count = [&query](const QString& table, int* result) {
@@ -233,16 +235,16 @@ std::optional<Contents> inspect(const QString& path, QString* errorMessage) {
             };
             Contents found;
             if (!query.exec("PRAGMA integrity_check") || !query.next() || query.value(0).toString() != "ok") {
-                problem = "The file isn't a database, or it's damaged.";
+                problem = QCoreApplication::translate("Backup", "The file isn't a database, or it's damaged.");
             } else if (!query.exec("SELECT MAX(version) FROM schema_migrations") || !query.next()) {
-                problem = "This file isn't an Aion database.";
+                problem = QCoreApplication::translate("Backup", "This file isn't an Aion database.");
             } else if (query.value(0).toInt() > MigrationManager(BuiltInMigrations).newestKnownVersion()) {
-                problem = "It's from a newer version of Aion. Update Aion to restore it.";
+                problem = QCoreApplication::translate("Backup", "It's from a newer version of Aion. Update Aion to restore it.");
             } else if (!MigrationManager::missingRequiredObject(file).isEmpty()) {
-                problem = "This file isn't an Aion database.";
+                problem = QCoreApplication::translate("Backup", "This file isn't an Aion database.");
             } else if (!count("users", &found.users) || !count("accounts", &found.accounts)
                        || !count("transactions", &found.transactions)) {
-                problem = "This file isn't an Aion database.";
+                problem = QCoreApplication::translate("Backup", "This file isn't an Aion database.");
             } else {
                 contents = found;
             }

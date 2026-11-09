@@ -184,7 +184,7 @@ void BackupSettings::reload() {
         auto* whenLabel = new QLabel(when, listContent);
         whenLabel->setObjectName("backupWhenLabel");
         row->addWidget(whenLabel, 1);
-        auto* kindLabel = new QLabel(backup.kind, listContent);
+        auto* kindLabel = new QLabel(QCoreApplication::translate("Backup", backup.kind.toUtf8().constData()), listContent);
         kindLabel->setForegroundRole(QPalette::PlaceholderText);
         kindLabel->setMinimumWidth(110);
         row->addWidget(kindLabel);

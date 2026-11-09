@@ -153,7 +153,7 @@ void MainWindow::onAccountRequested(int accountId) {
 
 void MainWindow::onAddAccountClicked() {
     QDialog dialog(this);
-    dialog.setWindowTitle("Add account");
+    dialog.setWindowTitle(tr("Add account"));
     auto* layout = new QVBoxLayout(&dialog);
     auto* form = new AddAccountWidget(&dialog);
     form->setUserId(userId);
