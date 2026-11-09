@@ -1,6 +1,7 @@
 #include "categorycolors.h"
 #include "theme.h"
 
+#include <QCoreApplication>
 #include <QHash>
 
 namespace CategoryColors {
@@ -49,8 +50,20 @@ QStringList names() {
 }
 
 QString label(const QString& name) {
-    if (name.isEmpty()) return "No colour";
-    return name.left(1).toUpper() + name.mid(1);
+    if (name.isEmpty()) return QCoreApplication::translate("CategoryColors", "No colour");
+    static const QHash<QString, const char*> names = {
+        {"red", QT_TRANSLATE_NOOP("CategoryColors", "Red")},         {"coral", QT_TRANSLATE_NOOP("CategoryColors", "Coral")},
+        {"orange", QT_TRANSLATE_NOOP("CategoryColors", "Orange")},   {"amber", QT_TRANSLATE_NOOP("CategoryColors", "Amber")},
+        {"yellow", QT_TRANSLATE_NOOP("CategoryColors", "Yellow")},   {"lime", QT_TRANSLATE_NOOP("CategoryColors", "Lime")},
+        {"green", QT_TRANSLATE_NOOP("CategoryColors", "Green")},     {"olive", QT_TRANSLATE_NOOP("CategoryColors", "Olive")},
+        {"teal", QT_TRANSLATE_NOOP("CategoryColors", "Teal")},       {"sky", QT_TRANSLATE_NOOP("CategoryColors", "Sky")},
+        {"blue", QT_TRANSLATE_NOOP("CategoryColors", "Blue")},       {"indigo", QT_TRANSLATE_NOOP("CategoryColors", "Indigo")},
+        {"purple", QT_TRANSLATE_NOOP("CategoryColors", "Purple")},   {"magenta", QT_TRANSLATE_NOOP("CategoryColors", "Magenta")},
+        {"pink", QT_TRANSLATE_NOOP("CategoryColors", "Pink")},       {"brown", QT_TRANSLATE_NOOP("CategoryColors", "Brown")},
+        {"slate", QT_TRANSLATE_NOOP("CategoryColors", "Slate")},     {"gray", QT_TRANSLATE_NOOP("CategoryColors", "Grey")},
+    };
+    if (const char* text = names.value(name)) return QCoreApplication::translate("CategoryColors", text);
+    return name.left(1).toUpper() + name.mid(1);     // A colour without a name of its own
 }
 
 Swatch swatch(const QString& name) {

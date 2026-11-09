@@ -1,5 +1,6 @@
 #include "spreadsheet.h"
 
+#include <QCoreApplication>
 #include <QDate>
 #include <QDir>
 #include <QFile>
@@ -235,7 +236,7 @@ void readXlsxSheet(Sheet& sheet, const QByteArray& xmlData, const QStringList& s
         }
     }
     if (xml.hasError()) {
-        *error = QString("The file is damaged: %1").arg(xml.errorString());
+        *error = QCoreApplication::translate("Spreadsheet", "The file is damaged: %1").arg(xml.errorString());
     }
 }
 
@@ -247,7 +248,7 @@ QList<Sheet> readXlsx(Zip& zip, QString* error) {
     }
     const auto workbook = zip.file(workbookPath);
     if (!workbook) {
-        *error = "This file isn't an Excel workbook.";
+        *error = QCoreApplication::translate("Spreadsheet", "This file isn't an Excel workbook.");
         return {};
     }
     const QString baseDir = QFileInfo(workbookPath).path();
@@ -285,7 +286,7 @@ QList<Sheet> readXlsx(Zip& zip, QString* error) {
         sheets.append(sheet);
     }
     if (sheets.isEmpty()) {
-        *error = "This workbook has no sheets with cells.";
+        *error = QCoreApplication::translate("Spreadsheet", "This workbook has no sheets with cells.");
     }
     return sheets;
 }
@@ -325,12 +326,12 @@ QString odsCellText(QXmlStreamReader& xml) {
 QList<Sheet> readOds(Zip& zip, QString* error) {
     const auto manifest = zip.file("META-INF/manifest.xml");
     if (manifest && manifest->contains("encryption-data")) {
-        *error = "This spreadsheet is protected by a password. Save it without one and try again.";
+        *error = QCoreApplication::translate("Spreadsheet", "This spreadsheet is protected by a password. Save it without one and try again.");
         return {};
     }
     const auto content = zip.file("content.xml");
     if (!content) {
-        *error = "This file isn't a LibreOffice spreadsheet.";
+        *error = QCoreApplication::translate("Spreadsheet", "This file isn't a LibreOffice spreadsheet.");
         return {};
     }
 
@@ -379,11 +380,11 @@ QList<Sheet> readOds(Zip& zip, QString* error) {
         }
     }
     if (xml.hasError()) {
-        *error = QString("The file is damaged: %1").arg(xml.errorString());
+        *error = QCoreApplication::translate("Spreadsheet", "The file is damaged: %1").arg(xml.errorString());
         return {};
     }
     if (sheets.isEmpty()) {
-        *error = "This spreadsheet has no sheets.";
+        *error = QCoreApplication::translate("Spreadsheet", "This spreadsheet has no sheets.");
     }
     return sheets;
 }
@@ -410,13 +411,13 @@ QList<Sheet> read(const QByteArray& data, Format format, QString* error) {
     error->clear();
     if (data.startsWith("\xD0\xCF\x11\xE0")) {
         // The old binary format, which password-protected .xlsx files use too
-        *error = "This is an old Excel file (.xls) or protected by a password. Save it as .xlsx without a "
-                 "password and try again.";
+        *error = QCoreApplication::translate("Spreadsheet", "This is an old Excel file (.xls) or protected by a password. Save it as .xlsx without a "
+                                                            "password and try again.");
         return {};
     }
     Zip zip(data);
     if (!zip.isOpen()) {
-        *error = QString("This file isn't a valid %1 file, or it's damaged.").arg(formatName(format));
+        *error = QCoreApplication::translate("Spreadsheet", "This file isn't a valid %1 file, or it's damaged.").arg(formatName(format));
         return {};
     }
     switch (format) {
@@ -424,7 +425,7 @@ QList<Sheet> read(const QByteArray& data, Format format, QString* error) {
     case Format::Ods: return readOds(zip, error);
     case Format::None: break;
     }
-    *error = "This file isn't a spreadsheet.";
+    *error = QCoreApplication::translate("Spreadsheet", "This file isn't a spreadsheet.");
     return {};
 }
 
@@ -474,7 +475,7 @@ QStringList arrange(const QStringList& row, const ColumnMatch& match) {
 QList<Sheet> readFile(const QString& path, QString* error) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        *error = QString("The file couldn't be opened: %1").arg(file.errorString());
+        *error = QCoreApplication::translate("Spreadsheet", "The file couldn't be opened: %1").arg(file.errorString());
         return {};
     }
     return read(file.readAll(), formatOf(path), error);

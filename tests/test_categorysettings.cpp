@@ -44,6 +44,16 @@ private slots:
     void init() { db.yankDb(); db.seedDefaultUser(); }
     void cleanup() { db.close(); }
 
+    void everyColourHasAName() {
+        QCOMPARE(CategoryColors::label(""), QString("No colour"));
+        QCOMPARE(CategoryColors::label("teal"), QString("Teal"));
+        QCOMPARE(CategoryColors::label("gray"), QString("Grey"));       // The name in the data stays "gray"
+        QCOMPARE(CategoryColors::label("mauve"), QString("Mauve"));     // One without a name of its own
+        for (const QString& name : CategoryColors::names()) {
+            QVERIFY2(CategoryColors::label(name).compare(name, Qt::CaseInsensitive) == 0 || name == "gray", qPrintable(name));
+        }
+    }
+
     void listsCategoriesInGroupsWithBuiltInOnesLocked() {
         CategoriesSettings settings;
         settings.setUserId(1);

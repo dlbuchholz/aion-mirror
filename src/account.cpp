@@ -2,6 +2,8 @@
 #include "account.h"
 #include "category.h"
 
+#include <QCoreApplication>
+
 // Account Implementation
 Account::Account(int id, const QString& name, const QString& type, Cents balanceCents)
     : accountId(id), name(name), type(type), balanceCents(balanceCents) {}
@@ -174,7 +176,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
         if (query.exec() && query.next()) {
             categoryId = query.value(0).toInt();
         }
-        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), "Initial deposit", categoryId,
+        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), QCoreApplication::translate("Account", "Initial deposit"), categoryId,
                                        initialBalanceCents > 0 ? "income" : "expense");
         TransactionDAO transactionDao;
         if (transactionDao.addTransaction(initialTransaction) <= 0) {

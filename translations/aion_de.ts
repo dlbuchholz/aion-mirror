@@ -41,6 +41,13 @@
     </message>
 </context>
 <context>
+    <name>Account</name>
+    <message>
+        <source>Initial deposit</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AccountTypesSettings</name>
     <message>
         <source>Account types</source>
@@ -947,6 +954,85 @@ It&apos;s used by %1. Those transactions keep no category, and its budgets are r
     </message>
 </context>
 <context>
+    <name>CategoryColors</name>
+    <message>
+        <source>No colour</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coral</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orange</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Amber</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lime</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Green</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Olive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Teal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Blue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Indigo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Purple</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Magenta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pink</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Brown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Slate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Grey</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CsvImport</name>
     <message>
         <source>Date column not mapped or out of range</source>
@@ -1006,6 +1092,10 @@ It&apos;s used by %1. Those transactions keep no category, and its budgets are r
     </message>
     <message>
         <source>Failed to commit changes to database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unterminated quoted CSV field</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3386,6 +3476,49 @@ Transactions keep their categories.</source>
     </message>
 </context>
 <context>
+    <name>Spreadsheet</name>
+    <message>
+        <source>The file is damaged: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t an Excel workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This workbook has no sheets with cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This spreadsheet is protected by a password. Save it without one and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t a LibreOffice spreadsheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This spreadsheet has no sheets.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This is an old Excel file (.xls) or protected by a password. Save it as .xlsx without a password and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t a valid %1 file, or it&apos;s damaged.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file isn&apos;t a spreadsheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file couldn&apos;t be opened: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>StartWindow</name>
     <message>
         <source>Add a new user</source>
@@ -3853,6 +3986,19 @@ Add one with &quot;Add transaction&quot; or import a file.</source>
     </message>
     <message>
         <source>The category couldn&apos;t be changed. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>UpdateCheck</name>
+    <message>
+        <source>Check for updates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You&apos;re using Aion %1.
+
+Checking for updates isn&apos;t available yet.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

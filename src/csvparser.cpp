@@ -1,5 +1,7 @@
 #include "csvparser.h"
 
+#include <QCoreApplication>
+
 QList<QStringList> CsvParser::parse(const QString& text, QChar delimiter, QString* error) {
     QList<QStringList> records;
     QStringList record;
@@ -41,7 +43,7 @@ QList<QStringList> CsvParser::parse(const QString& text, QChar delimiter, QStrin
     }
 
     if (quoted) {
-        if (error) *error = "Unterminated quoted CSV field";
+        if (error) *error = QCoreApplication::translate("CsvImport", "Unterminated quoted CSV field");
         return {};
     }
     if (!field.isEmpty() || !record.isEmpty()) {
