@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "theme.h"
 #include "user.h"
+#include "wraplabel.h"
 
 #include <QAbstractButton>
 #include <QEvent>
@@ -26,6 +27,8 @@
 #include <algorithm>
 
 namespace {
+
+constexpr int TileSpacing = 10;
 
 
 void setTextColor(QWidget* widget, const QColor& color) {
@@ -325,7 +328,7 @@ DashboardPage::DashboardPage(QWidget* parent)
     auto* scroll = new QScrollArea(this);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setWidgetResizable(true);
-    auto* content = new QWidget(scroll);
+    content = new QWidget(scroll);
     content->setObjectName("dashboardContent");
     auto* root = new QVBoxLayout(content);
     root->setContentsMargins(24, 20, 24, 20);
@@ -361,7 +364,7 @@ DashboardPage::DashboardPage(QWidget* parent)
 
     // This month at a glance
     auto* tiles = new QHBoxLayout();
-    tiles->setSpacing(10);
+    tiles->setSpacing(TileSpacing);
     balanceTile = createTile("balance", tr("Total balance"), tiles);
     incomeTile = createTile("income", tr("Income"), tiles);
     expensesTile = createTile("expenses", tr("Expenses"), tiles);
@@ -393,6 +396,7 @@ DashboardPage::DashboardPage(QWidget* parent)
     connect(transactionsLink, &QToolButton::clicked, this, &DashboardPage::transactionsRequested);
     root->addStretch();
 
+    content->installEventFilter(this);               // Its width decides how the tiles share it (arrangeTiles)
     updateIcons();
 }
 
@@ -407,16 +411,19 @@ DashboardPage::Tile DashboardPage::createTile(const QString& name, const QString
     captionLabel->setObjectName("tileCaption");
     captionLabel->setForegroundRole(QPalette::PlaceholderText);
     Tile result;
+    result.frame = tile;
     result.value = new QLabel(tile);
     result.value->setObjectName(name + "Value");
     QFont valueFont = result.value->font();
     valueFont.setPointSize(15);
     result.value->setFont(valueFont);
-    result.detail = new QLabel(tile);
+    // Wraps when the five tiles don't fit on one line with their texts, so the page doesn't scroll sideways
+    result.detail = new WrapLabel(tile);
     result.detail->setObjectName(name + "Detail");
     tileLayout->addWidget(captionLabel);
     tileLayout->addWidget(result.value);
     tileLayout->addWidget(result.detail);
+    tileLayout->addStretch();                        // At the top, in line with the other tiles, when one is higher
     layout->addWidget(tile);
     return result;
 }
@@ -557,6 +564,33 @@ void DashboardPage::updateTiles() {
 
     averageTile.value->setText(settings.formatCurrency(data.dailyAverageCents));
     setDetail(averageTile.detail, tr("Spent per day so far"));
+    arrangeTiles();
+}
+
+// With room for every tile's texts on one line, the layout gives each tile at least that (and
+// they're near enough as wide as each other). Without, the tiles share the row equally and the
+// longer texts wrap: left to the layout, the tiles with the longest texts would keep most of
+// their width and the short texts wrap instead. Never narrower than the tile that needs most
+// at its narrowest, so all are as wide as each other then too.
+void DashboardPage::arrangeTiles() {
+    const QList<Tile> tiles = {balanceTile, incomeTile, expensesTile, savedTile, averageTile};
+    int oneLine = TileSpacing * int(tiles.size() - 1);
+    int narrowest = 0;
+    for (const Tile& tile : tiles) {
+        oneLine += tile.frame->sizeHint().width();
+        narrowest = qMax(narrowest, tile.frame->minimumSizeHint().width());
+    }
+    const QMargins margins = content->layout()->contentsMargins();
+    const bool fits = oneLine <= content->width() - margins.left() - margins.right();
+    for (const Tile& tile : tiles) {
+        tile.frame->setSizePolicy(fits ? QSizePolicy::Preferred : QSizePolicy::Ignored, QSizePolicy::Preferred);
+        tile.frame->setMinimumWidth(narrowest);
+    }
+}
+
+bool DashboardPage::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == content && event->type() == QEvent::Resize) arrangeTiles();
+    return QWidget::eventFilter(watched, event);
 }
 
 void DashboardPage::updateBudgets() {
@@ -622,7 +656,7 @@ void DashboardPage::updateCategories() {
     }
     categoryTitle->setText(tr("Spending by category · %1").arg(AppLocale::date(data.thisMonth.month, AppLocale::DateFormat::Month)));
     if (data.spendingByCategory.isEmpty()) {
-        auto* empty = new QLabel(tr("No expenses this month yet."), this);
+        auto* empty = new WrapLabel(tr("No expenses this month yet."), this);
         empty->setObjectName("categoryEmptyLabel");
         empty->setContentsMargins(6, 8, 6, 8);
         empty->setForegroundRole(QPalette::PlaceholderText);
@@ -655,7 +689,7 @@ void DashboardPage::updateRecent() {
         delete item;
     }
     if (data.recent.isEmpty()) {
-        auto* empty = new QLabel(tr("No transactions yet. Add one or import a bank export to get started."), this);
+        auto* empty = new WrapLabel(tr("No transactions yet. Add one or import a bank export to get started."), this);
         empty->setObjectName("recentEmptyLabel");
         empty->setContentsMargins(6, 8, 6, 8);
         empty->setForegroundRole(QPalette::PlaceholderText);
