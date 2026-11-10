@@ -96,6 +96,51 @@ private slots:
         }
     }
 
+    void percentagesRoundDown() {
+        QCOMPARE(Language::percentOf(973, 973), 100);
+        QCOMPARE(Language::percentOf(972, 973), 99);        // Only all of it is 100
+        QCOMPARE(Language::percentOf(2, 3), 66);
+        QCOMPARE(Language::percentOf(0, 973), 0);
+        QCOMPARE(Language::percentOf(0, 0), 0);
+    }
+
+    void englishIsCompleteAndUnknownLanguagesEmpty() {
+        QCOMPARE(Language::percentTranslated("en"), 100);
+        QCOMPARE(Language::percentTranslated("xx"), 0);
+        QCOMPARE(Language::percentTranslated(""), 0);
+    }
+
+    void eachLanguageHasItsOwnPercentage() {
+        const QList<Language::Progress> progress = {{"fr", 4, 5}, {"es", 1, 3}};
+        QCOMPARE(Language::percentTranslated("fr", progress), 80);
+        QCOMPARE(Language::percentTranslated("es", progress), 33);
+        QCOMPARE(Language::percentTranslated("de", progress), 0);       // Not in the list
+        QCOMPARE(Language::percentTranslated("en", progress), 100);
+    }
+
+    // The build counts each translation (cmake/TranslationProgress.cmake); counted here again
+    // from the same file, the other way, it comes to the same
+    void theBuildCountsTranslationsAsTheyAre() {
+        for (const Language::Option& language : Language::available()) {
+            if (language.code == "en") continue;
+            QFile file(QString(AION_TRANSLATIONS_DIR) + "/aion_" + language.code + ".ts");
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QXmlStreamReader xml(&file);
+            int translated = 0;
+            int total = 0;
+            while (!xml.atEnd()) {
+                if (!xml.readNextStartElement() || xml.name() != u"translation") continue;
+                const QString type = xml.attributes().value("type").toString();
+                const QString text = xml.readElementText();
+                if (type == "vanished" || type == "obsolete") continue;
+                ++total;
+                if (type.isEmpty() && !text.isEmpty()) ++translated;
+            }
+            QVERIFY(total > 0);
+            QCOMPARE(Language::percentTranslated(language.code), Language::percentOf(translated, total));
+        }
+    }
+
     void placeholdersAndTagsAreFoundInAnyOrder() {
         QCOMPARE(mustKeep("Delete %2 and %1 transactions"), mustKeep("%2 und %1 Umsätze löschen"));
         QCOMPARE(mustKeep("Expenses <b>%1</b>"), (QStringList{"%1", "</b", "<b"}));

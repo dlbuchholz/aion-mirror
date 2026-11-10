@@ -3169,6 +3169,11 @@ Umsätze behalten ihre Kategorien.</translation>
 <context>
     <name>SettingsPage</name>
     <message>
+        <source>%1 (%2%)</source>
+        <comment>language, how much is translated</comment>
+        <translation>%1 (%2 %)</translation>
+    </message>
+    <message>
         <source>Settings</source>
         <translation>Einstellungen</translation>
     </message>

@@ -27,6 +27,9 @@ class SettingsPage : public QWidget
 public:
     explicit SettingsPage(QWidget *parent = nullptr);
 
+    // A language in the list: its name, and how much is translated unless that's all of it
+    static QString languageItemText(const QString& nativeName, int percentTranslated);
+
     void setUserId(int userId);                      // Whose categories and account types to show
     void reloadData();                               // Categories and account types changed elsewhere (an import)
     // Shows Rules with the editor filled with draft (a new rule, or with an ID that rule changed)

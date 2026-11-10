@@ -24,3 +24,6 @@ foreach(test_source IN LISTS TEST_SOURCES)
     )
     add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+
+# How the build counts a translation's progress (cmake/TranslationProgress.cmake)
+add_test(NAME translation_progress COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/translation_progress_test.cmake)

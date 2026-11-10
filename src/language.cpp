@@ -1,4 +1,5 @@
 #include "language.h"
+#include "translationprogress.h"
 
 #include <QApplication>
 #include <QLibraryInfo>
@@ -72,6 +73,26 @@ bool install(const QString& code) {
 
 QString current() {
     return installed;
+}
+
+int percentTranslated(const QString& code) {
+    QList<Progress> built;                           // As counted when Aion was built
+    for (const TranslationProgress& progress : TranslationProgresses) {
+        if (progress.code[0] != '\0') built.append({QString::fromLatin1(progress.code), progress.translated, progress.total});
+    }
+    return percentTranslated(code, built);
+}
+
+int percentTranslated(const QString& code, const QList<Progress>& progress) {
+    if (code == "en") return 100;
+    for (const Progress& language : progress) {
+        if (language.code == code) return percentOf(language.translated, language.total);
+    }
+    return 0;
+}
+
+int percentOf(int translated, int total) {
+    return total > 0 ? int(qint64(translated) * 100 / total) : 0;
 }
 
 void restartApplication() {

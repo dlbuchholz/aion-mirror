@@ -131,6 +131,19 @@ qt_add_resources(AionLib "migrations"
 # this Qt has them. "cmake --build <dir> --target update_translations" adds new and changed texts
 # from the code to the .ts files. AION_HAS_TRANSLATIONS tells the tests the translations are in.
 set(AION_LANGUAGES de)
+
+# How complete each translation is (translationprogress.h), for the language list in Settings.
+# Counted again when a .ts file changes.
+include(cmake/TranslationProgress.cmake)
+set(AION_TRANSLATION_PROGRESS "")
+foreach(language IN LISTS AION_LANGUAGES)
+    set(ts_file ${CMAKE_CURRENT_SOURCE_DIR}/translations/aion_${language}.ts)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ts_file})
+    aion_translation_progress(${ts_file} translated total)
+    string(APPEND AION_TRANSLATION_PROGRESS "    {\"${language}\", ${translated}, ${total}},\n")
+endforeach()
+configure_file(${SRC_DIR}/translationprogress.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/translationprogress.h @ONLY)
+
 if(TARGET Qt6::lrelease)
     set(AION_TS_FILES "")
     set(QT_TRANSLATION_FILES "")

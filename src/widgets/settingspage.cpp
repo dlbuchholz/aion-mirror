@@ -82,6 +82,10 @@ public:
 
 } // namespace
 
+QString SettingsPage::languageItemText(const QString& nativeName, int percentTranslated) {
+    return percentTranslated >= 100 ? nativeName : tr("%1 (%2%)", "language, how much is translated").arg(nativeName).arg(percentTranslated);
+}
+
 SettingsPage::SettingsPage(QWidget *parent)
     : QWidget(parent)
 {
@@ -276,7 +280,8 @@ void SettingsPage::buildAppearanceSection()
     form->addRow(tr("Theme"), themeCombo);
     watch(themeCombo);
 
-    // Each language in its own words. "Match system" names the language it comes to.
+    // Each language in its own words, with how much is translated when that's not all of it.
+    // "Match system" names the language it comes to.
     languageCombo = new QComboBox(this);
     languageCombo->setObjectName("languageCombo");
     const QString systemCode = Language::resolve(Language::System);
@@ -286,7 +291,7 @@ void SettingsPage::buildAppearanceSection()
         }
     }
     for (const Language::Option& option : Language::available()) {
-        languageCombo->addItem(option.nativeName, option.code);
+        languageCombo->addItem(languageItemText(option.nativeName, Language::percentTranslated(option.code)), option.code);
     }
     form->addRow(tr("Language"), languageCombo);
     watch(languageCombo);

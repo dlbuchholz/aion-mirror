@@ -33,6 +33,22 @@ bool install(const QString& code);
 // The language installed last, "en" before any
 QString current();
 
+// How much of a language is translated, in whole percent rounded down, so only a complete
+// translation is 100: English always, a language Aion doesn't have 0. Counted from its .ts file
+// when Aion was built. Untranslated texts show in English.
+int percentTranslated(const QString& code);
+
+// The same from a list of counts, one per language
+struct Progress {
+    QString code;
+    int translated = 0;
+    int total = 0;
+};
+int percentTranslated(const QString& code, const QList<Progress>& progress);
+
+// The share in whole percent, rounded down; 0 when there's nothing to translate
+int percentOf(int translated, int total);
+
 // Starts Aion again with the same arguments and quits this one
 void restartApplication();
 

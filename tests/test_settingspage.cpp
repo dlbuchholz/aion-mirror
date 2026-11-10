@@ -251,7 +251,13 @@ private slots:
         // One entry follows the system, named after the language it comes to; then each language
         QCOMPARE(language->itemData(0).toString(), Language::System);
         QVERIFY(language->itemText(0).startsWith("Match system ("));
-        QCOMPARE(language->findText("Deutsch"), language->findData("de"));
+        QCOMPARE(language->itemText(language->findData("de")),
+                 SettingsPage::languageItemText("Deutsch", Language::percentTranslated("de")));
+        QCOMPARE(language->itemText(language->findData("en")), QString("English"));
+        // How much is translated, unless it's all
+        QCOMPARE(SettingsPage::languageItemText("Deutsch", 100), QString("Deutsch"));
+        QCOMPARE(SettingsPage::languageItemText("Français", 80), QString("Français (80%)"));
+        QCOMPARE(SettingsPage::languageItemText("Español", 0), QString("Español (0%)"));
 
         select(language, "de");
         QVERIFY(hasUnsavedChanges(page));
