@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QXmlStreamReader>
 
 #include "language.h"
 
@@ -51,6 +52,68 @@ private slots:
         QVERIFY(Language::install("en"));
         QCOMPARE(Language::current(), QString("en"));
         QCOMPARE(QCoreApplication::translate("QPlatformTheme", "Cancel"), QString("Cancel"));
+    }
+
+    // What a translation needs to keep from the English: its placeholders (%1, %2, …) and HTML
+    // tags, each as often as there. Their order may change with the language's word order.
+    static QStringList mustKeep(const QString& text) {
+        static const QRegularExpression pattern(R"(%\d+|</?[A-Za-z]+)");
+        QStringList found;
+        for (const QRegularExpressionMatch& match : pattern.globalMatch(text)) found << match.captured();
+        found.sort();
+        return found;
+    }
+
+    // Languages may be translated only in part: what's missing shows in English. But what is
+    // translated keeps the English text's placeholders and tags, or values and links go missing.
+    void translationsKeepPlaceholdersAndTags() {
+        for (const Language::Option& language : Language::available()) {
+            if (language.code == "en") continue;
+            QFile file(QString(AION_TRANSLATIONS_DIR) + "/aion_" + language.code + ".ts");
+            QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.fileName()));
+            QXmlStreamReader xml(&file);
+            QString context;
+            QString source;
+            QStringList broken;
+            int messages = 0;
+            while (!xml.atEnd()) {
+                if (!xml.readNextStartElement()) continue;
+                if (xml.name() == u"name") {
+                    context = xml.readElementText();
+                } else if (xml.name() == u"source") {
+                    source = xml.readElementText();
+                    ++messages;
+                } else if (xml.name() == u"translation") {
+                    const QString translation = xml.readElementText();
+                    if (!translation.isEmpty() && mustKeep(translation) != mustKeep(source)) {
+                        broken << QString("%1: \"%2\" → \"%3\"").arg(context, source, translation);
+                    }
+                }
+            }
+            QVERIFY2(!xml.hasError(), qPrintable(file.fileName() + ": " + xml.errorString()));
+            QVERIFY2(messages > 0, qPrintable(file.fileName()));
+            QVERIFY2(broken.isEmpty(), qPrintable(language.code + ":\n" + broken.join("\n")));
+        }
+    }
+
+    void placeholdersAndTagsAreFoundInAnyOrder() {
+        QCOMPARE(mustKeep("Delete %2 and %1 transactions"), mustKeep("%2 und %1 Umsätze löschen"));
+        QCOMPARE(mustKeep("Expenses <b>%1</b>"), (QStringList{"%1", "</b", "<b"}));
+        QVERIFY(mustKeep("%1 of %2") != mustKeep("%1 von"));                    // A value lost
+        QVERIFY(mustKeep("%1 of %2") != mustKeep("%1 von %1"));                 // or shown twice
+        QVERIFY(mustKeep("Net <b>%1</b>") != mustKeep("Saldo %1"));             // Bold lost
+        QVERIFY(mustKeep("%10 items") != mustKeep("%1 items"));                 // Two digits are one placeholder
+    }
+
+    void germanIsReallyGerman() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        QVERIFY(Language::install("de"));
+        QCOMPARE(QCoreApplication::translate("SettingsPage", "Language"), QString("Sprache"));
+        QCOMPARE(QCoreApplication::translate("TransactionsPage", "%1 transactions"), QString("%1 Umsätze"));
+        QCOMPARE(QCoreApplication::translate("Category", "Transfer"), QString("Umbuchung"));
+        QCOMPARE(QCoreApplication::translate("Backup", "Scheduled"), QString("Geplant"));
     }
 
     void aLanguageWithoutTranslationsStaysEnglish() {

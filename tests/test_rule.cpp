@@ -2,6 +2,7 @@
 
 #include "account.h"
 #include "category.h"
+#include "language.h"
 #include "rule.h"
 #include "tests/test_db_fixture.h"
 
@@ -174,6 +175,22 @@ private slots:
                            RuleCondition(Field::Type, Operator::Is, "income")};
         QCOMPARE(Rules::describe(rule, {{7, "Giro"}}), QString("Description is \"Miete\" or account is Giro or it's income"));
         QCOMPARE(Rules::describe(rule, {}), QString("Description is \"Miete\" or account is a deleted account or it's income"));
+    }
+
+    void describesInGermanToo() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        using Field = RuleCondition::Field;
+        using Operator = RuleCondition::Operator;
+        Rule rule;
+        rule.matchAll = true;
+        rule.conditions = {RuleCondition(Field::Type, Operator::Is, "expense"),
+                           RuleCondition(Field::PayeeOrDescription, Operator::StartsWith, "REWE")};
+        QVERIFY(Language::install("de"));
+        const QString german = Rules::describe(rule, {});
+        Language::install("en");
+        QCOMPARE(german, QString("Es ist eine Ausgabe und Empfänger oder Beschreibung beginnt mit „REWE“"));
     }
 
     void unknownNamesAreNotGuessedAt() {

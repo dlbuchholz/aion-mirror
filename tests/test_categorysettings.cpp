@@ -15,6 +15,7 @@
 #include "budget.h"
 #include "category.h"
 #include "categorycolors.h"
+#include "language.h"
 #include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/accounttypessettings.h"
@@ -53,6 +54,20 @@ private slots:
         for (const QString& name : CategoryColors::names()) {
             QVERIFY2(CategoryColors::label(name).compare(name, Qt::CaseInsensitive) == 0 || name == "gray", qPrintable(name));
         }
+    }
+
+    void everyColourHasAGermanName() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        QVERIFY(Language::install("de"));
+        QStringList names;
+        for (const QString& name : CategoryColors::names()) names << CategoryColors::label(name);
+        names << CategoryColors::label("");
+        Language::install("en");
+        QCOMPARE(names, (QStringList{"Rot", "Koralle", "Orange", "Bernstein", "Gelb", "Limette", "Grün", "Oliv", "Petrol",
+                                     "Himmelblau", "Blau", "Indigo", "Lila", "Magenta", "Rosa", "Braun", "Schiefer", "Grau",
+                                     "Keine Farbe"}));
     }
 
     void builtInCategoriesAreListedAndFoundInTheLanguage() {

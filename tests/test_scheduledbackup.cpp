@@ -7,6 +7,7 @@
 #include "db/backup.h"
 #include "db/databasemanager.h"
 #include "db/databasesession.h"
+#include "language.h"
 #include "settings.h"
 #include "user.h"
 #include "widgets/backupsettings.h"
@@ -223,6 +224,21 @@ private slots:
 
         keep->setValue(12);
         QCOMPARE(Settings::instance().getScheduledBackupsToKeep(), 12);
+    }
+
+    void theListNamesTheKindsInTheLanguage() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        addOldBackup(3);
+        QVERIFY(Language::install("de"));
+        BackupSettings settings;
+        settings.reload();
+        QStringList shown;
+        for (QLabel* label : settings.findChildren<QLabel*>()) shown << label->text();
+        Language::install("en");
+        QVERIFY2(shown.contains("Geplant"), qPrintable(shown.join(" | ")));
+        QCOMPARE(scheduledBackups().size(), 1);         // Still found by its English kind
     }
 
     // --- Hostile input: files and clocks that aren't what Aion expects ---
