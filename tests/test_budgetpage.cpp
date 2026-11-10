@@ -386,6 +386,9 @@ private slots:
     }
 
     void theDatesLeaveRoomForAnyMonth() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
         // German short months differ in length, "28. Jan." to "28. Sept."
         QVERIFY(Language::install("de"));
         QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, thisMonth, 40000));
