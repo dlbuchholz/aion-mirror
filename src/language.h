@@ -22,6 +22,10 @@ struct Option {
 // The languages Aion can show, English first
 QList<Option> available();
 
+// Whether Aion can show a language: English always, the others only when this build has the
+// translations (built with Qt's LinguistTools). One it can't show isn't offered or followed.
+bool isBuiltIn(const QString& code);
+
 // The language for a stored setting: the one chosen, or for "system" (or anything unknown) the
 // system's language when Aion has it, else English
 QString resolve(const QString& setting, const QLocale& system = QLocale::system());

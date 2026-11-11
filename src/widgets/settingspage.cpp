@@ -291,6 +291,7 @@ void SettingsPage::buildAppearanceSection()
         }
     }
     for (const Language::Option& option : Language::available()) {
+        if (!Language::isBuiltIn(option.code)) continue;     // Built without its translation
         languageCombo->addItem(languageItemText(option.nativeName, Language::percentTranslated(option.code)), option.code);
     }
     form->addRow(tr("Language"), languageCombo);

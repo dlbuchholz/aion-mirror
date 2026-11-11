@@ -23,10 +23,7 @@ void removeTranslators() {
 }
 
 bool isAvailable(const QString& code) {
-    for (const Language::Option& option : Language::available()) {
-        if (option.code == code) return true;
-    }
-    return false;
+    return Language::isBuiltIn(code);
 }
 
 } // namespace
@@ -35,6 +32,16 @@ namespace Language {
 
 QList<Option> available() {
     return {{"en", "English"}, {"de", "Deutsch"}};
+}
+
+bool isBuiltIn(const QString& code) {
+#ifndef AION_HAS_TRANSLATIONS
+    if (code != "en") return false;                  // Built without Qt's LinguistTools: English only
+#endif
+    for (const Language::Option& option : Language::available()) {
+        if (option.code == code) return true;
+    }
+    return false;
 }
 
 QString resolve(const QString& setting, const QLocale& system) {

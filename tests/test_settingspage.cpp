@@ -240,6 +240,9 @@ private slots:
     }
 
     void languageIsChosenHereAndTakesEffectOnRestart() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
         // Aion runs in English here, whatever the computer's language
         QCOMPARE(Language::current(), QString("en"));
         Settings::instance().setLanguage("en");

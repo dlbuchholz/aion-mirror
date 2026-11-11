@@ -19,11 +19,17 @@ private slots:
     }
 
     void aChosenLanguageWins() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
         QCOMPARE(Language::resolve("de", QLocale(QLocale::English, QLocale::UnitedKingdom)), QString("de"));
         QCOMPARE(Language::resolve("en", QLocale(QLocale::German, QLocale::Germany)), QString("en"));
     }
 
     void systemFollowsTheComputerWhenAionHasItsLanguage() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
         QCOMPARE(Language::resolve(Language::System, QLocale(QLocale::German, QLocale::Germany)), QString("de"));
         QCOMPARE(Language::resolve(Language::System, QLocale(QLocale::German, QLocale::Austria)), QString("de"));
         QCOMPARE(Language::resolve(Language::System, QLocale(QLocale::English, QLocale::UnitedStates)), QString("en"));
@@ -31,8 +37,24 @@ private slots:
     }
 
     void anUnknownSettingFollowsTheSystem() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
         QCOMPARE(Language::resolve("xx", QLocale(QLocale::German, QLocale::Germany)), QString("de"));
         QCOMPARE(Language::resolve("", QLocale(QLocale::French, QLocale::France)), QString("en"));
+    }
+
+    void onlyEnglishWithoutTheTranslations() {
+        QVERIFY(Language::isBuiltIn("en"));
+        QVERIFY(!Language::isBuiltIn("xx"));
+#ifdef AION_HAS_TRANSLATIONS
+        QVERIFY(Language::isBuiltIn("de"));
+#else
+        // Built without Qt's LinguistTools: German isn't followed, so nothing waits for a restart
+        QVERIFY(!Language::isBuiltIn("de"));
+        QCOMPARE(Language::resolve("de", QLocale(QLocale::German, QLocale::Germany)), QString("en"));
+        QCOMPARE(Language::resolve(Language::System, QLocale(QLocale::German, QLocale::Germany)), QString("en"));
+#endif
     }
 
     void startsInEnglish() {
