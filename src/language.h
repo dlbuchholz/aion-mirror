@@ -27,7 +27,7 @@ QList<Option> available();
 bool isBuiltIn(const QString& code);
 
 // The language for a stored setting: the one chosen, or for "system" (or anything unknown) the
-// system's language when Aion has it, else English
+// first of the system's display languages that Aion has, else English
 QString resolve(const QString& setting, const QLocale& system = QLocale::system());
 
 // Shows Aion's texts in this language from now on. English, or a language without

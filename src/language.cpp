@@ -48,8 +48,14 @@ QString resolve(const QString& setting, const QLocale& system) {
     if (setting != System && isAvailable(setting)) {
         return setting;
     }
-    const QString systemCode = QLocale::languageToCode(system.language());
-    return isAvailable(systemCode) ? systemCode : QString("en");
+    // The languages the system shows its own texts in, the preferred one first. Not
+    // system.language(): on Windows that's the language of the regional format (dates, numbers),
+    // which may be another one than the display language.
+    for (const QString& name : system.uiLanguages()) {
+        const QString code = QLocale::languageToCode(QLocale(name).language());
+        if (isAvailable(code)) return code;
+    }
+    return QString("en");
 }
 
 bool install(const QString& code) {
