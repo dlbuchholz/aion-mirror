@@ -44,6 +44,22 @@ QList<QPair<QString, QString>> columnFields()
     };
 }
 
+// The names a file's category is recognised by, lower case: every category's own name, and the
+// built-in ones' names as shown too ("Umbuchung"), so the file's isn't created next to them.
+// One of the user's own with that name comes first.
+QHash<QString, Category> categoriesByFileName(const QList<Category> &categories)
+{
+    QHash<QString, Category> result;
+    for (const Category &category : categories) {
+        result.insert(category.getName().simplified().toLower(), category);
+    }
+    for (const Category &category : categories) {
+        const QString shown = category.getDisplayName().simplified().toLower();
+        if (!result.contains(shown)) result.insert(shown, category);
+    }
+    return result;
+}
+
 QString delimiterName(QChar delimiter)
 {
     if (delimiter == ';') return ImportManagerDialog::tr("semicolon separated");
@@ -789,8 +805,9 @@ CsvImport::Options ImportManagerDialog::importOptions() const
     options.accountId = accountCombo->currentData().toInt();
     options.decimalSeparator = decimalSeparator;
     options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
-    for (const Category &category : CategoryDAO(userId).getAllCategories()) {
-        options.categoryIds.insert(category.getName().simplified().toLower(), category.getCategoryId());
+    const QHash<QString, Category> known = categoriesByFileName(CategoryDAO(userId).getAllCategories());
+    for (auto it = known.cbegin(); it != known.cend(); ++it) {
+        options.categoryIds.insert(it.key(), it.value().getCategoryId());
     }
     applyCategoryChoices(options);
     if (useRulesCheck && useRulesCheck->isChecked()) {
@@ -852,10 +869,10 @@ void ImportManagerDialog::refreshFileCategories()
     options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
     fileCategories = CsvImport::fileCategories(rows, mapping(), options);
 
-    QHash<QString, Category> existing;
+    const QList<Category> categories = CategoryDAO(userId).getAllCategories();
+    const QHash<QString, Category> existing = categoriesByFileName(categories);
     QList<Category> choosable;
-    for (const Category &category : CategoryDAO(userId).getAllCategories()) {
-        existing.insert(category.getName().simplified().toLower(), category);
+    for (const Category &category : categories) {
         if (!category.isBalanceAdjustment()) choosable.append(category);
     }
 

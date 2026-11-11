@@ -275,6 +275,25 @@ private slots:
         QCOMPARE(error->text(), QString("Enter a name."));
     }
 
+    void rejectsTheNameABuiltInCategoryIsShownBy() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addCategoryButton")->click();
+        auto* name = settings.findChild<QLineEdit*>("categoryNameEdit");
+        auto* error = settings.findChild<QLabel*>("categoryError");
+        // Shown as "Umbuchung", so a second one of that name couldn't be told from it
+        name->setText("umbuchung");
+        settings.findChild<QPushButton*>("saveCategoryButton")->click();
+        QVERIFY(error->isVisibleTo(&settings));
+        QVERIFY(error->text().contains("\"Umbuchung\""));
+        QCOMPARE(named("umbuchung").getCategoryId(), -1);
+        // Its name in the data is taken too, and the message names it as it's shown
+        name->setText("Transfer");
+        settings.findChild<QPushButton*>("saveCategoryButton")->click();
+        QVERIFY(error->text().contains("\"Umbuchung\""));
+    }
+
     void editsNameTypeAndColour() {
         CategoriesSettings settings;
         settings.setUserId(1);

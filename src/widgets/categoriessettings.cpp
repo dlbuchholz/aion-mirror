@@ -482,8 +482,11 @@ void CategoriesSettings::save() {
         return;
     }
     for (const Category& other : categories) {
-        if (other.getCategoryId() != editedId && other.getName().compare(name, Qt::CaseInsensitive) == 0) {
-            fail(tr("\"%1\" already exists. Use \"Merge into…\" to combine two categories.").arg(other.getName()));
+        if (other.getCategoryId() == editedId) continue;
+        // The built-in ones under the name they're shown by too ("Umbuchung"), or there'd be two of that name
+        if (other.getName().compare(name, Qt::CaseInsensitive) == 0
+            || other.getDisplayName().compare(name, Qt::CaseInsensitive) == 0) {
+            fail(tr("\"%1\" already exists. Use \"Merge into…\" to combine two categories.").arg(other.getDisplayName()));
             return;
         }
     }

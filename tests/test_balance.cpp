@@ -17,6 +17,7 @@
 #include "dashboard.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
+#include "fake_translator.h"
 #include <QFrame>
 #include <QMessageBox>
 #include <QTimer>
@@ -679,6 +680,39 @@ private slots:
         const QList<Transaction> imported = TransactionDAO().getTransactionsForAccount(giro);
         QCOMPARE(imported.size(), 1);
         QCOMPARE(imported.first().getCategoryId(), groceries);
+    }
+
+    void aBuiltInCategoryIsRecognisedByTheNameItIsShownBy() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        QTemporaryDir dir;
+        const QString path = dir.filePath("transfer.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name;Kategorie\n10.10.2026;-12,00;Sparkonto;Umbuchung\n");
+        file.close();
+        int transfer = -1;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == TransferCategory) transfer = category.getCategoryId();
+        }
+        const qsizetype categoriesBefore = CategoryDAO(1).getAllCategories().size();
+
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Categories);
+        QVERIFY(!dialog.findChild<QComboBox*>("categoryChoice"));            // Known, nothing to choose or create
+        next->click();
+        QString said;
+        answerMessageBox(&said);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        const QList<Transaction> imported = TransactionDAO().getTransactionsForAccount(giro);
+        QCOMPARE(imported.size(), 1);
+        QCOMPARE(imported.first().getCategoryId(), transfer);
+        QCOMPARE(CategoryDAO(1).getAllCategories().size(), categoriesBefore);  // No second "Umbuchung"
     }
 
     void oneOfEachIsSaidInTheSingular() {
