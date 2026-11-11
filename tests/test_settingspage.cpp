@@ -282,7 +282,13 @@ private slots:
         // A stored language Aion doesn't have shows as following the system
         Settings::instance().setLanguage("xx");
         SettingsPage unknown;
-        QCOMPARE(child<QComboBox>(unknown, "languageCombo")->currentData().toString(), Language::System);
+        auto* unknownLanguage = child<QComboBox>(unknown, "languageCombo");
+        QCOMPARE(unknownLanguage->currentData().toString(), Language::System);
+        // And Revert goes back to that from another choice
+        select(unknownLanguage, "de");
+        child<QPushButton>(unknown, "revertButton")->click();
+        QCOMPARE(unknownLanguage->currentData().toString(), Language::System);
+        QVERIFY(!hasUnsavedChanges(unknown));
         Settings::instance().restoreDefaults();
     }
 

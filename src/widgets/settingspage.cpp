@@ -501,10 +501,9 @@ void SettingsPage::loadSettings()
             themeCombo->setCurrentIndex(i);
         }
     }
-    selectByData(languageCombo, settings.getLanguage());
-    if (languageCombo->currentIndex() < 0) {
-        selectByData(languageCombo, Language::System);
-    }
+    // A stored language Aion doesn't have follows the system (Language::resolve), so it shows as that
+    const int languageIndex = languageCombo->findData(settings.getLanguage());
+    languageCombo->setCurrentIndex(languageIndex >= 0 ? languageIndex : languageCombo->findData(Language::System));
     updateRestartNote();
 
     autoDetectDelimiterCheck->setChecked(settings.isAutoDetectCsvDelimiter());
