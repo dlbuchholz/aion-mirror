@@ -13,6 +13,7 @@
 #include "../ui/ui_mainwindow.h"
 
 #include <QDialog>
+#include <QMessageBox>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(int userId, QWidget *parent)
@@ -49,7 +50,12 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
     // The restored database may have other users, so everything starts over
     connect(ui->settingsPage, &SettingsPage::databaseRestored, this, &MainWindow::switchUserRequested);
-    connect(ui->settingsPage, &SettingsPage::restartRequested, this, &Language::restartApplication);
+    connect(ui->settingsPage, &SettingsPage::restartRequested, this, [this]() {
+        if (!Language::restartApplication()) {
+            QMessageBox::warning(this, tr("Restart Aion"),
+                                 tr("Aion couldn't be started again. Close it and start it yourself to change the language."));
+        }
+    });
     connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {
         // Category names, colours and merges show up everywhere
         ui->transactionsPage->reload();

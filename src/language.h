@@ -53,8 +53,14 @@ int percentTranslated(const QString& code, const QList<Progress>& progress);
 // The share in whole percent, rounded down; 0 when there's nothing to translate
 int percentOf(int translated, int total);
 
-// Starts Aion again with the same arguments and quits this one
-void restartApplication();
+// Starts Aion again with the same arguments and quits this one. Returns false, and leaves this
+// one open, when it couldn't be started.
+bool restartApplication();
+
+// The program that starts Aion again: the running one, or the AppImage file when it runs from
+// inside one (the AppImage sets APPIMAGE and APPDIR; its mounted program goes when it ends).
+// Only when the program is in that APPDIR: both are inherited from an AppImage that started Aion.
+QString restartProgram(const QString& applicationFilePath, const QString& appImage, const QString& appDir);
 
 } // namespace Language
 

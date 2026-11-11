@@ -57,6 +57,19 @@ private slots:
 #endif
     }
 
+    void restartsTheAppImageWhenRunningFromInsideOne() {
+        const QString program = "/tmp/.mount_AionAb12/usr/bin/Aion";
+        QCOMPARE(Language::restartProgram(program, "/home/alex/Aion.AppImage", "/tmp/.mount_AionAb12"),
+                 QString("/home/alex/Aion.AppImage"));
+        // Not in an AppImage
+        QCOMPARE(Language::restartProgram("/usr/bin/Aion", "", ""), QString("/usr/bin/Aion"));
+        // Started from another program's AppImage, which hands its variables on
+        QCOMPARE(Language::restartProgram("/usr/bin/Aion", "/home/alex/Terminal.AppImage", "/tmp/.mount_TermXy"),
+                 QString("/usr/bin/Aion"));
+        QCOMPARE(Language::restartProgram("/tmp/.mount_AionAb12x/Aion", "/home/alex/Other.AppImage", "/tmp/.mount_AionAb12"),
+                 QString("/tmp/.mount_AionAb12x/Aion"));
+    }
+
     void startsInEnglish() {
         QCOMPARE(Language::current(), QString("en"));
         QCOMPARE(QCoreApplication::translate("QPlatformTheme", "Cancel"), QString("Cancel"));

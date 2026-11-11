@@ -2179,6 +2179,14 @@ So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter
         <source>Add account</source>
         <translation>Konto hinzufügen</translation>
     </message>
+    <message>
+        <source>Restart Aion</source>
+        <translation>Aion neu starten</translation>
+    </message>
+    <message>
+        <source>Aion couldn&apos;t be started again. Close it and start it yourself to change the language.</source>
+        <translation>Aion konnte nicht neu gestartet werden. Schließe es und starte es selbst, um die Sprache zu ändern.</translation>
+    </message>
 </context>
 <context>
     <name>PeriodMenu</name>
