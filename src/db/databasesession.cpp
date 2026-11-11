@@ -3,6 +3,7 @@
 #include "databasemanager.h"
 #include "migrationmanager.h"
 #include "settings.h"
+#include "starternames.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -60,6 +61,7 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
         if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "The database couldn't be updated to the current version. ") + migrations.lastError();
         return false;
     }
+    StarterNames::followLanguage();                  // Without, they only keep the names they had
     return true;
 }
 

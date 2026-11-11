@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QSqlError>
@@ -104,18 +105,18 @@ private slots:
     void cleanup() { DatabaseManager::instance().closeDatabase(); }
 
     // A database at any earlier version, with data, upgrades to the same schema as a new one and
-    // keeps all its data. The seed uses the columns of 001; when a migration changes those, adapt
-    // the seed (data the user already has can't be adapted, so think twice).
+    // keeps all its data. The seed uses the columns of 001; when a migration changes those, adapt the seed (data the
+    // user already has can't be adapted, so think twice).
     void upgradingFromEveryVersionKeepsTheData_data() {
-        QTest::addColumn<int>("startFiles");
+        QTest::addColumn<int>("version");
         const QStringList files = builtInMigrationFiles();
-        for (int i = 1; i <= files.size(); ++i) {
-            QTest::addRow("from %s", qPrintable(files[i - 1])) << i;   // The last row: already current
+        for (const QString& file : files) {
+            QTest::addRow("from %s", qPrintable(file)) << file.section('_', 0, 0).toInt();   // The last: already current
         }
     }
 
     void upgradingFromEveryVersionKeepsTheData() {
-        QFETCH(int, startFiles);
+        QFETCH(int, version);
         const QStringList files = builtInMigrationFiles();
 
         // What a new database looks like
@@ -127,14 +128,7 @@ private slots:
         DatabaseManager::instance().closeDatabase();
 
         // A database at an older version, in use
-        QDir older(root.filePath("older"));
-        QVERIFY(older.mkpath("."));
-        for (int i = 0; i < startFiles; ++i) {
-            QVERIFY(QFile::copy(BuiltInMigrations + "/" + files[i], older.filePath(files[i])));
-        }
-        QVERIFY(DatabaseManager::instance().openDatabase(root.filePath("upgraded.sqlite")));
-        MigrationManager(older.path()).applyMigrations();   // Older versions may not pass today's checks
-        QCOMPARE(column("SELECT COUNT(*) FROM schema_migrations").value(0).toInt(), startFiles);
+        QVERIFY(TestDbFixture::createAtVersion(root.filePath("upgraded.sqlite"), version));
         QSqlQuery seed(DatabaseManager::instance().database());
         for (const char* sql : {
                  "INSERT INTO users (id, username, name) VALUES (1, 'anna', 'Anna')",
@@ -165,6 +159,26 @@ private slots:
                                                        .arg(it.key().first, it.value().join("; "), now.join("; "))));
         }
         QVERIFY(column("PRAGMA foreign_key_check").isEmpty());
+    }
+
+    // Users' databases already ran the migrations of released versions, so a change to one would
+    // never reach them: change the schema with a new migration instead. When releasing a version
+    // with new migrations, add them here.
+    void releasedMigrationsNeverChange_data() {
+        QTest::addColumn<QString>("file");
+        QTest::addColumn<QByteArray>("sha256");
+        QTest::newRow("0.1.0") << "001_initial_schema.sql" << QByteArray("76c9a46041af59aae4085f2e67d050669c0e091eee75b02236ba8580ec26c0f6");
+    }
+
+    void releasedMigrationsNeverChange() {
+        QFETCH(QString, file);
+        QFETCH(QByteArray, sha256);
+        QFile migration(BuiltInMigrations + "/" + file);
+        QVERIFY2(migration.open(QIODevice::ReadOnly), qPrintable(file + " is missing"));
+        // Git may check it out with Windows line endings
+        const QByteArray text = migration.readAll().replace("\r\n", "\n");
+        QVERIFY2(QCryptographicHash::hash(text, QCryptographicHash::Sha256).toHex() == sha256,
+                 qPrintable(file + " changed after it was released"));
     }
 
     void failedMigrationRollsBackStatements() {

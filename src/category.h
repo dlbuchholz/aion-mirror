@@ -79,7 +79,7 @@ public:
     // The categories a new user starts with, the built-in ones included
     static bool addDefaultCategories(int userId);
 
-    int addCategory(const Category &category);
+    int addCategory(const Category &category, const QString& starter = {});  // starter: see StarterNames
     QList<Category> getAllCategories();
     Category getCategoryById(int categoryId);
     bool editCategory(int id, const QString &newName, const QString &newType);

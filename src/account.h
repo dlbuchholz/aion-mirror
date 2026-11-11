@@ -35,7 +35,7 @@ public:
     // Account Type Management. Account types belong to a user.
     static bool addDefaultAccountTypes(int userId);  // The types a new user starts with
     QList<QString> getAccountTypes(int userId);
-    int addAccountType(int userId, const QString& name);
+    int addAccountType(int userId, const QString& name, const QString& starter = {});  // starter: see StarterNames
     bool editAccountType(int userId, int id, const QString& newName);
     bool deleteAccountType(int userId, int id);
 

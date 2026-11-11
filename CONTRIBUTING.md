@@ -203,6 +203,27 @@ must keep its text's placeholders (`%1`, `%2`, …) and HTML tags; `test_languag
 3. Give it its date patterns in `pattern()` and its locale in `AppLocale::locale()`
    ([src/applocale.cpp](src/applocale.cpp)); without them, dates are written the English way.
 
+## Database changes
+
+The schema comes from the migrations in [db/migrations](db/migrations), `<number>_<name>.sql`,
+applied in order. Opening a database applies the ones it hasn't had yet, after a backup.
+
+- Change the schema with a new migration, numbered one above the newest. A released migration never
+  changes: users' databases already ran it, so a change would never reach them.
+  `releasedMigrationsNeverChange` in [tests/test_migrationmanager.cpp](tests/test_migrationmanager.cpp)
+  checks that by their checksums.
+- A migration that changes the data the user already has, not only the schema, gets a test of what it
+  does to such data. Start it from a database at the version before (`TestDbFixture::createAtVersion`)
+  and fill that in the way the older Aion would have. `upgradingFromEveryVersionKeepsTheData` already
+  checks that every version upgrades to the same schema as a new database and keeps its data.
+
+When a release has new migrations, add each to `releasedMigrationsNeverChange` with its SHA-256,
+taken from the file as git stores it, with Unix line endings (Git Bash, after committing it):
+
+```bash
+git show HEAD:db/migrations/002_starter_names.sql | sha256sum
+```
+
 ## Before you send a change
 
 - Build without new warnings. To check, configure with `-DAION_WARNINGS_AS_ERRORS=ON`. MSVC and GCC
@@ -211,6 +232,8 @@ must keep its text's placeholders (`%1`, `%2`, …) and HTML tags; `test_languag
 - If you add code to `src/`, add or update tests in `tests/`.
 - If you add or change texts the user sees, mark them for translation and run `update_translations`
   (see [Translations](#translations)).
+- If you change the database, add a migration rather than changing one
+  (see [Database changes](#database-changes)).
 - A line that can never run, like the `return` after a `switch` that handles every value, can end
   with `// GCOVR_EXCL_LINE: <why>`, and the coverage report leaves it out. Use it only for lines that
   really can't run, not for ones that are just hard to test, like a failing disk.
@@ -326,13 +349,15 @@ To undo: restore `data/runner-config.yml.bak` and restart the runner, and remove
 
 To release:
 
-1. On Codeberg, open **Actions**, choose the workflow, click **Run workflow** on `develop` with
+1. If the release has new migrations, add their checksums to the test
+   (see [Database changes](#database-changes)) and commit that to `develop`.
+2. On Codeberg, open **Actions**, choose the workflow, click **Run workflow** on `develop` with
    **Also prepare the draft release** ticked, and wait for it to pass. The draft then has that
    commit's build. If the Windows 7/8 job failed, the draft has no Windows 7/8 files: check its
    log, and decide whether to fix it first or release without them.
-2. Open the draft under **Releases**, write the release notes, and click **Publish**.
+3. Open the draft under **Releases**, write the release notes, and click **Publish**.
    The release and its tag stay as they are from then on.
-3. Raise the version in `CMakeLists.txt` for the next release. Its draft is made the next time you
+4. Raise the version in `CMakeLists.txt` for the next release. Its draft is made the next time you
    prepare one. Raising it early is fine, since a draft is only published by hand.
 
 Note: Releases use the run's own token. If that may not create tags and releases, add a Codeberg access

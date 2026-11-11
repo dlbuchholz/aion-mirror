@@ -92,6 +92,29 @@ public:
         return query.exec("PRAGMA foreign_keys = OFF") && query.exec("DROP TABLE " + table);
     }
 
+    // The newest migration this build of Aion has
+    static int newestVersion() { return MigrationManager(BuiltInMigrations).newestKnownVersion(); }
+
+    // Creates the database at path and leaves it open instead of the one open before, as Aion left
+    // it after migration `version`: only the built-in migrations up to that one ran. Tests of updates start from it, so they don't depend on what each migration changes.
+    // Older versions may not pass today's checks (MigrationManager::applyMigrations), so this only
+    // makes sure every migration was applied.
+    static bool createAtVersion(const QString& path, int version) {
+        QTemporaryDir migrations;
+        int count = 0;
+        for (const QString& file : QDir(BuiltInMigrations).entryList({"*.sql"}, QDir::Files)) {
+            if (file.section('_', 0, 0).toInt() <= version) {
+                if (!QFile::copy(BuiltInMigrations + "/" + file, migrations.filePath(file))) return false;
+                ++count;
+            }
+        }
+        DatabaseManager::instance().closeDatabase();     // Instead of the one open
+        if (!migrations.isValid() || !DatabaseManager::instance().openDatabase(path)) return false;
+        MigrationManager(migrations.path()).applyMigrations();
+        QSqlQuery query(DatabaseManager::instance().database());
+        return query.exec("SELECT COUNT(*) FROM schema_migrations") && query.next() && query.value(0).toInt() == count;
+    }
+
     const QString& path() const { return templatePath; }
 
 private:
