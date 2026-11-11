@@ -31,5 +31,20 @@
         <source>Empty, not marked</source>
         <translation></translation>
     </message>
+    <message numerus="yes">
+        <source>%n file(s), plural forms on one line</source>
+        <translation><numerusform>%n fichier</numerusform><numerusform>%n fichiers</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n row(s), plural forms on their own lines</source>
+        <translation>
+            <numerusform>%n ligne</numerusform>
+            <numerusform>%n lignes</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n sheet(s), plural forms not started</source>
+        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+    </message>
 </context>
 </TS>

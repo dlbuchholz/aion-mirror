@@ -6,12 +6,13 @@
 #
 # Every text the code has counts towards the total; texts no longer in the code (vanished or
 # obsolete) don't. A text counts as translated when its translation isn't empty and isn't marked
-# unfinished.
+# unfinished; one with plural forms ("%n files") counts once, like any other.
 function(aion_translation_progress ts_file translated_var total_var)
     file(READ "${ts_file}" content)
     string(REGEX MATCHALL "<translation[ >]" all "${content}")
     string(REGEX MATCHALL "<translation type=\"(vanished|obsolete)\"" gone "${content}")
-    string(REGEX MATCHALL "<translation>[^<]" done "${content}")
+    # A text with plural forms has them inside its translation, each in a <numerusform>
+    string(REGEX MATCHALL "<translation>(<numerusform>)?[^<]" done "${content}")
     list(LENGTH all all_count)
     list(LENGTH gone gone_count)
     list(LENGTH done done_count)

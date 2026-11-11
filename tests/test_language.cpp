@@ -166,7 +166,7 @@ private slots:
             while (!xml.atEnd()) {
                 if (!xml.readNextStartElement() || xml.name() != u"translation") continue;
                 const QString type = xml.attributes().value("type").toString();
-                const QString text = xml.readElementText();
+                const QString text = xml.readElementText(QXmlStreamReader::IncludeChildElements);   // Plural forms are inside
                 if (type == "vanished" || type == "obsolete") continue;
                 ++total;
                 if (type.isEmpty() && !text.isEmpty()) ++translated;
