@@ -1,5 +1,6 @@
 #include "deleteaccountdialog.h"
 #include "account.h"
+#include "applocale.h"
 #include "settings.h"
 #include "theme.h"
 
@@ -11,10 +12,6 @@
 #include <QVBoxLayout>
 
 namespace {
-
-QString counted(int count, const QString& singular) {
-    return QString("%1 %2%3").arg(count).arg(singular, count == 1 ? "" : "s");
-}
 
 QLabel* addNote(const QString& objectName, QVBoxLayout* layout, QWidget* parent) {
     auto* note = new QLabel(parent);
@@ -30,7 +27,7 @@ QLabel* addNote(const QString& objectName, QVBoxLayout* layout, QWidget* parent)
 
 DeleteAccountDialog::DeleteAccountDialog(int userId, int accountId, QWidget* parent)
     : QDialog(parent), deletedAccountId(accountId) {
-    setWindowTitle("Delete account");
+    setWindowTitle(tr("Delete account"));
     setMinimumWidth(420);
 
     AccountDAO dao;
@@ -43,22 +40,22 @@ DeleteAccountDialog::DeleteAccountDialog(int userId, int accountId, QWidget* par
     auto* layout = new QVBoxLayout(this);
     layout->setSpacing(10);
 
-    auto* title = new QLabel(QString("Delete \"%1\"?").arg(accountName), this);
+    auto* title = new QLabel(tr("Delete \"%1\"?").arg(accountName), this);
     title->setTextFormat(Qt::PlainText);
     QFont titleFont = title->font();
     titleFont.setBold(true);
     title->setFont(titleFont);
     layout->addWidget(title);
 
-    QStringList facts = {counted(transactions, "transaction"),
-                         QString("%1 balance").arg(Settings::instance().formatCurrency(balanceCents))};
+    QStringList facts = {AppLocale::count(transactions, tr("%1 transaction"), tr("%1 transactions")),
+                         tr("%1 balance").arg(Settings::instance().formatCurrency(balanceCents))};
     if (rules > 0) {
-        facts << QString("used by %1").arg(counted(rules, "rule"));
+        facts << AppLocale::count(rules, tr("used by %1 rule"), tr("used by %1 rules"));
     }
     auto* summary = addNote("deleteSummaryLabel", layout, this);
     summary->setText(facts.join(", "));
 
-    moveOption = new QRadioButton("Move transactions to another account", this);
+    moveOption = new QRadioButton(tr("Move transactions to another account"), this);
     moveOption->setObjectName("moveTransactionsOption");
     layout->addWidget(moveOption);
 
@@ -72,7 +69,7 @@ DeleteAccountDialog::DeleteAccountDialog(int userId, int accountId, QWidget* par
     layout->addWidget(targetCombo);
     moveNote = addNote("moveNoteLabel", layout, this);
 
-    deleteOption = new QRadioButton("Delete the transactions too", this);
+    deleteOption = new QRadioButton(tr("Delete the transactions too"), this);
     deleteOption->setObjectName("deleteTransactionsOption");
     layout->addWidget(deleteOption);
     deleteNote = addNote("deleteNoteLabel", layout, this);
@@ -83,7 +80,7 @@ DeleteAccountDialog::DeleteAccountDialog(int userId, int accountId, QWidget* par
     targetCombo->setEnabled(canMove);
     (canMove ? moveOption : deleteOption)->setChecked(true);
     if (!canMove) {
-        moveOption->setToolTip("You have no other account.");
+        moveOption->setToolTip(tr("You have no other account."));
     }
 
     // With no transactions there's nothing to choose
@@ -104,7 +101,7 @@ DeleteAccountDialog::DeleteAccountDialog(int userId, int accountId, QWidget* par
     layout->addWidget(statusLabel);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    deleteButton = buttons->addButton("Delete", QDialogButtonBox::DestructiveRole);
+    deleteButton = buttons->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
     deleteButton->setObjectName("deleteAccountButton");
     Theme::setStyleProperty(deleteButton, "danger", true);   // Red text; the button row has set it up already
     deleteButton->setAutoDefault(false);
@@ -126,31 +123,31 @@ void DeleteAccountDialog::updateTexts() {
         const Settings& settings = Settings::instance();
         const QString target = targetCombo->currentText();
         const Cents targetBalance = AccountDAO().getAccountById(targetCombo->currentData().toInt()).getBalanceCents();
-        QString note = QString("%1's balance goes from %2 to %3.")
+        QString note = tr("%1's balance goes from %2 to %3.")
                            .arg(target, settings.formatCurrency(targetBalance),
                                 settings.formatCurrency(targetBalance + balanceCents));
         if (rules > 0) {
-            note += QString(" Rules for this account will apply to %1.").arg(target);
+            note += tr(" Rules for this account will apply to %1.").arg(target);
         }
         moveNote->setText(note);
     } else {
-        moveNote->setText("You have no other account to move them to.");
+        moveNote->setText(tr("You have no other account to move them to."));
     }
 
-    QString note = transactions > 0 ? "This can't be undone. Reports and budgets lose this spending."
-                                    : "This can't be undone.";
+    QString note = transactions > 0 ? tr("This can't be undone. Reports and budgets lose this spending.")
+                                    : tr("This can't be undone.");
     if (rules > 0) {
-        note += QString(" %1 will stop using this account, and any that need it are deleted.")
-                    .arg(counted(rules, "rule"));
+        note += AppLocale::count(rules, tr(" %1 rule will stop using this account, and is deleted if it needs it."),
+                                 tr(" %1 rules will stop using this account, and any that need it are deleted."));
     }
     deleteNote->setText(note);
 
     if (transactions == 0) {
-        deleteButton->setText(QString("Delete %1").arg(accountName));
+        deleteButton->setText(tr("Delete %1").arg(accountName));
     } else if (moving) {
-        deleteButton->setText(QString("Move %1 and delete %2").arg(transactions).arg(accountName));
+        deleteButton->setText(tr("Move %1 and delete %2").arg(AppLocale::number(transactions), accountName));
     } else {
-        deleteButton->setText(QString("Delete %1 and %2").arg(accountName, counted(transactions, "transaction")));
+        deleteButton->setText(AppLocale::count(transactions, tr("Delete %2 and %1 transaction"), tr("Delete %2 and %1 transactions")).arg(accountName));
     }
 }
 
@@ -160,7 +157,7 @@ void DeleteAccountDialog::deleteAccount() {
     const bool deleted = moving ? dao.deleteAccountMovingTo(deletedAccountId, targetCombo->currentData().toInt())
                                 : dao.deleteAccount(deletedAccountId);
     if (!deleted) {
-        statusLabel->setText("The account couldn't be deleted.");
+        statusLabel->setText(tr("The account couldn't be deleted."));
         statusLabel->setVisible(true);
         return;
     }

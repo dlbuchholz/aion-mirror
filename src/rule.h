@@ -1,6 +1,7 @@
 #ifndef RULE_H
 #define RULE_H
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QList>
 #include <QString>
@@ -11,6 +12,9 @@
 
 // One condition of a rule, like "payee contains REWE" or "amount between 40 and 120"
 struct RuleCondition {
+    Q_DECLARE_TR_FUNCTIONS(RuleCondition)
+
+public:
     enum class Field { Payee, Description, PayeeOrDescription, Amount, Type, Account };
     enum class Operator { Contains, Is, StartsWith, Between };
 
@@ -27,6 +31,7 @@ struct RuleCondition {
     bool matches(const Transaction& transaction) const;
 
     static QString fieldLabel(Field field);          // For people: "Payee or description"
+    static QString fieldName(Field field);           // The same within a sentence: "payee or description"
     static QString operatorLabel(Operator op);       // "starts with"
     static QString fieldKey(Field field);            // Database names: "payee", "payee_or_description", ...
     static QString operatorKey(Operator op);

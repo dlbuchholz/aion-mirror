@@ -86,6 +86,10 @@ public:
     QString getTheme() const;
     void setTheme(const QString& theme);
 
+    // Language of the texts: a code from Language::available(), or Language::System (default)
+    QString getLanguage() const;
+    void setLanguage(const QString& language);
+
     // Category colours on the Dashboard's spending bars and as dots on budget rows (tags are always coloured)
     bool isCategoryColorsInOverviewsEnabled() const;
     void setCategoryColorsInOverviewsEnabled(bool enabled);

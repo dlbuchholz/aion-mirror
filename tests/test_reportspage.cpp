@@ -1094,6 +1094,67 @@ private slots:
         QVERIFY2(cardSays().contains("−50% vs. "), qPrintable(cardSays()));
     }
 
+    void theBudgetSummaryCountsTheDays() {
+        // November 2026 with 30,00 € a month: 1,00 € a day keeps exactly to an even pace
+        const Settings& settings = Settings::instance();
+        BudgetReport report;
+        report.months = {{ReportRange::custom(QDate(2026, 11, 1), QDate(2026, 11, 30)), 3000, 0}};
+        const QMap<int, QString> ordinals = {{1, "1st"}, {2, "2nd"}, {3, "3rd"}, {4, "4th"}, {11, "11th"}, {12, "12th"},
+                                             {13, "13th"}, {21, "21st"}, {22, "22nd"}, {23, "23rd"}};
+        for (auto it = ordinals.cbegin(); it != ordinals.cend(); ++it) {
+            report.spentByDay.clear();
+            for (int day = 1; day <= it.key(); ++day) report.spentByDay.append(100 * day);
+            QCOMPARE(ReportsPage::budgetSummary(report, QDate(2026, 11, it.key())),
+                     QString("%1 spent by the %2, right on an even pace").arg(settings.formatCurrency(100 * it.key()), it.value()));
+        }
+        report.spentByDay = {100, 500};
+        QCOMPARE(ReportsPage::budgetSummary(report, QDate(2026, 11, 2)),
+                 QString("%1 spent by the 2nd, %2 over an even pace").arg(settings.formatCurrency(500), settings.formatCurrency(300)));
+    }
+
+    void singleCountsOnTheCardsAndRows() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("SELECT id FROM categories WHERE name = 'Groceries'") && query.next());
+        const int groceries = query.value(0).toInt();
+        const QDate today = QDate::currentDate();
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, groceries, today, 10000));
+        TransactionDAO().addTransaction(Transaction(-1, giro, "REWE", 4000, today, "", groceries, "expense"));
+        const QString amount = Settings::instance().formatSpending(4000);
+
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        QCOMPARE(cards(page)[0]->accessibleDescription(), QString("%1, In 1 category").arg(amount));
+        const QString trendCard = cards(page)[3]->accessibleDescription();
+        QVERIFY2(trendCard.startsWith("Groceries, ") && trendCard.endsWith(" a week on average"), qPrintable(trendCard));
+        QCOMPARE(cards(page)[4]->accessibleDescription(), QString("REWE, %1 in 1 transaction").arg(amount));
+
+        cards(page)[4]->click();
+        QVERIFY(page.findChildren<QAbstractButton*>("payeeRow").first()->accessibleDescription().endsWith(", 1 transaction"));
+        cards(page)[5]->click();
+        QCOMPARE(page.findChildren<QAbstractButton*>("budgetRow").first()->toolTip(), QString("1 month with a budget\nClick for its trend"));
+        cards(page)[3]->click();
+        QVERIFY2(page.findChild<QWidget*>("trendTotal")->toolTip().endsWith(" a week on average"),
+                 qPrintable(page.findChild<QWidget*>("trendTotal")->toolTip()));
+
+        chip(page, Preset::ThreeMonths)->click();         // Months instead of weeks
+        QVERIFY(page.findChild<QWidget*>("trendTotal")->toolTip().endsWith(" a month on average"));
+        QVERIFY(cards(page)[3]->accessibleDescription().endsWith(" a month on average"));
+    }
+
+    void oneMorePayeeIsSaidInTheSingular() {
+        const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
+        for (int i = 1; i <= 21; ++i) {
+            TransactionDAO().addTransaction(Transaction(-1, giro, QString("Shop %1").arg(i), 100 * i, QDate::currentDate(), "", 0, "expense"));
+        }
+        ReportsPage page;
+        page.setUserId(1);
+        chip(page, Preset::Month)->click();
+        cards(page)[4]->click();
+        QCOMPARE(page.findChild<QWidget*>("payeeRest")->accessibleName(), QString("1 other payee"));
+    }
+
     void payeesBeyondTheLargestAreSummedUp() {
         const int giro = AccountDAO::createAccount(1, "Girokonto", "Checking", 0);
         for (int i = 1; i <= 22; ++i) {

@@ -1,5 +1,6 @@
 #include "applyrulesdialog.h"
 #include "account.h"
+#include "applocale.h"
 #include "settings.h"
 #include "widgets/categorytag.h"
 #include "theme.h"
@@ -19,12 +20,12 @@ constexpr int MaxRowsShown = 200;                    // The rest is summed up be
 
 QWidget* categoryCell(const Category* category, QWidget* parent) {
     if (!category) {
-        auto* none = new QLabel("none", parent);
+        auto* none = new QLabel(ApplyRulesDialog::tr("none"), parent);
         none->setForegroundRole(QPalette::PlaceholderText);
         return none;
     }
     auto* tag = new CategoryTag(parent);
-    tag->setCategory(category->getName(), category->getColor());
+    tag->setCategory(category->getDisplayName(), category->getColor());
     return tag;
 }
 
@@ -32,7 +33,7 @@ QWidget* categoryCell(const Category* category, QWidget* parent) {
 
 ApplyRulesDialog::ApplyRulesDialog(int userId, QWidget* parent)
     : QDialog(parent) {
-    setWindowTitle("Apply rules to existing transactions");
+    setWindowTitle(tr("Apply rules to existing transactions"));
     resize(640, 480);
 
     rules = RuleDAO(userId).rules();
@@ -49,16 +50,16 @@ ApplyRulesDialog::ApplyRulesDialog(int userId, QWidget* parent)
     });
 
     auto* root = new QVBoxLayout(this);
-    auto* intro = new QLabel("Your rules would change these transactions: their category, their payee's name, or "
-                             "both. Nothing changes until you confirm.", this);
+    auto* intro = new QLabel(tr("Your rules would change these transactions: their category, their payee's name, or "
+                                "both. Nothing changes until you confirm."), this);
     intro->setWordWrap(true);
     root->addWidget(intro);
 
-    onlyUncategorisedCheck = new QCheckBox("Only transactions without a category", this);
+    onlyUncategorisedCheck = new QCheckBox(tr("Only transactions without a category"), this);
     onlyUncategorisedCheck->setObjectName("onlyUncategorisedCheck");
     onlyUncategorisedCheck->setChecked(true);
-    onlyUncategorisedCheck->setToolTip("Untick to also change the category of transactions that have one. Payees "
-                                       "are renamed either way. Starting balances and balance corrections are never changed.");
+    onlyUncategorisedCheck->setToolTip(tr("Untick to also change the category of transactions that have one. Payees "
+                                          "are renamed either way. Starting balances and balance corrections are never changed."));
     connect(onlyUncategorisedCheck, &QCheckBox::toggled, this, &ApplyRulesDialog::updatePreview);
     root->addWidget(onlyUncategorisedCheck);
 
@@ -77,7 +78,7 @@ ApplyRulesDialog::ApplyRulesDialog(int userId, QWidget* parent)
     root->addWidget(summaryLabel);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    applyButton = buttons->addButton("Change", QDialogButtonBox::AcceptRole);
+    applyButton = buttons->addButton(tr("Change"), QDialogButtonBox::AcceptRole);
     applyButton->setObjectName("applyRulesButton");
     applyButton->setDefault(true);
     connect(applyButton, &QPushButton::clicked, this, &ApplyRulesDialog::apply);
@@ -136,19 +137,19 @@ void ApplyRulesDialog::updatePreview() {
 
     const qsizetype count = pending.size();
     if (count == 0) {
-        summaryLabel->setText(rules.isEmpty() ? "You have no rules yet." : "Your rules wouldn't change any transaction.");
+        summaryLabel->setText(rules.isEmpty() ? tr("You have no rules yet.") : tr("Your rules wouldn't change any transaction."));
     } else if (count > MaxRowsShown) {
-        summaryLabel->setText(QString("Showing %1 of %2 transactions.").arg(MaxRowsShown).arg(count));
+        summaryLabel->setText(tr("Showing %1 of %2 transactions.").arg(MaxRowsShown).arg(count));
     } else {
         summaryLabel->setText(QString());
     }
-    applyButton->setText(count == 1 ? QString("Change 1 transaction") : QString("Change %1 transactions").arg(count));
+    applyButton->setText(AppLocale::count(count, tr("Change %1 transaction"), tr("Change %1 transactions")));
     applyButton->setVisible(count > 0);
 }
 
 void ApplyRulesDialog::apply() {
     if (!Rules::apply(pending)) {
-        QMessageBox::warning(this, "Apply rules", "The transactions couldn't be changed. Nothing was changed.");
+        QMessageBox::warning(this, tr("Apply rules"), tr("The transactions couldn't be changed. Nothing was changed."));
         return;
     }
     accept();

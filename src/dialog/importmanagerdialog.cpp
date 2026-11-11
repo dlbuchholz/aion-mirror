@@ -1,4 +1,5 @@
 #include "importmanagerdialog.h"
+#include "applocale.h"
 #include "account.h"
 #include "category.h"
 #include "csvparser.h"
@@ -29,28 +30,42 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 // The fields shown on the Columns step, in order, with their labels
-const QList<QPair<QString, QString>> &columnFields()
+QList<QPair<QString, QString>> columnFields()
 {
-    static const QList<QPair<QString, QString>> fields = {
-        {CsvImport::FieldDate, "Date"},
-        {CsvImport::FieldAmount, "Amount"},
-        {CsvImport::FieldPayee, "Payee"},
-        {CsvImport::FieldDescription, "Description"},
-        {CsvImport::FieldCategory, "Category"},
-        {CsvImport::FieldBalance, "Bank balance"},
+    return {
+        {CsvImport::FieldDate, ImportManagerDialog::tr("Date")},
+        {CsvImport::FieldAmount, ImportManagerDialog::tr("Amount")},
+        {CsvImport::FieldPayee, ImportManagerDialog::tr("Payee")},
+        {CsvImport::FieldDescription, ImportManagerDialog::tr("Description")},
+        {CsvImport::FieldCategory, ImportManagerDialog::tr("Category")},
+        {CsvImport::FieldBalance, ImportManagerDialog::tr("Bank balance")},
     };
-    return fields;
+}
+
+// The names a file's category is recognised by, lower case: every category's own name, and the
+// built-in ones' names as shown too ("Umbuchung"), so the file's isn't created next to them.
+// One of the user's own with that name comes first.
+QHash<QString, Category> categoriesByFileName(const QList<Category> &categories)
+{
+    QHash<QString, Category> result;
+    for (const Category &category : categories) {
+        result.insert(category.getName().simplified().toLower(), category);
+    }
+    for (const Category &category : categories) {
+        const QString shown = category.getDisplayName().simplified().toLower();
+        if (!result.contains(shown)) result.insert(shown, category);
+    }
+    return result;
 }
 
 QString delimiterName(QChar delimiter)
 {
-    if (delimiter == ';') return "semicolon separated";
-    if (delimiter == '\t') return "tab separated";
-    if (delimiter == '|') return "pipe separated";
-    return "comma separated";
+    if (delimiter == ';') return ImportManagerDialog::tr("semicolon separated");
+    if (delimiter == '\t') return ImportManagerDialog::tr("tab separated");
+    if (delimiter == '|') return ImportManagerDialog::tr("pipe separated");
+    return ImportManagerDialog::tr("comma separated");
 }
 
 void setTextColor(QWidget *widget, const QColor &color)
@@ -87,7 +102,7 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     : QDialog(parent)
     , userId(userId)
 {
-    setWindowTitle("Import transactions");
+    setWindowTitle(tr("Import transactions"));
     resize(780, 680);
     setMinimumSize(640, 480);
     decimalSeparator = Settings::instance().getDecimalSeparator() == Settings::DecimalSeparator::Comma ? ',' : '.';
@@ -99,7 +114,7 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     // Where am I: File › Columns › Categories › Review
     auto *steps = new QHBoxLayout();
     steps->setSpacing(8);
-    const QStringList stepNames = {"File", "Columns", "Categories", "Review"};
+    const QStringList stepNames = {tr("File"), tr("Columns"), tr("Categories"), tr("Review")};
     for (int i = 0; i < stepNames.size(); ++i) {
         if (i > 0) {
             auto *separator = new QLabel("›", this);
@@ -122,21 +137,21 @@ ImportManagerDialog::ImportManagerDialog(int userId, QWidget *parent)
     root->addWidget(pages, 1);
 
     auto *buttons = new QHBoxLayout();
-    auto *cancelButton = new QPushButton("Cancel", this);
+    auto *cancelButton = new QPushButton(tr("Cancel"), this);
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
     buttons->addWidget(cancelButton);
     buttons->addStretch();
-    backButton = new QPushButton("Back", this);
+    backButton = new QPushButton(tr("Back"), this);
     backButton->setObjectName("backButton");
     connect(backButton, &QPushButton::clicked, this, &ImportManagerDialog::back);
     buttons->addWidget(backButton);
-    nextButton = new QPushButton("Next", this);
+    nextButton = new QPushButton(tr("Next"), this);
     nextButton->setObjectName("nextButton");
     nextButton->setDefault(true);
     nextButton->setProperty("primary", true);       // The solid accent button (Theme::controlStyleSheet)
     connect(nextButton, &QPushButton::clicked, this, &ImportManagerDialog::next);
     buttons->addWidget(nextButton);
-    importButton = new QPushButton("Import", this);
+    importButton = new QPushButton(tr("Import"), this);
     importButton->setObjectName("importButton");
     importButton->setProperty("primary", true);
     connect(importButton, &QPushButton::clicked, this, &ImportManagerDialog::import);
@@ -176,16 +191,16 @@ QWidget *ImportManagerDialog::buildFilePage()
     auto *layout = new QVBoxLayout(page);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(10);
-    layout->addWidget(pageTitle("Choose a file", page));
-    layout->addWidget(hintLabel("A CSV, Excel or LibreOffice export from your bank. Aion reads it first and shows "
-                                "you everything before anything is saved.", page));
+    layout->addWidget(pageTitle(tr("Choose a file"), page));
+    layout->addWidget(hintLabel(tr("A CSV, Excel or LibreOffice export from your bank. Aion reads it first and shows "
+                                   "you everything before anything is saved."), page));
 
     auto *fileRow = new QHBoxLayout();
     filePathEdit = new QLineEdit(page);
     filePathEdit->setObjectName("filePathEdit");
     filePathEdit->setReadOnly(true);
-    filePathEdit->setPlaceholderText("No file chosen");
-    auto *chooseButton = new QPushButton("Choose file…", page);
+    filePathEdit->setPlaceholderText(tr("No file chosen"));
+    auto *chooseButton = new QPushButton(tr("Choose file…"), page);
     chooseButton->setObjectName("chooseFileButton");
     connect(chooseButton, &QPushButton::clicked, this, &ImportManagerDialog::chooseFile);
     fileRow->addWidget(filePathEdit, 1);
@@ -198,7 +213,7 @@ QWidget *ImportManagerDialog::buildFilePage()
     formatSummaryLabel->setObjectName("formatSummaryLabel");
     formatSummaryLabel->setForegroundRole(QPalette::PlaceholderText);
     changeFormatButton = new QToolButton(page);
-    changeFormatButton->setText("Change");
+    changeFormatButton->setText(tr("Change"));
     Theme::makeLink(changeFormatButton);
     changeFormatButton->setCheckable(true);
     formatRow->addWidget(formatSummaryLabel);
@@ -211,16 +226,16 @@ QWidget *ImportManagerDialog::buildFilePage()
     auto *formatForm = new QFormLayout(formatBox);
     delimiterCombo = new QComboBox(formatBox);
     delimiterCombo->setObjectName("delimiterCombo");
-    delimiterCombo->addItem("Comma ( , )", QString(","));
-    delimiterCombo->addItem("Semicolon ( ; )", QString(";"));
-    delimiterCombo->addItem("Tab", QString("\t"));
-    delimiterCombo->addItem("Pipe ( | )", QString("|"));
-    formatForm->addRow("Columns separated by", delimiterCombo);
+    delimiterCombo->addItem(tr("Comma ( , )"), QString(","));
+    delimiterCombo->addItem(tr("Semicolon ( ; )"), QString(";"));
+    delimiterCombo->addItem(tr("Tab"), QString("\t"));
+    delimiterCombo->addItem(tr("Pipe ( | )"), QString("|"));
+    formatForm->addRow(tr("Columns separated by"), delimiterCombo);
     decimalCombo = new QComboBox(formatBox);
     decimalCombo->setObjectName("decimalCombo");
-    decimalCombo->addItem("Point (1234.56)", QString("."));
-    decimalCombo->addItem("Comma (1234,56)", QString(","));
-    formatForm->addRow("Decimal separator", decimalCombo);
+    decimalCombo->addItem(tr("Point (1234.56)"), QString("."));
+    decimalCombo->addItem(tr("Comma (1234,56)"), QString(","));
+    formatForm->addRow(tr("Decimal separator"), decimalCombo);
     formatBox->hide();
     layout->addWidget(formatBox);
 
@@ -229,8 +244,8 @@ QWidget *ImportManagerDialog::buildFilePage()
     sheetsBox->setObjectName("sheetsBox");
     Theme::makeCard(sheetsBox);
     auto *sheetsLayout = new QVBoxLayout(sheetsBox);
-    sheetsLayout->addWidget(hintLabel("Sheets to import. The first row of the first ticked sheet names the columns; "
-                                      "the other sheets' columns are matched to it by name.", sheetsBox));
+    sheetsLayout->addWidget(hintLabel(tr("Sheets to import. The first row of the first ticked sheet names the columns; "
+                                         "the other sheets' columns are matched to it by name."), sheetsBox));
     sheetsGrid = new QGridLayout();
     sheetsGrid->setHorizontalSpacing(12);
     sheetsLayout->addLayout(sheetsGrid);
@@ -261,7 +276,7 @@ QWidget *ImportManagerDialog::buildFilePage()
             lastAccountIndex = accountCombo->currentIndex();
         }
     });
-    accountForm->addRow("Import into", accountCombo);
+    accountForm->addRow(tr("Import into"), accountCombo);
     layout->addLayout(accountForm);
 
     // A new account right here. No starting balance: the balance comes from the imported
@@ -273,24 +288,24 @@ QWidget *ImportManagerDialog::buildFilePage()
     auto *newAccountForm = new QFormLayout();
     newAccountNameEdit = new QLineEdit(newAccountBox);
     newAccountNameEdit->setObjectName("newAccountNameEdit");
-    newAccountNameEdit->setPlaceholderText("For example Girokonto");
+    newAccountNameEdit->setPlaceholderText(tr("For example Girokonto"));
     connect(newAccountNameEdit, &QLineEdit::returnPressed, this, &ImportManagerDialog::createAccount);
-    newAccountForm->addRow("Name", newAccountNameEdit);
+    newAccountForm->addRow(tr("Name"), newAccountNameEdit);
     newAccountTypeCombo = new QComboBox(newAccountBox);
     newAccountTypeCombo->setObjectName("newAccountTypeCombo");
     newAccountTypeCombo->addItems(AccountDAO().getAccountTypes(userId));
-    newAccountForm->addRow("Type", newAccountTypeCombo);
+    newAccountForm->addRow(tr("Type"), newAccountTypeCombo);
     newAccountLayout->addLayout(newAccountForm);
-    newAccountLayout->addWidget(hintLabel("The balance comes from the imported transactions. If your bank shows a "
-                                          "different one, the last step can correct it.", newAccountBox));
+    newAccountLayout->addWidget(hintLabel(tr("The balance comes from the imported transactions. If your bank shows a "
+                                             "different one, the last step can correct it."), newAccountBox));
     auto *newAccountButtons = new QHBoxLayout();
     newAccountButtons->addStretch();
-    auto *cancelNewAccount = new QPushButton("Cancel", newAccountBox);
+    auto *cancelNewAccount = new QPushButton(tr("Cancel"), newAccountBox);
     connect(cancelNewAccount, &QPushButton::clicked, this, [this]() {
         if (lastAccountIndex >= 0) accountCombo->setCurrentIndex(lastAccountIndex);   // No account yet: keep the form
     });
     newAccountButtons->addWidget(cancelNewAccount);
-    auto *createAccountButton = new QPushButton("Create account", newAccountBox);
+    auto *createAccountButton = new QPushButton(tr("Create account"), newAccountBox);
     createAccountButton->setObjectName("createAccountButton");
     connect(createAccountButton, &QPushButton::clicked, this, &ImportManagerDialog::createAccount);
     newAccountButtons->addWidget(createAccountButton);
@@ -317,7 +332,7 @@ void ImportManagerDialog::loadAccounts(int selectAccountId)
         accountCombo->addItem(account.getName(), account.getAccountId());
     }
     accountCombo->insertSeparator(accountCombo->count());
-    accountCombo->addItem("New account…", NewAccount);
+    accountCombo->addItem(tr("New account…"), NewAccount);
     const int index = accountCombo->findData(selectAccountId);
     // Without any account, start right with a new one
     accountCombo->setCurrentIndex(index >= 0 ? index : accountCombo->count() == 2 ? 1 : 0);
@@ -329,19 +344,19 @@ void ImportManagerDialog::createAccount()
 {
     const QString name = newAccountNameEdit->text().simplified();
     if (name.isEmpty()) {
-        showError(fileErrorLabel, "Enter a name for the new account.");
+        showError(fileErrorLabel, tr("Enter a name for the new account."));
         newAccountNameEdit->setFocus();
         return;
     }
     for (int i = 0; i < accountCombo->count(); ++i) {
         if (accountCombo->itemData(i).toInt() > 0 && accountCombo->itemText(i).compare(name, Qt::CaseInsensitive) == 0) {
-            showError(fileErrorLabel, QString("You already have an account called \"%1\".").arg(accountCombo->itemText(i)));
+            showError(fileErrorLabel, tr("You already have an account called \"%1\".").arg(accountCombo->itemText(i)));
             return;
         }
     }
     const int accountId = AccountDAO::createAccount(userId, name, newAccountTypeCombo->currentText(), 0);
     if (accountId <= 0) {
-        showError(fileErrorLabel, "The account couldn't be created.");
+        showError(fileErrorLabel, tr("The account couldn't be created."));
         return;
     }
     fileErrorLabel->hide();
@@ -352,9 +367,9 @@ void ImportManagerDialog::createAccount()
 
 void ImportManagerDialog::chooseFile()
 {
-    const QString chosen = QFileDialog::getOpenFileName(this, "Choose a file to import", QDir::homePath(),
-                                                        "Bank exports (*.csv *.xlsx *.ods);;CSV files (*.csv);;"
-                                                        "Spreadsheets (*.xlsx *.ods);;All files (*.*)");
+    const QString chosen = QFileDialog::getOpenFileName(this, tr("Choose a file to import"), QDir::homePath(),
+                                                        tr("Bank exports (*.csv *.xlsx *.ods);;CSV files (*.csv);;"
+                                                           "Spreadsheets (*.xlsx *.ods);;All files (*.*)"));
     if (!chosen.isEmpty()) {
         loadFile(chosen);
     }
@@ -376,7 +391,7 @@ void ImportManagerDialog::loadFile(const QString &path)
     } else {
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly)) {
-            showError(fileErrorLabel, QString("The file couldn't be opened: %1").arg(file.errorString()));
+            showError(fileErrorLabel, tr("The file couldn't be opened: %1").arg(file.errorString()));
             return;
         }
         text = CsvImport::decodeText(file.readAll());
@@ -439,14 +454,14 @@ void ImportManagerDialog::parseFile()
             const bool arrange = !first && match.hasHeader;
             for (qsizetype row = first || match.hasHeader ? 1 : 0; row < sheet.rows.size(); ++row) {
                 rows.append(arrange ? Spreadsheet::arrange(sheet.rows[row], match) : sheet.rows[row]);
-                rowLabels.append(QString("%1, row %2").arg(sheet.name).arg(sheet.rowNumbers.value(row)));
+                rowLabels.append(tr("%1, row %2").arg(sheet.name).arg(sheet.rowNumbers.value(row)));
             }
         }
     } else {
         QString parseError;
         const QList<QStringList> records = CsvParser::parse(fileText, delimiter, &parseError);
         if (!parseError.isEmpty()) {
-            showError(fileErrorLabel, QString("This file can't be read as CSV: %1").arg(parseError));
+            showError(fileErrorLabel, tr("This file can't be read as CSV: %1").arg(parseError));
         } else {
             fileErrorLabel->hide();
         }
@@ -461,7 +476,7 @@ void ImportManagerDialog::parseFile()
     for (QComboBox *combo : std::as_const(mappingCombos)) {
         const QSignalBlocker blocker(combo);
         combo->clear();
-        combo->addItem("(Not in the file)", -1);
+        combo->addItem(tr("(Not in the file)"), -1);
         for (int i = 0; i < headers.size(); ++i) combo->addItem(headers[i], i);
     }
     applyMapping(!headers.isEmpty() && headers == previousHeaders ? previousMapping : CsvImport::autoMapColumns(headers));
@@ -494,7 +509,7 @@ void ImportManagerDialog::rebuildSheetList()
             parseFile();
         });
         const qsizetype count = sheet.rows.size();
-        auto *countLabel = new QLabel(count == 1 ? QString("1 row") : QString("%1 rows").arg(count), sheetsBox);
+        auto *countLabel = new QLabel(AppLocale::count(count, tr("%1 row"), tr("%1 rows")), sheetsBox);
         countLabel->setForegroundRole(QPalette::PlaceholderText);
         auto *status = new QLabel(sheetsBox);
         status->setObjectName("sheetStatus");
@@ -525,7 +540,7 @@ void ImportManagerDialog::updateSheetList()
         const QList<QStringList> &sheetRows = sheets[i].rows;
         bool muted = true;
         if (sheetRows.isEmpty()) {
-            status->setText("empty");
+            status->setText(tr("empty"));
         } else if (i == headerSheet) {
             status->setText(header.join(" · "));
         } else if (headerSheet < 0) {
@@ -533,15 +548,15 @@ void ImportManagerDialog::updateSheetList()
         } else {
             const Spreadsheet::ColumnMatch match = Spreadsheet::matchColumns(header, sheetRows.first());
             if (!match.hasHeader) {
-                status->setText("different columns");
+                status->setText(tr("different columns"));
                 muted = false;
             } else if (match.missing.isEmpty()) {
-                status->setText(match.sameOrder ? "same columns" : "same columns, other order");
+                status->setText(match.sameOrder ? tr("same columns") : tr("same columns, other order"));
             } else {
                 // "without Steuerrelevant"; stands out if the import needs one of them
                 QStringList names = match.missing.mid(0, 3);
-                if (match.missing.size() > 3) names.append(QString("%1 more").arg(match.missing.size() - 3));
-                status->setText("without " + names.join(", "));
+                if (match.missing.size() > 3) names.append(tr("%1 more").arg(match.missing.size() - 3));
+                status->setText(tr("without %1").arg(names.join(", ")));
                 muted = missingUsedColumns(header, sheets[i]).isEmpty();
             }
         }
@@ -576,24 +591,24 @@ void ImportManagerDialog::showFormatBox(bool show)
 void ImportManagerDialog::updateFormatSummary()
 {
     if (filePath.isEmpty()) {
-        formatSummaryLabel->setText("Choose a file to see what Aion finds in it.");
+        formatSummaryLabel->setText(tr("Choose a file to see what Aion finds in it."));
         changeFormatButton->hide();
         return;
     }
-    const QString rowCount = QString("%1 %2").arg(rows.size()).arg(rows.size() == 1 ? "row" : "rows");
+    const QString rowCount = AppLocale::count(rows.size(), tr("%1 row"), tr("%1 rows"));
     if (spreadsheetFormat != Spreadsheet::Format::None) {
         // "Excel · 3 of 4 sheets · 412 rows"; one sheet leaves nothing to change
         QString text = Spreadsheet::formatName(spreadsheetFormat);
         if (sheets.size() > 1) {
             const auto ticked = std::count_if(sheetChecks.cbegin(), sheetChecks.cend(),
                                               [](const QCheckBox *check) { return check->isChecked(); });
-            text += QString(" · %1 of %2 sheets").arg(ticked).arg(sheets.size());
+            text += tr(" · %1 of %2 sheets").arg(ticked).arg(sheets.size());
         }
         formatSummaryLabel->setText(text + " · " + rowCount);
         changeFormatButton->setVisible(sheets.size() > 1);
     } else {
-        formatSummaryLabel->setText(QString("%1 · %2 · decimal %3")
-                                        .arg(rowCount, delimiterName(delimiter), decimalSeparator == ',' ? "comma" : "point"));
+        formatSummaryLabel->setText((decimalSeparator == ',' ? tr("%1 · %2 · decimal comma") : tr("%1 · %2 · decimal point"))
+                                        .arg(rowCount, delimiterName(delimiter)));
         changeFormatButton->show();
     }
     if (columnsSubtitle) {
@@ -609,7 +624,7 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     auto *layout = new QVBoxLayout(page);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(10);
-    layout->addWidget(pageTitle("Which column is what?", page));
+    layout->addWidget(pageTitle(tr("Which column is what?"), page));
     columnsSubtitle = hintLabel(QString(), page);
     layout->addWidget(columnsSubtitle);
 
@@ -620,7 +635,7 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     grid->setColumnStretch(1, 2);
     grid->setColumnStretch(2, 3);
     int column = 0;
-    for (const QString &caption : {QString("Aion field"), QString("Column in the file"), QString("Example")}) {
+    for (const QString &caption : {tr("Aion field"), tr("Column in the file"), tr("Example")}) {
         auto *header = new QLabel(caption, page);
         header->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(header, 0, column++);
@@ -629,7 +644,7 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     for (const auto &field : columnFields()) {
         auto *label = new QLabel(field.second, page);
         if (field.first == CsvImport::FieldBalance) {
-            label->setToolTip("The bank's balance after each booking. Only used to check the account's balance, never saved.");
+            label->setToolTip(tr("The bank's balance after each booking. Only used to check the account's balance, never saved."));
         }
         auto *combo = new QComboBox(page);
         combo->setObjectName("map_" + field.first);
@@ -649,7 +664,7 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     // Rarely needed: where income and expenses come from, duplicates and unreadable rows
     moreOptionsButton = new QToolButton(page);
     moreOptionsButton->setObjectName("moreOptionsButton");
-    moreOptionsButton->setText("More options");
+    moreOptionsButton->setText(tr("More options"));
     moreOptionsButton->setCheckable(true);
     moreOptionsButton->setAutoRaise(true);
     moreOptionsButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -671,19 +686,19 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     auto *more = new QFormLayout(moreOptionsBox);
     interpretationCombo = new QComboBox(moreOptionsBox);
     interpretationCombo->setObjectName("interpretationCombo");
-    interpretationCombo->addItem("From the sign (− expense, + income)", int(CsvImport::AmountInterpretation::SignBased));
-    interpretationCombo->addItem("From the sign, reversed (− income, + expense)", int(CsvImport::AmountInterpretation::SignBasedInverted));
-    interpretationCombo->addItem("Everything is income", int(CsvImport::AmountInterpretation::AllIncome));
-    interpretationCombo->addItem("Everything is an expense", int(CsvImport::AmountInterpretation::AllExpense));
-    interpretationCombo->addItem("From a type column", int(CsvImport::AmountInterpretation::ColumnBased));
+    interpretationCombo->addItem(tr("From the sign (− expense, + income)"), int(CsvImport::AmountInterpretation::SignBased));
+    interpretationCombo->addItem(tr("From the sign, reversed (− income, + expense)"), int(CsvImport::AmountInterpretation::SignBasedInverted));
+    interpretationCombo->addItem(tr("Everything is income"), int(CsvImport::AmountInterpretation::AllIncome));
+    interpretationCombo->addItem(tr("Everything is an expense"), int(CsvImport::AmountInterpretation::AllExpense));
+    interpretationCombo->addItem(tr("From a type column"), int(CsvImport::AmountInterpretation::ColumnBased));
     connect(interpretationCombo, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateExamples);
-    more->addRow("Income or expense", interpretationCombo);
+    more->addRow(tr("Income or expense"), interpretationCombo);
     auto *typeCombo = new QComboBox(moreOptionsBox);
     typeCombo->setObjectName("map_" + CsvImport::FieldType);
-    typeCombo->setToolTip("A column saying whether a row is income or expense, for example \"Soll/Haben\"");
+    typeCombo->setToolTip(tr("A column saying whether a row is income or expense, for example \"Soll/Haben\""));
     connect(typeCombo, &QComboBox::currentIndexChanged, this, &ImportManagerDialog::updateExamples);
     mappingCombos.insert(CsvImport::FieldType, typeCombo);
-    more->addRow("Type column", typeCombo);
+    more->addRow(tr("Type column"), typeCombo);
     // Each option with a line saying when you'd want it
     auto addOption = [&](QCheckBox *check, const QString &explanation) {
         auto *hint = hintLabel(explanation, moreOptionsBox);
@@ -691,16 +706,16 @@ QWidget *ImportManagerDialog::buildColumnsPage()
         more->addRow(check);
         more->addRow(hint);
     };
-    allowDuplicatesCheck = new QCheckBox("Import identical transactions", moreOptionsBox);
+    allowDuplicatesCheck = new QCheckBox(tr("Import identical transactions"), moreOptionsBox);
     allowDuplicatesCheck->setObjectName("allowDuplicatesCheck");
-    addOption(allowDuplicatesCheck, "Normally rows with the same date, amount, payee and description as a transaction "
-                                    "in this account are skipped, so importing overlapping exports doesn't count them twice. "
-                                    "Turn this on if you really have identical transactions, like two coffees on one day.");
-    allowPartialCheck = new QCheckBox("Skip rows that can't be read", moreOptionsBox);
+    addOption(allowDuplicatesCheck, tr("Normally rows with the same date, amount, payee and description as a transaction "
+                                       "in this account are skipped, so importing overlapping exports doesn't count them twice. "
+                                       "Turn this on if you really have identical transactions, like two coffees on one day."));
+    allowPartialCheck = new QCheckBox(tr("Skip rows that can't be read"), moreOptionsBox);
     allowPartialCheck->setObjectName("allowPartialCheck");
-    addOption(allowPartialCheck, "Normally one unreadable row, like a broken date, stops the whole import so nothing is "
-                                 "half imported. Turn this on to leave such rows out and import the rest. The review "
-                                 "lists the rows that would be left out.");
+    addOption(allowPartialCheck, tr("Normally one unreadable row, like a broken date, stops the whole import so nothing is "
+                                    "half imported. Turn this on to leave such rows out and import the rest. The review "
+                                    "lists the rows that would be left out."));
     moreOptionsBox->hide();
     layout->addWidget(moreOptionsBox);
 
@@ -753,7 +768,7 @@ void ImportManagerDialog::updateExamples()
             }
         }
         if (column < 0 || value.isEmpty()) {
-            example->setText(column < 0 ? QString() : QString("empty in this file"));
+            example->setText(column < 0 ? QString() : tr("empty in this file"));
             continue;
         }
 
@@ -762,15 +777,15 @@ void ImportManagerDialog::updateExamples()
         if (it.key() == CsvImport::FieldDate) {
             const QDate date = CsvImport::parseDate(value);
             problem = !date.isValid();
-            text = problem ? QString("can't read \"%1\" as a date").arg(value) : english.toString(date, "d MMMM yyyy");
+            text = problem ? tr("can't read \"%1\" as a date").arg(value) : AppLocale::date(date, AppLocale::DateFormat::DayMonthYear);
         } else if (it.key() == CsvImport::FieldAmount || it.key() == CsvImport::FieldBalance) {
             bool ok = false;
             const Cents cents = CsvImport::parseAmount(value, decimalSeparator, &ok);
             problem = !ok;
             if (problem) {
-                text = QString("can't read \"%1\" as an amount").arg(value);
+                text = tr("can't read \"%1\" as an amount").arg(value);
             } else if (it.key() == CsvImport::FieldBalance) {
-                text = settings.formatCurrency(cents) + " · only for checking the balance";
+                text = settings.formatCurrency(cents) + tr(" · only for checking the balance");
             } else {
                 const int typeColumn = current.value(CsvImport::FieldType, -1);
                 const QString typeText = typeColumn >= 0 && typeColumn < sampleRow->size() ? sampleRow->at(typeColumn) : QString();
@@ -790,8 +805,9 @@ CsvImport::Options ImportManagerDialog::importOptions() const
     options.accountId = accountCombo->currentData().toInt();
     options.decimalSeparator = decimalSeparator;
     options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
-    for (const Category &category : CategoryDAO(userId).getAllCategories()) {
-        options.categoryIds.insert(category.getName().simplified().toLower(), category.getCategoryId());
+    const QHash<QString, Category> known = categoriesByFileName(CategoryDAO(userId).getAllCategories());
+    for (auto it = known.cbegin(); it != known.cend(); ++it) {
+        options.categoryIds.insert(it.key(), it.value().getCategoryId());
     }
     applyCategoryChoices(options);
     if (useRulesCheck && useRulesCheck->isChecked()) {
@@ -809,7 +825,7 @@ QWidget *ImportManagerDialog::buildCategoriesPage()
     auto *layout = new QVBoxLayout(page);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(10);
-    layout->addWidget(pageTitle("Categories in this file", page));
+    layout->addWidget(pageTitle(tr("Categories in this file"), page));
 
     auto *summaryRow = new QHBoxLayout();
     categorySummaryLabel = new QLabel(page);
@@ -821,11 +837,11 @@ QWidget *ImportManagerDialog::buildCategoriesPage()
     newCategoriesButton->setObjectName("newCategoriesButton");
     newCategoriesButton->setProperty("button", true);   // A framed button with its menu's arrow (Theme::controlStyleSheet)
     newCategoriesButton->setProperty("dropDown", true);
-    newCategoriesButton->setText("All new categories");
+    newCategoriesButton->setText(tr("All new categories"));
     newCategoriesButton->setPopupMode(QToolButton::InstantPopup);
     auto *menu = new QMenu(newCategoriesButton);
-    menu->addAction("Create them", this, [this]() { setAllNewCategories(true); });
-    menu->addAction("Import without a category", this, [this]() { setAllNewCategories(false); });
+    menu->addAction(tr("Create them"), this, [this]() { setAllNewCategories(true); });
+    menu->addAction(tr("Import without a category"), this, [this]() { setAllNewCategories(false); });
     newCategoriesButton->setMenu(menu);
     summaryRow->addWidget(newCategoriesButton);
     layout->addLayout(summaryRow);
@@ -853,10 +869,10 @@ void ImportManagerDialog::refreshFileCategories()
     options.interpretation = static_cast<CsvImport::AmountInterpretation>(interpretationCombo->currentData().toInt());
     fileCategories = CsvImport::fileCategories(rows, mapping(), options);
 
-    QHash<QString, Category> existing;
+    const QList<Category> categories = CategoryDAO(userId).getAllCategories();
+    const QHash<QString, Category> existing = categoriesByFileName(categories);
     QList<Category> choosable;
-    for (const Category &category : CategoryDAO(userId).getAllCategories()) {
-        existing.insert(category.getName().simplified().toLower(), category);
+    for (const Category &category : categories) {
         if (!category.isBalanceAdjustment()) choosable.append(category);
     }
 
@@ -866,7 +882,7 @@ void ImportManagerDialog::refreshFileCategories()
     grid->setColumnStretch(0, 1);
     grid->setColumnStretch(2, 2);
     int column = 0;
-    for (const QString &caption : {QString("In the file"), QString("Rows"), QString("In Aion")}) {
+    for (const QString &caption : {tr("In the file"), tr("Rows"), tr("In Aion")}) {
         auto *header = new QLabel(caption, table);
         header->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(header, 0, column++);
@@ -887,9 +903,9 @@ void ImportManagerDialog::refreshFileCategories()
             auto *matchLayout = new QHBoxLayout(match);
             matchLayout->setContentsMargins(0, 0, 0, 0);
             auto *tag = new CategoryTag(match);
-            tag->setCategory(known.getName(), known.getColor());
+            tag->setCategory(known.getDisplayName(), known.getColor());
             matchLayout->addWidget(tag);
-            auto *note = new QLabel("matches", match);
+            auto *note = new QLabel(tr("matches"), match);
             note->setForegroundRole(QPalette::PlaceholderText);
             matchLayout->addWidget(note);
             matchLayout->addStretch();
@@ -901,12 +917,15 @@ void ImportManagerDialog::refreshFileCategories()
             choice->setProperty("fileName", category.name);
             const QString likely = category.likelyType();
             const QString other = likely == "expense" ? "income" : "expense";
-            choice->addItem(QString("Create \"%1\" (%2)").arg(category.name, likely), "create:" + likely);
-            choice->addItem(QString("Create \"%1\" (%2)").arg(category.name, other), "create:" + other);
-            choice->addItem("No category", "none");
+            const auto createText = [&category](const QString& type) {
+                return (type == "income" ? tr("Create \"%1\" (income)") : tr("Create \"%1\" (expense)")).arg(category.name);
+            };
+            choice->addItem(createText(likely), "create:" + likely);
+            choice->addItem(createText(other), "create:" + other);
+            choice->addItem(tr("No category"), "none");
             choice->insertSeparator(choice->count());
             for (const Category &target : choosable) {
-                choice->addItem(target.getName(), QString("id:%1").arg(target.getCategoryId()));
+                choice->addItem(target.getDisplayName(), QString("id:%1").arg(target.getCategoryId()));
             }
             const int remembered = choice->findData(chosenCategories.value(key));
             choice->setCurrentIndex(remembered >= 0 ? remembered : 0);
@@ -933,13 +952,13 @@ void ImportManagerDialog::updateCategorySummary()
     }
     const int mapped = int(categoryChoices.size()) - create - none;
     QStringList parts;
-    if (matchedCategories > 0) parts << QString("%1 already in Aion").arg(matchedCategories);
-    if (create > 0) parts << QString("%1 will be created").arg(create);
-    if (mapped > 0) parts << QString("%1 mapped to other categories").arg(mapped);
-    if (none > 0) parts << QString("%1 imported without a category").arg(none);
+    if (matchedCategories > 0) parts << tr("%1 already in Aion").arg(matchedCategories);
+    if (create > 0) parts << tr("%1 will be created").arg(create);
+    if (mapped > 0) parts << tr("%1 mapped to other categories").arg(mapped);
+    if (none > 0) parts << tr("%1 imported without a category").arg(none);
     const int total = matchedCategories + int(categoryChoices.size());
-    categorySummaryLabel->setText(QString("%1 %2 in the file: %3.")
-                                      .arg(total).arg(total == 1 ? "category" : "categories", parts.join(", ")));
+    categorySummaryLabel->setText(AppLocale::count(total, tr("%1 category in the file: %2."), tr("%1 categories in the file: %2."))
+                                      .arg(parts.join(", ")));
     newCategoriesButton->setVisible(!categoryChoices.isEmpty());
 }
 
@@ -976,13 +995,13 @@ QWidget *ImportManagerDialog::buildReviewPage()
     layout->setSpacing(10);
     reviewTitle = pageTitle(QString(), page);
     layout->addWidget(reviewTitle);
-    layout->addWidget(hintLabel("Nothing has been saved yet.", page));
+    layout->addWidget(hintLabel(tr("Nothing has been saved yet."), page));
 
     auto *tiles = new QHBoxLayout();
     tiles->setSpacing(8);
-    newCountLabel = addTile(tiles, "New", "newCountLabel", page);
-    duplicateCountLabel = addTile(tiles, "Already in Aion, skipped", "duplicateCountLabel", page);
-    failedCountLabel = addTile(tiles, "Can't be read", "failedCountLabel", page);
+    newCountLabel = addTile(tiles, tr("New"), "newCountLabel", page);
+    duplicateCountLabel = addTile(tiles, tr("Already in Aion, skipped"), "duplicateCountLabel", page);
+    failedCountLabel = addTile(tiles, tr("Can't be read"), "failedCountLabel", page);
     layout->addLayout(tiles);
 
     problemsLabel = new QLabel(page);
@@ -997,16 +1016,16 @@ QWidget *ImportManagerDialog::buildReviewPage()
     // Rules (Settings > Rules) give rows a category. Here and not in the Categories step, which
     // is skipped for files without a category column.
     const bool hasRules = !RuleDAO(userId).rules().isEmpty();
-    useRulesCheck = new QCheckBox(hasRules ? QString("Use my rules") : QString("Use my rules (you have none yet)"), page);
+    useRulesCheck = new QCheckBox(hasRules ? tr("Use my rules") : tr("Use my rules (you have none yet)"), page);
     useRulesCheck->setObjectName("useRulesCheck");
     useRulesCheck->setChecked(hasRules);
     useRulesCheck->setEnabled(hasRules);
-    useRulesCheck->setToolTip("Your rules (Settings > Rules) give rows without a category one, and rename payees");
+    useRulesCheck->setToolTip(tr("Your rules (Settings > Rules) give rows without a category one, and rename payees"));
     layout->addWidget(useRulesCheck);
-    rulesOverrideCheck = new QCheckBox("Also for rows the file already has a category for", page);
+    rulesOverrideCheck = new QCheckBox(tr("Also for rows the file already has a category for"), page);
     rulesOverrideCheck->setObjectName("rulesOverrideCheck");
     rulesOverrideCheck->setEnabled(hasRules);
-    rulesOverrideCheck->setToolTip("A matching rule replaces the category from the file");
+    rulesOverrideCheck->setToolTip(tr("A matching rule replaces the category from the file"));
     auto *overrideRow = new QHBoxLayout();
     overrideRow->addSpacing(24);
     overrideRow->addWidget(rulesOverrideCheck, 1);
@@ -1043,7 +1062,7 @@ QWidget *ImportManagerDialog::buildReviewPage()
     expectedCaption = new QLabel(balanceBox);
     expectedEdit = new QLineEdit(balanceBox);
     expectedEdit->setObjectName("expectedBalanceEdit");
-    expectedEdit->setPlaceholderText("Optional");
+    expectedEdit->setPlaceholderText(tr("Optional"));
     expectedEdit->setAlignment(Qt::AlignRight);
     expectedEdit->setMaximumWidth(160);
     connect(expectedEdit, &QLineEdit::textEdited, this, [this]() {
@@ -1073,7 +1092,7 @@ QWidget *ImportManagerDialog::buildReviewPage()
 void ImportManagerDialog::refreshReview()
 {
     dryRun = runImport(true);
-    reviewTitle->setText(QString("Ready to import into %1").arg(accountCombo->currentText()));
+    reviewTitle->setText(tr("Ready to import into %1").arg(accountCombo->currentText()));
     newCountLabel->setText(QString::number(dryRun.imported));
     duplicateCountLabel->setText(QString::number(dryRun.duplicates));
     failedCountLabel->setText(QString::number(dryRun.failed));
@@ -1083,16 +1102,16 @@ void ImportManagerDialog::refreshReview()
     if (dryRun.failed > 0) {
         QStringList shown = dryRun.errors.mid(0, 4);
         QString text = shown.join("\n");
-        if (dryRun.errors.size() > shown.size()) text += QString("\n… and %1 more").arg(dryRun.errors.size() - shown.size());
+        if (dryRun.errors.size() > shown.size()) text += tr("\n… and %1 more").arg(dryRun.errors.size() - shown.size());
         if (!allowPartialCheck->isChecked()) {
-            text += "\n\nNothing will be imported like this. Check the columns, or go back and choose "
-                    "\"Skip rows that can't be read\" under More options.";
+            text += tr("\n\nNothing will be imported like this. Check the columns, or go back and choose "
+                       "\"Skip rows that can't be read\" under More options.");
         }
         problemsLabel->setText(text);
         setTextColor(problemsLabel, Theme::colors().danger);
         problemsLabel->show();
     } else if (dryRun.imported == 0 && dryRun.duplicates > 0) {
-        problemsLabel->setText("Everything in this file is already in Aion.");
+        problemsLabel->setText(tr("Everything in this file is already in Aion."));
         problemsLabel->setPalette(QPalette());
         problemsLabel->show();
     } else {
@@ -1105,18 +1124,16 @@ void ImportManagerDialog::refreshReview()
     }
     std::sort(created.begin(), created.end(), [](const QString &a, const QString &b) { return a.compare(b, Qt::CaseInsensitive) < 0; });
     newCategoriesLabel->setText(created.isEmpty() ? QString()
-        : created.size() <= 3 ? QString("New categories: %1").arg(created.join(", "))
-                              : QString("New categories: %1 and %2 more").arg(created.mid(0, 2).join(", ")).arg(created.size() - 2));
+        : created.size() <= 3 ? tr("New categories: %1").arg(created.join(tr(", ")))
+                              : tr("New categories: %1 and %2 more").arg(created.mid(0, 2).join(tr(", "))).arg(created.size() - 2));
     newCategoriesLabel->setVisible(!created.isEmpty());
     QStringList ruleEffects;
     if (dryRun.categorisedByRules > 0) {
-        ruleEffects << (dryRun.categorisedByRules == 1 ? QString("1 new transaction gets its category from your rules.")
-                                                       : QString("%1 new transactions get their category from your rules.")
-                                                             .arg(dryRun.categorisedByRules));
+        ruleEffects << AppLocale::count(dryRun.categorisedByRules, tr("%1 new transaction gets its category from your rules."),
+                                         tr("%1 new transactions get their category from your rules."));
     }
     if (dryRun.renamedByRules > 0) {
-        ruleEffects << (dryRun.renamedByRules == 1 ? QString("1 payee is renamed.")
-                                                   : QString("%1 payees are renamed.").arg(dryRun.renamedByRules));
+        ruleEffects << AppLocale::count(dryRun.renamedByRules, tr("%1 payee is renamed."), tr("%1 payees are renamed."));
     }
     rulesLabel->setText(ruleEffects.join(" "));
     rulesLabel->setVisible(!ruleEffects.isEmpty());
@@ -1126,17 +1143,17 @@ void ImportManagerDialog::refreshReview()
     balanceBox->setVisible(dryRun.checkDate.isValid());
     if (dryRun.checkDate.isValid()) {
         const Settings &settings = Settings::instance();
-        const QString day = english.toString(dryRun.checkDate, "d MMMM yyyy");
-        balanceAfterCaption->setText(QString("Balance on %1 after the import").arg(day));
+        const QString day = AppLocale::date(dryRun.checkDate, AppLocale::DateFormat::DayMonthYear);
+        balanceAfterCaption->setText(tr("Balance on %1 after the import").arg(day));
         balanceAfterValue->setText(settings.formatCurrency(dryRun.balanceAfterCents));
-        balanceBreakdownLabel->setText(QString("Now %1 · from this file %2")
+        balanceBreakdownLabel->setText(tr("Now %1 · from this file %2")
                                            .arg(settings.formatCurrency(dryRun.balanceBeforeCents),
                                                 settings.formatCurrency(dryRun.balanceAfterCents - dryRun.balanceBeforeCents, true)));
-        expectedCaption->setText("Your bank says");
+        expectedCaption->setText(tr("Your bank says"));
         if (!expectedEditedByUser) {
             const CsvImport::StatedBalance stated = CsvImport::statedBalance(rows, mapping(), decimalSeparator);
             expectedEdit->setText(stated.found ? settings.formatCurrency(stated.cents) : QString());
-            expectedSourceLabel->setText(stated.found ? QString("From the file's \"%1\" column").arg(headers.value(mapping().value(CsvImport::FieldBalance)))
+            expectedSourceLabel->setText(stated.found ? tr("From the file's \"%1\" column").arg(headers.value(mapping().value(CsvImport::FieldBalance)))
                                                       : QString(" "));
         }
     }
@@ -1164,34 +1181,39 @@ void ImportManagerDialog::updateBalanceStatus()
         balanceStatusLabel->clear();
         correctionCheckBox->hide();
     } else if (expectedEdit->text().trimmed().isEmpty()) {
-        balanceStatusLabel->setText("Enter the balance your bank shows for that day to compare.");
+        balanceStatusLabel->setText(tr("Enter the balance your bank shows for that day to compare."));
         setTextColor(balanceStatusLabel, colors.textSecondary);
         correctionCheckBox->hide();
     } else if (!expectedBalance(&expected)) {
-        balanceStatusLabel->setText("That isn't an amount Aion can read.");
+        balanceStatusLabel->setText(tr("That isn't an amount Aion can read."));
         setTextColor(balanceStatusLabel, colors.danger);
         correctionCheckBox->hide();
     } else if (expected == dryRun.balanceAfterCents) {
-        balanceStatusLabel->setText("Matches your bank after the import.");
+        balanceStatusLabel->setText(tr("Matches your bank after the import."));
         setTextColor(balanceStatusLabel, colors.positive);
         correctionCheckBox->hide();
     } else {
         const Cents difference = expected - dryRun.balanceAfterCents;
         const QString amount = settings.formatCurrency(qAbs(difference));
-        const QString direction = difference > 0 ? "less" : "more";
+        const bool less = difference > 0;
         if (dryRun.imported == 0) {
             // The file adds nothing, so the difference was there before this import
-            balanceStatusLabel->setText(QString("Aion already shows %1 %2 than your bank on that day. This file adds "
-                                                "nothing, so the difference comes from earlier: for example transactions "
-                                                "missing in Aion, or a starting balance that doesn't fit the imported history.")
-                                            .arg(amount, direction));
+            balanceStatusLabel->setText((less ? tr("Aion already shows %1 less than your bank on that day. This file adds "
+                                                   "nothing, so the difference comes from earlier: for example transactions "
+                                                   "missing in Aion, or a starting balance that doesn't fit the imported history.")
+                                              : tr("Aion already shows %1 more than your bank on that day. This file adds "
+                                                   "nothing, so the difference comes from earlier: for example transactions "
+                                                   "missing in Aion, or a starting balance that doesn't fit the imported history."))
+                                            .arg(amount));
         } else {
-            balanceStatusLabel->setText(QString("%1 %2 than your bank after the import. Missing or extra bookings, for example "
-                                                "from a gap between exports, can cause this.")
-                                            .arg(amount, direction));
+            balanceStatusLabel->setText((less ? tr("%1 less than your bank after the import. Missing or extra bookings, for "
+                                                   "example from a gap between exports, can cause this.")
+                                              : tr("%1 more than your bank after the import. Missing or extra bookings, for "
+                                                   "example from a gap between exports, can cause this."))
+                                            .arg(amount));
         }
         setTextColor(balanceStatusLabel, colors.danger);
-        correctionCheckBox->setText(QString("Add a balance correction of %1 so they match")
+        correctionCheckBox->setText(tr("Add a balance correction of %1 so they match")
                                         .arg(settings.formatCurrency(difference, true)));
         correctionCheckBox->show();
         correction = correctionCheckBox->isChecked();
@@ -1203,11 +1225,11 @@ void ImportManagerDialog::updateBalanceStatus()
     const bool rowsToImport = dryRun.imported > 0 && !blockedByProblems;
     closeOnly = !rowsToImport && !correction && !blockedByProblems;
     if (rowsToImport) {
-        importButton->setText(QString("Import %1 %2").arg(dryRun.imported).arg(dryRun.imported == 1 ? "transaction" : "transactions"));
+        importButton->setText(AppLocale::count(dryRun.imported, tr("Import %1 transaction"), tr("Import %1 transactions")));
     } else if (correction) {
-        importButton->setText("Add balance correction");
+        importButton->setText(tr("Add balance correction"));
     } else {
-        importButton->setText(closeOnly ? "Close" : "Import");
+        importButton->setText(closeOnly ? tr("Close") : tr("Import"));
     }
     importButton->setEnabled(rowsToImport || correction || closeOnly);
 }
@@ -1231,7 +1253,7 @@ CsvImport::Result ImportManagerDialog::runImport(bool dry)
     if (!dry && correctionCheckBox->isVisible() && correctionCheckBox->isChecked() && expectedBalance(&expected)) {
         runOptions.correct = true;
         runOptions.correctTo = expected;
-        runOptions.correctionNote = QString("Import of %1").arg(QFileInfo(filePath).fileName());
+        runOptions.correctionNote = tr("Import of %1").arg(QFileInfo(filePath).fileName());
     }
     return CsvImport::run(rows, mapping(), options, runOptions);
 }
@@ -1244,22 +1266,22 @@ void ImportManagerDialog::import()
     }
     const CsvImport::Result result = runImport(false);
     if (result.imported == 0 && result.correctionCents == 0) {
-        QMessageBox::warning(this, "Nothing imported",
-                             result.errors.isEmpty() ? QString("There was nothing new to import.") : result.errors.join("\n"));
+        QMessageBox::warning(this, tr("Nothing imported"),
+                             result.errors.isEmpty() ? tr("There was nothing new to import.") : result.errors.join("\n"));
         refreshReview();
         return;
     }
 
     QStringList lines;
-    lines << QString("%1 %2 imported.").arg(result.imported).arg(result.imported == 1 ? "transaction" : "transactions");
-    if (result.duplicates > 0) lines << QString("%1 already in Aion, skipped.").arg(result.duplicates);
-    if (result.categoriesCreated > 0) lines << QString("%1 new %2.").arg(result.categoriesCreated).arg(result.categoriesCreated == 1 ? "category" : "categories");
+    lines << AppLocale::count(result.imported, tr("%1 transaction imported."), tr("%1 transactions imported."));
+    if (result.duplicates > 0) lines << tr("%1 already in Aion, skipped.").arg(result.duplicates);
+    if (result.categoriesCreated > 0) lines << AppLocale::count(result.categoriesCreated, tr("%1 new category."), tr("%1 new categories."));
     if (result.correctionCents != 0) {
-        lines << QString("Balance correction of %1 on %2.").arg(Settings::instance().formatCurrency(result.correctionCents, true),
-                                                                english.toString(result.checkDate, "d MMMM yyyy"));
+        lines << tr("Balance correction of %1 on %2.").arg(Settings::instance().formatCurrency(result.correctionCents, true),
+                                                                AppLocale::date(result.checkDate, AppLocale::DateFormat::DayMonthYear));
     }
-    if (result.failed > 0) lines << QString("%1 %2 couldn't be read.").arg(result.failed).arg(result.failed == 1 ? "row" : "rows");
-    QMessageBox::information(this, "Import complete", lines.join("\n"));
+    if (result.failed > 0) lines << AppLocale::count(result.failed, tr("%1 row couldn't be read."), tr("%1 rows couldn't be read."));
+    QMessageBox::information(this, tr("Import complete"), lines.join(tr("\n")));
     emit transactionsImported(result.imported);
     accept();
 }
@@ -1283,11 +1305,11 @@ void ImportManagerDialog::next()
     switch (currentStep()) {
     case Step::File:
         if (rows.isEmpty()) {
-            showError(fileErrorLabel, filePath.isEmpty() ? QString("Choose a file first.") : QString("This file has no rows to import."));
+            showError(fileErrorLabel, filePath.isEmpty() ? tr("Choose a file first.") : tr("This file has no rows to import."));
             return;
         }
         if (accountCombo->currentData().toInt() <= 0) {
-            showError(fileErrorLabel, "Create the new account first, or choose an existing one.");
+            showError(fileErrorLabel, tr("Create the new account first, or choose an existing one."));
             return;
         }
         fileErrorLabel->hide();
@@ -1295,7 +1317,7 @@ void ImportManagerDialog::next()
         break;
     case Step::Columns:
         if (!mapping().contains(CsvImport::FieldDate) || !mapping().contains(CsvImport::FieldAmount)) {
-            showError(columnsErrorLabel, "Choose the columns for the date and the amount. Everything else is optional.");
+            showError(columnsErrorLabel, tr("Choose the columns for the date and the amount. Everything else is optional."));
             return;
         }
         columnsErrorLabel->hide();
@@ -1337,7 +1359,7 @@ void ImportManagerDialog::updateStepIndicator()
 {
     const Theme::Colors colors = Theme::colors();
     const int current = pages->currentIndex();
-    const QStringList names = {"File", "Columns", "Categories", "Review"};
+    const QStringList names = {tr("File"), tr("Columns"), tr("Categories"), tr("Review")};
     for (int i = 0; i < stepLabels.size(); ++i) {
         QLabel *label = stepLabels[i];
         const bool skipped = i == int(Step::Categories) && current > i && !hasCategoriesStep();

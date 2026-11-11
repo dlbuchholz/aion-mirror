@@ -5,6 +5,7 @@
 #include "category.h"
 #include "db/databasemanager.h"
 
+#include <QCoreApplication>
 #include <QLocale>
 #include <algorithm>
 #include <QRegularExpression>
@@ -325,32 +326,32 @@ RowResult buildTransactionAt(const QStringList& row, const QString& prefix, cons
     RowResult result;
 
     if (!hasColumn(row, mapping, FieldDate)) {
-        result.error = prefix + "Date column not mapped or out of range";
+        result.error = prefix + QCoreApplication::translate("CsvImport", "Date column not mapped or out of range");
         return result;
     }
     const QDate date = parseDate(column(row, mapping, FieldDate));
     if (!date.isValid()) {
-        result.error = prefix + QString("Invalid date '%1'").arg(column(row, mapping, FieldDate));
+        result.error = prefix + QCoreApplication::translate("CsvImport", "Invalid date '%1'").arg(column(row, mapping, FieldDate));
         return result;
     }
 
     if (!hasColumn(row, mapping, FieldAmount)) {
-        result.error = prefix + "Amount column not mapped or out of range";
+        result.error = prefix + QCoreApplication::translate("CsvImport", "Amount column not mapped or out of range");
         return result;
     }
     const QString amountText = column(row, mapping, FieldAmount);
     bool amountOk = false;
     const Cents signedAmount = parseAmount(amountText, options.decimalSeparator, &amountOk);
     if (amountText.trimmed().isEmpty()) {
-        result.error = prefix + "Amount is missing";
+        result.error = prefix + QCoreApplication::translate("CsvImport", "Amount is missing");
         return result;
     }
     if (!amountOk) {
-        result.error = prefix + QString("Failed to parse amount '%1'").arg(amountText);
+        result.error = prefix + QCoreApplication::translate("CsvImport", "Failed to parse amount '%1'").arg(amountText);
         return result;
     }
     if (signedAmount == 0) {
-        result.error = prefix + "Amount is zero";
+        result.error = prefix + QCoreApplication::translate("CsvImport", "Amount is zero");
         return result;
     }
 
@@ -370,7 +371,7 @@ RowResult buildTransactionAt(const QStringList& row, const QString& prefix, cons
 } // namespace
 
 RowResult buildTransaction(const QStringList& row, int rowNumber, const Mapping& mapping, const Options& options) {
-    return buildTransactionAt(row, QString("Row %1: ").arg(rowNumber), mapping, options);
+    return buildTransactionAt(row, QCoreApplication::translate("CsvImport", "Row %1: ").arg(rowNumber), mapping, options);
 }
 
 Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options& options, const RunOptions& runOptions) {
@@ -382,7 +383,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
     QStringList categoryKeys;                        // Lower-case category of each transaction, for new categories
     for (int i = 0; i < rows.size(); ++i) {
         const QString location = runOptions.rowLabels.value(i);
-        const RowResult row = buildTransactionAt(rows[i], location.isEmpty() ? QString("Row %1: ").arg(i + 2) : location + ": ",
+        const RowResult row = buildTransactionAt(rows[i], location.isEmpty() ? QCoreApplication::translate("CsvImport", "Row %1: ").arg(i + 2) : location + ": ",
                                                  mapping, options);
         if (!row.ok) {
             result.failed++;
@@ -396,7 +397,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
 
     // Without partial import, one unreadable row stops the whole import
     if (result.failed > 0 && !runOptions.allowPartialImport) {
-        result.errors.prepend("Import aborted: some rows couldn't be read (partial import is disabled)");
+        result.errors.prepend(QCoreApplication::translate("CsvImport", "Import aborted: some rows couldn't be read (partial import is disabled)"));
         result.failed = rows.size();
         return result;
     }
@@ -418,7 +419,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
 
     QSqlDatabase db = DatabaseManager::instance().database();
     if (!db.transaction()) {
-        result.errors << "Failed to start database transaction";
+        result.errors << QCoreApplication::translate("CsvImport", "Failed to start database transaction");
         result.failed += transactions.size();
         return result;
     }
@@ -431,7 +432,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         const int categoryId = CategoryDAO(AccountDAO::ownerOf(options.accountId)).addCategory(Category(-1, it.value().name, it.value().type));
         if (categoryId <= 0) {
             db.rollback();
-            result.errors = {QString("Import aborted: the category \"%1\" couldn't be created").arg(it.value().name)};
+            result.errors = {QCoreApplication::translate("CsvImport", "Import aborted: the category \"%1\" couldn't be created").arg(it.value().name)};
             result.failed = rows.size();
             return result;
         }
@@ -484,7 +485,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
             continue;
         }
 
-        const QString error = QString("Database error - %1").arg(db.lastError().text());
+        const QString error = QCoreApplication::translate("CsvImport", "Database error - %1").arg(db.lastError().text());
         if (runOptions.allowPartialImport) {
             result.failed++;
             result.errors << error;
@@ -494,7 +495,8 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         }
 
         db.rollback();
-        result.errors = {"Import aborted: " + error, "All transactions were rolled back (partial import is disabled)"};
+        result.errors = {QCoreApplication::translate("CsvImport", "Import aborted: %1").arg(error),
+                         QCoreApplication::translate("CsvImport", "All transactions were rolled back (partial import is disabled)")};
         result.failed = rows.size();
         result.imported = 0;
         result.duplicates = 0;
@@ -508,7 +510,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
             const Cents difference = runOptions.correctTo - result.balanceAfterCents;
             if (Balance::addCorrection(options.accountId, result.checkDate, difference, runOptions.correctionNote) <= 0) {
                 db.rollback();
-                result.errors = {"Import aborted: the balance correction couldn't be saved"};
+                result.errors = {QCoreApplication::translate("CsvImport", "Import aborted: the balance correction couldn't be saved")};
                 result.failed = rows.size();
                 result.imported = 0;
                 result.duplicates = 0;
@@ -522,7 +524,7 @@ Result run(const QList<QStringList>& rows, const Mapping& mapping, const Options
         db.rollback();
     } else if (!db.commit()) {
         db.rollback();
-        result.errors << "Failed to commit changes to database";
+        result.errors << QCoreApplication::translate("CsvImport", "Failed to commit changes to database");
         result.failed += result.imported;
         result.imported = 0;
     }

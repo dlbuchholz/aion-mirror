@@ -1,8 +1,10 @@
 #include "report.h"
+#include "applocale.h"
 #include "budget.h"
 #include "category.h"
 #include "db/databasemanager.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QLocale>
 #include <QSet>
@@ -12,7 +14,6 @@
 
 namespace {
 
-const QLocale english(QLocale::English);
 
 const QList<QPair<ReportRange::Preset, QString>> PresetKeys = {
     {ReportRange::Preset::Month, "month"},
@@ -127,28 +128,33 @@ QString ReportRange::label() const {
     if (!isValid()) return QString();
     const bool sameYear = first.year() == last.year();
     if (isWholeMonths()) {
-        if (months() == 1) return english.toString(first, "MMMM yyyy");
-        return sameYear ? QString("%1 – %2").arg(english.toString(first, "MMMM"), english.toString(last, "MMMM yyyy"))
-                        : QString("%1 – %2").arg(english.toString(first, "MMMM yyyy"), english.toString(last, "MMMM yyyy"));
+        if (months() == 1) return AppLocale::date(first, AppLocale::DateFormat::MonthYear);
+        return sameYear ? QString("%1 – %2").arg(AppLocale::date(first, AppLocale::DateFormat::Month), AppLocale::date(last, AppLocale::DateFormat::MonthYear))
+                        : QString("%1 – %2").arg(AppLocale::date(first, AppLocale::DateFormat::MonthYear), AppLocale::date(last, AppLocale::DateFormat::MonthYear));
     }
-    if (first == last) return english.toString(first, "d MMM yyyy");
-    return QString("%1 – %2").arg(english.toString(first, sameYear ? "d MMM" : "d MMM yyyy"), english.toString(last, "d MMM yyyy"));
+    if (first == last) return AppLocale::date(first, AppLocale::DateFormat::ShortDayMonthYear);
+    return QString("%1 – %2").arg(AppLocale::date(first, sameYear ? AppLocale::DateFormat::ShortDayMonth : AppLocale::DateFormat::ShortDayMonthYear), AppLocale::date(last, AppLocale::DateFormat::ShortDayMonthYear));
 }
 
 QString ReportRange::weekName() const {
-    return first.isValid() ? QString("Week %1").arg(first.weekNumber()) : QString();
+    return first.isValid() ? QCoreApplication::translate("ReportRange", "Week %1").arg(first.weekNumber()) : QString();
 }
 
 QString ReportRange::comparisonText(const QDate& today) const {
     if (!isValid()) return QString();
     QString text;
     if (isWholeMonths()) {
-        text = months() == 1 ? QString("the month before") : QString("the %1 months before").arg(months());
+        text = months() == 1 ? QCoreApplication::translate("ReportRange", "the month before")
+                              : QCoreApplication::translate("ReportRange", "the %1 months before").arg(months());
     } else {
-        text = days() == 1 ? QString("the day before") : QString("the %1 days before").arg(days());
+        text = days() == 1 ? QCoreApplication::translate("ReportRange", "the day before")
+                            : QCoreApplication::translate("ReportRange", "the %1 days before").arg(days());
     }
     const bool ongoing = first <= today && today < last;
-    if (ongoing) text += ", up to " + english.toString(comparison(today).last, "d MMMM");
+    if (ongoing) {
+        text = QCoreApplication::translate("ReportRange", "%1, up to %2", "the month before, up to 7 October")
+                   .arg(text, AppLocale::date(comparison(today).last, AppLocale::DateFormat::DayMonth));
+    }
     return text;
 }
 
@@ -215,7 +221,7 @@ MoneyFlow moneyFlow(int userId, int accountId, const ReportRange& range) {
     while (query.next()) {
         FlowPart part;
         part.categoryId = query.value(0).toInt();
-        part.name = part.categoryId == 0 ? QString("No category") : query.value(1).toString();
+        part.name = part.categoryId == 0 ? QCoreApplication::translate("Reports", "No category") : query.value(1).toString();
         part.color = query.value(2).toString();
         part.cents = query.value(4).toLongLong();
         if (!query.value(3).toBool()) {
@@ -247,7 +253,7 @@ MoneyFlow moneyFlow(int userId, int accountId, const ReportRange& range) {
         FlowPart rest;
         rest.isRest = true;
         const int others = int(spent.size()) - MoneyFlow::ShownSpending;
-        rest.name = QString("%1 other categories").arg(others);
+        rest.name = QCoreApplication::translate("Reports", "%1 other categories").arg(others);
         for (const FlowPart& part : spent.mid(MoneyFlow::ShownSpending)) rest.cents += part.cents;
         flow.spending.append(rest);
     }
@@ -359,7 +365,7 @@ CategoryTrend categoryTrend(int userId, int accountId, int categoryId, const Rep
     CategoryTrend trend;
     trend.range = range;
     trend.categoryId = categoryId;
-    trend.categoryName = "No category";
+    trend.categoryName = QCoreApplication::translate("Reports", "No category");
     if (!range.isValid()) return trend;
     if (categoryId != 0) {
         QSqlQuery categoryQuery(DatabaseManager::instance().database());
@@ -486,7 +492,7 @@ SpendingReport spendingByCategory(int userId, int accountId, const ReportRange& 
     while (query.next()) {
         CategorySpent spent;
         spent.categoryId = query.value(0).toInt();
-        spent.categoryName = spent.categoryId == 0 ? QString("No category") : query.value(1).toString();
+        spent.categoryName = spent.categoryId == 0 ? QCoreApplication::translate("Reports", "No category") : query.value(1).toString();
         spent.categoryColor = query.value(2).toString();
         spent.spentCents = query.value(3).toLongLong();
         spent.beforeCents = query.value(4).toLongLong();

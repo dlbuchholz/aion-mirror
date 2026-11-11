@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.19)
-project(Aion VERSION 0.1.2 LANGUAGES C CXX)          # C for thirdparty/miniz
+project(Aion VERSION 0.2.0 LANGUAGES C CXX)          # C for thirdparty/miniz
 
 include(CTest)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql Svg Test)
+# lupdate and lrelease for the translations; without them Aion is built in English only
+find_package(Qt6 QUIET OPTIONAL_COMPONENTS LinguistTools)
 
 qt_standard_project_setup()
 
@@ -123,6 +125,51 @@ qt_add_resources(AionLib "migrations"
     BASE "db"
     FILES ${MIGRATION_FILES}
 )
+
+# The translations (translations/aion_<code>.ts, see CONTRIBUTING.md), built into the library as
+# :/i18n/aion_<code>.qm, with Qt's own texts for those languages (:/i18n/qtbase_<code>.qm) when
+# this Qt has them. "cmake --build <dir> --target update_translations" adds new and changed texts
+# from the code to the .ts files. AION_HAS_TRANSLATIONS tells the tests the translations are in.
+set(AION_LANGUAGES de)
+
+# How complete each translation is (translationprogress.h), for the language list in Settings.
+# Counted again when a .ts file changes.
+include(cmake/TranslationProgress.cmake)
+set(AION_TRANSLATION_PROGRESS "")
+foreach(language IN LISTS AION_LANGUAGES)
+    set(ts_file ${CMAKE_CURRENT_SOURCE_DIR}/translations/aion_${language}.ts)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ts_file})
+    aion_translation_progress(${ts_file} translated total)
+    string(APPEND AION_TRANSLATION_PROGRESS "    {\"${language}\", ${translated}, ${total}},\n")
+endforeach()
+configure_file(${SRC_DIR}/translationprogress.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/translationprogress.h @ONLY)
+
+if(TARGET Qt6::lrelease)
+    set(AION_TS_FILES "")
+    set(QT_TRANSLATION_FILES "")
+    foreach(language IN LISTS AION_LANGUAGES)
+        list(APPEND AION_TS_FILES translations/aion_${language}.ts)
+        set(qt_qm "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}/qtbase_${language}.qm")
+        if(EXISTS "${qt_qm}")
+            list(APPEND QT_TRANSLATION_FILES "${qt_qm}")
+        endif()
+    endforeach()
+    qt_add_translations(AionLib
+        TS_FILES ${AION_TS_FILES}
+        RESOURCE_PREFIX "/i18n"
+        LUPDATE_OPTIONS -no-obsolete -locations none
+    )
+    if(QT_TRANSLATION_FILES)
+        qt_add_resources(AionLib "qt_translations"
+            PREFIX "/i18n"
+            BASE "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}"
+            FILES ${QT_TRANSLATION_FILES}
+        )
+    endif()
+    target_compile_definitions(AionLib PUBLIC AION_HAS_TRANSLATIONS)
+else()
+    message(WARNING "Qt's LinguistTools weren't found: Aion is built in English only")
+endif()
 
 qt_add_executable(Aion
     WIN32 MACOSX_BUNDLE

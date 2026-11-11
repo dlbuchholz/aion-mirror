@@ -6,12 +6,14 @@
 #include "widgets/reportspage.h"
 #include "widgets/settingspage.h"
 #include "widgets/transactionspage.h"
+#include "language.h"
 #include "mainwindow.h"
 #include "settings.h"
 #include "theme.h"
 #include "../ui/ui_mainwindow.h"
 
 #include <QDialog>
+#include <QMessageBox>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(int userId, QWidget *parent)
@@ -48,6 +50,12 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->settingsPage, &SettingsPage::settingsChanged, this, &MainWindow::onSettingsChanged);
     // The restored database may have other users, so everything starts over
     connect(ui->settingsPage, &SettingsPage::databaseRestored, this, &MainWindow::switchUserRequested);
+    connect(ui->settingsPage, &SettingsPage::restartRequested, this, [this]() {
+        if (!Language::restartApplication()) {
+            QMessageBox::warning(this, tr("Restart Aion"),
+                                 tr("Aion couldn't be started again. Close it and start it yourself to change the language."));
+        }
+    });
     connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {
         // Category names, colours and merges show up everywhere
         ui->transactionsPage->reload();
@@ -151,7 +159,7 @@ void MainWindow::onAccountRequested(int accountId) {
 
 void MainWindow::onAddAccountClicked() {
     QDialog dialog(this);
-    dialog.setWindowTitle("Add account");
+    dialog.setWindowTitle(tr("Add account"));
     auto* layout = new QVBoxLayout(&dialog);
     auto* form = new AddAccountWidget(&dialog);
     form->setUserId(userId);

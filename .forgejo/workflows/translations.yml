@@ -1,0 +1,49 @@
+# Keeps the translation badges in the README current: when a translation (or the list of languages)
+# changes on develop, scripts/translation-status.cmake counts again and the badges are committed if
+# they changed. Can also be started by hand ("Run workflow" on the Actions page).
+name: Translations
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'translations/**'
+      - 'src/language.cpp'
+      - 'cmake/TranslationProgress.cmake'
+      - 'scripts/translation-status.cmake'
+  workflow_dispatch:
+
+concurrency:
+  group: translations
+  cancel-in-progress: false
+
+jobs:
+  status:
+    name: Translation status
+    runs-on: linux-qt
+    timeout-minutes: 10
+    steps:
+      # The token may push to develop: RELEASE_TOKEN if set, otherwise the run's own
+      - name: Check out
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Allow git in the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Count
+        run: cmake -P scripts/translation-status.cmake
+
+      # Only the README and the badges change, so this commit doesn't start the workflow again
+      - name: Commit the badges
+        run: |
+          git add README.md docs/translation-*-badge.svg
+          if git diff --cached --quiet; then
+            echo "The translation status didn't change"
+            exit 0
+          fi
+          git config user.name "Aion CI"
+          git config user.email "ci@aion.invalid"
+          git commit -m "docs: update translation status"
+          git push origin HEAD:develop

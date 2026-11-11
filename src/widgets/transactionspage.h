@@ -47,6 +47,9 @@ public:
     void showPayeeInRange(const QString& payee, int accountId, const QDate& from, const QDate& to);
     void openTransaction(int transactionId);         // Shows all transactions and opens this one in the editor
 
+    // What a folded day shows on its right, "3 transactions · −42.00 €"
+    static QString foldedDayText(int count, Cents net);
+
 public slots:
     void addTransaction();
     void importTransactions();

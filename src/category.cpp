@@ -1,6 +1,8 @@
 #include "db/databasemanager.h"
 #include "category.h"
 
+#include <QCoreApplication>
+
 // Category Implementation
 Category::Category(int id, const QString& name, const QString& type, const QString& color)
     : categoryId(id), name(name), type(type), color(color) {}
@@ -33,32 +35,53 @@ bool Category::isBalanceAdjustment() const {
 CategoryDAO::CategoryDAO(int userId)
     : userId(userId) {}
 
+QString displayCategoryName(const QString& name) {
+    if (name == InitialBalanceCategory) return QCoreApplication::translate("Category", "Initial balance");
+    if (name == BalanceCorrectionCategory) return QCoreApplication::translate("Category", "Balance correction");
+    if (name == TransferCategory) return QCoreApplication::translate("Category", "Transfer");
+    return name;
+}
+
+QString Category::getDisplayName() const {
+    return displayCategoryName(name);
+}
+
 bool CategoryDAO::addDefaultCategories(int userId) {
     // Each with its own colour; the balance adjustments grey, Transfer slate. Red and pink are
-    // left for the user's own.
-    const QList<Category> defaults = {
-        Category(-1, InitialBalanceCategory, "income", "gray"),
-        Category(-1, "Salary", "income", "teal"),
-        Category(-1, "Bonus", "income", "green"),
-        Category(-1, "Groceries", "expense", "amber"),
-        Category(-1, "Rent", "expense", "blue"),
-        Category(-1, "Utilities", "expense", "coral"),
-        Category(-1, "Entertainment", "expense", "purple"),
-        Category(-1, BalanceCorrectionCategory, "income", "gray"),
-        Category(-1, TransferCategory, "income", "slate"),
+    // left for the user's own. The built-in ones stay English in the data (displayCategoryName);
+    // the others are named in the language of the texts and follow it until the user renames
+    // them (StarterNames).
+    struct Default {
+        QString builtIn;                             // Stays English (displayCategoryName), or
+        const char* starter;                         // follows the language (StarterNames)
+        const char* type;
+        const char* color;
+    };
+    const Default defaults[] = {
+        {InitialBalanceCategory, nullptr, "income", "gray"},
+        {{}, QT_TRANSLATE_NOOP("Category", "Salary"), "income", "teal"},
+        {{}, QT_TRANSLATE_NOOP("Category", "Bonus"), "income", "green"},
+        {{}, QT_TRANSLATE_NOOP("Category", "Groceries"), "expense", "amber"},
+        {{}, QT_TRANSLATE_NOOP("Category", "Rent"), "expense", "blue"},
+        {{}, QT_TRANSLATE_NOOP("Category", "Utilities"), "expense", "coral"},
+        {{}, QT_TRANSLATE_NOOP("Category", "Entertainment"), "expense", "purple"},
+        {BalanceCorrectionCategory, nullptr, "income", "gray"},
+        {TransferCategory, nullptr, "income", "slate"},
     };
     CategoryDAO dao(userId);
-    for (const Category& category : defaults) {
-        if (dao.addCategory(category) <= 0) {
+    for (const Default& category : defaults) {
+        const QString name = category.starter ? QCoreApplication::translate("Category", category.starter) : category.builtIn;
+        if (dao.addCategory(Category(-1, name, category.type, category.color), QString(category.starter)) <= 0) {
             return false;
         }
     }
     return true;
 }
 
-int CategoryDAO::addCategory(const Category& category) {
+int CategoryDAO::addCategory(const Category& category, const QString& starter) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("INSERT INTO categories (user_id, name, type, color) VALUES (:user_id, :name, :type, :color)");
+    query.prepare("INSERT INTO categories (user_id, name, type, color, starter) VALUES (:user_id, :name, :type, :color, :starter)");
+    query.bindValue(":starter", starter.isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : QVariant(starter));
     query.bindValue(":user_id", userId);
     query.bindValue(":name", category.getName());
     query.bindValue(":type", category.getType());
@@ -112,7 +135,10 @@ Category CategoryDAO::getCategoryById(int categoryId) {
 
 bool CategoryDAO::editCategory(int id, const QString& newName, const QString& newType) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("UPDATE categories SET name = :name, type = :type WHERE id = :id AND user_id = :user_id");
+    // A new name makes it the user's own: it no longer follows the language (StarterNames)
+    query.prepare("UPDATE categories SET name = :name, type = :type, starter = CASE WHEN name = :same THEN starter END "
+                  "WHERE id = :id AND user_id = :user_id");
+    query.bindValue(":same", newName);
     query.bindValue(":name", newName);
     query.bindValue(":type", newType);
     query.bindValue(":id", id);
@@ -157,7 +183,9 @@ bool CategoryDAO::deleteCategory(int categoryId) {
 
 bool CategoryDAO::editCategory(int id, const QString& newName, const QString& newType, const QString& newColor) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("UPDATE categories SET name = :name, type = :type, color = :color WHERE id = :id AND user_id = :user_id");
+    query.prepare("UPDATE categories SET name = :name, type = :type, color = :color, "
+                  "starter = CASE WHEN name = :same THEN starter END WHERE id = :id AND user_id = :user_id");
+    query.bindValue(":same", newName);
     query.bindValue(":name", newName);
     query.bindValue(":type", newType);
     query.bindValue(":color", newColor.isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : QVariant(newColor));

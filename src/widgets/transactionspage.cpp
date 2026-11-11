@@ -1,4 +1,5 @@
 #include "transactionspage.h"
+#include "applocale.h"
 #include "amountcolor.h"
 #include "report.h"
 #include "account.h"
@@ -104,7 +105,7 @@ public:
         const QString category = index.data(TransactionListModel::CategoryRole).toString();
         if (!category.isEmpty()) {
             painter->setFont(smallFont);
-            const QString text = smallMetrics.elidedText(category, Qt::ElideRight, categoryWidth - 16);
+            const QString text = smallMetrics.elidedText(displayCategoryName(category), Qt::ElideRight, categoryWidth - 16);
             const int pillWidth = smallMetrics.horizontalAdvance(text) + 16;
             const QRectF pill(right - categoryWidth, row.center().y() - 10, pillWidth, 20);
             QPainterPath pillPath;
@@ -138,7 +139,7 @@ public:
         painter->setFont(option.font);
         painter->setPen(payee.isEmpty() ? colors.textMuted : colors.textPrimary);
         painter->drawText(payeeRect, Qt::AlignLeft | (description.isEmpty() ? Qt::AlignVCenter : Qt::AlignBottom),
-                          metrics.elidedText(payee.isEmpty() ? QString("No payee") : payee, Qt::ElideRight, textWidth));
+                          metrics.elidedText(payee.isEmpty() ? TransactionsPage::tr("No payee") : payee, Qt::ElideRight, textWidth));
         if (!description.isEmpty()) {
             painter->setFont(smallFont);
             painter->setPen(colors.textSecondary);
@@ -195,17 +196,15 @@ private:
             painter->setFont(option.font);
             painter->setPen(colors.textSecondary);
             painter->drawText(textRect, Qt::AlignRight | Qt::AlignVCenter,
-                              QString("%1 %2 · %3").arg(count).arg(count == 1 ? "transaction" : "transactions",
-                                                        Settings::instance().formatCurrency(net, net > 0)));
+                              TransactionsPage::foldedDayText(count, net));
         }
     }
 
     static QString dayLabel(const QDate& date) {
         const QDate today = QDate::currentDate();
-        const QLocale english(QLocale::English);
-        if (date == today) return "Today";
-        if (date == today.addDays(-1)) return "Yesterday";
-        return english.toString(date, date.year() == today.year() ? "dddd, d MMMM" : "dddd, d MMMM yyyy");
+        if (date == today) return TransactionsPage::tr("Today");
+        if (date == today.addDays(-1)) return TransactionsPage::tr("Yesterday");
+        return AppLocale::date(date, date.year() == today.year() ? AppLocale::DateFormat::WeekdayDayMonth : AppLocale::DateFormat::WeekdayDayMonthYear);
     }
 };
 
@@ -321,7 +320,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     auto* actions = new QHBoxLayout(headerActions);
     actions->setContentsMargins(0, 0, 0, 0);
     actions->setSpacing(8);
-    importButton = new QPushButton("Import", headerActions);
+    importButton = new QPushButton(tr("Import"), headerActions);
     importButton->setObjectName("importTransactionsButton");
     importButton->setFixedHeight(Theme::controlHeight);
     connect(importButton, &QPushButton::clicked, this, &TransactionsPage::importTransactions);
@@ -330,23 +329,23 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     moreButton->setObjectName("moreActions");
     moreButton->setProperty("button", true);
     moreButton->setProperty("noIndicator", true);
-    moreButton->setToolTip("More actions");
+    moreButton->setToolTip(tr("More actions"));
     moreButton->setFixedSize(Theme::controlHeight, Theme::controlHeight);
     moreButton->setIconSize(QSize(18, 18));
     moreButton->setPopupMode(QToolButton::InstantPopup);
     moreButton->setMenu(new QMenu(moreButton));
-    correctBalanceAction = moreButton->menu()->addAction("Correct balance…");
+    correctBalanceAction = moreButton->menu()->addAction(tr("Correct balance…"));
     correctBalanceAction->setObjectName("correctBalanceAction");
-    correctBalanceAction->setToolTip("Match the balance your bank shows by adding a balance correction");
+    correctBalanceAction->setToolTip(tr("Match the balance your bank shows by adding a balance correction"));
     moreButton->menu()->setToolTipsVisible(true);
     connect(correctBalanceAction, &QAction::triggered, this, [this]() { correctBalance(accountId); });
     actions->addWidget(moreButton);
-    auto* addButton = new QPushButton("Add transaction", headerActions);
+    auto* addButton = new QPushButton(tr("Add transaction"), headerActions);
     addButton->setObjectName("addTransactionButton");
     addButton->setProperty("primary", true);
     addButton->setFixedHeight(Theme::controlHeight);
     addButton->setIcon(Icons::icon("plus", Theme::colors().onAccent));
-    addButton->setToolTip("Add transaction (Ctrl+N)");
+    addButton->setToolTip(tr("Add transaction (Ctrl+N)"));
     connect(addButton, &QPushButton::clicked, this, &TransactionsPage::addTransaction);
     actions->addWidget(addButton);
     header->addWidget(headerActions, 0, Qt::AlignTop);
@@ -361,7 +360,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     searchEdit = new QLineEdit(this);
     searchEdit->setFixedHeight(Theme::controlHeight);
     searchEdit->setObjectName("searchEdit");
-    searchEdit->setPlaceholderText("Search payee, description, category or account  (Ctrl+F)");
+    searchEdit->setPlaceholderText(tr("Search payee, description, category or account  (Ctrl+F)"));
     searchEdit->setClearButtonEnabled(true);
     searchAction = searchEdit->addAction(QIcon(), QLineEdit::LeadingPosition);
     connect(searchEdit, &QLineEdit::textChanged, this, &TransactionsPage::applyFilter);
@@ -391,9 +390,9 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     typeButtons->setContentsMargins(2, 2, 2, 2);
     typeButtons->setSpacing(2);
     const QList<std::array<QString, 3>> types = {
-        {"All", "typeAll", "Income and expenses"},
-        {"In", "typeIncome", "Income only"},
-        {"Out", "typeExpense", "Expenses only"},
+        {tr("All"), "typeAll", tr("Income and expenses")},
+        {tr("In"), "typeIncome", tr("Income only")},
+        {tr("Out"), "typeExpense", tr("Expenses only")},
     };
     for (const auto& type : types) {
         auto* button = new QToolButton(typeSegments);
@@ -416,7 +415,7 @@ TransactionsPage::TransactionsPage(QWidget* parent)
     unassignedChip->setFixedHeight(Theme::controlHeight);
     unassignedChip->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     connect(unassignedChip, &QToolButton::toggled, this, &TransactionsPage::updateIcons);
-    unassignedChip->setToolTip("Transactions that don't belong to an account yet, for example from an import");
+    unassignedChip->setToolTip(tr("Transactions that don't belong to an account yet, for example from an import"));
     connect(unassignedChip, &QToolButton::toggled, this, [this](bool checked) {
         showingUnassigned = checked;
         closeEditor();
@@ -446,16 +445,16 @@ TransactionsPage::TransactionsPage(QWidget* parent)
         bulkLayout->addWidget(button);
         return button;
     };
-    bulkCategoryButton = barButton("Set category", "bulkCategoryButton");
+    bulkCategoryButton = barButton(tr("Set category"), "bulkCategoryButton");
     bulkCategoryButton->setProperty("dropDown", true);
     bulkCategoryButton->setPopupMode(QToolButton::InstantPopup);
     bulkCategoryButton->setMenu(new QMenu(bulkCategoryButton));
-    bulkDeleteButton = barButton("Delete", "bulkDeleteButton");
+    bulkDeleteButton = barButton(tr("Delete"), "bulkDeleteButton");
     bulkDeleteButton->setProperty("danger", true);
     connect(bulkDeleteButton, &QToolButton::clicked, this, &TransactionsPage::deleteSelected);
     clearSelectionButton = barButton(QString(), "clearSelectionButton");
     clearSelectionButton->setProperty("ghost", true);
-    clearSelectionButton->setToolTip("Clear selection (Esc)");
+    clearSelectionButton->setToolTip(tr("Clear selection (Esc)"));
     connect(clearSelectionButton, &QToolButton::clicked, this, [this]() { listView->clearSelection(); });
     bulkBar->hide();
     root->addWidget(bulkBar);
@@ -665,7 +664,7 @@ void TransactionsPage::reload() {
     editor->setPayeeSuggestions(model->payees());
     editor->setRules(RuleDAO(userId).rules());
 
-    unassignedChip->setText(QString("%1 unassigned").arg(unassignedCount));
+    unassignedChip->setText(tr("%1 unassigned").arg(AppLocale::number(unassignedCount)));
     unassignedChip->setVisible(unassignedCount > 0 || showingUnassigned);
 
     restoreSelection(selectedIds);
@@ -692,11 +691,11 @@ void TransactionsPage::populateCategoryFilter() {
                                                              : TransactionFilter::ANY_CATEGORY;
     const QSignalBlocker blocker(categoryFilter);
     categoryFilter->clear();
-    categoryFilter->addItem("All categories", TransactionFilter::ANY_CATEGORY);
+    categoryFilter->addItem(tr("All categories"), TransactionFilter::ANY_CATEGORY);
     for (const Category& category : categories) {
-        categoryFilter->addItem(category.getName(), category.getCategoryId());
+        categoryFilter->addItem(category.getDisplayName(), category.getCategoryId());
     }
-    categoryFilter->addItem("No category", TransactionFilter::NO_CATEGORY);
+    categoryFilter->addItem(tr("No category"), TransactionFilter::NO_CATEGORY);
     const int index = categoryFilter->findData(selected);
     categoryFilter->setCurrentIndex(index >= 0 ? index : 0);
 
@@ -705,10 +704,10 @@ void TransactionsPage::populateCategoryFilter() {
     menu->clear();
     for (const Category& category : categories) {
         const int categoryId = category.getCategoryId();
-        menu->addAction(category.getName(), this, [this, categoryId]() { setCategoryForSelection(categoryId); });
+        menu->addAction(category.getDisplayName(), this, [this, categoryId]() { setCategoryForSelection(categoryId); });
     }
     menu->addSeparator();
-    menu->addAction("No category", this, [this]() { setCategoryForSelection(TransactionFilter::NO_CATEGORY); });
+    menu->addAction(tr("No category"), this, [this]() { setCategoryForSelection(TransactionFilter::NO_CATEGORY); });
 }
 
 void TransactionsPage::applyFilter() {
@@ -730,24 +729,31 @@ void TransactionsPage::applyFilter() {
     if (empty) {
         const bool filtered = !filter.search.trimmed().isEmpty() || filter.from.isValid()
                               || filter.categoryId != TransactionFilter::ANY_CATEGORY || !filter.type.isEmpty();
-        emptyLabel->setText(filtered ? "No transactions match these filters."
-                                     : "No transactions yet.\nAdd one with \"Add transaction\" or import a file.");
+        emptyLabel->setText(filtered ? tr("No transactions match these filters.")
+                                     : tr("No transactions yet.\nAdd one with \"Add transaction\" or import a file."));
     }
     listStack->setCurrentWidget(empty ? static_cast<QWidget*>(emptyLabel) : listView);
     updateHeader();
     updateTotals();
 }
 
+QString TransactionsPage::foldedDayText(int count, Cents net) {
+    return tr("%1 · %2", "transaction count, net amount")
+        .arg(AppLocale::count(count, tr("%1 transaction"), tr("%1 transactions")),
+             Settings::instance().formatCurrency(net, net > 0));
+}
+
 void TransactionsPage::updateHeader() {
     if (showingUnassigned) {
-        titleLabel->setText("Unassigned transactions");
-        subtitleLabel->setText(QString("%1 transactions without an account. Open one to assign it.").arg(unassignedCount));
+        titleLabel->setText(tr("Unassigned transactions"));
+        subtitleLabel->setText(AppLocale::count(unassignedCount, tr("%1 transaction without an account. Open it to assign it."),
+                                                tr("%1 transactions without an account. Open one to assign it.")));
         return;
     }
 
     AccountDAO accountDao;
     Cents balance = 0;
-    QString title = "All accounts";
+    QString title = tr("All accounts");
     for (const Account& account : accountDao.getAllAccountsForUser(userId)) {
         if (accountId == ALL_ACCOUNTS || account.getAccountId() == accountId) {
             balance += account.getBalanceCents();
@@ -758,23 +764,22 @@ void TransactionsPage::updateHeader() {
     }
     const int count = model->totals().count;
     titleLabel->setText(title);
-    subtitleLabel->setText(QString("Balance %1 · %2 %3")
-                               .arg(Settings::instance().formatCurrency(balance))
-                               .arg(count)
-                               .arg(count == 1 ? "transaction" : "transactions"));
+    subtitleLabel->setText(tr("Balance %1 · %2")
+                               .arg(Settings::instance().formatCurrency(balance),
+                                    AppLocale::count(count, tr("%1 transaction"), tr("%1 transactions"))));
 }
 
 void TransactionsPage::updateTotals() {
     const TransactionListModel::Totals totals = model->totals();
     const Settings& settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
-    incomeLabel->setText(QString("Income <span style='color:%1'>%2</span>")
+    incomeLabel->setText(tr("Income <span style='color:%1'>%2</span>")
                              .arg(colors.positive.name(), settings.formatCurrency(totals.income, true)));
     const QString expenses = settings.formatCurrency(-totals.expenses);
     expensesLabel->setText(totals.expenses > 0 && settings.isExpensesInRed()
-                               ? QString("Expenses <b style='color:%1'>%2</b>").arg(colors.danger.name(), expenses)
-                               : QString("Expenses <b>%1</b>").arg(expenses));
-    netLabel->setText(QString("Net <b>%1</b>").arg(settings.formatCurrency(totals.net(), true)));
+                               ? tr("Expenses <b style='color:%1'>%2</b>").arg(colors.danger.name(), expenses)
+                               : tr("Expenses <b>%1</b>").arg(expenses));
+    netLabel->setText(tr("Net <b>%1</b>").arg(settings.formatCurrency(totals.net(), true)));
 }
 
 QList<int> TransactionsPage::selectedTransactionIds() const {
@@ -789,9 +794,9 @@ void TransactionsPage::updateBulkBar() {
     // Bulk actions whenever something is selected (opening a row in the editor doesn't select it)
     const QModelIndexList selected = listView->selectionModel()->selectedIndexes();
     const int count = selected.size();
-    QString text = QString("%1 %2 selected").arg(count).arg(count == 1 ? "transaction" : "transactions");
+    QString text = AppLocale::count(count, tr("%1 transaction selected"), tr("%1 transactions selected"));
     if (count == 1 && !delegate->showCheckboxes) {
-        text += "  ·  Ctrl+click or Shift+click to select more";
+        text += tr("  ·  Ctrl+click or Shift+click to select more");
     } else if (count > 1) {                          // One shows its amount in its row already
         Cents sum = 0;
         for (const QModelIndex& index : selected) {
@@ -885,9 +890,9 @@ void TransactionsPage::showContextMenu(const QPoint& position) {
     }
 
     QMenu menu(this);
-    menu.addAction("Open", this, [this, index]() { openEditor(index); });
-    const QString createText = chosen.size() == 1 ? QString("Create rule from this…")
-                                                  : QString("Create rule from these %1…").arg(chosen.size());
+    menu.addAction(tr("Open"), this, [this, index]() { openEditor(index); });
+    const QString createText = chosen.size() == 1 ? tr("Create rule from this…")
+                                                  : tr("Create rule from these %1…").arg(chosen.size());
     // Shared text is chosen by how few of the user's transactions it matches; read only when used
     const auto userTransactions = [this]() {
         QList<Transaction> all;
@@ -901,7 +906,7 @@ void TransactionsPage::showContextMenu(const QPoint& position) {
     });
 
     // Adding a payee to an "all must match" rule would narrow it, so those are shown but greyed out
-    QMenu* addMenu = menu.addMenu("Add to rule");
+    QMenu* addMenu = menu.addMenu(tr("Add to rule"));
     QHash<int, QString> accountNames;
     for (const auto& [id, name] : std::as_const(accounts)) accountNames.insert(id, name);
     const QList<Rule> rules = RuleDAO(userId).rules();
@@ -910,7 +915,7 @@ void TransactionsPage::showContextMenu(const QPoint& position) {
         const bool canAdd = Rules::canAddTo(rule);
         QString text = metrics.elidedText(Rules::title(rule, accountNames), Qt::ElideRight, 320);
         text.replace('&', "&&");                     // Not a shortcut marker
-        QAction* action = addMenu->addAction(canAdd ? text : text + " (all must match)", this,
+        QAction* action = addMenu->addAction(canAdd ? text : text + tr(" (all must match)"), this,
                                              [this, rule, chosen, userTransactions]() {
             const RuleMatchIndex index = userTransactions();
             emit ruleDraftRequested(Rules::addedTo(rule, chosen, [&index](const Rule& candidate) {
@@ -1012,11 +1017,11 @@ void TransactionsPage::onSaveRequested(const Transaction& transaction) {
     if (isNew) {
         savedId = transactionDao.addTransaction(transaction);
         if (savedId < 0) {
-            editor->showError("Couldn't save the transaction.");
+            editor->showError(tr("Couldn't save the transaction."));
             return;
         }
     } else if (!transactionDao.updateTransaction(transaction)) {
-        editor->showError("Couldn't save the changes.");
+        editor->showError(tr("Couldn't save the changes."));
         return;
     }
 
@@ -1066,14 +1071,14 @@ void TransactionsPage::deleteSelected() {
 
 void TransactionsPage::deleteTransactions(const QList<int>& transactionIds) {
     const QString question = transactionIds.size() == 1
-        ? QString("Delete this transaction? This can't be undone.")
-        : QString("Delete %1 transactions? This can't be undone.").arg(transactionIds.size());
-    if (!confirm("Delete transactions", question)) {
+        ? tr("Delete this transaction? This can't be undone.")
+        : tr("Delete %1 transactions? This can't be undone.").arg(transactionIds.size());
+    if (!confirm(tr("Delete transactions"), question)) {
         return;
     }
 
     if (!TransactionDAO().deleteTransactions(transactionIds)) {
-        QMessageBox::warning(this, "Delete transactions", "The transactions couldn't be deleted. Nothing was changed.");
+        QMessageBox::warning(this, tr("Delete transactions"), tr("The transactions couldn't be deleted. Nothing was changed."));
         return;
     }
     {
@@ -1094,7 +1099,7 @@ void TransactionsPage::setCategoryForSelection(int categoryId) {
         }
     }
     if (!TransactionDAO().updateTransactions(changed)) {
-        QMessageBox::warning(this, "Change category", "The category couldn't be changed. Nothing was changed.");
+        QMessageBox::warning(this, tr("Change category"), tr("The category couldn't be changed. Nothing was changed."));
         return;
     }
     reload();

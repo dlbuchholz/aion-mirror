@@ -149,12 +149,91 @@ $env:QT_FORCE_STDERR_LOGGING = '1'
   `QT_FORCE_STDERR_LOGGING=1` brings them back, or write them to a file with `-o result.txt,txt`.
 - A test program's exit code is the number of failed tests, so `53` means 53 failures, not a crash.
 
+## Translations
+
+Aion's texts are written in English (UK) in the code, and translated in `translations/aion_<code>.ts`,
+one file per language, which the build turns into the program's translations. A text that isn't
+translated yet shows in English, so a language can be translated bit by bit. The badges in the README
+show how far each one is, and CI keeps them current
+([.forgejo/workflows/translations.yml](.forgejo/workflows/translations.yml)).
+
+Building the translations needs Qt's Linguist tools (`lupdate`, `lrelease`). The Qt installer's kits
+have them; on Linux they're packages of their own (`qt6-qttools-devel` on Fedora,
+`qt6-tools-dev` and `qt6-l10n-tools` on Debian and Ubuntu). Without them CMake warns, and Aion is
+built in English only.
+
+### Texts in the code
+
+- Mark every text the user sees: `tr("…")` in a class with `Q_OBJECT`, `ClassName::tr("…")` in a
+  helper next to it, and `QCoreApplication::translate("Context", "…")` elsewhere. Texts only for the
+  log, the command line or the technical information in About stay English and unmarked.
+- Write whole sentences with placeholders, `tr("%1 of %2 spent")`, instead of putting a sentence
+  together from pieces: other languages need other word orders.
+- Counts: `AppLocale::count(n, tr("%1 transaction"), tr("%1 transactions"))`, which also formats the
+  number for the language.
+- Dates, month names and file sizes: `AppLocale` (`src/applocale.h`), never `QDate::toString` with a
+  fixed pattern, so they follow the language.
+- Names Aion relies on (the built-in categories, keys in the settings and the database) stay English
+  in the data and are translated only where they're shown, like `displayCategoryName()`.
+
+### After adding or changing texts
+
+```
+cmake --build <build folder> --target update_translations
+```
+
+adds new and changed texts to every `.ts` file and drops the ones no longer in the code. Translate
+them with Qt Linguist (`linguist translations/aion_de.ts`, in the kit's `bin` folder) or in a text
+editor, then commit the `.ts` files with the change. Untranslated texts are fine, but a translation
+must keep its text's placeholders (`%1`, `%2`, …) and HTML tags; `test_language` checks that.
+
+### Adding a language
+
+1. Add its code to `AION_LANGUAGES` in [CMakeLists.txt](CMakeLists.txt) and to `Language::available()`
+   in [src/language.cpp](src/language.cpp), with its name in that language (`{"fr", "Français"}`).
+2. Create `translations/aion_<code>.ts` with only this in it, and run `update_translations`:
+
+   ```xml
+   <?xml version="1.0" encoding="utf-8"?>
+   <!DOCTYPE TS>
+   <TS version="2.1" language="fr_FR" sourcelanguage="en_GB">
+   </TS>
+   ```
+
+3. Give it its date patterns in `pattern()` and its locale in `AppLocale::locale()`
+   ([src/applocale.cpp](src/applocale.cpp)); without them, dates are written the English way.
+
+## Database changes
+
+The schema comes from the migrations in [db/migrations](db/migrations), `<number>_<name>.sql`,
+applied in order. Opening a database applies the ones it hasn't had yet, after a backup.
+
+- Change the schema with a new migration, numbered one above the newest. A released migration never
+  changes: users' databases already ran it, so a change would never reach them.
+  `releasedMigrationsNeverChange` in [tests/test_migrationmanager.cpp](tests/test_migrationmanager.cpp)
+  checks that by their checksums.
+- A migration that changes the data the user already has, not only the schema, gets a test of what it
+  does to such data. Start it from a database at the version before (`TestDbFixture::createAtVersion`)
+  and fill that in the way the older Aion would have. `upgradingFromEveryVersionKeepsTheData` already
+  checks that every version upgrades to the same schema as a new database and keeps its data.
+
+When a release has new migrations, add each to `releasedMigrationsNeverChange` with its SHA-256,
+taken from the file as git stores it, with Unix line endings (Git Bash, after committing it):
+
+```bash
+git show HEAD:db/migrations/002_starter_names.sql | sha256sum
+```
+
 ## Before you send a change
 
 - Build without new warnings. To check, configure with `-DAION_WARNINGS_AS_ERRORS=ON`. MSVC and GCC
   warn about different things, and CI builds with GCC.
 - Run the whole test suite.
 - If you add code to `src/`, add or update tests in `tests/`.
+- If you add or change texts the user sees, mark them for translation and run `update_translations`
+  (see [Translations](#translations)).
+- If you change the database, add a migration rather than changing one
+  (see [Database changes](#database-changes)).
 - A line that can never run, like the `return` after a `switch` that handles every value, can end
   with `// GCOVR_EXCL_LINE: <why>`, and the coverage report leaves it out. Use it only for lines that
   really can't run, not for ones that are just hard to test, like a failing disk.
@@ -270,13 +349,15 @@ To undo: restore `data/runner-config.yml.bak` and restart the runner, and remove
 
 To release:
 
-1. On Codeberg, open **Actions**, choose the workflow, click **Run workflow** on `develop` with
+1. If the release has new migrations, add their checksums to the test
+   (see [Database changes](#database-changes)) and commit that to `develop`.
+2. On Codeberg, open **Actions**, choose the workflow, click **Run workflow** on `develop` with
    **Also prepare the draft release** ticked, and wait for it to pass. The draft then has that
    commit's build. If the Windows 7/8 job failed, the draft has no Windows 7/8 files: check its
    log, and decide whether to fix it first or release without them.
-2. Open the draft under **Releases**, write the release notes, and click **Publish**.
+3. Open the draft under **Releases**, write the release notes, and click **Publish**.
    The release and its tag stay as they are from then on.
-3. Raise the version in `CMakeLists.txt` for the next release. Its draft is made the next time you
+4. Raise the version in `CMakeLists.txt` for the next release. Its draft is made the next time you
    prepare one. Raising it early is fine, since a draft is only published by hand.
 
 Note: Releases use the run's own token. If that may not create tags and releases, add a Codeberg access

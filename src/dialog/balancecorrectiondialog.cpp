@@ -1,4 +1,5 @@
 #include "balancecorrectiondialog.h"
+#include "applocale.h"
 #include "account.h"
 #include "balance.h"
 #include "csvimport.h"
@@ -16,13 +17,13 @@
 
 BalanceCorrectionDialog::BalanceCorrectionDialog(int userId, int accountId, QWidget* parent)
     : QDialog(parent) {
-    setWindowTitle("Correct balance");
+    setWindowTitle(tr("Correct balance"));
     setMinimumWidth(420);
 
     auto* layout = new QVBoxLayout(this);
     layout->setSpacing(12);
-    auto* intro = new QLabel("If Aion shows a different balance than your bank, add a correction for the difference. "
-                             "It counts towards the balance, not towards income or spending.", this);
+    auto* intro = new QLabel(tr("If Aion shows a different balance than your bank, add a correction for the difference. "
+                                "It counts towards the balance, not towards income or spending."), this);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
     layout->addWidget(intro);
@@ -35,23 +36,23 @@ BalanceCorrectionDialog::BalanceCorrectionDialog(int userId, int accountId, QWid
         accountCombo->addItem(account.getName(), account.getAccountId());
     }
     accountCombo->setCurrentIndex(qMax(0, accountCombo->findData(accountId)));
-    form->addRow("Account", accountCombo);
+    form->addRow(tr("Account"), accountCombo);
 
     dateEdit = new QDateEdit(QDate::currentDate(), this);
     dateEdit->setObjectName("correctionDateEdit");
     dateEdit->setCalendarPopup(true);
     dateEdit->setDisplayFormat("dd.MM.yyyy");
-    form->addRow("On", dateEdit);
+    form->addRow(tr("On"), dateEdit);
 
     currentLabel = new QLabel(this);
     currentLabel->setObjectName("currentBalanceLabel");
-    form->addRow("Balance in Aion", currentLabel);
+    form->addRow(tr("Balance in Aion"), currentLabel);
 
     expectedEdit = new QLineEdit(this);
     expectedEdit->setObjectName("bankBalanceEdit");
-    expectedEdit->setPlaceholderText("As shown by your bank");
+    expectedEdit->setPlaceholderText(tr("As shown by your bank"));
     expectedEdit->setAlignment(Qt::AlignRight);
-    form->addRow("Your bank's balance", expectedEdit);
+    form->addRow(tr("Your bank's balance"), expectedEdit);
     layout->addLayout(form);
 
     statusLabel = new QLabel(this);
@@ -60,7 +61,7 @@ BalanceCorrectionDialog::BalanceCorrectionDialog(int userId, int accountId, QWid
     layout->addWidget(statusLabel);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    addButton = buttons->addButton("Add correction", QDialogButtonBox::AcceptRole);
+    addButton = buttons->addButton(tr("Add correction"), QDialogButtonBox::AcceptRole);
     addButton->setObjectName("addCorrectionButton");
     addButton->setDefault(true);
     connect(addButton, &QPushButton::clicked, this, &BalanceCorrectionDialog::addCorrection);
@@ -99,19 +100,19 @@ void BalanceCorrectionDialog::updateBalance() {
     QColor color = colors.textSecondary;
     bool canAdd = false;
     if (accountCombo->count() == 0) {
-        statusLabel->setText("Add an account first.");
+        statusLabel->setText(tr("Add an account first."));
     } else if (expectedEdit->text().trimmed().isEmpty()) {
-        statusLabel->setText("Enter the balance your bank shows for the end of that day.");
+        statusLabel->setText(tr("Enter the balance your bank shows for the end of that day."));
     } else if (!expectedBalance(&expected)) {
-        statusLabel->setText("That isn't an amount Aion can read.");
+        statusLabel->setText(tr("That isn't an amount Aion can read."));
         color = colors.danger;
     } else if (expected == currentCents) {
-        statusLabel->setText("Aion already shows this balance. Nothing to correct.");
+        statusLabel->setText(tr("Aion already shows this balance. Nothing to correct."));
         color = colors.positive;
     } else {
-        statusLabel->setText(QString("Adds a balance correction of %1 on %2.")
+        statusLabel->setText(tr("Adds a balance correction of %1 on %2.")
                                  .arg(settings.formatCurrency(expected - currentCents, true),
-                                      QLocale(QLocale::English).toString(dateEdit->date(), "d MMMM yyyy")));
+                                      AppLocale::date(dateEdit->date(), AppLocale::DateFormat::DayMonthYear)));
         color = colors.textPrimary;
         canAdd = true;
     }
@@ -127,9 +128,9 @@ void BalanceCorrectionDialog::addCorrection() {
         return;  // GCOVR_EXCL_LINE: the button is off unless there is a difference
     }
     transactionId = Balance::addCorrection(accountCombo->currentData().toInt(), dateEdit->date(), expected - currentCents,
-                                           "Corrected by hand");
+                                           tr("Corrected by hand"));
     if (transactionId <= 0) {
-        statusLabel->setText("The correction couldn't be saved.");
+        statusLabel->setText(tr("The correction couldn't be saved."));
         return;
     }
     accept();

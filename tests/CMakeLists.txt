@@ -8,8 +8,11 @@ foreach(test_source IN LISTS TEST_SOURCES)
         isolated_settings.cpp                    # Never the real app's settings
         test_db_fixture.h
         test_spreadsheet_files.h
+        fake_translator.h
     )
     target_include_directories(${test_name} PRIVATE ../src)
+    # Where the translation sources are, to check that every text has its translation
+    target_compile_definitions(${test_name} PRIVATE AION_TRANSLATIONS_DIR="${PROJECT_SOURCE_DIR}/translations")
     target_link_libraries(${test_name}
         PRIVATE
             AionLib
@@ -21,3 +24,6 @@ foreach(test_source IN LISTS TEST_SOURCES)
     )
     add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+
+# How the build counts a translation's progress (cmake/TranslationProgress.cmake)
+add_test(NAME translation_progress COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/translation_progress_test.cmake)

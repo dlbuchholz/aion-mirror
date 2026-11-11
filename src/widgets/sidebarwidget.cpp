@@ -1,4 +1,5 @@
 #include "sidebarwidget.h"
+#include "applocale.h"
 #include "account.h"
 #include "budget.h"
 #include "categorycolors.h"
@@ -202,7 +203,7 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     auto* logo = new QLabel(brand);
     logo->setObjectName("sidebarLogo");
     logo->setPixmap(Icons::logo(28, devicePixelRatioF()));
-    logo->setAccessibleName("Aion logo");
+    logo->setAccessibleName(tr("Aion logo"));
     brandLayout->addWidget(logo);
     brandName = new QLabel("Aion", brand);
     brandName->setObjectName("sidebarBrandName");
@@ -215,10 +216,10 @@ SidebarWidget::SidebarWidget(QWidget* parent)
 
     // Navigation
     navGroup.setExclusive(true);
-    addNavItem(root, "dashboard", "Dashboard", Page::Dashboard);
-    addNavItem(root, "transactions", "Transactions", Page::Transactions);
-    addNavItem(root, "budget", "Budget", Page::Budget);
-    addNavItem(root, "reports", "Reports", Page::Reports);
+    addNavItem(root, "dashboard", tr("Dashboard"), Page::Dashboard);
+    addNavItem(root, "transactions", tr("Transactions"), Page::Transactions);
+    addNavItem(root, "budget", tr("Budget"), Page::Budget);
+    addNavItem(root, "reports", tr("Reports"), Page::Reports);
     connect(&navGroup, &QButtonGroup::idClicked, this, [this](int id) {
         emit pageRequested(static_cast<Page>(id));
     });
@@ -234,9 +235,9 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     auto* sectionsLayout = new QVBoxLayout(sectionsWidget);
     sectionsLayout->setContentsMargins(0, 12, 0, 0);
     sectionsLayout->setSpacing(2);
-    accountsSection = createSection(sectionsLayout, "accounts", "Accounts");
+    accountsSection = createSection(sectionsLayout, "accounts", tr("Accounts"));
     sectionsLayout->addSpacing(10);
-    budgetSection = createSection(sectionsLayout, "budget", "Budget");
+    budgetSection = createSection(sectionsLayout, "budget", tr("Budget"));
     budgetSection.summaryWhenExpanded = true;        // The month's total, while only some budgets show
     sectionsLayout->addStretch();
 
@@ -258,7 +259,7 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     connect(budgetSection.header, &QWidget::customContextMenuRequested, this, &SidebarWidget::showBudgetSortMenu);
 
     // Bottom: settings, user, collapse
-    addNavItem(root, "settings", "Settings", Page::Settings);
+    addNavItem(root, "settings", tr("Settings"), Page::Settings);
 
     userItem = new SidebarItem(SidebarItem::Kind::Nav, this);
     userItem->setObjectName("userItem");
@@ -363,7 +364,7 @@ void SidebarWidget::setCollapsed(bool shouldCollapse, bool animate) {
     Settings::instance().setSidebarCollapsed(collapsed);
 
     collapseItem->setIconName(collapsed ? "chevrons-right" : "chevrons-left");
-    collapseItem->setText(collapsed ? "Expand" : "Collapse");
+    collapseItem->setText(collapsed ? tr("Expand") : tr("Collapse"));
     collapseItem->setToolTip(collapseItem->text());
 
     // Sections disappear before shrinking and reappear once the sidebar is wide again
@@ -388,7 +389,7 @@ void SidebarWidget::setCollapsed(bool shouldCollapse, bool animate) {
 void SidebarWidget::loadUser() {
     UserDAO userDao;
     const QString name = userDao.getUserById(userId).getName();
-    userItem->setText(name.isEmpty() ? QString("Unknown user") : name);
+    userItem->setText(name.isEmpty() ? tr("Unknown user") : name);
     userItem->setToolTip(userItem->text());
     userItem->setAvatarInitials(initialsFor(name));
 }
@@ -406,7 +407,7 @@ void SidebarWidget::loadAccounts() {
     }
 
     auto* allItem = new SidebarItem(SidebarItem::Kind::Row);
-    allItem->setText("All accounts");
+    allItem->setText(tr("All accounts"));
     allItem->setTrailingText(settings.formatCurrency(total), total < 0);
     accountsSection.bodyLayout->addWidget(allItem);
     connect(allItem, &QAbstractButton::clicked, this, [this]() {
@@ -427,18 +428,18 @@ void SidebarWidget::loadAccounts() {
         item->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(item, &QWidget::customContextMenuRequested, this, [this, item, accountId](const QPoint& position) {
             QMenu menu(this);
-            menu.addAction("Show transactions", this, [this, accountId]() { emit accountRequested(accountId); });
-            menu.addAction("Correct balance…", this, [this, accountId]() { emit correctBalanceRequested(accountId); });
+            menu.addAction(tr("Show transactions"), this, [this, accountId]() { emit accountRequested(accountId); });
+            menu.addAction(tr("Correct balance…"), this, [this, accountId]() { emit correctBalanceRequested(accountId); });
             menu.addSeparator();
-            menu.addAction("Edit account…", this, [this, accountId]() { emit editAccountRequested(accountId); });
-            menu.addAction("Delete account…", this, [this, accountId]() { emit deleteAccountRequested(accountId); });
+            menu.addAction(tr("Edit account…"), this, [this, accountId]() { emit editAccountRequested(accountId); });
+            menu.addAction(tr("Delete account…"), this, [this, accountId]() { emit deleteAccountRequested(accountId); });
             menu.exec(item->mapToGlobal(position));
         });
     }
 
     auto* addItem = new SidebarItem(SidebarItem::Kind::Row);
     addItem->setIconName("plus");
-    addItem->setText("Add account");
+    addItem->setText(tr("Add account"));
     accountsSection.bodyLayout->addWidget(addItem);
     connect(addItem, &QAbstractButton::clicked, this, &SidebarWidget::addAccountRequested);
 
@@ -452,7 +453,7 @@ void SidebarWidget::loadBudgets() {
     moreBudgetsItem = nullptr;
 
     const QDate today = QDate::currentDate();
-    budgetSection.header->setText(QString("Budget · %1").arg(today.toString("MMMM")));
+    budgetSection.header->setText(tr("Budget · %1").arg(AppLocale::date(today, AppLocale::DateFormat::Month)));
 
     BudgetDAO budgetDao;
     const Settings& settings = Settings::instance();
@@ -508,7 +509,7 @@ void SidebarWidget::loadBudgets() {
 
     if (totalLimit <= 0) {
         auto* emptyItem = new SidebarItem(SidebarItem::Kind::Row);
-        emptyItem->setText("No budgets this month");
+        emptyItem->setText(tr("No budgets this month"));
         emptyItem->setMuted(true);
         budgetSection.bodyLayout->addWidget(emptyItem);
         budgetSection.summary.clear();
@@ -537,7 +538,7 @@ void SidebarWidget::fitBudgets() {
         }    }
     for (int i = shown; i < budgetItems.size(); ++i) budgetItems[i]->setVisible(false);
     moreBudgetsItem->setVisible(shown < budgetItems.size());
-    moreBudgetsItem->setText(QString("+ %1 more on the Budget page").arg(budgetItems.size() - shown));
+    moreBudgetsItem->setText(tr("+ %1 more on the Budget page").arg(budgetItems.size() - shown));
 }
 
 bool SidebarWidget::eventFilter(QObject* watched, QEvent* event) {
@@ -549,16 +550,16 @@ bool SidebarWidget::eventFilter(QObject* watched, QEvent* event) {
 
 void SidebarWidget::showUserMenu() {
     QMenu menu(this);
-    menu.addAction("Switch user…", this, &SidebarWidget::switchUserRequested);
+    menu.addAction(tr("Switch user…"), this, &SidebarWidget::switchUserRequested);
     menu.exec(userItem->mapToGlobal(QPoint(0, -menu.sizeHint().height())));
 }
 
 void SidebarWidget::showBudgetSortMenu(const QPoint& position) {
     using Sort = Settings::BudgetSort;
-    const QList<QPair<Sort, QString>> sorts = {{Sort::Percentage, "Sort by percentage used"},
-                                               {Sort::Spent, "Sort by amount spent"},
-                                               {Sort::Budgeted, "Sort by budgeted amount"},
-                                               {Sort::Name, "Sort by name"}};
+    const QList<QPair<Sort, QString>> sorts = {{Sort::Percentage, tr("Sort by percentage used")},
+                                               {Sort::Spent, tr("Sort by amount spent")},
+                                               {Sort::Budgeted, tr("Sort by budgeted amount")},
+                                               {Sort::Name, tr("Sort by name")}};
     QMenu menu(this);
     const Sort current = Settings::instance().getSidebarBudgetSort();
     for (const auto& [sort, text] : sorts) {

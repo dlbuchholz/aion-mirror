@@ -1,4 +1,5 @@
 #include "categoriessettings.h"
+#include "applocale.h"
 #include "categorycolors.h"
 #include "categorytag.h"
 #include "emptystate.h"
@@ -30,8 +31,11 @@ namespace {
 
 QString usageText(const CategoryUsage& usage) {
     QStringList parts;
-    parts << QString("%1 %2").arg(usage.transactions).arg(usage.transactions == 1 ? "transaction" : "transactions");
-    if (usage.budgets > 0) parts << (usage.budgets == 1 ? QString("budget") : QString("%1 budgets").arg(usage.budgets));
+    parts << AppLocale::count(usage.transactions, CategoriesSettings::tr("%1 transaction"), CategoriesSettings::tr("%1 transactions"));
+    if (usage.budgets > 0) {
+        parts << (usage.budgets == 1 ? CategoriesSettings::tr("budget")
+                                     : AppLocale::count(usage.budgets, CategoriesSettings::tr("%1 budget"), CategoriesSettings::tr("%1 budgets")));
+    }
     return parts.join(" · ");
 }
 
@@ -40,7 +44,7 @@ class ThemePreview : public QWidget {
 public:
     ThemePreview(bool dark, QWidget* parent) : QWidget(parent), dark(dark) {
         setObjectName(dark ? "darkThemePreview" : "lightThemePreview");
-        setToolTip(dark ? "In the dark theme" : "In the light theme");
+        setToolTip(dark ? CategoriesSettings::tr("In the dark theme") : CategoriesSettings::tr("In the light theme"));
         auto* layout = new QHBoxLayout(this);
         layout->setContentsMargins(10, 6, 10, 6);
         tag = new CategoryTag(this);
@@ -116,7 +120,7 @@ public:
     CategoryRow(const Category& category, const CategoryUsage& usage, QWidget* parent)
         : QAbstractButton(parent), categoryId(category.getCategoryId()) {
         setObjectName("categoryRow");
-        setAccessibleName(category.getName());
+        setAccessibleName(category.getDisplayName());
         setCursor(category.isBuiltIn() ? Qt::ArrowCursor : Qt::PointingHandCursor);
         setEnabled(true);
         setAttribute(Qt::WA_Hover);
@@ -125,16 +129,16 @@ public:
         layout->setContentsMargins(10, 0, 10, 0);
         layout->setSpacing(12);
         auto* tag = new CategoryTag(this);
-        tag->setCategory(category.getName(), category.getColor());
+        tag->setCategory(category.getDisplayName(), category.getColor());
         tag->setAttribute(Qt::WA_TransparentForMouseEvents);
         layout->addWidget(tag);
-        auto* detail = new QLabel(category.isBuiltIn() ? QString("Built in · not counted as income or spending")
+        auto* detail = new QLabel(category.isBuiltIn() ? CategoriesSettings::tr("Built in · not counted as income or spending")
                                                        : usageText(usage), this);
         detail->setForegroundRole(QPalette::PlaceholderText);
         detail->setAttribute(Qt::WA_TransparentForMouseEvents);
         layout->addWidget(detail, 1);
         if (category.isBuiltIn()) {
-            setToolTip("Used for starting balances and balance corrections, so it can't be changed");
+            setToolTip(CategoriesSettings::tr("Used for starting balances and balance corrections, so it can't be changed"));
         }
         builtIn = category.isBuiltIn();
     }
@@ -181,7 +185,7 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
 
     // Heading, search and the add button
     auto* header = new QHBoxLayout();
-    auto* heading = new QLabel("Categories", this);
+    auto* heading = new QLabel(tr("Categories"), this);
     QFont headingFont = heading->font();
     headingFont.setPointSize(11);
     headingFont.setBold(true);
@@ -189,18 +193,18 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     header->addWidget(heading, 1);
     searchEdit = new QLineEdit(this);
     searchEdit->setObjectName("categorySearch");
-    searchEdit->setPlaceholderText("Search");
+    searchEdit->setPlaceholderText(tr("Search"));
     searchEdit->setClearButtonEnabled(true);
     searchEdit->setMaximumWidth(200);
     connect(searchEdit, &QLineEdit::textChanged, this, &CategoriesSettings::rebuildList);
     header->addWidget(searchEdit);
-    addButton = new QPushButton("Add category", this);
+    addButton = new QPushButton(tr("Add category"), this);
     addButton->setObjectName("addCategoryButton");
     connect(addButton, &QPushButton::clicked, this, [this]() { openEditor(0); });
     header->addWidget(addButton);
     root->addLayout(header);
 
-    auto* hint = new QLabel("Every user has their own categories. Changes are saved right away.", this);
+    auto* hint = new QLabel(tr("Every user has their own categories. Changes are saved right away."), this);
     hint->setForegroundRole(QPalette::PlaceholderText);
     hint->setWordWrap(true);
     root->addWidget(hint);
@@ -214,7 +218,7 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     listLayout = new QVBoxLayout();
     listLayout->setSpacing(0);
     contentLayout->addLayout(listLayout);
-    emptyLabel = new EmptyState("search", "No categories match.", content);
+    emptyLabel = new EmptyState("search", tr("No categories match."), content);
     contentLayout->addWidget(emptyLabel);
     contentLayout->addStretch();
     scroll->setWidget(content);
@@ -230,19 +234,19 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     auto* nameRow = new QHBoxLayout();
     nameEdit = new QLineEdit(editor);
     nameEdit->setObjectName("categoryNameEdit");
-    nameEdit->setPlaceholderText("Name");
+    nameEdit->setPlaceholderText(tr("Name"));
     connect(nameEdit, &QLineEdit::returnPressed, this, &CategoriesSettings::save);
     typeCombo = new QComboBox(editor);
     typeCombo->setObjectName("categoryTypeCombo");
-    typeCombo->addItem("Expense", "expense");
-    typeCombo->addItem("Income", "income");
+    typeCombo->addItem(tr("Expense"), "expense");
+    typeCombo->addItem(tr("Income"), "income");
     nameRow->addWidget(nameEdit, 1);
     nameRow->addWidget(typeCombo);
     editorLayout->addLayout(nameRow);
 
     // No colour, then the palette in hue order: two rows of ten
     auto* colorRow = new QHBoxLayout();
-    auto* colorCaption = new QLabel("Colour", editor);
+    auto* colorCaption = new QLabel(tr("Colour"), editor);
     colorCaption->setMinimumWidth(56);
     colorRow->addWidget(colorCaption, 0, Qt::AlignTop);
     auto* swatches = new QGridLayout();
@@ -265,7 +269,7 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
 
     // The tag as it will look in both themes; follows the name, the chosen colour and the hovered one
     auto* previewRow = new QHBoxLayout();
-    auto* previewCaption = new QLabel("Preview", editor);
+    auto* previewCaption = new QLabel(tr("Preview"), editor);
     previewCaption->setMinimumWidth(56);
     previewRow->addWidget(previewCaption);
     for (const bool dark : {false, true}) {
@@ -292,20 +296,20 @@ CategoriesSettings::CategoriesSettings(QWidget* parent)
     mergeButton->setObjectName("mergeCategoryButton");
     mergeButton->setProperty("button", true);        // A framed button with its menu's arrow (Theme::controlStyleSheet)
     mergeButton->setProperty("dropDown", true);
-    mergeButton->setText("Merge into…");
+    mergeButton->setText(tr("Merge into…"));
     mergeButton->setPopupMode(QToolButton::InstantPopup);
     mergeButton->setMenu(new QMenu(mergeButton));
-    mergeButton->setToolTip("Move this category's transactions to another category and delete it");
+    mergeButton->setToolTip(tr("Move this category's transactions to another category and delete it"));
     buttons->addWidget(mergeButton);
-    deleteButton = new QPushButton("Delete", editor);
+    deleteButton = new QPushButton(tr("Delete"), editor);
     deleteButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     deleteButton->setObjectName("deleteCategoryButton");
     connect(deleteButton, &QPushButton::clicked, this, &CategoriesSettings::remove);
     buttons->addWidget(deleteButton);
-    auto* cancelButton = new QPushButton("Cancel", editor);
+    auto* cancelButton = new QPushButton(tr("Cancel"), editor);
     connect(cancelButton, &QPushButton::clicked, this, &CategoriesSettings::closeEditor);
     buttons->addWidget(cancelButton);
-    auto* saveButton = new QPushButton("Save", editor);
+    auto* saveButton = new QPushButton(tr("Save"), editor);
     saveButton->setObjectName("saveCategoryButton");
     saveButton->setDefault(true);
     connect(saveButton, &QPushButton::clicked, this, &CategoriesSettings::save);
@@ -374,14 +378,14 @@ void CategoriesSettings::rebuildList() {
     const QString search = searchEdit->text().trimmed();
     int shown = 0;
     const QList<QPair<QString, std::function<bool(const Category&)>>> groups = {
-        {"Expenses", [](const Category& c) { return !c.isBuiltIn() && c.getType() == "expense"; }},
-        {"Income", [](const Category& c) { return !c.isBuiltIn() && c.getType() == "income"; }},
-        {"Built in", [](const Category& c) { return c.isBuiltIn(); }},
+        {tr("Expenses"), [](const Category& c) { return !c.isBuiltIn() && c.getType() == "expense"; }},
+        {tr("Income"), [](const Category& c) { return !c.isBuiltIn() && c.getType() == "income"; }},
+        {tr("Built in"), [](const Category& c) { return c.isBuiltIn(); }},
     };
     for (const auto& group : groups) {
         bool labelAdded = false;
         for (const Category& entry : categories) {
-            if (!group.second(entry) || (!search.isEmpty() && !entry.getName().contains(search, Qt::CaseInsensitive))) {
+            if (!group.second(entry) || (!search.isEmpty() && !entry.getDisplayName().contains(search, Qt::CaseInsensitive))) {
                 continue;
             }
             if (!labelAdded) {
@@ -424,7 +428,7 @@ void CategoriesSettings::openEditor(int categoryId) {
             for (const Category& target : categories) {
                 if (target.getCategoryId() == categoryId || target.isBuiltIn() || target.getType() != type) continue;
                 const int targetId = target.getCategoryId();
-                menu->addAction(target.getName(), this, [this, targetId]() { mergeInto(targetId); });
+                menu->addAction(target.getDisplayName(), this, [this, targetId]() { mergeInto(targetId); });
             }
             menu->addSeparator();
         }
@@ -433,7 +437,7 @@ void CategoriesSettings::openEditor(int categoryId) {
         nameEdit->clear();
         typeCombo->setCurrentIndex(0);
         selectColor(QString());
-        usageLabel->setText("New category");
+        usageLabel->setText(tr("New category"));
     }
     mergeButton->setVisible(edited);
     deleteButton->setVisible(edited);
@@ -462,7 +466,7 @@ QString CategoriesSettings::selectedColor() const {
 void CategoriesSettings::updatePreview(const QString& color) {
     const QString name = nameEdit->text().simplified();
     for (CategoryTag* tag : std::as_const(previewTags)) {
-        tag->setCategory(name.isEmpty() ? QString("Name") : name, color);
+        tag->setCategory(name.isEmpty() ? tr("Name") : name, color);
     }
 }
 
@@ -474,12 +478,15 @@ void CategoriesSettings::save() {
         nameEdit->setFocus();
     };
     if (name.isEmpty()) {
-        fail("Enter a name.");
+        fail(tr("Enter a name."));
         return;
     }
     for (const Category& other : categories) {
-        if (other.getCategoryId() != editedId && other.getName().compare(name, Qt::CaseInsensitive) == 0) {
-            fail(QString("\"%1\" already exists. Use \"Merge into…\" to combine two categories.").arg(other.getName()));
+        if (other.getCategoryId() == editedId) continue;
+        // The built-in ones under the name they're shown by too ("Umbuchung"), or there'd be two of that name
+        if (other.getName().compare(name, Qt::CaseInsensitive) == 0
+            || other.getDisplayName().compare(name, Qt::CaseInsensitive) == 0) {
+            fail(tr("\"%1\" already exists. Use \"Merge into…\" to combine two categories.").arg(other.getDisplayName()));
             return;
         }
     }
@@ -488,7 +495,7 @@ void CategoriesSettings::save() {
     const bool saved = editedId > 0 ? dao.editCategory(editedId, name, type, selectedColor())
                                     : dao.addCategory(Category(-1, name, type, selectedColor())) > 0;
     if (!saved) {
-        fail("The category couldn't be saved.");
+        fail(tr("The category couldn't be saved."));
         return;
     }
     editedId = -1;
@@ -501,19 +508,19 @@ void CategoriesSettings::mergeInto(int intoId) {
     const Category* into = category(intoId);
     if (!from || !into) return;
     const CategoryUsage fromUsage = usage.value(from->getCategoryId());
-    QString details = QString("Its %1 %2 move to \"%3\".").arg(fromUsage.transactions)
-                          .arg(fromUsage.transactions == 1 ? "transaction" : "transactions", into->getName());
+    QString details = tr("Its %1 move to \"%2\".")
+                          .arg(AppLocale::count(fromUsage.transactions, tr("%1 transaction"), tr("%1 transactions")), into->getName());
     if (fromUsage.budgets > 0) {
         details += usage.value(intoId).budgets > 0
-                       ? QString(" Its budgets are removed, \"%1\" keeps its own.").arg(into->getName())
-                       : QString(" Its budgets move along.");
+                       ? tr(" Its budgets are removed, \"%1\" keeps its own.").arg(into->getName())
+                       : tr(" Its budgets move along.");
     }
-    if (!confirm("Merge categories", QString("Merge \"%1\" into \"%2\"?\n\n%3 \"%1\" is then deleted. This can't be undone.")
+    if (!confirm(tr("Merge categories"), tr("Merge \"%1\" into \"%2\"?\n\n%3 \"%1\" is then deleted. This can't be undone.")
                                          .arg(from->getName(), into->getName(), details))) {
         return;
     }
     if (!CategoryDAO(userId).mergeCategory(from->getCategoryId(), intoId)) {
-        errorLabel->setText("The categories couldn't be merged.");
+        errorLabel->setText(tr("The categories couldn't be merged."));
         errorLabel->show();
         return;
     }
@@ -526,16 +533,16 @@ void CategoriesSettings::remove() {
     const Category* edited = category(editedId);
     if (!edited) return;
     const CategoryUsage used = usage.value(edited->getCategoryId());
-    QString question = QString("Delete \"%1\"?").arg(edited->getName());
+    QString question = tr("Delete \"%1\"?").arg(edited->getName());
     if (used.transactions > 0 || used.budgets > 0) {
-        question += QString("\n\nIt's used by %1. Those transactions keep no category, and its budgets are removed. "
-                            "To move them to another category instead, use \"Merge into…\".").arg(usageText(used));
+        question += tr("\n\nIt's used by %1. Those transactions keep no category, and its budgets are removed. "
+                       "To move them to another category instead, use \"Merge into…\".").arg(usageText(used));
     }
-    if (!confirm("Delete category", question)) {
+    if (!confirm(tr("Delete category"), question)) {
         return;
     }
     if (!CategoryDAO(userId).deleteCategoryKeepingTransactions(edited->getCategoryId())) {
-        errorLabel->setText("The category couldn't be deleted.");
+        errorLabel->setText(tr("The category couldn't be deleted."));
         errorLabel->show();
         return;
     }

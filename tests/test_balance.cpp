@@ -17,6 +17,7 @@
 #include "dashboard.h"
 #include "dialog/balancecorrectiondialog.h"
 #include "dialog/importmanagerdialog.h"
+#include "fake_translator.h"
 #include <QFrame>
 #include <QMessageBox>
 #include <QTimer>
@@ -139,9 +140,15 @@ private slots:
         QVERIFY(correction->isVisibleTo(&dialog));
         QVERIFY(correction->text().contains(Settings::instance().formatCurrency(-1265, true)));
         QVERIFY(correction->isChecked());
+        QVERIFY2(status->text().startsWith(Settings::instance().formatCurrency(1265) + " more than your bank after the import."),
+                 qPrintable(status->text()));
+        auto* expected = dialog.findChild<QLineEdit*>("expectedBalanceEdit");
+        expected->setText(Settings::instance().formatCurrency(152390));     // The bank has 1,00 more
+        emit expected->textEdited(expected->text());
+        QVERIFY2(status->text().startsWith(Settings::instance().formatCurrency(100) + " less than your bank after the import."),
+                 qPrintable(status->text()));
 
         // Typing the matching balance hides the correction
-        auto* expected = dialog.findChild<QLineEdit*>("expectedBalanceEdit");
         expected->setText(Settings::instance().formatCurrency(152290));
         emit expected->textEdited(expected->text());
         QVERIFY(!correction->isVisibleTo(&dialog));
@@ -675,6 +682,88 @@ private slots:
         QCOMPARE(imported.first().getCategoryId(), groceries);
     }
 
+    void aBuiltInCategoryIsRecognisedByTheNameItIsShownBy() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        QTemporaryDir dir;
+        const QString path = dir.filePath("transfer.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name;Kategorie\n10.10.2026;-12,00;Sparkonto;Umbuchung\n");
+        file.close();
+        int transfer = -1;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == TransferCategory) transfer = category.getCategoryId();
+        }
+        const qsizetype categoriesBefore = CategoryDAO(1).getAllCategories().size();
+
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Categories);
+        QVERIFY(!dialog.findChild<QComboBox*>("categoryChoice"));            // Known, nothing to choose or create
+        next->click();
+        QString said;
+        answerMessageBox(&said);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        const QList<Transaction> imported = TransactionDAO().getTransactionsForAccount(giro);
+        QCOMPARE(imported.size(), 1);
+        QCOMPARE(imported.first().getCategoryId(), transfer);
+        QCOMPARE(CategoryDAO(1).getAllCategories().size(), categoriesBefore);  // No second "Umbuchung"
+    }
+
+    void oneOfEachIsSaidInTheSingular() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("one.csv");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("Buchungstag;Betrag;Name;Kategorie\n10.10.2026;-12,00;Shop;Neu\n11.10.2026;abc;Bad;Neu\n");
+        file.close();
+
+        ImportManagerDialog dialog(1);
+        showOnScreen(dialog);
+        dialog.findChild<QComboBox*>("accountComboBox")->setCurrentIndex(0);
+        dialog.loadFile(path);
+        auto* next = dialog.findChild<QPushButton*>("nextButton");
+        next->click();
+        for (QCheckBox* check : dialog.findChildren<QCheckBox*>()) {
+            if (check->text() == "Skip rows that can't be read") check->setChecked(true);
+        }
+        next->click();
+        QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Categories);
+        QCOMPARE(dialog.findChild<QLabel*>("categorySummaryLabel")->text(), QString("1 category in the file: 1 will be created."));
+        auto* choice = dialog.findChild<QComboBox*>("categoryChoice");
+        QCOMPARE(choice->itemText(0), QString("Create \"Neu\" (expense)"));
+        QCOMPARE(choice->itemText(1), QString("Create \"Neu\" (income)"));
+
+        next->click();
+        QCOMPARE(dialog.findChild<QPushButton*>("importButton")->text(), QString("Import 1 transaction"));
+        QString said;
+        answerMessageBox(&said);
+        dialog.findChild<QPushButton*>("importButton")->click();
+        QCOMPARE(said, QString("1 transaction imported.\n1 new category.\n1 row couldn't be read."));
+    }
+
+    void aSheetWithOneRowSaysSo() {
+        const QStringList header = {"Buchungstag", "Betrag", "Name"};
+        QTemporaryDir dir;
+        const QString path = dir.filePath("one.xlsx");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(xlsxFile({{"Januar", {header, {"17.01.2026", "-31.2", "Rewe"}}}, {"Leer", {header}}}));
+        file.close();
+        ImportManagerDialog dialog(1);
+        dialog.loadFile(path);
+        QStringList counts;
+        for (QLabel* label : dialog.findChildren<QLabel*>()) {
+            if (QRegularExpression(R"(^\d+ rows?$)").match(label->text()).hasMatch()) counts << label->text();
+        }
+        QCOMPARE(counts, (QStringList{"2 rows", "1 row"}));
+    }
+
     void theColumnsStepSaysWhatItCantRead() {
         QTemporaryDir dir;
         const QString path = dir.filePath("bad.csv");
@@ -788,7 +877,16 @@ private slots:
         Balance::addCorrection(giro, QDate(2026, 10, 1), 500, "");
         dialog.findChild<QPushButton*>("backButton")->click();
         next->click();
-        QVERIFY(dialog.findChild<QLabel*>("balanceStatusLabel")->text().contains("This file adds nothing"));
+        const QString before = dialog.findChild<QLabel*>("balanceStatusLabel")->text();
+        QVERIFY2(before.startsWith("Aion already shows " + Settings::instance().formatCurrency(500) + " more than your bank on that day. "
+                                   "This file adds nothing"), qPrintable(before));
+        auto* expected = dialog.findChild<QLineEdit*>("expectedBalanceEdit");
+        expected->setText(Settings::instance().formatCurrency(97380 + 100));      // 968,80 + 5,00 in Aion; the bank has 1,00 more
+        emit expected->textEdited(expected->text());
+        const QString after = dialog.findChild<QLabel*>("balanceStatusLabel")->text();
+        QVERIFY2(after.startsWith("Aion already shows " + Settings::instance().formatCurrency(100) + " less"), qPrintable(after));
+        dialog.findChild<QPushButton*>("backButton")->click();             // Back to the file's own balance
+        next->click();
         QCOMPARE(finish->text(), QString("Add balance correction"));
         dialog.findChild<QCheckBox*>("correctionCheckBox")->setChecked(false);
         QCOMPARE(finish->text(), QString("Close"));

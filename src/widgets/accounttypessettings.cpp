@@ -1,5 +1,6 @@
 #include "accounttypessettings.h"
 #include "account.h"
+#include "applocale.h"
 #include "db/databasemanager.h"
 #include "theme.h"
 
@@ -34,14 +35,14 @@ AccountTypesSettings::AccountTypesSettings(QWidget* parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(10);
 
-    auto* heading = new QLabel("Account types", this);
+    auto* heading = new QLabel(tr("Account types"), this);
     QFont headingFont = heading->font();
     headingFont.setPointSize(11);
     headingFont.setBold(true);
     heading->setFont(headingFont);
     root->addWidget(heading);
-    auto* hint = new QLabel("Edit a name to rename the type. Types that accounts still use can't be deleted. "
-                            "Changes are saved right away.", this);
+    auto* hint = new QLabel(tr("Edit a name to rename the type. Types that accounts still use can't be deleted. "
+                               "Changes are saved right away."), this);
     hint->setForegroundRole(QPalette::PlaceholderText);
     hint->setWordWrap(true);
     root->addWidget(hint);
@@ -59,9 +60,9 @@ AccountTypesSettings::AccountTypesSettings(QWidget* parent)
     auto* addRow = new QHBoxLayout();
     newTypeEdit = new QLineEdit(content);
     newTypeEdit->setObjectName("newAccountTypeEdit");
-    newTypeEdit->setPlaceholderText("New account type, for example Credit card");
+    newTypeEdit->setPlaceholderText(tr("New account type, for example Credit card"));
     connect(newTypeEdit, &QLineEdit::returnPressed, this, &AccountTypesSettings::addType);
-    auto* addButton = new QPushButton("Add type", content);
+    auto* addButton = new QPushButton(tr("Add type"), content);
     addButton->setObjectName("addAccountTypeButton");
     connect(addButton, &QPushButton::clicked, this, &AccountTypesSettings::addType);
     addRow->addWidget(newTypeEdit, 1);
@@ -109,17 +110,17 @@ void AccountTypesSettings::reload() {
         edit->setObjectName("accountTypeName");
         connect(edit, &QLineEdit::editingFinished, this, [this, typeId, edit, name]() { rename(typeId, edit, name); });
         layout->addWidget(edit, 1);
-        auto* count = new QLabel(used == 0 ? QString("Not used") : QString("%1 %2").arg(used).arg(used == 1 ? "account" : "accounts"), row);
+        auto* count = new QLabel(used == 0 ? tr("Not used") : AppLocale::count(used, tr("%1 account"), tr("%1 accounts")), row);
         count->setForegroundRole(QPalette::PlaceholderText);
         count->setMinimumWidth(90);
         layout->addWidget(count);
         auto* deleteButton = new QToolButton(row);
         deleteButton->setObjectName("deleteAccountTypeButton");
-        deleteButton->setText("Delete");
+        deleteButton->setText(tr("Delete"));
         deleteButton->setAutoRaise(true);
         deleteButton->setEnabled(used == 0);
-        deleteButton->setToolTip(used == 0 ? QString("Delete this account type")
-                                     : QString("Accounts use this type. Change their type first."));
+        deleteButton->setToolTip(used == 0 ? tr("Delete this account type")
+                                     : tr("Accounts use this type. Change their type first."));
         connect(deleteButton, &QToolButton::clicked, this, [this, typeId]() { remove(typeId); });
         layout->addWidget(deleteButton);
         listLayout->addWidget(row);
@@ -137,11 +138,11 @@ void AccountTypesSettings::showError(const QString& message) {
 void AccountTypesSettings::addType() {
     const QString name = newTypeEdit->text().simplified();
     if (name.isEmpty()) {
-        showError("Enter a name for the new account type.");
+        showError(tr("Enter a name for the new account type."));
         return;
     }
     if (AccountDAO().addAccountType(userId, name) <= 0) {
-        showError(QString("\"%1\" couldn't be added. Is there already a type with that name?").arg(name));
+        showError(tr("\"%1\" couldn't be added. Is there already a type with that name?").arg(name));
         return;
     }
     showError(QString());
@@ -156,8 +157,8 @@ void AccountTypesSettings::rename(int typeId, QLineEdit* edit, const QString& ol
         return;
     }
     if (name.isEmpty() || !AccountDAO().editAccountType(userId, typeId, name)) {
-        showError(name.isEmpty() ? QString("An account type needs a name.")
-                                 : QString("\"%1\" couldn't be saved. Is there already a type with that name?").arg(name));
+        showError(name.isEmpty() ? tr("An account type needs a name.")
+                                 : tr("\"%1\" couldn't be saved. Is there already a type with that name?").arg(name));
         edit->setText(oldName);
         return;
     }
@@ -168,7 +169,7 @@ void AccountTypesSettings::rename(int typeId, QLineEdit* edit, const QString& ol
 
 void AccountTypesSettings::remove(int typeId) {
     if (!AccountDAO().deleteAccountType(userId, typeId)) {
-        showError("The account type couldn't be deleted.");
+        showError(tr("The account type couldn't be deleted."));
         return;
     }
     showError(QString());

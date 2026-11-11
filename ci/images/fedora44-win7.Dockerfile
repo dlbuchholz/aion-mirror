@@ -13,6 +13,7 @@
 #     same version as the Windows Qt, so Fedora's own Qt can't be used.
 #   - /opt/qt-win7: Qt for Windows, cross-compiled with Fedora's MinGW. That links msvcrt.dll,
 #     which every Windows version has, so Windows 7 needs no Visual C++ or UCRT update.
+# For the translations, Qt Tools is built for Linux only: the cross build runs its lupdate/lrelease.
 # Qt brings its own zlib, libpng, libjpeg, PCRE2, HarfBuzz, FreeType and SQLite, so the package
 # needs no Fedora DLLs besides the MinGW runtime.
 
@@ -23,6 +24,7 @@ FROM local/qt-builder:fedora44 AS qt
 ARG QT_VERSION=6.8.5
 ARG QTBASE_SHA256=fc95010e94d8b1ec342eda9281fd278d5f096cf9ad8f1a0adfba9575438b0abc
 ARG QTSVG_SHA256=8ef4841a8b81d7192d908ea344137cf66a29cc110382588d91c62508e0e15e3a
+ARG QTTOOLS_SHA256=e8a1d632f9e9091852244b83c7b77f7dad0e1213e4e5b8b612071ae169659aa9
 # qt6windows7's tag v6.8.5
 ARG QT6WINDOWS7_COMMIT=b2f860af8497f5e9f5afc0d67cea598ebde27d78
 
@@ -34,12 +36,16 @@ RUN set -eu \
     && url="https://download.qt.io/archive/qt/6.8/$QT_VERSION/submodules" \
     && curl -fsSLO "$url/qtbase-everywhere-opensource-src-$QT_VERSION.tar.xz" \
     && curl -fsSLO "$url/qtsvg-everywhere-opensource-src-$QT_VERSION.tar.xz" \
+    && curl -fsSLO "$url/qttools-everywhere-opensource-src-$QT_VERSION.tar.xz" \
     && echo "$QTBASE_SHA256  qtbase-everywhere-opensource-src-$QT_VERSION.tar.xz" | sha256sum -c - \
     && echo "$QTSVG_SHA256  qtsvg-everywhere-opensource-src-$QT_VERSION.tar.xz" | sha256sum -c - \
+    && echo "$QTTOOLS_SHA256  qttools-everywhere-opensource-src-$QT_VERSION.tar.xz" | sha256sum -c - \
     && tar -xJf "qtbase-everywhere-opensource-src-$QT_VERSION.tar.xz" \
     && tar -xJf "qtsvg-everywhere-opensource-src-$QT_VERSION.tar.xz" \
+    && tar -xJf "qttools-everywhere-opensource-src-$QT_VERSION.tar.xz" \
     && mv "qtbase-everywhere-src-$QT_VERSION" qtbase \
     && mv "qtsvg-everywhere-src-$QT_VERSION" qtsvg \
+    && mv "qttools-everywhere-src-$QT_VERSION" qttools \
     && rm ./*.tar.xz \
     && git init -q qt6windows7 \
     && git -C qt6windows7 fetch -q --depth 1 https://github.com/crystalidea/qt6windows7.git "$QT6WINDOWS7_COMMIT" \
@@ -52,6 +58,16 @@ RUN mkdir /build-host && cd /build-host \
     && /src/qtbase/configure -prefix /opt/qt-host -release -nomake examples -nomake tests -no-opengl \
     && cmake --build . --parallel \
     && cmake --install .
+
+# Qt's translation tools for Linux (lupdate, lrelease), which the cross build runs to put Aion's
+# translations in. Only those: the other tools (Designer, Assistant, ...) aren't needed.
+RUN /opt/qt-host/bin/qt-cmake -S /src/qttools -B /build-tools-host -G Ninja -DCMAKE_BUILD_TYPE=Release \
+        -DFEATURE_assistant=OFF -DFEATURE_designer=OFF -DFEATURE_linguist=ON -DFEATURE_pixeltool=OFF \
+        -DFEATURE_qdoc=OFF -DFEATURE_qtdiag=OFF -DFEATURE_qtplugininfo=OFF -DFEATURE_distancefieldgenerator=OFF \
+        -DFEATURE_qev=OFF -DFEATURE_qtattributionsscanner=OFF -DFEATURE_kmap2qmap=OFF \
+    && cmake --build /build-tools-host --parallel \
+    && cmake --install /build-tools-host \
+    && test -x /opt/qt-host/bin/lrelease && test -x /opt/qt-host/bin/lupdate
 
 # Qt for Windows, cross-compiled with Fedora's MinGW toolchain. No OpenGL: Aion draws with
 # Qt Widgets only, and Windows 7 PCs often have no working OpenGL driver. Only the SQLite driver:
@@ -77,6 +93,24 @@ RUN grep -q '^ *synchronization$' /src/qtbase/src/corelib/CMakeLists.txt \
 RUN /opt/qt-win7/bin/qt-cmake -S /src/qtsvg -B /build-svg -G Ninja -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /build-svg --parallel \
     && cmake --install /build-svg
+
+# The cross build finds Qt's "...Tools" packages in the Linux Qt (QT_HOST_PATH), so Aion's
+# translations are built with the lrelease above. Checked here with a small project configured
+# like Aion's Windows build, so a missing piece shows now and not in CI.
+RUN mkdir -p /tmp/linguist-check \
+    && printf '%s\n' \
+        'cmake_minimum_required(VERSION 3.21)' \
+        'project(linguist_check LANGUAGES CXX)' \
+        'find_package(Qt6 REQUIRED COMPONENTS Core)' \
+        'find_package(Qt6 QUIET OPTIONAL_COMPONENTS LinguistTools)' \
+        'if(NOT TARGET Qt6::lrelease)' \
+        '    message(FATAL_ERROR "The cross build finds no lrelease (Qt6LinguistTools)")' \
+        'endif()' \
+        'get_target_property(lrelease Qt6::lrelease IMPORTED_LOCATION)' \
+        'message(STATUS "lrelease: ${lrelease}")' \
+        > /tmp/linguist-check/CMakeLists.txt \
+    && /opt/qt-win7/bin/qt-cmake -S /tmp/linguist-check -B /tmp/linguist-check/build -G Ninja \
+    && rm -rf /tmp/linguist-check
 
 # Where this Qt comes from, for the package (scripts/package-windows.sh copies it as QT-SOURCE.txt).
 # The LGPL asks for the source of a changed Qt to be named.

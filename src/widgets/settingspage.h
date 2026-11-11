@@ -27,6 +27,9 @@ class SettingsPage : public QWidget
 public:
     explicit SettingsPage(QWidget *parent = nullptr);
 
+    // A language in the list: its name, and how much is translated unless that's all of it
+    static QString languageItemText(const QString& nativeName, int percentTranslated);
+
     void setUserId(int userId);                      // Whose categories and account types to show
     void reloadData();                               // Categories and account types changed elsewhere (an import)
     // Shows Rules with the editor filled with draft (a new rule, or with an ID that rule changed)
@@ -38,6 +41,7 @@ signals:
     void settingsChanged();                          // Emitted after changes were applied
     void dataChanged();                              // Categories or account types were edited (saved right away)
     void databaseRestored();                         // A backup replaced the open database
+    void restartRequested();                         // "Restart now", after the language was changed
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -64,6 +68,7 @@ private:
     void watch(QLineEdit *lineEdit);
     void markFormChanged();
     void updateChangeState();
+    void updateRestartNote();
 
     void loadSettings();
     void saveSettings();
@@ -97,6 +102,8 @@ private:
 
     // Appearance
     QComboBox *themeCombo = nullptr;
+    QComboBox *languageCombo = nullptr;
+    QWidget *restartNote = nullptr;
 
     // Import
     QCheckBox *autoDetectDelimiterCheck = nullptr;

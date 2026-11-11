@@ -2,6 +2,7 @@
 
 #include "account.h"
 #include "category.h"
+#include "language.h"
 #include "rule.h"
 #include "tests/test_db_fixture.h"
 
@@ -156,6 +157,40 @@ private slots:
         rule.conditions = {RuleCondition(RuleCondition::Field::Payee, RuleCondition::Operator::Between, "A", "Z")};
         QVERIFY(!rule.matches(transaction));
         QCOMPARE(RuleMatchIndex({transaction}).count(rule), 0);
+    }
+
+    void describesTheConditionsAsOneSentence() {
+        using Field = RuleCondition::Field;
+        using Operator = RuleCondition::Operator;
+        Rule rule;
+        rule.matchAll = true;
+        rule.conditions = {RuleCondition(Field::Type, Operator::Is, "expense"),
+                           RuleCondition(Field::PayeeOrDescription, Operator::StartsWith, "REWE")};
+        // Only the start of the sentence gets a capital letter
+        QCOMPARE(Rules::describe(rule, {}), QString("It's an expense and payee or description starts with \"REWE\""));
+
+        rule.matchAll = false;
+        rule.conditions = {RuleCondition(Field::Description, Operator::Is, "Miete"),
+                           RuleCondition(Field::Account, Operator::Is, "7"),
+                           RuleCondition(Field::Type, Operator::Is, "income")};
+        QCOMPARE(Rules::describe(rule, {{7, "Giro"}}), QString("Description is \"Miete\" or account is Giro or it's income"));
+        QCOMPARE(Rules::describe(rule, {}), QString("Description is \"Miete\" or account is a deleted account or it's income"));
+    }
+
+    void describesInGermanToo() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        using Field = RuleCondition::Field;
+        using Operator = RuleCondition::Operator;
+        Rule rule;
+        rule.matchAll = true;
+        rule.conditions = {RuleCondition(Field::Type, Operator::Is, "expense"),
+                           RuleCondition(Field::PayeeOrDescription, Operator::StartsWith, "REWE")};
+        QVERIFY(Language::install("de"));
+        const QString german = Rules::describe(rule, {});
+        Language::install("en");
+        QCOMPARE(german, QString("Es ist eine Ausgabe und Empfänger oder Beschreibung beginnt mit „REWE“"));
     }
 
     void unknownNamesAreNotGuessedAt() {

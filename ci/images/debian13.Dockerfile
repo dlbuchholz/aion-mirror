@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         # reuses compiler results from earlier CI runs (see the workflow)
         ccache \
         qt6-base-dev qt6-svg-dev \
+        # the translations: lupdate/lrelease with their CMake package, and Qt's own texts
+        # (qtbase_de.qm, for standard buttons), which the build puts into Aion
+        qt6-tools-dev qt6-l10n-tools qt6-translations-l10n \
         # the plugins Qt loads at runtime; nothing else in this list brings them
         libqt6sql6-sqlite qt6-svg-plugins \
         # the package (scripts/package-deb.sh)

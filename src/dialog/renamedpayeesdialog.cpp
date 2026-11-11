@@ -1,4 +1,5 @@
 #include "renamedpayeesdialog.h"
+#include "applocale.h"
 #include "db/databasemanager.h"
 #include "settings.h"
 #include "theme.h"
@@ -15,18 +16,17 @@
 RenamedPayeesDialog::RenamedPayeesDialog(const QList<Transaction>& renamed, const QString& oldPayee,
                                          const QString& rename, int rule, QWidget* parent)
     : QDialog(parent), transactions(renamed), newPayee(rename), ruleId(rule) {
-    setWindowTitle(restores() ? "Restore original names?" : QString("Rename to \"%1\"?").arg(newPayee));
+    setWindowTitle(restores() ? tr("Restore original names?") : tr("Rename to \"%1\"?").arg(newPayee));
     resize(600, 420);
 
     auto* root = new QVBoxLayout(this);
-    QString renamedWhat = transactions.size() == 1 ? QString("1 transaction")
-                                                   : QString("%1 transactions").arg(transactions.size());
+    QString renamedWhat = AppLocale::count(transactions.size(), tr("%1 transaction"), tr("%1 transactions"));
     if (!oldPayee.isEmpty()) {
-        renamedWhat += QString(" to \"%1\"").arg(oldPayee);
+        renamedWhat += tr(" to \"%1\"").arg(oldPayee);
     }
     auto* intro = new QLabel(restores()
-        ? QString("This rule renamed %1. Restore their original names, or keep the names they have now?").arg(renamedWhat)
-        : QString("This rule renamed %1. Give them the new name \"%2\" too?").arg(renamedWhat, newPayee),
+        ? tr("This rule renamed %1. Restore their original names, or keep the names they have now?").arg(renamedWhat)
+        : tr("This rule renamed %1. Give them the new name \"%2\" too?").arg(renamedWhat, newPayee),
         this);
     intro->setObjectName("renamedPayeesIntro");
     intro->setWordWrap(true);
@@ -65,7 +65,7 @@ RenamedPayeesDialog::RenamedPayeesDialog(const QList<Transaction>& renamed, cons
     root->addWidget(scroll, 1);
 
     auto* buttons = new QDialogButtonBox(this);
-    auto* keepButton = buttons->addButton("Keep names", QDialogButtonBox::RejectRole);
+    auto* keepButton = buttons->addButton(tr("Keep names"), QDialogButtonBox::RejectRole);
     keepButton->setObjectName("keepNamesButton");
     applyButton = buttons->addButton(QString(), QDialogButtonBox::AcceptRole);
     applyButton->setObjectName("renamedPayeesApplyButton");
@@ -82,7 +82,7 @@ void RenamedPayeesDialog::updateButton() {
     for (const QCheckBox* check : std::as_const(checks)) {
         if (check->isChecked()) ++ticked;
     }
-    applyButton->setText(QString("%1 %2").arg(restores() ? "Restore" : "Rename").arg(ticked));
+    applyButton->setText((restores() ? tr("Restore %1") : tr("Rename %1")).arg(ticked));
     applyButton->setEnabled(ticked > 0);
 }
 
@@ -90,7 +90,7 @@ void RenamedPayeesDialog::apply() {
     // All or none
     QSqlDatabase db = DatabaseManager::instance().database();
     if (!db.transaction()) {
-        QMessageBox::warning(this, windowTitle(), "The names couldn't be changed.");
+        QMessageBox::warning(this, windowTitle(), tr("The names couldn't be changed."));
         return;
     }
     TransactionDAO dao;
@@ -104,13 +104,13 @@ void RenamedPayeesDialog::apply() {
         }
         if (!dao.updateTransaction(changed)) {
             db.rollback();
-            QMessageBox::warning(this, windowTitle(), "The names couldn't be changed. Nothing was changed.");
+            QMessageBox::warning(this, windowTitle(), tr("The names couldn't be changed. Nothing was changed."));
             return;
         }
     }
     if (!db.commit()) {
         db.rollback();
-        QMessageBox::warning(this, windowTitle(), "The names couldn't be changed. Nothing was changed.");
+        QMessageBox::warning(this, windowTitle(), tr("The names couldn't be changed. Nothing was changed."));
         return;
     }
     accept();

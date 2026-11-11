@@ -2,6 +2,8 @@
 #include "account.h"
 #include "category.h"
 
+#include <QCoreApplication>
+
 // Account Implementation
 Account::Account(int id, const QString& name, const QString& type, Cents balanceCents)
     : accountId(id), name(name), type(type), balanceCents(balanceCents) {}
@@ -27,9 +29,14 @@ AccountDAO::AccountDAO() {}
 
 bool AccountDAO::addDefaultAccountTypes(int userId) {
     AccountDAO dao;
-    const QStringList defaults = {"Checking", "Savings", "Investment", "Retirement", "Virtual"};
-    for (const QString& name : defaults) {
-        if (dao.addAccountType(userId, name) <= 0) {
+    // In the language of the texts, which they follow until the user renames them (StarterNames)
+    static const char* const defaults[] = {
+        QT_TRANSLATE_NOOP("Account", "Checking"), QT_TRANSLATE_NOOP("Account", "Savings"),
+        QT_TRANSLATE_NOOP("Account", "Investment"), QT_TRANSLATE_NOOP("Account", "Retirement"),
+        QT_TRANSLATE_NOOP("Account", "Virtual"),
+    };
+    for (const char* name : defaults) {
+        if (dao.addAccountType(userId, QCoreApplication::translate("Account", name), name) <= 0) {
             return false;
         }
     }
@@ -62,11 +69,12 @@ QList<QPair<QString, QString>> AccountDAO::getAllAccountTypes(int userId) {
     return accountTypes;
 }
 
-int AccountDAO::addAccountType(int userId, const QString& name) {
+int AccountDAO::addAccountType(int userId, const QString& name, const QString& starter) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("INSERT INTO account_types (user_id, name) VALUES (:user_id, :name)");
+    query.prepare("INSERT INTO account_types (user_id, name, starter) VALUES (:user_id, :name, :starter)");
     query.bindValue(":user_id", userId);
     query.bindValue(":name", name);
+    query.bindValue(":starter", starter.isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : QVariant(starter));
 
     if (!query.exec()) {
         qWarning() << "Failed to add account type:" << query.lastError().text();
@@ -78,7 +86,10 @@ int AccountDAO::addAccountType(int userId, const QString& name) {
 
 bool AccountDAO::editAccountType(int userId, int id, const QString& newName) {
     QSqlQuery query(DatabaseManager::instance().database());
-    query.prepare("UPDATE account_types SET name = :name WHERE id = :id AND user_id = :user_id");
+    // A new name makes it the user's own: it no longer follows the language (StarterNames)
+    query.prepare("UPDATE account_types SET name = :name, starter = CASE WHEN name = :same THEN starter END "
+                  "WHERE id = :id AND user_id = :user_id");
+    query.bindValue(":same", newName);
     query.bindValue(":name", newName);
     query.bindValue(":id", id);
     query.bindValue(":user_id", userId);
@@ -174,7 +185,7 @@ int AccountDAO::createAccount(int userId, const QString& name, const QString& ac
         if (query.exec() && query.next()) {
             categoryId = query.value(0).toInt();
         }
-        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), "Initial deposit", categoryId,
+        Transaction initialTransaction(-1, accountId, "", qAbs(initialBalanceCents), QDate::currentDate(), QCoreApplication::translate("Account", "Initial deposit"), categoryId,
                                        initialBalanceCents > 0 ? "income" : "expense");
         TransactionDAO transactionDao;
         if (transactionDao.addTransaction(initialTransaction) <= 0) {

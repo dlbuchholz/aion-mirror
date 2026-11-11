@@ -21,6 +21,7 @@
 #include "dialog/renamedpayeesdialog.h"
 #include "rule.h"
 #include "settings.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/rulessettings.h"
 
@@ -89,6 +90,23 @@ private slots:
         transactions.addTransaction(Transaction(-1, giroId, "Stadtwerke", 8000, QDate(2026, 10, 3), "", 0, "expense"));
     }
     void cleanup() { db.close(); }
+
+    void transferIsOfferedInTheLanguage() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        RulesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addRuleButton")->click();
+        auto* combo = settings.findChild<QComboBox*>("ruleCategoryCombo");
+        QVERIFY(combo->findText("Umbuchung") >= 0);
+        QVERIFY(combo->findText(TransferCategory) < 0);
+    }
+
+    void oneRenamedTransactionIsSaidInTheSingular() {
+        const QList<Transaction> one = {Transaction(-1, 1, "Rewe", 100, QDate(2026, 10, 1), "", 0, "expense")};
+        RenamedPayeesDialog dialog(one, "Rewe", "Rewe Markt", 1);
+        QCOMPARE(dialog.findChild<QLabel*>("renamedPayeesIntro")->text(),
+                 QString("This rule renamed 1 transaction to \"Rewe\". Give them the new name \"Rewe Markt\" too?"));
+    }
 
     void openingAndSavingDontCountEveryRuleAgain() {
         // Counting is the slow part with thousands of transactions. Only counted, not timed anymore..
@@ -222,6 +240,18 @@ private slots:
         QCOMPARE(rows(settings).size(), 1);
         QCOMPARE(rows(settings).first()->accessibleName(), QString("Payee or description contains \"rewe\""));
         QCOMPARE(rows(settings).first()->findChild<QLabel*>("ruleMatchCount")->text(), QString("2 matches"));
+    }
+
+    void oneMatchIsCountedInTheSingular() {
+        QVERIFY(addRule("Stadtwerke", "Utilities") > 0);
+        RulesSettings settings;
+        settings.setUserId(1);
+        QAbstractButton* stadtwerke = nullptr;
+        for (QAbstractButton* row : rows(settings)) {
+            if (row->accessibleName() == "Payee contains \"Stadtwerke\"") stadtwerke = row;
+        }
+        QVERIFY(stadtwerke);
+        QCOMPARE(stadtwerke->findChild<QLabel*>("ruleMatchCount")->text(), QString("1 match"));
     }
 
     void removingAConditionShowsAnIcon() {

@@ -68,6 +68,12 @@ void moveMouse(QWidget* widget, const QPointF& position) {
     QApplication::sendEvent(widget, &move);
 }
 
+// The colour at a position in the widget. grab() paints at the screen's scale (200% gives twice
+// the pixels), so positions in the widget are scaled to the image's pixels.
+QColor pixelAt(const QImage& image, const QPointF& position) {
+    return image.pixelColor((position * image.devicePixelRatio()).toPoint());
+}
+
 QString money(Cents cents) { return Settings::instance().formatCurrency(cents); }
 QString spending(Cents cents) { return Settings::instance().formatSpending(cents); }
 
@@ -137,8 +143,8 @@ private slots:
         moveMouse(&chart, groceriesDay10);
         QCOMPARE(chart.cursor().shape(), Qt::PointingHandCursor);
         QVERIFY(chart.grab().toImage() != plain);
-        const QPoint onRent = chart.pointOn(3, 10).toPoint();               // The others fade
-        QVERIFY(chart.grab().toImage().pixelColor(onRent) != plain.pixelColor(onRent));
+        const QPointF onRent = chart.pointOn(3, 10);                       // The others fade
+        QVERIFY(pixelAt(chart.grab().toImage(), onRent) != pixelAt(plain, onRent));
         moveMouse(&chart, empty);
         QCOMPARE(chart.cursor().shape(), Qt::ArrowCursor);
         QCOMPARE(chart.grab().toImage(), plain);
@@ -210,8 +216,8 @@ private slots:
         const QImage plain = chart.grab().toImage();
         moveMouse(&chart, september);
         QCOMPARE(chart.cursor().shape(), Qt::PointingHandCursor);
-        const QPoint onGroceries = chart.pointOn(1, 0)->toPoint();          // The others fade
-        QVERIFY(chart.grab().toImage().pixelColor(onGroceries) != plain.pixelColor(onGroceries));
+        const QPointF onGroceries = *chart.pointOn(1, 0);                   // The others fade
+        QVERIFY(pixelAt(chart.grab().toImage(), onGroceries) != pixelAt(plain, onGroceries));
         moveMouse(&chart, empty);
         QCOMPARE(chart.cursor().shape(), Qt::ArrowCursor);
         QCOMPARE(chart.grab().toImage(), plain);
@@ -251,7 +257,7 @@ private slots:
         const QImage image = grid.grab().toImage();
         const auto background = [&](int row, int month) {
             const QRect cell = grid.cellRect(row, month);
-            return image.pixelColor(cell.left() + 4, cell.center().y());
+            return pixelAt(image, QPointF(cell.left() + 4, cell.center().y()));
         };
         QCOMPARE(background(0, 3), CategoryColors::swatch("red").background);
         QCOMPARE(background(0, 0), CategoryColors::swatch("amber").background);   // 92%

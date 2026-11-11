@@ -43,10 +43,10 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     titleLabel->setFont(titleFont);
     header->addWidget(titleLabel, 1);
     auto* closeButton = new QToolButton(this);
-    closeButton->setText("Close");                   // For screen readers; the button shows only the icon
+    closeButton->setText(tr("Close"));                   // For screen readers; the button shows only the icon
     Icons::setThemedIcon(closeButton, "x");
     closeButton->setAutoRaise(true);
-    closeButton->setToolTip("Close (Esc)");
+    closeButton->setToolTip(tr("Close (Esc)"));
     connect(closeButton, &QToolButton::clicked, this, &TransactionEditor::closed);
     header->addWidget(closeButton);
     layout->addLayout(header);
@@ -59,8 +59,8 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     auto* typeRow = new QHBoxLayout(typeTrack);
     typeRow->setContentsMargins(2, 2, 2, 2);
     typeRow->setSpacing(2);
-    expenseButton = new QPushButton("Expense", typeTrack);
-    incomeButton = new QPushButton("Income", typeTrack);
+    expenseButton = new QPushButton(tr("Expense"), typeTrack);
+    incomeButton = new QPushButton(tr("Income"), typeTrack);
     typeGroup = new QButtonGroup(this);
     for (QPushButton* button : {expenseButton, incomeButton}) {
         button->setCheckable(true);
@@ -88,17 +88,17 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     QFont amountFont = amountEdit->font();
     amountFont.setPointSize(13);
     amountEdit->setFont(amountFont);
-    form->addRow("Amount", amountEdit);
+    form->addRow(tr("Amount"), amountEdit);
 
     payeeEdit = new QLineEdit(this);
     payeeEdit->setObjectName("payeeEdit");
-    payeeEdit->setPlaceholderText("Who did you pay or get paid by?");
+    payeeEdit->setPlaceholderText(tr("Who did you pay or get paid by?"));
     payeeCompleter = new QCompleter(this);
     payeeCompleter->setCaseSensitivity(Qt::CaseInsensitive);
     payeeCompleter->setFilterMode(Qt::MatchContains);
     payeeCompleter->setModel(new QStringListModel(payeeCompleter));
     payeeEdit->setCompleter(payeeCompleter);
-    form->addRow("Payee", payeeEdit);
+    form->addRow(tr("Payee"), payeeEdit);
     // "(sparkle) Your rule suggests the name "Rewe"   Rename": offered, never changed under the fingers
     renameNote = new QWidget(this);
     renameNote->setObjectName("payeeRenameSuggestion");
@@ -114,9 +114,9 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     renameLayout->addWidget(renameLabel, 1);
     auto* acceptRenameButton = new QToolButton(renameNote);
     acceptRenameButton->setObjectName("acceptRenameButton");
-    acceptRenameButton->setText("Rename");
+    acceptRenameButton->setText(tr("Rename"));
     acceptRenameButton->setAutoRaise(true);
-    acceptRenameButton->setToolTip("Use this name; what you typed is kept as the original payee");
+    acceptRenameButton->setToolTip(tr("Use this name; what you typed is kept as the original payee"));
     renameLayout->addWidget(acceptRenameButton, 0, Qt::AlignTop);
     renameNote->hide();
     form->addRow(renameNote);
@@ -134,11 +134,11 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     dateEdit = new QDateEdit(this);
     dateEdit->setCalendarPopup(true);
     dateEdit->setDisplayFormat("dd.MM.yyyy");
-    form->addRow("Date", dateEdit);
+    form->addRow(tr("Date"), dateEdit);
 
     categoryCombo = new QComboBox(this);
     categoryCombo->setObjectName("categoryCombo");
-    form->addRow("Category", categoryCombo);
+    form->addRow(tr("Category"), categoryCombo);
     // "(sparkle) From your rule: Supermarkets   Undo", in the accent colour so it's noticed
     suggestionNote = new QWidget(this);
     suggestionNote->setObjectName("categorySuggestion");
@@ -154,9 +154,9 @@ TransactionEditor::TransactionEditor(QWidget* parent)
     noteLayout->addWidget(suggestionLabel, 1);
     auto* undoButton = new QToolButton(suggestionNote);
     undoButton->setObjectName("undoSuggestionButton");
-    undoButton->setText("Undo");
+    undoButton->setText(tr("Undo"));
     undoButton->setAutoRaise(true);
-    undoButton->setToolTip("No category for this transaction, and no more suggestions for it");
+    undoButton->setToolTip(tr("No category for this transaction, and no more suggestions for it"));
     noteLayout->addWidget(undoButton, 0, Qt::AlignTop);
     suggestionNote->hide();
     form->addRow(suggestionNote);
@@ -173,15 +173,15 @@ TransactionEditor::TransactionEditor(QWidget* parent)
 
     accountCombo = new QComboBox(this);
     accountCombo->setObjectName("accountCombo");
-    form->addRow("Account", accountCombo);
+    form->addRow(tr("Account"), accountCombo);
 
     descriptionEdit = new QTextEdit(this);
     descriptionEdit->setAcceptRichText(false);
     descriptionEdit->setTabChangesFocus(true);
-    descriptionEdit->setPlaceholderText("Notes (optional)");
+    descriptionEdit->setPlaceholderText(tr("Notes (optional)"));
     descriptionEdit->setMinimumHeight(70);
     descriptionEdit->installEventFilter(this);
-    form->addRow("Description", descriptionEdit);
+    form->addRow(tr("Description"), descriptionEdit);
     layout->addLayout(form);
 
     // What rules look at; the type also re-fills the category list first (connected above)
@@ -201,14 +201,14 @@ TransactionEditor::TransactionEditor(QWidget* parent)
 
     // Save / cancel, delete for existing transactions
     auto* buttons = new QHBoxLayout();
-    auto* saveButton = new QPushButton("Save", this);
+    auto* saveButton = new QPushButton(tr("Save"), this);
     saveButton->setObjectName("saveButton");
     saveButton->setDefault(true);
-    saveButton->setToolTip("Save (Enter)");
+    saveButton->setToolTip(tr("Save (Enter)"));
     connect(saveButton, &QPushButton::clicked, this, &TransactionEditor::requestSave);
-    auto* cancelButton = new QPushButton("Cancel", this);
+    auto* cancelButton = new QPushButton(tr("Cancel"), this);
     connect(cancelButton, &QPushButton::clicked, this, &TransactionEditor::closed);
-    deleteButton = new QPushButton("Delete", this);
+    deleteButton = new QPushButton(tr("Delete"), this);
     deleteButton->setProperty("danger", true);       // Red text (Theme::controlStyleSheet)
     connect(deleteButton, &QPushButton::clicked, this, [this]() {
         emit deleteRequested(transactionId);
@@ -255,17 +255,17 @@ QHash<int, QString> TransactionEditor::accountNames() const {
 
 void TransactionEditor::showOriginalPayee() {
     // "Originally: AMZN Mktp DE · renamed by a rule · Restore"
-    QString text = QString("Originally: %1").arg(originalPayee.toHtmlEscaped());
+    QString text = tr("Originally: %1").arg(originalPayee.toHtmlEscaped());
     QString tooltip;
     for (const Rule& rule : std::as_const(rules)) {
         if (rule.id == renamedByRuleId && renamedByRuleId > 0) {
-            text += " · renamed by a rule";
+            text += tr(" · renamed by a rule");
             const QString description = Rules::describe(rule, accountNames());
             const QString title = Rules::title(rule, accountNames());
             tooltip = title == description ? description : QString("%1: %2").arg(title, description);
         }
     }
-    text += " · <a href=\"restore\">Restore</a>";
+    text += tr(" · <a href=\"restore\">Restore</a>");
     originalPayeeLabel->setText(text);
     originalPayeeLabel->setToolTip(tooltip);
     originalPayeeLabel->setVisible(!originalPayee.isEmpty());
@@ -313,7 +313,7 @@ void TransactionEditor::suggestFromRules() {
     if (rename && rename->newPayee != draft.getPayee()) {
         suggestedPayee = rename->newPayee;
         suggestedRuleId = rename->id;
-        renameLabel->setText(QString("Your rule suggests the name \"%1\"").arg(suggestedPayee));
+        renameLabel->setText(tr("Your rule suggests the name \"%1\"").arg(suggestedPayee));
         QPalette palette = renameLabel->palette();
         palette.setColor(QPalette::WindowText, Theme::colors().accent);
         renameLabel->setPalette(palette);
@@ -329,7 +329,7 @@ void TransactionEditor::suggestFromRules() {
     const Rule* rule = Rules::categoryRule(rules, draft);
     if (rule) {
         populateCategories(rule->categoryId);
-        suggestionLabel->setText(QString("From your rule: %1").arg(Rules::title(*rule, accountNames())));
+        suggestionLabel->setText(tr("From your rule: %1").arg(Rules::title(*rule, accountNames())));
         suggestionLabel->setToolTip(Rules::describe(*rule, accountNames()));
         QPalette palette = suggestionLabel->palette();
         palette.setColor(QPalette::WindowText, Theme::colors().accent);
@@ -353,7 +353,7 @@ void TransactionEditor::applySettings() {
 
 void TransactionEditor::newTransaction(const QDate& date, int accountId) {
     transactionId = -1;
-    titleLabel->setText("New transaction");
+    titleLabel->setText(tr("New transaction"));
     deleteButton->hide();
     errorLabel->hide();
     categoryChosenByHand = false;
@@ -378,7 +378,7 @@ void TransactionEditor::newTransaction(const QDate& date, int accountId) {
 
 void TransactionEditor::editTransaction(const Transaction& transaction) {
     transactionId = transaction.getTransactionId();
-    titleLabel->setText("Edit transaction");
+    titleLabel->setText(tr("Edit transaction"));
     deleteButton->show();
     errorLabel->hide();
     suggestionNote->hide();                          // Existing transactions keep their category
@@ -421,12 +421,12 @@ void TransactionEditor::setType(const QString& type) {
 void TransactionEditor::populateCategories(int selectedCategoryId) {
     // Offer the categories matching the transaction type, plus "no category"
     categoryCombo->clear();
-    categoryCombo->addItem("(No category)", NO_CATEGORY);
+    categoryCombo->addItem(tr("(No category)"), NO_CATEGORY);
     for (const Category& category : categories) {
         // Balance adjustments and transfers go either way, so they're offered for both types
         if (category.getType() == currentType() || category.getCategoryId() == selectedCategoryId
             || isUncountedCategory(category.getName())) {
-            categoryCombo->addItem(category.getName(), category.getCategoryId());
+            categoryCombo->addItem(category.getDisplayName(), category.getCategoryId());
         }
     }
     const int index = categoryCombo->findData(selectedCategoryId);
@@ -441,7 +441,7 @@ void TransactionEditor::selectAccount(int accountId) {
     }
     int index = accountCombo->findData(accountId);
     if (index < 0 && accountId <= 0) {
-        accountCombo->insertItem(0, "Choose an account", NO_ACCOUNT);
+        accountCombo->insertItem(0, tr("Choose an account"), NO_ACCOUNT);
         index = 0;
     }
     accountCombo->setCurrentIndex(qMax(index, 0));
@@ -450,12 +450,12 @@ void TransactionEditor::selectAccount(int accountId) {
 void TransactionEditor::requestSave() {
     const int accountId = accountCombo->currentData().toInt();
     if (accountId == NO_ACCOUNT || accountCombo->count() == 0) {
-        showError("Choose an account for this transaction.");
+        showError(tr("Choose an account for this transaction."));
         accountCombo->setFocus();
         return;
     }
     if (Money::fromDouble(amountEdit->value()) <= 0) {
-        showError("Enter an amount greater than zero.");
+        showError(tr("Enter an amount greater than zero."));
         amountEdit->setFocus();
         amountEdit->selectAll();
         return;

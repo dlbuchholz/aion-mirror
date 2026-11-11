@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string notr="true">Form</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="leftMargin">
@@ -34,7 +34,7 @@
      <item>
       <widget class="QToolButton" name="addAccountButton">
        <property name="text">
-        <string>...</string>
+        <string notr="true">...</string>
        </property>
        <property name="icon">
         <iconset theme="QIcon::ThemeIcon::ListAdd"/>
@@ -44,7 +44,7 @@
      <item>
       <widget class="QToolButton" name="toolButton_2">
        <property name="text">
-        <string>...</string>
+        <string notr="true">...</string>
        </property>
        <property name="icon">
         <iconset theme="QIcon::ThemeIcon::ListRemove"/>

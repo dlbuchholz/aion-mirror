@@ -310,6 +310,15 @@ void Settings::setTheme(const QString& theme) {
     settings.setValue("app/theme", theme);
 }
 
+// Language
+QString Settings::getLanguage() const {
+    return settings.value("app/language", "system").toString();
+}
+
+void Settings::setLanguage(const QString& language) {
+    settings.setValue("app/language", language);
+}
+
 // Default User ID
 int Settings::getDefaultUserId(const QString& databasePath) const {
     return settings.value("app/defaultUsers").toMap().value(databasePath, -1).toInt();
@@ -404,6 +413,7 @@ void Settings::restoreDefaults() {
     settings.remove("transactions");
     settings.remove("import");
     settings.remove("app/theme");
+    settings.remove("app/language");
     settings.remove("appearance");
     settings.sync();
 }

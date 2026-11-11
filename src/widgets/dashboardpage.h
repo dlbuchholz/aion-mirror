@@ -23,6 +23,9 @@ public:
     void reload();                                   // Re-read everything (also refreshes the greeting)
     void applySettings();                            // Number formats changed
 
+    // After the date at the top: "12 days left this month", or that it's the last day
+    static QString daysLeftText(int left);
+
 signals:
     void addTransactionRequested();
     void importRequested();
@@ -33,9 +36,11 @@ signals:
 
 protected:
     void changeEvent(QEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     struct Tile {
+        QFrame* frame = nullptr;
         QLabel* value = nullptr;
         QLabel* detail = nullptr;
     };
@@ -44,6 +49,7 @@ private:
     QFrame* createCard(const QString& title, QVBoxLayout** body, QToolButton** link = nullptr, const QString& linkText = {});
     void setDetail(QLabel* label, const QString& text, const QColor& color = QColor());
     void updateTiles();
+    void arrangeTiles();
     void updateBudgets();
     void updateCategories();
     void updateRecent();
@@ -53,6 +59,7 @@ private:
     QString userName;
     DashboardData data;
 
+    QWidget* content = nullptr;
     QLabel* greetingLabel = nullptr;
     QLabel* dateLabel = nullptr;
     QPushButton* importButton = nullptr;

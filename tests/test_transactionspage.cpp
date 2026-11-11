@@ -24,6 +24,7 @@
 #include "rule.h"
 #include "settings.h"
 #include "theme.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "transactionlistmodel.h"
 #include "widgets/periodpicker.h"
@@ -71,6 +72,32 @@ private slots:
         QVERIFY(secondId > 0);
     }
     void cleanup() { db.close(); }
+
+    void builtInCategoriesAreShownAndFoundInTheLanguage() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        int transfer = 0;
+        for (const Category& category : CategoryDAO(1).getAllCategories()) {
+            if (category.getName() == TransferCategory) transfer = category.getCategoryId();
+        }
+        TransactionDAO().addTransaction(Transaction(-1, firstId, "To savings", 50000, QDate::currentDate(), "", transfer, "expense"));
+        addExpense("Kiosk", 100);
+        TransactionsPage page;
+        page.setUserId(1);
+
+        auto* filter = page.findChild<QComboBox*>("categoryFilter");
+        QCOMPARE(filter->itemText(filter->findData(transfer)), QString("Umbuchung"));
+        auto* editorCategory = page.findChild<QComboBox*>("categoryCombo");
+        page.addTransaction();
+        QVERIFY(editorCategory->findText("Umbuchung") >= 0);
+        QVERIFY(editorCategory->findText(TransferCategory) < 0);
+
+        auto* list = page.findChild<QListView*>("transactionList");
+        page.findChild<QLineEdit*>("searchEdit")->setText("Umbuchung");
+        auto* model = static_cast<TransactionListModel*>(list->model());
+        QCOMPARE(model->totals().count, 1);                  // The transfer, by the name it's shown with
+        page.findChild<QLineEdit*>("searchEdit")->setText(TransferCategory);
+        QCOMPARE(model->totals().count, 1);                  // and by its own
+    }
 
     void expensesCanBeShownInRed() {
         QHash<QString, int> categories;
@@ -920,6 +947,45 @@ private slots:
         QCOMPARE(chip->icon().pixmap(16, 16).toImage(), Icons::icon("x", Theme::colors().onWarning).pixmap(16, 16).toImage());
         chip->click();
         QCOMPARE(chip->icon().pixmap(16, 16).toImage(), inbox);
+    }
+
+    void unassignedTransactionsAreCountedInTheSubtitle() {
+        QSqlQuery query(DatabaseManager::instance().database());
+        QVERIFY(query.exec("PRAGMA foreign_keys = OFF"));
+        const auto addLost = [&query]() {
+            return query.exec("INSERT INTO transactions (account_id, payee, amount, date, type) "
+                              "VALUES (0, 'Lost', 100, '2026-01-01', 'expense')");
+        };
+        QVERIFY(addLost());
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* chip = page.findChild<QToolButton*>("unassignedChip");
+        auto* subtitle = page.findChild<QLabel*>("pageSubtitle");
+        chip->click();
+        QCOMPARE(subtitle->text(), QString("1 transaction without an account. Open it to assign it."));
+
+        QVERIFY(addLost());
+        QVERIFY(query.exec("PRAGMA foreign_keys = ON"));
+        page.reload();
+        QCOMPARE(chip->text(), QString("2 unassigned"));
+        QCOMPARE(subtitle->text(), QString("2 transactions without an account. Open one to assign it."));
+    }
+
+    void theSubtitleCountsTransactionsInTheSingularToo() {
+        addExpense("A", 100);
+        TransactionsPage page;
+        page.setUserId(1);
+        auto* subtitle = page.findChild<QLabel*>("pageSubtitle");
+        QVERIFY2(subtitle->text().endsWith(" · 1 transaction"), qPrintable(subtitle->text()));
+        addExpense("B", 100);
+        page.reload();
+        QVERIFY2(subtitle->text().endsWith(" · 2 transactions"), qPrintable(subtitle->text()));
+    }
+
+    void aFoldedDayShowsItsCountAndSum() {
+        const Settings& settings = Settings::instance();
+        QCOMPARE(TransactionsPage::foldedDayText(1, -4200), "1 transaction · " + settings.formatCurrency(-4200));
+        QCOMPARE(TransactionsPage::foldedDayText(3, 500), "3 transactions · " + settings.formatCurrency(500, true));
     }
 
     void askingForSomethingThatIsntThere() {

@@ -58,7 +58,7 @@ private slots:
         QVERIFY(report.contains("  Commit: "));
         QVERIFY(report.contains("\nSystem\n"));
         QVERIFY(report.contains("\nData\n"));
-        QVERIFY(report.contains("  Schema version: 1\n"));
+        QVERIFY(report.contains(QString("  Schema version: %1\n").arg(TestDbFixture::newestVersion())));
         QVERIFY(report.contains("report.db"));
         QVERIFY(!report.contains(QDir::toNativeSeparators(QDir::homePath()), Qt::CaseInsensitive));
 

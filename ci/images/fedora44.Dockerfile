@@ -27,6 +27,8 @@ RUN dnf -y install --setopt=install_weak_deps=False \
         rpm-build \
         # test coverage (scripts/coverage.sh, nightly)
         gcovr \
+        # the sanitizers' runtimes (the sanitizers job, nightly); gcc only recommends them
+        libasan libubsan \
     && dnf clean all
     # more modules: add e.g. qt6-qtcharts-devel + mingw64-qt6-qtcharts
 

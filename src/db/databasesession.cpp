@@ -3,7 +3,9 @@
 #include "databasemanager.h"
 #include "migrationmanager.h"
 #include "settings.h"
+#include "starternames.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -36,18 +38,18 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
     manager.closeDatabase();
 
     if (!manager.openDatabase(path)) {
-        if (errorMessage) *errorMessage = "The file couldn't be opened as a database. " + manager.database().lastError().text();
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "The file couldn't be opened as a database. ") + manager.database().lastError().text();
         return false;
     }
     if (isForeignDatabase()) {
         manager.closeDatabase();
-        if (errorMessage) *errorMessage = "This file belongs to another program, not Aion.";
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "This file belongs to another program, not Aion.");
         return false;
     }
     MigrationManager migrations(BuiltInMigrations);
     if (migrations.isNewerThanApp()) {
         manager.closeDatabase();
-        if (errorMessage) *errorMessage = "It was last used with a newer version of Aion. Update Aion to open it.";
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "It was last used with a newer version of Aion. Update Aion to open it.");
         return false;
     }
     if (migrations.needsUpdate() && !Backup::beforeUpdate(errorMessage)) {
@@ -56,9 +58,10 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
     }
     if (!migrations.applyMigrations()) {
         manager.closeDatabase();
-        if (errorMessage) *errorMessage = "The database couldn't be updated to the current version. " + migrations.lastError();
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "The database couldn't be updated to the current version. ") + migrations.lastError();
         return false;
     }
+    StarterNames::followLanguage();                  // Without, they only keep the names they had
     return true;
 }
 
@@ -95,7 +98,7 @@ QString currentDatabasePath() {
 bool open(const QString& path, QString* errorMessage) {
     const QString target = normalized(path);
     if (!QFileInfo::exists(target) && target != defaultDatabasePath()) {
-        if (errorMessage) *errorMessage = "The file doesn't exist anymore.";
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "The file doesn't exist anymore.");
         return false;
     }
     if (!switchTo(target, errorMessage)) {
@@ -118,13 +121,13 @@ bool openAtStartup(QString* warningMessage, QString* errorMessage) {
             return true;
         }
         qWarning() << "Could not open last database" << last << ":" << error;
-        lastError = QString("Couldn't open %1. %2\n\nAion opened its default database instead.")
+        lastError = QCoreApplication::translate("DatabaseSession", "Couldn't open %1. %2\n\nAion opened its default database instead.")
                         .arg(QFileInfo(last).fileName(), error);
     }
 
     QString error;
     if (!open(defaultDatabasePath(), &error)) {
-        if (errorMessage) *errorMessage = QString("Couldn't open %1. %2").arg(QDir::toNativeSeparators(defaultDatabasePath()), error);
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "Couldn't open %1. %2").arg(QDir::toNativeSeparators(defaultDatabasePath()), error);
         return false;
     }
     if (warningMessage) *warningMessage = lastError;
@@ -139,7 +142,7 @@ bool restore(const QString& backupPath, QString* errorMessage) {
     };
 
     if (QFileInfo(backupPath).canonicalFilePath() == QFileInfo(target).canonicalFilePath()) {
-        return fail("That's the database you have open. Choose a backup instead.");
+        return fail(QCoreApplication::translate("DatabaseSession", "That's the database you have open. Choose a backup instead."));
     }
     if (!Backup::inspect(backupPath, errorMessage)) {
         return false;
@@ -150,7 +153,7 @@ bool restore(const QString& backupPath, QString* errorMessage) {
     const QString incoming = target + ".restoring";
     QFile::remove(incoming);
     if (!QFile::copy(backupPath, incoming)) {
-        return fail("The backup couldn't be copied. Nothing was changed.");
+        return fail(QCoreApplication::translate("DatabaseSession", "The backup couldn't be copied. Nothing was changed."));
     }
     if (!Backup::beforeRestore(errorMessage)) {
         QFile::remove(incoming);
@@ -165,7 +168,7 @@ bool restore(const QString& backupPath, QString* errorMessage) {
     if (!QFile::rename(target, replaced)) {
         QFile::remove(incoming);
         openAndMigrate(target, nullptr);
-        return fail("The database file couldn't be replaced. It may be in use. Nothing was changed.");
+        return fail(QCoreApplication::translate("DatabaseSession", "The database file couldn't be replaced. It may be in use. Nothing was changed."));
     }
     if (!QFile::rename(incoming, target) || !openAndMigrate(target, nullptr)) {
         manager.closeDatabase();
@@ -173,7 +176,7 @@ bool restore(const QString& backupPath, QString* errorMessage) {
         QFile::remove(target);
         QFile::rename(replaced, target);
         openAndMigrate(target, nullptr);
-        return fail("The backup couldn't be opened, so your current data was put back.");
+        return fail(QCoreApplication::translate("DatabaseSession", "The backup couldn't be opened, so your current data was put back."));
     }
 
     QFile::remove(replaced);
@@ -183,7 +186,7 @@ bool restore(const QString& backupPath, QString* errorMessage) {
 bool create(const QString& path, QString* errorMessage) {
     const QString target = normalized(path);
     if (QFileInfo::exists(target)) {
-        if (errorMessage) *errorMessage = "That file already exists. Use \"Open database file\" to open it.";
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "That file already exists. Use \"Open database file\" to open it.");
         return false;
     }
     return switchTo(target, errorMessage);

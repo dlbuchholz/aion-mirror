@@ -3,6 +3,7 @@
 #include "category.h"
 #include "db/databasemanager.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -34,9 +35,9 @@ namespace Dashboard {
 
 QString greeting(const QTime& time) {
     const int hour = time.hour();
-    if (hour >= 5 && hour < 12) return "Good morning";
-    if (hour >= 12 && hour < 18) return "Good afternoon";
-    return "Good evening";
+    if (hour >= 5 && hour < 12) return QCoreApplication::translate("Dashboard", "Good morning");
+    if (hour >= 12 && hour < 18) return QCoreApplication::translate("Dashboard", "Good afternoon");
+    return QCoreApplication::translate("Dashboard", "Good evening");
 }
 
 DashboardData load(int userId, const QDate& today, int months, int recentCount) {
@@ -114,7 +115,7 @@ DashboardData load(int userId, const QDate& today, int months, int recentCount) 
         while (categoryQuery.next()) {
             const int categoryId = categoryQuery.value(0).toInt();
             data.spendingByCategory.append({categoryId,
-                                            categoryId == 0 ? QString("No category") : categoryQuery.value(1).toString(),
+                                            categoryId == 0 ? QCoreApplication::translate("Dashboard", "No category") : categoryQuery.value(1).toString(),
                                             categoryQuery.value(2).toLongLong(), categoryQuery.value(3).toString()});
         }
     }

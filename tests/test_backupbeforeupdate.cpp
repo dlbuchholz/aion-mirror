@@ -7,6 +7,7 @@
 #include "db/databasesession.h"
 #include "db/migrationmanager.h"
 #include "settings.h"
+#include "tests/test_db_fixture.h"
 
 class TestBackupBeforeUpdate : public QObject {
     Q_OBJECT
@@ -80,14 +81,18 @@ private slots:
     }
 
     void anOlderDatabaseIsBackedUpAsItWasThenUpdated() {
-        setAppliedVersion(0);
+        const int newest = TestDbFixture::newestVersion();
+        DatabaseManager::instance().closeDatabase();
+        QVERIFY(QFile::remove(path));                                   // Made anew
+        QVERIFY(TestDbFixture::createAtVersion(path, newest - 1));   // Missing the newest migration
         QVERIFY(DatabaseSession::open(path));
 
         const QStringList saved = backups();
         QCOMPARE(saved.size(), 1);
         QVERIFY(saved.first().contains("-before-update-"));
-        QCOMPARE(versionsIn(QDir(Backup::folderFor(path)).filePath(saved.first())), QList<int>({0}));   // Before the update
-        QVERIFY(versionsIn(path).contains(1));                                                          // After it
+        const QList<int> before = versionsIn(QDir(Backup::folderFor(path)).filePath(saved.first()));
+        QCOMPARE(before.last(), newest - 1);                                                            // Before the update
+        QCOMPARE(versionsIn(path).last(), newest);                                                      // After it
 
         QVERIFY(DatabaseSession::open(path));
         QCOMPARE(backups().size(), 1);                                                                  // Done, so no more

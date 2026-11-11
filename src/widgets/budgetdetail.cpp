@@ -1,4 +1,5 @@
 #include "budgetdetail.h"
+#include "applocale.h"
 #include "amountcolor.h"
 #include "settings.h"
 #include "theme.h"
@@ -18,11 +19,20 @@
 namespace {
 
 QString shortDate(const QDate& date) {
-    return QLocale(QLocale::English).toString(date, "d MMM");
+    return AppLocale::date(date, AppLocale::DateFormat::ShortDayMonth);
+}
+
+// Room for the widest short date in the language, so the payees line up
+int shortDateWidth(const QFontMetrics& metrics) {
+    int widest = 0;
+    for (int month = 1; month <= 12; ++month) {
+        widest = qMax(widest, metrics.horizontalAdvance(shortDate(QDate(2026, month, 28))));
+    }
+    return widest;
 }
 
 QString payeeText(const QString& payee) {
-    return payee.isEmpty() ? QString("No payee") : payee;
+    return payee.isEmpty() ? BudgetDetail::tr("No payee") : payee;
 }
 
 bool isCurrentMonth(const QDate& month, const QDate& today) {
@@ -176,21 +186,20 @@ void BudgetMonthChart::paintEvent(QPaintEvent*) {
     painter.setPen(QPen(colors.textMuted, 1, Qt::DashLine));
     painter.drawLine(QPointF(area.left(), yFor(limitCents)), QPointF(area.right(), yFor(limitCents)));
     painter.setPen(colors.textSecondary);
-    const QLocale english(QLocale::English);
     const QRectF heading(area.left(), 0, area.width(), fontMetrics().height());
-    painter.drawText(heading, Qt::AlignLeft | Qt::AlignTop, english.toString(month, "MMMM"));
-    painter.drawText(heading, Qt::AlignRight | Qt::AlignTop, QString("Limit %1").arg(Settings::instance().formatCurrency(limitCents)));
+    painter.drawText(heading, Qt::AlignLeft | Qt::AlignTop, AppLocale::date(month, AppLocale::DateFormat::Month));
+    painter.drawText(heading, Qt::AlignRight | Qt::AlignTop, tr("Limit %1").arg(Settings::instance().formatCurrency(limitCents)));
 
     // The month's first and last day along the bottom, and today
     const QRectF labels(area.left(), area.bottom() + 4, area.width(), fontMetrics().height());
-    painter.drawText(labels, Qt::AlignLeft | Qt::AlignTop, english.toString(month, "d MMM"));
-    painter.drawText(labels, Qt::AlignRight | Qt::AlignTop, english.toString(QDate(month.year(), month.month(), days), "d MMM"));
+    painter.drawText(labels, Qt::AlignLeft | Qt::AlignTop, AppLocale::date(month, AppLocale::DateFormat::ShortDayMonth));
+    painter.drawText(labels, Qt::AlignRight | Qt::AlignTop, AppLocale::date(QDate(month.year(), month.month(), days), AppLocale::DateFormat::ShortDayMonth));
     if (isCurrentMonth(month, today)) {
         const double x = xFor(today.day() - 0.5);
         painter.setPen(QPen(colors.textMuted, 1, Qt::DotLine));
         painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
         painter.setPen(colors.textSecondary);
-        painter.drawText(QRectF(x - 40, labels.top(), 80, labels.height()), Qt::AlignHCenter | Qt::AlignTop, "today");
+        painter.drawText(QRectF(x - 40, labels.top(), 80, labels.height()), Qt::AlignHCenter | Qt::AlignTop, tr("today"));
     }
 
     // The spending, a step up (or down, for money back) with every transaction
@@ -254,7 +263,6 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     setObjectName("budgetDetail");
     const Settings& settings = Settings::instance();
     const Theme::Colors colors = Theme::colors();
-    const QLocale english(QLocale::English);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(Inset + 14, 14, Inset + 14, BottomGap + 12);   // Inside its card
@@ -273,28 +281,28 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     const int passed = daysPassed(month, today);
     const bool current = isCurrentMonth(month, today);
     if (passed > 0) {
-        addStat(stats, current ? "Per day so far" : "Per day", settings.formatSpending(budget.spentCents / passed), "perDayValue");
+        addStat(stats, current ? tr("Per day so far") : tr("Per day"), settings.formatSpending(budget.spentCents / passed), "perDayValue");
     }
     if (current) {
         const Cents projected = budget.spentCents * days / passed;
-        addStat(stats, "At this pace by month end", settings.formatSpending(projected), "paceValue",
+        addStat(stats, tr("At this pace by month end"), settings.formatSpending(projected), "paceValue",
                 projected > budget.limitCents ? colors.danger : QColor());
         const int daysLeft = days - today.day() + 1;
         const Cents left = budget.leftCents();
-        addStat(stats, "Left per day until month end",
-                left > 0 ? settings.formatCurrency(left / daysLeft) : QString("Nothing left"), "leftPerDayValue",
+        addStat(stats, tr("Left per day until month end"),
+                left > 0 ? settings.formatCurrency(left / daysLeft) : tr("Nothing left"), "leftPerDayValue",
                 left > 0 ? QColor() : colors.danger);
     }
     if (!current && passed > 0) {                                 // A month that's over: how it ended
         const Cents left = budget.leftCents();
-        addStat(stats, "Ended", left < 0 ? QString("%1 over").arg(settings.formatCurrency(-left))
-                                         : QString("%1 left").arg(settings.formatCurrency(left)),
+        addStat(stats, tr("Ended"), left < 0 ? tr("%1 over").arg(settings.formatCurrency(-left))
+                                         : tr("%1 left").arg(settings.formatCurrency(left)),
                 "endedValue", left < 0 ? colors.danger : QColor());
     }
-    const QString lastMonthName = english.toString(month.addMonths(-1), "MMMM");
+    const QString lastMonthName = AppLocale::date(month.addMonths(-1), AppLocale::DateFormat::Month);
     addStat(stats, lastMonthName,
-            lastMonthLimit > 0 ? QString("%1 of %2").arg(settings.formatSpending(lastMonthSpent), settings.formatCurrency(lastMonthLimit))
-                               : QString("%1, no budget").arg(settings.formatSpending(lastMonthSpent)),
+            lastMonthLimit > 0 ? tr("%1 of %2").arg(settings.formatSpending(lastMonthSpent), settings.formatCurrency(lastMonthLimit))
+                               : tr("%1, no budget").arg(settings.formatSpending(lastMonthSpent)),
             "lastMonthValue", lastMonthLimit > 0 && lastMonthSpent > lastMonthLimit ? colors.danger : QColor());
     stats->addStretch();
     top->addLayout(stats, 2);
@@ -309,9 +317,9 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
     divider->setPalette(dividerPalette);
     layout->addWidget(divider);
     // The latest transactions, newest first
-    const QString monthName = english.toString(month, "MMMM");
+    const QString monthName = AppLocale::date(month, AppLocale::DateFormat::Month);
     if (transactions.isEmpty()) {
-        auto* none = new QLabel(QString("No transactions in %1 yet.").arg(monthName), this);
+        auto* none = new QLabel(tr("No transactions in %1 yet.").arg(monthName), this);
         none->setObjectName("budgetDetailEmpty");
         none->setForegroundRole(QPalette::PlaceholderText);
         layout->addWidget(none);
@@ -324,12 +332,12 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
         row->setObjectName("budgetDetailTransaction");
         row->setStrongHighlight(true);
         row->setAccessibleName(payeeText(transaction.payee));
-        row->setToolTip("Open this transaction");
+        row->setToolTip(tr("Open this transaction"));
         auto* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(8, 4, 8, 4);
         auto* date = new QLabel(shortDate(transaction.date), row);
         date->setForegroundRole(QPalette::PlaceholderText);
-        date->setFixedWidth(date->fontMetrics().horizontalAdvance("30 May") + 12);
+        date->setFixedWidth(shortDateWidth(date->fontMetrics()) + 12);
         auto* payee = new QLabel(payeeText(transaction.payee), row);
         auto* amount = new QLabel(settings.formatCurrency(-transaction.spentCents, true), row);
         amount->setObjectName("budgetDetailAmount");
@@ -352,13 +360,13 @@ BudgetDetail::BudgetDetail(const MonthBudget& budget, const QDate& month, const 
         auto* all = new QToolButton(this);
         all->setObjectName("budgetDetailTransactions");
         Theme::makeLink(all);
-        all->setText(transactions.size() == 1 ? QString("Show it on the Transactions page ›")
-                                              : QString("Show all %1 transactions ›").arg(transactions.size()));
+        all->setText(transactions.size() == 1 ? tr("Show it on the Transactions page ›")
+                                              : tr("Show all %1 transactions ›").arg(transactions.size()));
         connect(all, &QToolButton::clicked, this, &BudgetDetail::transactionsRequested);
         footer->addWidget(all);
     }
     footer->addStretch();
-    auto* edit = new QPushButton("Edit budget", this);
+    auto* edit = new QPushButton(tr("Edit budget"), this);
     edit->setObjectName("budgetDetailEdit");
     connect(edit, &QPushButton::clicked, this, &BudgetDetail::editRequested);
     footer->addWidget(edit);

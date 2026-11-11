@@ -15,6 +15,8 @@
 #include "budget.h"
 #include "category.h"
 #include "categorycolors.h"
+#include "language.h"
+#include "tests/fake_translator.h"
 #include "tests/test_db_fixture.h"
 #include "widgets/accounttypessettings.h"
 #include "widgets/categoriessettings.h"
@@ -43,6 +45,41 @@ private slots:
     void initTestCase() { db.init(); }
     void init() { db.yankDb(); db.seedDefaultUser(); }
     void cleanup() { db.close(); }
+
+    void everyColourHasAName() {
+        QCOMPARE(CategoryColors::label(""), QString("No colour"));
+        QCOMPARE(CategoryColors::label("teal"), QString("Teal"));
+        QCOMPARE(CategoryColors::label("gray"), QString("Grey"));       // The name in the data stays "gray"
+        QCOMPARE(CategoryColors::label("mauve"), QString("Mauve"));     // One without a name of its own
+        for (const QString& name : CategoryColors::names()) {
+            QVERIFY2(CategoryColors::label(name).compare(name, Qt::CaseInsensitive) == 0 || name == "gray", qPrintable(name));
+        }
+    }
+
+    void everyColourHasAGermanName() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        QVERIFY(Language::install("de"));
+        QStringList names;
+        for (const QString& name : CategoryColors::names()) names << CategoryColors::label(name);
+        names << CategoryColors::label("");
+        Language::install("en");
+        QCOMPARE(names, (QStringList{"Rot", "Koralle", "Orange", "Bernstein", "Gelb", "Limette", "Grün", "Oliv", "Petrol",
+                                     "Himmelblau", "Blau", "Indigo", "Lila", "Magenta", "Rosa", "Braun", "Schiefer", "Grau",
+                                     "Keine Farbe"}));
+    }
+
+    void builtInCategoriesAreListedAndFoundInTheLanguage() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        QVERIFY(row(settings, "Umbuchung"));
+        QVERIFY(!row(settings, TransferCategory));
+        settings.findChild<QLineEdit*>("categorySearch")->setText("umbu");
+        QVERIFY(row(settings, "Umbuchung"));
+        QVERIFY(!row(settings, "Groceries"));
+    }
 
     void listsCategoriesInGroupsWithBuiltInOnesLocked() {
         CategoriesSettings settings;
@@ -238,6 +275,25 @@ private slots:
         QCOMPARE(error->text(), QString("Enter a name."));
     }
 
+    void rejectsTheNameABuiltInCategoryIsShownBy() {
+        const FakeTranslator german({{"Category/Transfer", "Umbuchung"}});
+        CategoriesSettings settings;
+        settings.setUserId(1);
+        settings.findChild<QPushButton*>("addCategoryButton")->click();
+        auto* name = settings.findChild<QLineEdit*>("categoryNameEdit");
+        auto* error = settings.findChild<QLabel*>("categoryError");
+        // Shown as "Umbuchung", so a second one of that name couldn't be told from it
+        name->setText("umbuchung");
+        settings.findChild<QPushButton*>("saveCategoryButton")->click();
+        QVERIFY(error->isVisibleTo(&settings));
+        QVERIFY(error->text().contains("\"Umbuchung\""));
+        QCOMPARE(named("umbuchung").getCategoryId(), -1);
+        // Its name in the data is taken too, and the message names it as it's shown
+        name->setText("Transfer");
+        settings.findChild<QPushButton*>("saveCategoryButton")->click();
+        QVERIFY(error->text().contains("\"Umbuchung\""));
+    }
+
     void editsNameTypeAndColour() {
         CategoriesSettings settings;
         settings.setUserId(1);
@@ -321,6 +377,28 @@ private slots:
         settle();
         mergeEntry(settings, "Groceries")->trigger();
         QVERIFY(asked.contains("Its budgets are removed, \"Groceries\" keeps its own."));
+    }
+
+    void rowsSayHowMuchUsesTheCategory() {
+        CategoryDAO dao(1);
+        const int travel = dao.addCategory(Category(-1, "Travel", "expense"));
+        const int account = AccountDAO::createAccount(1, "Giro", "Checking", 0);
+        const auto usage = [this]() {
+            CategoriesSettings settings;
+            settings.setUserId(1);
+            for (QLabel* label : row(settings, "Travel")->findChildren<QLabel*>()) {
+                if (label->text().contains("transaction")) return label->text();
+            }
+            return QString();
+        };
+        QCOMPARE(usage(), QString("0 transactions"));
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, account, "DB", 100, QDate(2026, 10, 1), "", travel, "expense")) > 0);
+        QCOMPARE(usage(), QString("1 transaction"));
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, travel, QDate(2026, 10, 1), 1000));
+        QCOMPARE(usage(), QString("1 transaction · budget"));
+        QVERIFY(BudgetDAO().setMonthlyLimit(1, travel, QDate(2026, 11, 1), 2000));
+        QVERIFY(TransactionDAO().addTransaction(Transaction(-1, account, "DB", 100, QDate(2026, 10, 2), "", travel, "expense")) > 0);
+        QCOMPARE(usage(), QString("2 transactions · 2 budgets"));
     }
 
     void whatCantBeMergedDeletedOrSavedIsSaid() {

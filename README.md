@@ -2,6 +2,9 @@
 
 [![Coverage](docs/coverage-badge.svg)](COVERAGE.md)
 [![License: GPL-3.0-or-later](docs/license-badge.svg)](LICENSE)
+<!-- translations: written by scripts/translation-status.cmake -->
+[![Deutsch: 100% translated](docs/translation-de-badge.svg)](translations/aion_de.ts)
+<!-- /translations -->
 
 <p align="center">
   <img src="docs/screenshots/collage.webp" width="940"
