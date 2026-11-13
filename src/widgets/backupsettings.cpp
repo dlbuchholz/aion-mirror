@@ -1,4 +1,5 @@
 #include "backupsettings.h"
+#include "appname.h"
 #include "applocale.h"
 #include "db/backup.h"
 #include "db/databasemanager.h"
@@ -33,11 +34,11 @@ QString databasePath() {
 BackupSettings::BackupSettings(QWidget* parent)
     : QWidget(parent) {
     askBackupPath = [this](const QString& suggested) {
-        return QFileDialog::getSaveFileName(this, tr("Back up database"), suggested, tr("Aion database (*.db)"));
+        return QFileDialog::getSaveFileName(this, tr("Back up database"), suggested, tr("%1 database (*.db)").arg(APP_NAME));
     };
     askRestorePath = [this]() {
         return QFileDialog::getOpenFileName(this, tr("Restore from file"), QFileInfo(databasePath()).absolutePath(),
-                                            tr("Aion database (*.db);;All files (*)"));
+                                            tr("%1 database (*.db);;All files (*)").arg(APP_NAME));
     };
     confirmRestore = [this](const QString& text) {
         QMessageBox box(QMessageBox::Warning, tr("Restore this backup?"), text, QMessageBox::NoButton, this);
@@ -237,10 +238,11 @@ void BackupSettings::restore(const QString& path, const QString& description) {
     }
 
     const QString text = tr("%1: %2, %3, %4.\n\nEverything in the open database is replaced. Your current data "
-                            "is saved as a backup first, and Aion returns to the start window.")
+                            "is saved as a backup first, and %5 returns to the start window.")
                              .arg(description, AppLocale::count(contents->users, tr("%1 user"), tr("%1 users")),
                                   AppLocale::count(contents->accounts, tr("%1 account"), tr("%1 accounts")),
-                                  AppLocale::count(contents->transactions, tr("%1 transaction"), tr("%1 transactions")));
+                                  AppLocale::count(contents->transactions, tr("%1 transaction"), tr("%1 transactions")),
+                                  APP_NAME);
     if (!confirmRestore(text)) {
         return;
     }

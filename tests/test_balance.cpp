@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateEdit>
@@ -227,7 +228,7 @@ private slots:
 
         expected->setText("no amount");
         emit expected->textEdited(expected->text());
-        QCOMPARE(dialog.findChild<QLabel*>("balanceStatusLabel")->text(), QString("That isn't an amount Aion can read."));
+        QCOMPARE(dialog.findChild<QLabel*>("balanceStatusLabel")->text(), QString("That isn't an amount %1 can read.").arg(APP_NAME));
         QVERIFY(!correction->isVisibleTo(&dialog));
         expected->clear();
         emit expected->textEdited(expected->text());
@@ -828,12 +829,12 @@ private slots:
         next->click();
         QCOMPARE(dialog.currentStep(), ImportManagerDialog::Step::Categories);
         auto* summary = dialog.findChild<QLabel*>("categorySummaryLabel");
-        QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in Aion, 30 will be created."));
+        QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in %1, 30 will be created.").arg(APP_NAME));
 
         // One click for all new ones
         auto* button = dialog.findChild<QToolButton*>("newCategoriesButton");
         button->menu()->actions().at(1)->trigger();
-        QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in Aion, 30 imported without a category."));
+        QCOMPARE(summary->text(), QString("31 categories in the file: 1 already in %1, 30 imported without a category.").arg(APP_NAME));
         for (QComboBox* choice : dialog.findChildren<QComboBox*>("categoryChoice")) {
             QCOMPARE(choice->currentData().toString(), QString("none"));
         }
@@ -878,13 +879,13 @@ private slots:
         dialog.findChild<QPushButton*>("backButton")->click();
         next->click();
         const QString before = dialog.findChild<QLabel*>("balanceStatusLabel")->text();
-        QVERIFY2(before.startsWith("Aion already shows " + Settings::instance().formatCurrency(500) + " more than your bank on that day. "
+        QVERIFY2(before.startsWith(QString(APP_NAME) + " already shows " + Settings::instance().formatCurrency(500) + " more than your bank on that day. "
                                    "This file adds nothing"), qPrintable(before));
         auto* expected = dialog.findChild<QLineEdit*>("expectedBalanceEdit");
         expected->setText(Settings::instance().formatCurrency(97380 + 100));      // 968,80 + 5,00 in Aion; the bank has 1,00 more
         emit expected->textEdited(expected->text());
         const QString after = dialog.findChild<QLabel*>("balanceStatusLabel")->text();
-        QVERIFY2(after.startsWith("Aion already shows " + Settings::instance().formatCurrency(100) + " less"), qPrintable(after));
+        QVERIFY2(after.startsWith(QString(APP_NAME) + " already shows " + Settings::instance().formatCurrency(100) + " less"), qPrintable(after));
         dialog.findChild<QPushButton*>("backButton")->click();             // Back to the file's own balance
         next->click();
         QCOMPARE(finish->text(), QString("Add balance correction"));

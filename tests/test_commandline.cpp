@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 
 #include "commandline.h"
 #include "systeminfo.h"
@@ -15,7 +16,7 @@ private slots:
     void versionPrintsTheVersionAndExits() {
         QString output;
         QCOMPARE(run({"--version"}, &output), 0);
-        QCOMPARE(output, QString("Aion %1\n").arg(SystemInfo::versionText()));
+        QCOMPARE(output, QString("%1 %2\n").arg(APP_NAME, SystemInfo::versionText()));
     }
 
     void helpListsTheOptionsAndExits() {

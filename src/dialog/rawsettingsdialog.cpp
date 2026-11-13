@@ -1,4 +1,5 @@
 #include "rawsettingsdialog.h"
+#include "appname.h"
 #include "settings.h"
 #include "theme.h"
 
@@ -19,8 +20,8 @@ RawSettingsDialog::RawSettingsDialog(QWidget *parent)
 
     auto *layout = new QVBoxLayout(this);
 
-    auto *warning = new QLabel(tr("These are the raw stored values. Editing them directly can break Aion, "
-                                  "so only change a value if you know what it does."), this);
+    auto *warning = new QLabel(tr("These are the raw stored values. Editing them directly can break %1, "
+                                  "so only change a value if you know what it does.").arg(APP_NAME), this);
     warning->setWordWrap(true);
     layout->addWidget(warning);
 

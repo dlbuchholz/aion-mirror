@@ -1,4 +1,5 @@
 #include "language.h"
+#include "appname.h"
 #include "translationprogress.h"
 
 #include <QApplication>
@@ -117,7 +118,7 @@ bool restartApplication() {
     const QString program = restartProgram(QCoreApplication::applicationFilePath(), qEnvironmentVariable("APPIMAGE"),
                                            qEnvironmentVariable("APPDIR"));
     if (!QProcess::startDetached(program, QCoreApplication::arguments().mid(1))) {
-        qWarning() << "Aion couldn't be started again:" << program;
+        qWarning() << APP_NAME << "couldn't be started again:" << program;
         return false;                                // Stays open, rather than just closing
     }
     QApplication::closeAllWindows();

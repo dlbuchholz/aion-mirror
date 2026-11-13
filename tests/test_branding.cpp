@@ -2,7 +2,9 @@
 #include <QLabel>
 #include <QSvgRenderer>
 
+#include "appname.h"
 #include "icons.h"
+#include "language.h"
 #include "startwindow.h"
 #include "systeminfo.h"
 #include "tests/test_db_fixture.h"
@@ -46,6 +48,38 @@ private slots:
         QCOMPARE(about.findChild<QLabel*>("aboutVersionLabel")->text(), QString("Version %1").arg(SystemInfo::versionText()));
         QVERIFY(about.findChild<QLabel*>("aboutLicenseLabel")->text().contains("GPL, version 3 or later"));
         QVERIFY(about.findChild<QLabel*>("aboutSourceLabel")->text().contains("https://codeberg.org/spectre_0/aion"));
+    }
+
+    // The name comes from project() in CMakeLists.txt, in one place, and every window shows that one
+    void nameComesFromTheProject() {
+        QCOMPARE(QString(APP_NAME), QString("Liora"));
+
+        StartWindow start;
+        QCOMPARE(start.windowTitle(), QString(APP_NAME));
+        QVERIFY(!start.findChildren<QLabel*>().isEmpty());
+        bool welcomed = false;
+        for (QLabel* label : start.findChildren<QLabel*>()) welcomed = welcomed || label->text() == QString("Welcome to %1").arg(APP_NAME);
+        QVERIFY(welcomed);
+        QCOMPARE(start.findChild<QLabel*>("logoLabel")->accessibleName(), QString("%1 logo").arg(APP_NAME));
+
+        AboutWidget about;
+        bool named = false;
+        for (QLabel* label : about.findChildren<QLabel*>()) named = named || label->text() == QString(APP_NAME);
+        QVERIFY(named);
+        QVERIFY(about.findChild<QLabel*>("aboutLicenseLabel")->text().endsWith(QString("belong to the %1 contributors.").arg(APP_NAME)));
+    }
+
+    // Translations hold a placeholder for the name, so they show the same name as the English
+    void translationsShowTheName() {
+#ifndef AION_HAS_TRANSLATIONS
+        QSKIP("Built without Qt's LinguistTools");
+#endif
+        QVERIFY(Language::install("de"));
+        StartWindow start;
+        bool welcomed = false;
+        for (QLabel* label : start.findChildren<QLabel*>()) welcomed = welcomed || label->text() == QString("Willkommen bei %1").arg(APP_NAME);
+        Language::install("en");
+        QVERIFY(welcomed);
     }
 };
 

@@ -1,4 +1,5 @@
 #include "settingspage.h"
+#include "appname.h"
 #include "dialog/rawsettingsdialog.h"
 #include "aboutwidget.h"
 #include "accounttypessettings.h"
@@ -302,7 +303,7 @@ void SettingsPage::buildAppearanceSection()
     restartNote->setObjectName("restartNote");
     auto *restartLayout = new QHBoxLayout(restartNote);
     restartLayout->setContentsMargins(0, 0, 0, 0);
-    auto *restartLabel = new QLabel(tr("Takes effect when Aion restarts."), restartNote);
+    auto *restartLabel = new QLabel(tr("Takes effect when %1 restarts.").arg(APP_NAME), restartNote);
     restartLabel->setForegroundRole(QPalette::PlaceholderText);
     auto *restartButton = new QToolButton(restartNote);
     restartButton->setObjectName("restartButton");

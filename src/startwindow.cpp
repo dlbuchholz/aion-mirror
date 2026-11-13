@@ -1,4 +1,5 @@
 #include "startwindow.h"
+#include "appname.h"
 #include "db/databasesession.h"
 #include "icons.h"
 #include "settings.h"
@@ -114,7 +115,7 @@ private:
 
 StartWindow::StartWindow(QWidget* parent)
     : QDialog(parent) {
-    setWindowTitle("Aion");
+    setWindowTitle(APP_NAME);
     resize(620, 480);
 
     auto* root = new QVBoxLayout(this);
@@ -127,16 +128,16 @@ StartWindow::StartWindow(QWidget* parent)
     auto* logo = new QLabel(this);
     logo->setObjectName("logoLabel");
     logo->setPixmap(Icons::logo(52, devicePixelRatioF()));
-    logo->setAccessibleName(tr("Aion logo"));
+    logo->setAccessibleName(tr("%1 logo").arg(APP_NAME));
     header->addWidget(logo, 0, Qt::AlignTop);
     auto* titles = new QVBoxLayout();
     titles->setSpacing(2);
-    auto* title = new QLabel(tr("Welcome to Aion"), this);
+    auto* title = new QLabel(tr("Welcome to %1").arg(APP_NAME), this);
     QFont titleFont = title->font();
     titleFont.setPointSize(16);
     title->setFont(titleFont);
     titles->addWidget(title);
-    titles->addWidget(new QLabel(tr("Choose who's using Aion"), this));
+    titles->addWidget(new QLabel(tr("Choose who's using %1").arg(APP_NAME), this));
     header->addLayout(titles, 1);
 
     databaseButton = new QToolButton(this);
@@ -239,12 +240,12 @@ StartWindow::StartWindow(QWidget* parent)
     askDatabaseToOpen = [this]() {
         return QFileDialog::getOpenFileName(this, tr("Open database"),
                                             QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath(),
-                                            tr("Aion database (*.db);;All files (*)"));
+                                            tr("%1 database (*.db);;All files (*)").arg(APP_NAME));
     };
     askDatabaseToCreate = [this]() {
         return QFileDialog::getSaveFileName(this, tr("New database"),
                                             QFileInfo(DatabaseSession::currentDatabasePath()).absolutePath() + "/budget.db",
-                                            tr("Aion database (*.db)"), nullptr, QFileDialog::DontConfirmOverwrite);
+                                            tr("%1 database (*.db)").arg(APP_NAME), nullptr, QFileDialog::DontConfirmOverwrite);
     };
 
     updateDatabaseButton();

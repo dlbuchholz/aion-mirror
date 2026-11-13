@@ -1,4 +1,5 @@
 #include "aboutwidget.h"
+#include "appname.h"
 #include "icons.h"
 #include "systeminfo.h"
 #include "theme.h"
@@ -32,11 +33,11 @@ AboutWidget::AboutWidget(QWidget* parent)
     auto* logo = new QLabel(this);
     logo->setObjectName("logoLabel");
     logo->setPixmap(Icons::logo(64, devicePixelRatioF()));
-    logo->setAccessibleName(tr("Aion logo"));
+    logo->setAccessibleName(tr("%1 logo").arg(APP_NAME));
     identity->addWidget(logo, 0, Qt::AlignTop);
     auto* identityText = new QVBoxLayout();
     identityText->setSpacing(2);
-    auto* name = new QLabel("Aion", this);
+    auto* name = new QLabel(APP_NAME, this);
     QFont nameFont = name->font();
     nameFont.setPointSize(14);
     name->setFont(nameFont);
@@ -45,7 +46,7 @@ AboutWidget::AboutWidget(QWidget* parent)
     version->setObjectName("aboutVersionLabel");
     identityText->addWidget(version);
     auto* license = new QLabel(tr("Free software under the GNU GPL, version 3 or later. "
-                                  "The name and logo belong to the Aion contributors."), this);
+                                  "The name and logo belong to the %1 contributors.").arg(APP_NAME), this);
     license->setObjectName("aboutLicenseLabel");
     license->setWordWrap(true);
     license->setForegroundRole(QPalette::PlaceholderText);

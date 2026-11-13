@@ -86,7 +86,7 @@ private:
     SidebarItem* moreBudgetsItem = nullptr;          // None when all are wanted
     SidebarItem* userItem = nullptr;
     SidebarItem* collapseItem = nullptr;
-    QLabel* brandName = nullptr;                     // "Aion" next to the logo, hidden in the collapsed rail
+    QLabel* brandName = nullptr;                     // The name next to the logo, hidden in the collapsed rail
     QList<SidebarItem*> labelledItems;               // Items whose label hides in the collapsed rail
     QVariantAnimation widthAnimation;
 };

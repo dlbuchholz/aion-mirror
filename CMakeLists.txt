@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(Aion VERSION 0.2.0 LANGUAGES C CXX)          # C for thirdparty/miniz
+project(Liora VERSION 0.2.0 LANGUAGES C CXX)          # C for thirdparty/miniz
 
 include(CTest)
 
@@ -21,7 +21,7 @@ include_directories(${SRC_DIR})
 
 # Git commit for the About page. Read when CMake configures, so it can lag behind
 # until the next configure (Qt Creator re-runs CMake when CMakeLists.txt changes).
-set(AION_GIT_COMMIT "unknown")
+set(APP_GIT_COMMIT "unknown")
 find_package(Git QUIET)
 if(GIT_FOUND)
     execute_process(
@@ -32,13 +32,14 @@ if(GIT_FOUND)
         ERROR_QUIET
         RESULT_VARIABLE GIT_COMMIT_RESULT)
     if(GIT_COMMIT_RESULT EQUAL 0 AND GIT_COMMIT_OUTPUT)
-        set(AION_GIT_COMMIT "${GIT_COMMIT_OUTPUT}")
+        set(APP_GIT_COMMIT "${GIT_COMMIT_OUTPUT}")
     endif()
 endif()
 
-# Version header (AION_VERSION etc.) generated from the project version above.
+# Version header (APP_VERSION etc.) generated from the project version above.
 # Only files that include version.h are rebuilt when the version changes.
 configure_file(${SRC_DIR}/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h @ONLY)
+configure_file(${SRC_DIR}/appname.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/appname.h @ONLY)   # APP_NAME, the first word of project() above
 
 # Compiler warnings for Aion's own code (not Qt's headers). AION_WARNINGS_AS_ERRORS turns them
 # into errors, for CI or before a release.

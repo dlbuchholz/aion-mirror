@@ -5,19 +5,19 @@
     <name>AboutWidget</name>
     <message>
         <source>About</source>
-        <translation>Über Aion</translation>
+        <translation>Über Liora</translation>
     </message>
     <message>
-        <source>Aion logo</source>
-        <translation>Aion-Logo</translation>
+        <source>%1 logo</source>
+        <translation>%1-Logo</translation>
     </message>
     <message>
         <source>Version %1</source>
         <translation>Version %1</translation>
     </message>
     <message>
-        <source>Free software under the GNU GPL, version 3 or later. The name and logo belong to the Aion contributors.</source>
-        <translation>Freie Software unter der GNU GPL, Version 3 oder neuer. Name und Logo gehören den Mitwirkenden von Aion.</translation>
+        <source>Free software under the GNU GPL, version 3 or later. The name and logo belong to the %1 contributors.</source>
+        <translation>Freie Software unter der GNU GPL, Version 3 oder neuer. Name und Logo gehören den Mitwirkenden von %1.</translation>
     </message>
     <message>
         <source>&lt;a href=&quot;https://codeberg.org/spectre_0/aion&quot;&gt;Source code&lt;/a&gt;</source>
@@ -271,12 +271,12 @@
         <translation>Die Datei ist keine Datenbank oder sie ist beschädigt.</translation>
     </message>
     <message>
-        <source>This file isn&apos;t an Aion database.</source>
-        <translation>Diese Datei ist keine Aion-Datenbank.</translation>
+        <source>This file isn&apos;t a %1 database.</source>
+        <translation>Diese Datei ist keine %1-Datenbank.</translation>
     </message>
     <message>
-        <source>It&apos;s from a newer version of Aion. Update Aion to restore it.</source>
-        <translation>Sie stammt von einer neueren Version von Aion. Aktualisiere Aion, um sie wiederherzustellen.</translation>
+        <source>It&apos;s from a newer version of %1. Update %1 to restore it.</source>
+        <translation>Sie stammt von einer neueren Version von %1. Aktualisiere %1, um sie wiederherzustellen.</translation>
     </message>
 </context>
 <context>
@@ -286,16 +286,16 @@
         <translation>Datenbank sichern</translation>
     </message>
     <message>
-        <source>Aion database (*.db)</source>
-        <translation>Aion-Datenbank (*.db)</translation>
+        <source>%1 database (*.db)</source>
+        <translation>%1-Datenbank (*.db)</translation>
     </message>
     <message>
         <source>Restore from file</source>
         <translation>Aus Datei wiederherstellen</translation>
     </message>
     <message>
-        <source>Aion database (*.db);;All files (*)</source>
-        <translation>Aion-Datenbank (*.db);;Alle Dateien (*)</translation>
+        <source>%1 database (*.db);;All files (*)</source>
+        <translation>%1-Datenbank (*.db);;Alle Dateien (*)</translation>
     </message>
     <message>
         <source>Restore this backup?</source>
@@ -380,10 +380,10 @@
     <message>
         <source>%1: %2, %3, %4.
 
-Everything in the open database is replaced. Your current data is saved as a backup first, and Aion returns to the start window.</source>
+Everything in the open database is replaced. Your current data is saved as a backup first, and %5 returns to the start window.</source>
         <translation>%1: %2, %3, %4.
 
-Alles in der geöffneten Datenbank wird ersetzt. Deine aktuellen Daten werden vorher gesichert, und Aion kehrt zum Startfenster zurück.</translation>
+Alles in der geöffneten Datenbank wird ersetzt. Deine aktuellen Daten werden vorher gesichert, und %5 kehrt zum Startfenster zurück.</translation>
     </message>
     <message>
         <source>%1 user</source>
@@ -425,8 +425,8 @@ Alles in der geöffneten Datenbank wird ersetzt. Deine aktuellen Daten werden vo
         <translation>Kontostand korrigieren</translation>
     </message>
     <message>
-        <source>If Aion shows a different balance than your bank, add a correction for the difference. It counts towards the balance, not towards income or spending.</source>
-        <translation>Wenn Aion einen anderen Kontostand zeigt als deine Bank, füge eine Korrektur für die Differenz hinzu. Sie zählt zum Kontostand, aber nicht zu Einnahmen oder Ausgaben.</translation>
+        <source>If %1 shows a different balance than your bank, add a correction for the difference. It counts towards the balance, not towards income or spending.</source>
+        <translation>Wenn %1 einen anderen Kontostand zeigt als deine Bank, füge eine Korrektur für die Differenz hinzu. Sie zählt zum Kontostand, aber nicht zu Einnahmen oder Ausgaben.</translation>
     </message>
     <message>
         <source>Account</source>
@@ -437,8 +437,8 @@ Alles in der geöffneten Datenbank wird ersetzt. Deine aktuellen Daten werden vo
         <translation>Am</translation>
     </message>
     <message>
-        <source>Balance in Aion</source>
-        <translation>Kontostand in Aion</translation>
+        <source>Balance in %1</source>
+        <translation>Kontostand in %1</translation>
     </message>
     <message>
         <source>As shown by your bank</source>
@@ -461,12 +461,12 @@ Alles in der geöffneten Datenbank wird ersetzt. Deine aktuellen Daten werden vo
         <translation>Gib den Kontostand ein, den deine Bank für das Ende dieses Tages anzeigt.</translation>
     </message>
     <message>
-        <source>That isn&apos;t an amount Aion can read.</source>
-        <translation>Das ist kein Betrag, den Aion lesen kann.</translation>
+        <source>That isn&apos;t an amount %1 can read.</source>
+        <translation>Das ist kein Betrag, den %1 lesen kann.</translation>
     </message>
     <message>
-        <source>Aion already shows this balance. Nothing to correct.</source>
-        <translation>Aion zeigt bereits diesen Kontostand. Es gibt nichts zu korrigieren.</translation>
+        <source>%1 already shows this balance. Nothing to correct.</source>
+        <translation>%1 zeigt bereits diesen Kontostand. Es gibt nichts zu korrigieren.</translation>
     </message>
     <message>
         <source>Adds a balance correction of %1 on %2.</source>
@@ -1376,12 +1376,12 @@ Saldo %4</translation>
         <translation>Die Datei konnte nicht als Datenbank geöffnet werden. </translation>
     </message>
     <message>
-        <source>This file belongs to another program, not Aion.</source>
-        <translation>Diese Datei gehört zu einem anderen Programm, nicht zu Aion.</translation>
+        <source>This file belongs to another program, not %1.</source>
+        <translation>Diese Datei gehört zu einem anderen Programm, nicht zu %1.</translation>
     </message>
     <message>
-        <source>It was last used with a newer version of Aion. Update Aion to open it.</source>
-        <translation>Sie wurde zuletzt mit einer neueren Version von Aion verwendet. Aktualisiere Aion, um sie zu öffnen.</translation>
+        <source>It was last used with a newer version of %1. Update %1 to open it.</source>
+        <translation>Sie wurde zuletzt mit einer neueren Version von %1 verwendet. Aktualisiere %1, um sie zu öffnen.</translation>
     </message>
     <message>
         <source>The database couldn&apos;t be updated to the current version. </source>
@@ -1394,10 +1394,10 @@ Saldo %4</translation>
     <message>
         <source>Couldn&apos;t open %1. %2
 
-Aion opened its default database instead.</source>
+%3 opened its default database instead.</source>
         <translation>%1 konnte nicht geöffnet werden. %2
 
-Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
+%3 hat stattdessen seine Standarddatenbank geöffnet.</translation>
     </message>
     <message>
         <source>Couldn&apos;t open %1. %2</source>
@@ -1629,8 +1629,8 @@ Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
         <translation>Datei wählen</translation>
     </message>
     <message>
-        <source>A CSV, Excel or LibreOffice export from your bank. Aion reads it first and shows you everything before anything is saved.</source>
-        <translation>Ein CSV-, Excel- oder LibreOffice-Export deiner Bank. Aion liest ihn zuerst und zeigt dir alles, bevor etwas gespeichert wird.</translation>
+        <source>A CSV, Excel or LibreOffice export from your bank. %1 reads it first and shows you everything before anything is saved.</source>
+        <translation>Ein CSV-, Excel- oder LibreOffice-Export deiner Bank. %1 liest ihn zuerst und zeigt dir alles, bevor etwas gespeichert wird.</translation>
     </message>
     <message>
         <source>No file chosen</source>
@@ -1777,8 +1777,8 @@ Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
         <translation>ohne %1</translation>
     </message>
     <message>
-        <source>Choose a file to see what Aion finds in it.</source>
-        <translation>Wähle eine Datei, um zu sehen, was Aion darin findet.</translation>
+        <source>Choose a file to see what %1 finds in it.</source>
+        <translation>Wähle eine Datei, um zu sehen, was %1 darin findet.</translation>
     </message>
     <message>
         <source> · %1 of %2 sheets</source>
@@ -1797,8 +1797,8 @@ Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
         <translation>Welche Spalte ist was?</translation>
     </message>
     <message>
-        <source>Aion field</source>
-        <translation>Feld in Aion</translation>
+        <source>%1 field</source>
+        <translation>Feld in %1</translation>
     </message>
     <message>
         <source>Column in the file</source>
@@ -1905,8 +1905,8 @@ Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
         <translation>Zeilen</translation>
     </message>
     <message>
-        <source>In Aion</source>
-        <translation>In Aion</translation>
+        <source>In %1</source>
+        <translation>In %1</translation>
     </message>
     <message>
         <source>matches</source>
@@ -1925,8 +1925,8 @@ Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
         <translation>Keine Kategorie</translation>
     </message>
     <message>
-        <source>%1 already in Aion</source>
-        <translation>%1 schon in Aion</translation>
+        <source>%1 already in %2</source>
+        <translation>%1 schon in %2</translation>
     </message>
     <message>
         <source>%1 will be created</source>
@@ -1957,8 +1957,8 @@ Aion hat stattdessen seine Standarddatenbank geöffnet.</translation>
         <translation>Neu</translation>
     </message>
     <message>
-        <source>Already in Aion, skipped</source>
-        <translation>Schon in Aion, übersprungen</translation>
+        <source>Already in %1, skipped</source>
+        <translation>Schon in %1, übersprungen</translation>
     </message>
     <message>
         <source>Can&apos;t be read</source>
@@ -2007,8 +2007,8 @@ Nothing will be imported like this. Check the columns, or go back and choose &qu
 So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter „Weitere Optionen“ „Unlesbare Zeilen überspringen“.</translation>
     </message>
     <message>
-        <source>Everything in this file is already in Aion.</source>
-        <translation>Alles aus dieser Datei ist schon in Aion.</translation>
+        <source>Everything in this file is already in %1.</source>
+        <translation>Alles aus dieser Datei ist schon in %1.</translation>
     </message>
     <message>
         <source>New categories: %1</source>
@@ -2059,20 +2059,20 @@ So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter
         <translation>Gib zum Vergleich den Kontostand ein, den deine Bank für diesen Tag zeigt.</translation>
     </message>
     <message>
-        <source>That isn&apos;t an amount Aion can read.</source>
-        <translation>Das ist kein Betrag, den Aion lesen kann.</translation>
+        <source>That isn&apos;t an amount %1 can read.</source>
+        <translation>Das ist kein Betrag, den %1 lesen kann.</translation>
     </message>
     <message>
         <source>Matches your bank after the import.</source>
         <translation>Stimmt nach dem Import mit deiner Bank überein.</translation>
     </message>
     <message>
-        <source>Aion already shows %1 less than your bank on that day. This file adds nothing, so the difference comes from earlier: for example transactions missing in Aion, or a starting balance that doesn&apos;t fit the imported history.</source>
-        <translation>Aion zeigt an diesem Tag schon %1 weniger als deine Bank. Diese Datei fügt nichts hinzu, die Differenz stammt also von früher: zum Beispiel Umsätze, die in Aion fehlen, oder ein Anfangssaldo, der nicht zum importierten Verlauf passt.</translation>
+        <source>%2 already shows %1 less than your bank on that day. This file adds nothing, so the difference comes from earlier: for example transactions missing in %2, or a starting balance that doesn&apos;t fit the imported history.</source>
+        <translation>%2 zeigt an diesem Tag schon %1 weniger als deine Bank. Diese Datei fügt nichts hinzu, die Differenz stammt also von früher: zum Beispiel Umsätze, die in %2 fehlen, oder ein Anfangssaldo, der nicht zum importierten Verlauf passt.</translation>
     </message>
     <message>
-        <source>Aion already shows %1 more than your bank on that day. This file adds nothing, so the difference comes from earlier: for example transactions missing in Aion, or a starting balance that doesn&apos;t fit the imported history.</source>
-        <translation>Aion zeigt an diesem Tag schon %1 mehr als deine Bank. Diese Datei fügt nichts hinzu, die Differenz stammt also von früher: zum Beispiel Umsätze, die in Aion fehlen, oder ein Anfangssaldo, der nicht zum importierten Verlauf passt.</translation>
+        <source>%2 already shows %1 more than your bank on that day. This file adds nothing, so the difference comes from earlier: for example transactions missing in %2, or a starting balance that doesn&apos;t fit the imported history.</source>
+        <translation>%2 zeigt an diesem Tag schon %1 mehr als deine Bank. Diese Datei fügt nichts hinzu, die Differenz stammt also von früher: zum Beispiel Umsätze, die in %2 fehlen, oder ein Anfangssaldo, der nicht zum importierten Verlauf passt.</translation>
     </message>
     <message>
         <source>%1 less than your bank after the import. Missing or extra bookings, for example from a gap between exports, can cause this.</source>
@@ -2123,8 +2123,8 @@ So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter
         <translation>%1 Umsätze importiert.</translation>
     </message>
     <message>
-        <source>%1 already in Aion, skipped.</source>
-        <translation>%1 schon in Aion, übersprungen.</translation>
+        <source>%1 already in %2, skipped.</source>
+        <translation>%1 schon in %2, übersprungen.</translation>
     </message>
     <message>
         <source>%1 new category.</source>
@@ -2180,12 +2180,12 @@ So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter
         <translation>Konto hinzufügen</translation>
     </message>
     <message>
-        <source>Restart Aion</source>
-        <translation>Aion neu starten</translation>
+        <source>Restart %1</source>
+        <translation>%1 neu starten</translation>
     </message>
     <message>
-        <source>Aion couldn&apos;t be started again. Close it and start it yourself to change the language.</source>
-        <translation>Aion konnte nicht neu gestartet werden. Schließe es und starte es selbst, um die Sprache zu ändern.</translation>
+        <source>%1 couldn&apos;t be started again. Close it and start it yourself to change the language.</source>
+        <translation>%1 konnte nicht neu gestartet werden. Schließe es und starte es selbst, um die Sprache zu ändern.</translation>
     </message>
 </context>
 <context>
@@ -2248,8 +2248,8 @@ So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter
         <translation>Erweiterte Einstellungen</translation>
     </message>
     <message>
-        <source>These are the raw stored values. Editing them directly can break Aion, so only change a value if you know what it does.</source>
-        <translation>Das sind die gespeicherten Rohwerte. Sie direkt zu bearbeiten, kann Aion beschädigen. Ändere einen Wert also nur, wenn du weißt, was er bewirkt.</translation>
+        <source>These are the raw stored values. Editing them directly can break %1, so only change a value if you know what it does.</source>
+        <translation>Das sind die gespeicherten Rohwerte. Sie direkt zu bearbeiten, kann %1 beschädigen. Ändere einen Wert also nur, wenn du weißt, was er bewirkt.</translation>
     </message>
     <message>
         <source>Search setting name or value</source>
@@ -3350,8 +3350,8 @@ Umsätze behalten ihre Kategorien.</translation>
         <translation>Sprache</translation>
     </message>
     <message>
-        <source>Takes effect when Aion restarts.</source>
-        <translation>Wirkt nach einem Neustart von Aion.</translation>
+        <source>Takes effect when %1 restarts.</source>
+        <translation>Wirkt nach einem Neustart von %1.</translation>
     </message>
     <message>
         <source>Restart now</source>
@@ -3451,7 +3451,7 @@ Umsätze behalten ihre Kategorien.</translation>
     </message>
     <message>
         <source>About</source>
-        <translation>Über Aion</translation>
+        <translation>Über Liora</translation>
     </message>
     <message>
         <source>Categories</source>
@@ -3477,8 +3477,8 @@ Umsätze behalten ihre Kategorien.</translation>
 <context>
     <name>SidebarWidget</name>
     <message>
-        <source>Aion logo</source>
-        <translation>Aion-Logo</translation>
+        <source>%1 logo</source>
+        <translation>%1-Logo</translation>
     </message>
     <message>
         <source>Dashboard</source>
@@ -3631,16 +3631,16 @@ Umsätze behalten ihre Kategorien.</translation>
         <translation>Benutzer hinzufügen</translation>
     </message>
     <message>
-        <source>Aion logo</source>
-        <translation>Aion-Logo</translation>
+        <source>%1 logo</source>
+        <translation>%1-Logo</translation>
     </message>
     <message>
-        <source>Welcome to Aion</source>
-        <translation>Willkommen bei Aion</translation>
+        <source>Welcome to %1</source>
+        <translation>Willkommen bei %1</translation>
     </message>
     <message>
-        <source>Choose who&apos;s using Aion</source>
-        <translation>Wähle, wer Aion benutzt</translation>
+        <source>Choose who&apos;s using %1</source>
+        <translation>Wähle, wer %1 benutzt</translation>
     </message>
     <message>
         <source>Alex Example</source>
@@ -3691,16 +3691,16 @@ Umsätze behalten ihre Kategorien.</translation>
         <translation>Datenbank öffnen</translation>
     </message>
     <message>
-        <source>Aion database (*.db);;All files (*)</source>
-        <translation>Aion-Datenbank (*.db);;Alle Dateien (*)</translation>
+        <source>%1 database (*.db);;All files (*)</source>
+        <translation>%1-Datenbank (*.db);;Alle Dateien (*)</translation>
     </message>
     <message>
         <source>New database</source>
         <translation>Neue Datenbank</translation>
     </message>
     <message>
-        <source>Aion database (*.db)</source>
-        <translation>Aion-Datenbank (*.db)</translation>
+        <source>%1 database (*.db)</source>
+        <translation>%1-Datenbank (*.db)</translation>
     </message>
     <message>
         <source>Enter a name and a username.</source>
@@ -4096,10 +4096,10 @@ Füge einen mit „Umsatz hinzufügen“ hinzu oder importiere eine Datei.</tran
         <translation>Nach Updates suchen</translation>
     </message>
     <message>
-        <source>You&apos;re using Aion %1.
+        <source>You&apos;re using %2 %1.
 
 Checking for updates isn&apos;t available yet.</source>
-        <translation>Du verwendest Aion %1.
+        <translation>Du verwendest %2 %1.
 
 Die Suche nach Updates ist noch nicht verfügbar.</translation>
     </message>

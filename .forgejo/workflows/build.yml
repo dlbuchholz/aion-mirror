@@ -174,7 +174,7 @@ jobs:
           dnf -y -q install --nogpgcheck "$rpm_file"
           output=$(cd /tmp && QT_PLUGIN_PATH= Aion --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
           dnf -y -q remove aion
           if command -v Aion > /dev/null; then
             echo "Removing the RPM left Aion behind" >&2
@@ -296,7 +296,7 @@ jobs:
           apt-get install -y -q --no-install-recommends "./$deb_file"
           output=$(cd /tmp && QT_PLUGIN_PATH= Aion --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
           apt-get remove -y -q aion
           if command -v Aion > /dev/null; then
             echo "Removing the DEB left Aion behind" >&2
@@ -362,7 +362,7 @@ jobs:
         run: |
           output=$(cd /tmp && "$GITHUB_WORKSPACE/dist/${{ steps.package.outputs.name }}.AppImage" --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
 
       # Kept for a day only: the release has it
       - name: Hand the AppImage to the release job
@@ -460,7 +460,7 @@ jobs:
         run: |
           output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Aion.exe" --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
 
       # The installer (installer/aion.nsi), from the packaged folder. NSIS comes from Fedora; it's
       # installed here unless the build image has it already.
@@ -469,7 +469,7 @@ jobs:
         run: |
           command -v makensis > /dev/null || dnf -y -q install mingw32-nsis
           name=${{ steps.package.outputs.name }}
-          version=$(sed -n 's/^project(Aion VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          version=$(sed -n 's/^project([A-Za-z]* VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           makensis -V2 -DVERSION="$version" -DSOURCE="$PWD/dist/$name" \
                    -DICON="$PWD/build-windows/generated/aion.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
                    installer/aion.nsi
@@ -484,7 +484,7 @@ jobs:
           wineserver -w
           output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Aion.exe" --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
           xvfb-run -a wine "$folder/Uninstall.exe" /S
           wineserver -w
           if [[ -e $folder ]]; then
@@ -584,12 +584,12 @@ jobs:
         run: |
           output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Aion.exe" --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
 
       - name: Build the installer
         run: |
           name=${{ steps.package.outputs.name }}
-          version=$(sed -n 's/^project(Aion VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          version=$(sed -n 's/^project([A-Za-z]* VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           makensis -V2 -DVERSION="$version" -DSOURCE="$PWD/dist/$name" \
                    -DICON="$PWD/build-win7/generated/aion.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
                    installer/aion-win7.nsi
@@ -601,7 +601,7 @@ jobs:
           wineserver -w
           output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Aion.exe" --version)
           echo "$output"
-          grep -q '^Aion ' <<< "$output"
+          grep -q '^Liora ' <<< "$output"
           xvfb-run -a wine "$folder/Uninstall.exe" /S
           wineserver -w
           if [[ -e $folder ]]; then

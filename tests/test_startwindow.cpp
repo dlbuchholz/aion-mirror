@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 #include <QCheckBox>
 #include <QFrame>
 #include <QLabel>
@@ -66,7 +67,7 @@ private slots:
     void showsTheBuildVersion() {
         StartWindow window;
         QCOMPARE(window.findChild<QLabel*>("versionLabel")->text(), QString("Version %1").arg(SystemInfo::versionText()));
-        QVERIFY(QString(AION_VERSION).count('.') == 2);    // Major.minor.patch from CMake
+        QVERIFY(QString(APP_VERSION).count('.') == 2);    // Major.minor.patch from CMake
     }
 
     void addingAUserOpensIt() {
@@ -244,7 +245,7 @@ private slots:
         QVERIFY(open.shown);
         QCOMPARE(open.title, QString("Open database"));
         QCOMPARE(open.folder, folder);
-        QCOMPARE(open.filters, QStringList({"Aion database (*.db)", "All files (*)"}));
+        QCOMPARE(open.filters, QStringList({QString("%1 database (*.db)").arg(APP_NAME), "All files (*)"}));
         QCOMPARE(open.fileMode, QFileDialog::ExistingFile);
 
         // Creating: budget.db there; an existing file is refused later, so the dialog doesn't ask
@@ -255,7 +256,7 @@ private slots:
         QCOMPARE(create.title, QString("New database"));
         QCOMPARE(create.acceptMode, QFileDialog::AcceptSave);
         QCOMPARE(create.folder, folder);
-        QCOMPARE(create.filters, QStringList({"Aion database (*.db)"}));
+        QCOMPARE(create.filters, QStringList({QString("%1 database (*.db)").arg(APP_NAME)}));
         QVERIFY(!create.confirmsOverwrite);
         QCOMPARE(QFileInfo(create.selected).fileName(), QString("budget.db"));
     }

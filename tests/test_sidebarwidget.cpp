@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QAbstractButton>
@@ -393,7 +394,7 @@ private slots:
         auto* logo = sidebar.findChild<QLabel*>("sidebarLogo");
         auto* name = sidebar.findChild<QLabel*>("sidebarBrandName");
         QVERIFY(!logo->pixmap().isNull());
-        QCOMPARE(name->text(), QString("Aion"));
+        QCOMPARE(name->text(), QString(APP_NAME));
 
         sidebar.setCollapsed(true, false);
         QVERIFY(name->isHidden());

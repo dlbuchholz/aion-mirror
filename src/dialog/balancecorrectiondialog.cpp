@@ -1,4 +1,5 @@
 #include "balancecorrectiondialog.h"
+#include "appname.h"
 #include "applocale.h"
 #include "account.h"
 #include "balance.h"
@@ -22,8 +23,8 @@ BalanceCorrectionDialog::BalanceCorrectionDialog(int userId, int accountId, QWid
 
     auto* layout = new QVBoxLayout(this);
     layout->setSpacing(12);
-    auto* intro = new QLabel(tr("If Aion shows a different balance than your bank, add a correction for the difference. "
-                                "It counts towards the balance, not towards income or spending."), this);
+    auto* intro = new QLabel(tr("If %1 shows a different balance than your bank, add a correction for the difference. "
+                                "It counts towards the balance, not towards income or spending.").arg(APP_NAME), this);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
     layout->addWidget(intro);
@@ -46,7 +47,7 @@ BalanceCorrectionDialog::BalanceCorrectionDialog(int userId, int accountId, QWid
 
     currentLabel = new QLabel(this);
     currentLabel->setObjectName("currentBalanceLabel");
-    form->addRow(tr("Balance in Aion"), currentLabel);
+    form->addRow(tr("Balance in %1").arg(APP_NAME), currentLabel);
 
     expectedEdit = new QLineEdit(this);
     expectedEdit->setObjectName("bankBalanceEdit");
@@ -104,10 +105,10 @@ void BalanceCorrectionDialog::updateBalance() {
     } else if (expectedEdit->text().trimmed().isEmpty()) {
         statusLabel->setText(tr("Enter the balance your bank shows for the end of that day."));
     } else if (!expectedBalance(&expected)) {
-        statusLabel->setText(tr("That isn't an amount Aion can read."));
+        statusLabel->setText(tr("That isn't an amount %1 can read.").arg(APP_NAME));
         color = colors.danger;
     } else if (expected == currentCents) {
-        statusLabel->setText(tr("Aion already shows this balance. Nothing to correct."));
+        statusLabel->setText(tr("%1 already shows this balance. Nothing to correct.").arg(APP_NAME));
         color = colors.positive;
     } else {
         statusLabel->setText(tr("Adds a balance correction of %1 on %2.")

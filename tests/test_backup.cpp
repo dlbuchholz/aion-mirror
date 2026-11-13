@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 #include <QLabel>
 #include <QPushButton>
 #include <QTemporaryDir>
@@ -106,7 +107,7 @@ private slots:
         QVERIFY(backUp.shown);
         QCOMPARE(backUp.title, QString("Back up database"));
         QCOMPARE(backUp.acceptMode, QFileDialog::AcceptSave);
-        QCOMPARE(backUp.filters, QStringList({"Aion database (*.db)"}));
+        QCOMPARE(backUp.filters, QStringList({QString("%1 database (*.db)").arg(APP_NAME)}));
         QCOMPARE(QFileInfo(backUp.selected), QFileInfo(suggested));
 
         // Restoring: any database file, starting next to the open one
@@ -117,7 +118,7 @@ private slots:
         QCOMPARE(restore.title, QString("Restore from file"));
         QCOMPARE(restore.fileMode, QFileDialog::ExistingFile);
         QCOMPARE(restore.folder, folderOfDatabase);
-        QCOMPARE(restore.filters, QStringList({"Aion database (*.db)", "All files (*)"}));
+        QCOMPARE(restore.filters, QStringList({QString("%1 database (*.db)").arg(APP_NAME), "All files (*)"}));
     }
 
     void cancellingWritesNothing() {

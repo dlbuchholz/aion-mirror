@@ -1,4 +1,5 @@
 #include "databasesession.h"
+#include "appname.h"
 #include "backup.h"
 #include "databasemanager.h"
 #include "migrationmanager.h"
@@ -43,13 +44,13 @@ bool openAndMigrate(const QString& path, QString* errorMessage) {
     }
     if (isForeignDatabase()) {
         manager.closeDatabase();
-        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "This file belongs to another program, not Aion.");
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "This file belongs to another program, not %1.").arg(APP_NAME);
         return false;
     }
     MigrationManager migrations(BuiltInMigrations);
     if (migrations.isNewerThanApp()) {
         manager.closeDatabase();
-        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "It was last used with a newer version of Aion. Update Aion to open it.");
+        if (errorMessage) *errorMessage = QCoreApplication::translate("DatabaseSession", "It was last used with a newer version of %1. Update %1 to open it.").arg(APP_NAME);
         return false;
     }
     if (migrations.needsUpdate() && !Backup::beforeUpdate(errorMessage)) {
@@ -121,8 +122,8 @@ bool openAtStartup(QString* warningMessage, QString* errorMessage) {
             return true;
         }
         qWarning() << "Could not open last database" << last << ":" << error;
-        lastError = QCoreApplication::translate("DatabaseSession", "Couldn't open %1. %2\n\nAion opened its default database instead.")
-                        .arg(QFileInfo(last).fileName(), error);
+        lastError = QCoreApplication::translate("DatabaseSession", "Couldn't open %1. %2\n\n%3 opened its default database instead.")
+                        .arg(QFileInfo(last).fileName(), error, APP_NAME);
     }
 
     QString error;

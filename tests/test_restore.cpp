@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 #include <QDesktopServices>
 #include <QLabel>
 #include <QMessageBox>
@@ -110,7 +111,7 @@ private slots:
 
         const QString foreign = fileWith("foreign.db", {"CREATE TABLE notes (id INTEGER)"});
         QVERIFY(!Backup::inspect(foreign, &error));
-        QVERIFY(error.contains("isn't an Aion"));
+        QVERIFY(error.contains(QString("isn't a %1").arg(APP_NAME)));
 
         const QString newer = fileWith("newer.db", {"CREATE TABLE schema_migrations (version INTEGER)",
                                                     "INSERT INTO schema_migrations VALUES (9999)"});
@@ -241,7 +242,7 @@ private slots:
         settings.confirmRestore = [&](const QString&) { asked = true; return true; };
         settings.findChild<QPushButton*>("restoreFromFileButton")->click();
         QVERIFY(!asked);
-        QVERIFY(settings.findChild<QLabel*>("backupResultLabel")->text().contains("isn't an Aion"));
+        QVERIFY(settings.findChild<QLabel*>("backupResultLabel")->text().contains(QString("isn't a %1").arg(APP_NAME)));
     }
 
     void rowsInTheListRestore() {
@@ -351,7 +352,7 @@ private slots:
         QSqlDatabase::removeDatabase("partial");
         QString error;
         QVERIFY(!Backup::inspect(partial, &error));
-        QCOMPARE(error, QString("This file isn't an Aion database."));
+        QCOMPARE(error, QString("This file isn't a %1 database.").arg(APP_NAME));
     }
 };
 

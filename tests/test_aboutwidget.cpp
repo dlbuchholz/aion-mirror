@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "appname.h"
 #include <QAbstractButton>
 #include <QClipboard>
 #include <QGuiApplication>
@@ -64,7 +65,7 @@ private slots:
         });
         check->click();
         QCOMPARE(title, QString("Check for updates"));
-        QCOMPARE(said, QString("You're using Aion %1.\n\nChecking for updates isn't available yet.").arg(AION_VERSION));
+        QCOMPARE(said, QString("You're using %1 %2.\n\nChecking for updates isn't available yet.").arg(APP_NAME, APP_VERSION));
     }
 };
 

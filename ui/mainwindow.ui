@@ -10,9 +10,6 @@
     <height>780</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string notr="true">Aion</string>
-  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="centralLayout">
     <property name="spacing">

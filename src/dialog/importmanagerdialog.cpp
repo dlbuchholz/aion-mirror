@@ -1,4 +1,5 @@
 #include "importmanagerdialog.h"
+#include "appname.h"
 #include "applocale.h"
 #include "account.h"
 #include "category.h"
@@ -192,8 +193,8 @@ QWidget *ImportManagerDialog::buildFilePage()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(10);
     layout->addWidget(pageTitle(tr("Choose a file"), page));
-    layout->addWidget(hintLabel(tr("A CSV, Excel or LibreOffice export from your bank. Aion reads it first and shows "
-                                   "you everything before anything is saved."), page));
+    layout->addWidget(hintLabel(tr("A CSV, Excel or LibreOffice export from your bank. %1 reads it first and shows "
+                                   "you everything before anything is saved.").arg(APP_NAME), page));
 
     auto *fileRow = new QHBoxLayout();
     filePathEdit = new QLineEdit(page);
@@ -591,7 +592,7 @@ void ImportManagerDialog::showFormatBox(bool show)
 void ImportManagerDialog::updateFormatSummary()
 {
     if (filePath.isEmpty()) {
-        formatSummaryLabel->setText(tr("Choose a file to see what Aion finds in it."));
+        formatSummaryLabel->setText(tr("Choose a file to see what %1 finds in it.").arg(APP_NAME));
         changeFormatButton->hide();
         return;
     }
@@ -635,7 +636,7 @@ QWidget *ImportManagerDialog::buildColumnsPage()
     grid->setColumnStretch(1, 2);
     grid->setColumnStretch(2, 3);
     int column = 0;
-    for (const QString &caption : {tr("Aion field"), tr("Column in the file"), tr("Example")}) {
+    for (const QString &caption : {tr("%1 field").arg(APP_NAME), tr("Column in the file"), tr("Example")}) {
         auto *header = new QLabel(caption, page);
         header->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(header, 0, column++);
@@ -882,7 +883,7 @@ void ImportManagerDialog::refreshFileCategories()
     grid->setColumnStretch(0, 1);
     grid->setColumnStretch(2, 2);
     int column = 0;
-    for (const QString &caption : {tr("In the file"), tr("Rows"), tr("In Aion")}) {
+    for (const QString &caption : {tr("In the file"), tr("Rows"), tr("In %1").arg(APP_NAME)}) {
         auto *header = new QLabel(caption, table);
         header->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(header, 0, column++);
@@ -952,7 +953,7 @@ void ImportManagerDialog::updateCategorySummary()
     }
     const int mapped = int(categoryChoices.size()) - create - none;
     QStringList parts;
-    if (matchedCategories > 0) parts << tr("%1 already in Aion").arg(matchedCategories);
+    if (matchedCategories > 0) parts << tr("%1 already in %2").arg(QString::number(matchedCategories), APP_NAME);
     if (create > 0) parts << tr("%1 will be created").arg(create);
     if (mapped > 0) parts << tr("%1 mapped to other categories").arg(mapped);
     if (none > 0) parts << tr("%1 imported without a category").arg(none);
@@ -1000,7 +1001,7 @@ QWidget *ImportManagerDialog::buildReviewPage()
     auto *tiles = new QHBoxLayout();
     tiles->setSpacing(8);
     newCountLabel = addTile(tiles, tr("New"), "newCountLabel", page);
-    duplicateCountLabel = addTile(tiles, tr("Already in Aion, skipped"), "duplicateCountLabel", page);
+    duplicateCountLabel = addTile(tiles, tr("Already in %1, skipped").arg(APP_NAME), "duplicateCountLabel", page);
     failedCountLabel = addTile(tiles, tr("Can't be read"), "failedCountLabel", page);
     layout->addLayout(tiles);
 
@@ -1111,7 +1112,7 @@ void ImportManagerDialog::refreshReview()
         setTextColor(problemsLabel, Theme::colors().danger);
         problemsLabel->show();
     } else if (dryRun.imported == 0 && dryRun.duplicates > 0) {
-        problemsLabel->setText(tr("Everything in this file is already in Aion."));
+        problemsLabel->setText(tr("Everything in this file is already in %1.").arg(APP_NAME));
         problemsLabel->setPalette(QPalette());
         problemsLabel->show();
     } else {
@@ -1185,7 +1186,7 @@ void ImportManagerDialog::updateBalanceStatus()
         setTextColor(balanceStatusLabel, colors.textSecondary);
         correctionCheckBox->hide();
     } else if (!expectedBalance(&expected)) {
-        balanceStatusLabel->setText(tr("That isn't an amount Aion can read."));
+        balanceStatusLabel->setText(tr("That isn't an amount %1 can read.").arg(APP_NAME));
         setTextColor(balanceStatusLabel, colors.danger);
         correctionCheckBox->hide();
     } else if (expected == dryRun.balanceAfterCents) {
@@ -1198,13 +1199,13 @@ void ImportManagerDialog::updateBalanceStatus()
         const bool less = difference > 0;
         if (dryRun.imported == 0) {
             // The file adds nothing, so the difference was there before this import
-            balanceStatusLabel->setText((less ? tr("Aion already shows %1 less than your bank on that day. This file adds "
+            balanceStatusLabel->setText((less ? tr("%2 already shows %1 less than your bank on that day. This file adds "
                                                    "nothing, so the difference comes from earlier: for example transactions "
-                                                   "missing in Aion, or a starting balance that doesn't fit the imported history.")
-                                              : tr("Aion already shows %1 more than your bank on that day. This file adds "
+                                                   "missing in %2, or a starting balance that doesn't fit the imported history.")
+                                              : tr("%2 already shows %1 more than your bank on that day. This file adds "
                                                    "nothing, so the difference comes from earlier: for example transactions "
-                                                   "missing in Aion, or a starting balance that doesn't fit the imported history."))
-                                            .arg(amount));
+                                                   "missing in %2, or a starting balance that doesn't fit the imported history."))
+                                            .arg(amount, APP_NAME));
         } else {
             balanceStatusLabel->setText((less ? tr("%1 less than your bank after the import. Missing or extra bookings, for "
                                                    "example from a gap between exports, can cause this.")
@@ -1274,7 +1275,7 @@ void ImportManagerDialog::import()
 
     QStringList lines;
     lines << AppLocale::count(result.imported, tr("%1 transaction imported."), tr("%1 transactions imported."));
-    if (result.duplicates > 0) lines << tr("%1 already in Aion, skipped.").arg(result.duplicates);
+    if (result.duplicates > 0) lines << tr("%1 already in %2, skipped.").arg(QString::number(result.duplicates), APP_NAME);
     if (result.categoriesCreated > 0) lines << AppLocale::count(result.categoriesCreated, tr("%1 new category."), tr("%1 new categories."));
     if (result.correctionCents != 0) {
         lines << tr("Balance correction of %1 on %2.").arg(Settings::instance().formatCurrency(result.correctionCents, true),

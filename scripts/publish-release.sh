@@ -20,7 +20,7 @@ set -euo pipefail
 rolling_tag=staging                      # Not "develop": a tag with a branch's name makes pushes ambiguous
 api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
 source_dir=$(realpath "$(dirname "$0")/..")
-version=$(sed -n 's/^project(Aion VERSION \([0-9.]*\).*/\1/p' "$source_dir/CMakeLists.txt")
+version=$(sed -n 's/^project([A-Za-z]* VERSION \([0-9.]*\).*/\1/p' "$source_dir/CMakeLists.txt")
 short_sha=${GITHUB_SHA:0:7}
 files=("$@")
 

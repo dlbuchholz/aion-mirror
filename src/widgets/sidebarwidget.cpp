@@ -1,4 +1,5 @@
 #include "sidebarwidget.h"
+#include "appname.h"
 #include "applocale.h"
 #include "account.h"
 #include "budget.h"
@@ -203,9 +204,9 @@ SidebarWidget::SidebarWidget(QWidget* parent)
     auto* logo = new QLabel(brand);
     logo->setObjectName("sidebarLogo");
     logo->setPixmap(Icons::logo(28, devicePixelRatioF()));
-    logo->setAccessibleName(tr("Aion logo"));
+    logo->setAccessibleName(tr("%1 logo").arg(APP_NAME));
     brandLayout->addWidget(logo);
-    brandName = new QLabel("Aion", brand);
+    brandName = new QLabel(APP_NAME, brand);
     brandName->setObjectName("sidebarBrandName");
     QFont brandFont = brandName->font();
     brandFont.setPointSize(13);

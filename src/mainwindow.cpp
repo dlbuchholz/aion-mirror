@@ -1,4 +1,5 @@
 #include "dialog/deleteaccountdialog.h"
+#include "appname.h"
 #include "dialog/editaccountdialog.h"
 #include "widgets/addaccountwidget.h"
 #include "widgets/budgetpage.h"
@@ -52,8 +53,8 @@ MainWindow::MainWindow(int userId, QWidget *parent)
     connect(ui->settingsPage, &SettingsPage::databaseRestored, this, &MainWindow::switchUserRequested);
     connect(ui->settingsPage, &SettingsPage::restartRequested, this, [this]() {
         if (!Language::restartApplication()) {
-            QMessageBox::warning(this, tr("Restart Aion"),
-                                 tr("Aion couldn't be started again. Close it and start it yourself to change the language."));
+            QMessageBox::warning(this, tr("Restart %1").arg(APP_NAME),
+                                 tr("%1 couldn't be started again. Close it and start it yourself to change the language.").arg(APP_NAME));
         }
     });
     connect(ui->settingsPage, &SettingsPage::dataChanged, this, [this]() {

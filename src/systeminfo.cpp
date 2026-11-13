@@ -1,4 +1,5 @@
 #include "systeminfo.h"
+#include "appname.h"
 #include "db/databasemanager.h"
 #include "db/databasesession.h"
 #include "settings.h"
@@ -26,8 +27,8 @@ QString schemaVersion() {
 }
 
 QString buildDescription() {
-    const QString buildType = QString(AION_BUILD_TYPE).isEmpty() ? QString("unknown") : QString(AION_BUILD_TYPE);
-    return QString("%1 · %2").arg(buildType, QString(AION_COMPILER).trimmed());
+    const QString buildType = QString(APP_BUILD_TYPE).isEmpty() ? QString("unknown") : QString(APP_BUILD_TYPE);
+    return QString("%1 · %2").arg(buildType, QString(APP_COMPILER).trimmed());
 }
 
 QString displayDescription() {
@@ -47,11 +48,11 @@ namespace SystemInfo {
 
 QString versionText() {
 #ifdef QT_NO_DEBUG
-    return AION_VERSION;
+    return APP_VERSION;
 #else
-    const QString commit = AION_GIT_COMMIT;
-    return commit == "unknown" ? QString("%1 (debug)").arg(AION_VERSION)
-                               : QString("%1 (debug %2)").arg(AION_VERSION, commit);
+    const QString commit = APP_GIT_COMMIT;
+    return commit == "unknown" ? QString("%1 (debug)").arg(APP_VERSION)
+                               : QString("%1 (debug %2)").arg(APP_VERSION, commit);
 #endif
 }
 
@@ -61,9 +62,9 @@ QList<Entry> entries() {
     const QString theme = Settings::instance().getTheme();
 
     return {
-        {"Aion", "Version", AION_VERSION},
-        {"Aion", "Commit", AION_GIT_COMMIT},
-        {"Aion", "Build", buildDescription()},
+        {APP_NAME, "Version", APP_VERSION},
+        {APP_NAME, "Commit", APP_GIT_COMMIT},
+        {APP_NAME, "Build", buildDescription()},
 
         {"System", "Operating system", QString("%1 (kernel %2)").arg(QSysInfo::prettyProductName(), QSysInfo::kernelVersion())},
         {"System", "Architecture", QSysInfo::currentCpuArchitecture()},

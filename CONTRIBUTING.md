@@ -342,7 +342,7 @@ To undo: restore `data/runner-config.yml.bak` and restart the runner, and remove
 
 - **Development build:** the pre-release `staging` has the latest build of `develop`, at most a day
   old. For a newer one, start **Run workflow** on the Actions page.
-- **Versions:** the version in `CMakeLists.txt` (`project(Aion VERSION …)`) has a **draft** release
+- **Versions:** the version in `CMakeLists.txt` (`project(Liora VERSION …)`) has a **draft** release
   with the tag `v<version>`. Until it's published, every run started by hand with **Also prepare
   the draft release** ticked moves the tag to the new commit and replaces the files. Notes written
   in the draft are saved.

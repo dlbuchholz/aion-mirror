@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "appname.h"
 #include "commandline.h"
 
 #include "db/databasesession.h"
@@ -24,11 +25,11 @@ static bool openStartupDatabase() {
     QString error;
     if (!DatabaseSession::openAtStartup(&warning, &error)) {
         qCritical() << "Database initialization failed:" << error;
-        QMessageBox::critical(nullptr, "Aion", error);
+        QMessageBox::critical(nullptr, APP_NAME, error);
         return false;
     }
     if (!warning.isEmpty()) {
-        QMessageBox::warning(nullptr, "Aion", warning);
+        QMessageBox::warning(nullptr, APP_NAME, warning);
     }
     return true;
 }
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     // Only the version: setting the application/organization name would move the AppData folder
-    QApplication::setApplicationVersion(AION_VERSION);
+    QApplication::setApplicationVersion(APP_VERSION);
 
     // --version and --help, before anything opens a database
     if (argc > 1) {
@@ -77,7 +78,7 @@ int main(int argc, char *argv[])
     std::function<void(int)> openMainWindow = [&openMainWindow](int userId) {
         auto* window = new MainWindow(userId);
         window->setAttribute(Qt::WA_DeleteOnClose);
-        window->setWindowTitle(QString("Aion %1 · %2").arg(SystemInfo::versionText(),
+        window->setWindowTitle(QString("%1 %2 · %3").arg(APP_NAME, SystemInfo::versionText(),
                                                          QFileInfo(DatabaseSession::currentDatabasePath()).fileName()));
         QObject::connect(window, &MainWindow::switchUserRequested, window, [window, &openMainWindow]() {
             window->hide();

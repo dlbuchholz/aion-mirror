@@ -1,4 +1,5 @@
 #include "commandline.h"
+#include "appname.h"
 #include "systeminfo.h"
 
 #include <QCommandLineParser>
@@ -12,7 +13,7 @@ namespace CommandLine {
 
 int handle(const QStringList& arguments, QTextStream& out) {
     QCommandLineParser parser;
-    parser.setApplicationDescription("Aion, a personal finance app");
+    parser.setApplicationDescription(QString("%1, a personal finance app").arg(APP_NAME));
     const QCommandLineOption help = parser.addHelpOption();
     const QCommandLineOption version = parser.addVersionOption();
 
@@ -26,7 +27,7 @@ int handle(const QStringList& arguments, QTextStream& out) {
         return 0;
     }
     if (parser.isSet(version)) {
-        out << "Aion " << SystemInfo::versionText() << '\n';
+        out << APP_NAME << ' ' << SystemInfo::versionText() << '\n';
         out.flush();
         return 0;
     }

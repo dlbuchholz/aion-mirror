@@ -8,7 +8,7 @@
 namespace SystemInfo {
 
 struct Entry {
-    QString section;                                 // "Aion", "System", "Data"
+    QString section;                                 // The program's name (APP_NAME), "System", "Data"
     QString label;
     QString value;
 };
