@@ -20,16 +20,14 @@ appdir="$build_dir/AppDir"
 rm -rf "$appdir"
 mkdir -p "$output_dir"
 
-# The icon's file name has to match Icon= in the desktop file
-cp "$source_dir/assets/liora-logo.svg" "$build_dir/liora.svg"
-
-# 1. Fill the AppDir. The offscreen platform plugin comes along, so Liora also starts without a
-#    screen (CI checks the AppImage that way).
+# 1. Fill the AppDir. The icon is the logo as CMake copied it (APP_LOGO in CMakeLists.txt),
+#    named to match Icon= in the desktop file. The offscreen platform plugin comes along, so Liora
+#    also starts without a screen (CI checks the AppImage that way).
 EXTRA_PLATFORM_PLUGINS=libqoffscreen.so linuxdeploy-x86_64.AppImage \
     --appdir "$appdir" \
     --executable "$build_dir/Liora" \
     --desktop-file "$source_dir/packaging/linux/liora.desktop" \
-    --icon-file "$build_dir/liora.svg" \
+    --icon-file "$build_dir/generated/liora.svg" \
     --plugin qt >&2                                  # Its log on stderr; stdout is just the path
 
 # 2. Licenses: Liora's own, what's built into Liora, and where each bundled library comes from

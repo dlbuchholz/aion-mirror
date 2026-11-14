@@ -110,7 +110,12 @@ target_link_libraries(LioraLib PUBLIC
 # CONFIGURE_DEPENDS picks up new icons.
 file(GLOB ICON_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
-list(APPEND ICON_FILES assets/liora-logo.svg)             # :/liora-logo.svg
+# The app's logo: the window and taskbar icon, the .exe icon, the Linux icon, and in the app itself.
+# Always :/liora-logo.svg and generated/liora.svg, whichever file it is, so changing it is only here.
+set(APP_LOGO assets/liora-logo-dark.svg)
+set_source_files_properties(${APP_LOGO} PROPERTIES QT_RESOURCE_ALIAS liora-logo.svg)
+list(APPEND ICON_FILES ${APP_LOGO})                       # :/liora-logo.svg
+configure_file(${APP_LOGO} ${CMAKE_CURRENT_BINARY_DIR}/generated/liora.svg COPYONLY)   # For the AppImage
 qt_add_resources(LioraLib "icons"
     PREFIX "/"
     BASE "assets"
@@ -177,14 +182,14 @@ qt_add_executable(Liora
     ${SRC_DIR}/main.cpp
 )
 # The .exe icon in Win Explorer, made from the logo during the build (tools/makeico), so it always
-# matches assets/liora-logo.svg. The helper runs in Qt's bin folder, so Windows finds Qt's DLLs.
+# matches the logo (APP_LOGO). The helper runs in Qt's bin folder, so Windows finds Qt's DLLs.
 # When cross-compiling (CI builds Windows on Linux) the helper is a Windows program too, so it
 # runs through CMAKE_CROSSCOMPILING_EMULATOR (Wine).
 if(WIN32)
     add_executable(liora_makeico tools/makeico/makeico.cpp)
     target_link_libraries(liora_makeico PRIVATE Qt::Gui Qt::Svg)
     set(LIORA_ICON ${CMAKE_CURRENT_BINARY_DIR}/generated/liora.ico)
-    set(LIORA_LOGO ${CMAKE_CURRENT_SOURCE_DIR}/assets/liora-logo.svg)
+    set(LIORA_LOGO ${CMAKE_CURRENT_SOURCE_DIR}/${APP_LOGO})
     set(LIORA_MAKEICO_LAUNCHER "")
     if(CMAKE_CROSSCOMPILING)
         set(LIORA_MAKEICO_LAUNCHER ${CMAKE_CROSSCOMPILING_EMULATOR})
@@ -225,7 +230,7 @@ endif()
 
 if(UNIX AND NOT APPLE)
     install(FILES packaging/linux/liora.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-    install(FILES assets/liora-logo.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME liora.svg)
+    install(FILES ${APP_LOGO} DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps RENAME liora.svg)
     set(LIORA_DOC_DIR ${CMAKE_INSTALL_DATADIR}/doc/liora)
     install(FILES LICENSE packaging/linux/THIRD-PARTY DESTINATION ${LIORA_DOC_DIR})
     install(FILES assets/icons/LICENSE DESTINATION ${LIORA_DOC_DIR} RENAME LICENSE-icons)
