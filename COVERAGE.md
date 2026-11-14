@@ -569,7 +569,7 @@
 - Create migrates and remembers the file
 - Create refuses existing files
 - Open switches between databases
-- Rejects files that are not aion databases
+- Rejects files that are not liora databases
 
 </details>
 
@@ -624,7 +624,7 @@
 
 - English first then german
 - A chosen language wins
-- System follows the computer when aion has its language
+- System follows the computer when liora has its language
 - An unknown setting follows the system
 - Only english without the translations
 - Restarts the app image when running from inside one

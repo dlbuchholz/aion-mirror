@@ -1,9 +1,9 @@
-# <img src="assets/aion-logo.svg" alt="" width="48" align="middle"> Aion
+<h1 align="center"><img src="assets/liora-wordmark.svg" alt="Liora" width="280"></h1>
 
 [![Coverage](docs/coverage-badge.svg)](COVERAGE.md)
 [![License: GPL-3.0-or-later](docs/license-badge.svg)](LICENSE)
 <!-- translations: written by scripts/translation-status.cmake -->
-[![Deutsch: 100% translated](docs/translation-de-badge.svg)](translations/aion_de.ts)
+[![Deutsch: 100% translated](docs/translation-de-badge.svg)](translations/liora_de.ts)
 <!-- /translations -->
 
 <p align="center">
@@ -29,7 +29,7 @@ Built with Qt 6 Widgets and SQLite.
 Abandon Excel. I made this app to suit my workflow and my needs, maybe it suits yours too.
 
 > [!WARNING]
-> Aion is a very early build, still in development. Expect missing features and bugs, and maybe don't
+> Liora is a very early build, still in development. Expect missing features and bugs, and maybe don't
 > rely on it for daily use just yet. Please report bugs on the
 > [issues page](https://codeberg.org/spectre_0/aion/issues).
 
@@ -48,21 +48,21 @@ Abandon Excel. I made this app to suit my workflow and my needs, maybe it suits 
 - **Backups:** back up automatically and restore from inside the app. Everything stays on your
   own computer, there is no online service involved.
 
-Aion tries to follow the ideas of [permacomputing](https://permacomputing.net/): use as little
+Liora tries to follow the ideas of [permacomputing](https://permacomputing.net/): use as little
 computing, energy and storage as the job needs, do work only when it's needed, and keep things
 small, simple and long-lived. Feel free to suggest anything related to that.
 
 ## Download and install
 
-Aion runs on Windows and Linux (64-bit). Get it from the
+Liora runs on Windows and Linux (64-bit). Get it from the
 [releases page](https://codeberg.org/spectre_0/aion/releases).
 
 **Windows 10 and 11:** run the file ending in `windows-x64-setup.exe`. It does not need administrator rights,
  you can install it on your user account only. There's also a `windows-x64.zip` if you'd
- rather not install anything: unpack it and start `Aion.exe`.
+ rather not install anything: unpack it and start `Liora.exe`.
 
 **Windows 7 SP1, 8 and 8.1:** use the files ending in `windows7-x64-setup.exe` or `windows7-x64.zip`
- the same way. Aion uses Qt 6, which officially supports only Windows 10 and later.
+ the same way. Liora uses Qt 6, which officially supports only Windows 10 and later.
 To enable compatibility with older Windows versions, this build uses Qt 6.8 with
 patches from [qt6windows7](https://github.com/crystalidea/qt6windows7).
 These patches are unofficial and not supported by Qt.
@@ -82,21 +82,27 @@ file, and may work on similar systems if those have Qt 6.8 or newer.
 If one won't install, use the AppImage, which brings its own Qt and also runs
 on older systems.
 
-Aion doesn't update itself yet. To update, download the new version
+Liora doesn't update itself yet. To update, download the new version
 from this repository. Your data stays where it is, and a database is backed up
 before a new version changes it.
 
 ## Your data
 
-Aion keeps everything on your computer:
+Liora keeps everything on your computer:
 
 | | Windows | Linux |
 |---|---|---|
-| Database | `%APPDATA%\Aion\app_data.db` | `~/.local/share/Aion/app_data.db` |
-| Settings | Registry, `HKCU\Software\LeineHive\Aion` | `~/.config/LeineHive/Aion.conf` |
+| Database | `%APPDATA%\Liora\app_data.db` | `~/.local/share/Liora/app_data.db` |
+| Settings | Registry, `HKCU\Software\LeineHive\Liora` | `~/.config/LeineHive/Liora.conf` |
 
-If you create or open a database somewhere else, Aion uses that file instead. Settings > About shows
+If you create or open a database somewhere else, Liora uses that file instead. Settings > About shows
 the folders in use.
+
+Liora was called Aion before. The first time Liora starts, it copies Aion's folder and settings
+(`%APPDATA%\Aion` and `HKCU\Software\LeineHive\Aion` on Windows, `~/.local/share/Aion` and
+`~/.config/LeineHive/Aion.conf` on Linux), so everything is there as before. Aion's copies stay where
+they are, as a backup: once you've checked that Liora has everything, you can delete them, or uninstall
+Aion and tick "My data".
 
 Automatic backups go in a `backups` folder next to the database. Settings > Backup sets how often
 they run, and you can restore them or save a copy elsewhere from there. They're on the same disk as
@@ -128,31 +134,32 @@ The coverage report is measured nightly by CI. To measure it yourself (GCC or Cl
 [gcovr](https://gcovr.com)):
 
 ```
-cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -DAION_COVERAGE=ON -DCMAKE_PREFIX_PATH=<path to Qt>
+cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -DLIORA_COVERAGE=ON -DCMAKE_PREFIX_PATH=<path to Qt>
 cmake --build build-coverage
 scripts/coverage.sh build-coverage
 ```
 
 `--publish` also rewrites `COVERAGE.md` and the badge.
 
-Every push is built and tested for Linux and Windows on a CI runner dedicated to Aion and run by me (its
+Every push is built and tested for Linux and Windows on a CI runner dedicated to Liora and run by me (its
 maintainer), so the builds don't use Codeberg's CI resources. How it works:
 [Builds and releases](CONTRIBUTING.md#builds-and-releases).
 
 ## License
 
-Copyright © 2024–2026 the Aion contributors (see [AUTHORS](AUTHORS)).
+Copyright © 2024–2026 the Liora contributors (see [AUTHORS](AUTHORS)).
 
-Aion is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Liora is free software: you can redistribute it and/or modify it under the terms of the GNU General
 Public License as published by the Free Software Foundation, either version 3 of the License, or (at
 your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; see [LICENSE](LICENSE) for details.
 
-This covers the source code and every asset made for Aion, except its name and logo.
+This covers the source code and every asset made for Liora, except its name and logo.
 
-**Name and logo.** The name "Aion" and the Aion logo (`assets/aion-logo.svg` and the icons made from
-it) are not covered by the GPL; all rights reserved by the Aion contributors. You may use them to refer
-to Aion, for example in articles or links. Modified versions that get distributed need their own name and
+**Name and logo.** The name "Liora" and the Liora logos and wordmark (`assets/liora-*.svg` and the
+icons made from them), and the earlier name "Aion" and its logo (`assets/aion-logo.svg`), are not
+covered by the GPL; all rights reserved by the Liora contributors. You may use them to refer to Liora,
+for example in articles or links. Modified versions that get distributed need their own name and
 logo.
 
 **Third-party parts** keep their own licenses:

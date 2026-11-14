@@ -1,4 +1,4 @@
-# Contributing to Aion
+# Contributing to Liora
 
 This page explains how to set up a development environment. For a quick build from the command line,
 see [Building](README.md#building) in the README.
@@ -12,7 +12,7 @@ see [Building](README.md#building) in the README.
 
 ## Choosing a compiler (Windows)
 
-Aion builds with MSVC and with MinGW. CI builds Linux and a MinGW build for Windows, and the coverage
+Liora builds with MSVC and with MinGW. CI builds Linux and a MinGW build for Windows, and the coverage
 script needs GCC or Clang. Use whichever you like. The one rule is that the compiler has to match the Qt kit
 you build against, because Qt's libraries only link with the compiler they were built with:
 
@@ -72,13 +72,13 @@ the old compiler.
 
 Build with **Build → Build Project** (Ctrl+F9).
 
-### 3. Running and debugging Aion
+### 3. Running and debugging Liora
 
-Choose **Aion** in the run configuration dropdown, then Run or Debug.
+Choose **Liora** in the run configuration dropdown, then Run or Debug.
 
 If you didn't set up the environment file in step 1, add Qt's `bin` folder to the run configuration:
-open **Run → Edit Configurations → Aion → Environment variables** and add
-`PATH=C:\Qt\6.12.0\msvc2022_64\bin;$PATH$`. Without it, Aion stops right away because Windows can't
+open **Run → Edit Configurations → Liora → Environment variables** and add
+`PATH=C:\Qt\6.12.0\msvc2022_64\bin;$PATH$`. Without it, Liora stops right away because Windows can't
 find `Qt6Core.dll` or `Qt6Cored.dll`.
 
 To see `QString`, `QList` and other Qt types in the debugger, go to
@@ -100,7 +100,7 @@ runs, so it doesn't have to be listed anywhere.
 
 To give new run configurations these variables automatically, set them in
 **Edit configuration templates…** under **CTest Application**. Don't add `QT_QPA_PLATFORM=offscreen`
-to the **CMake Application** template, or Aion's window won't appear.
+to the **CMake Application** template, or Liora's window won't appear.
 
 From a terminal:
 
@@ -125,11 +125,11 @@ the build folder.
 Build Tools, in the `build-vs` folder, using all cores:
 
 ```powershell
-.\scripts\build.ps1 test run     # build, test, and start Aion if the tests pass
+.\scripts\build.ps1 test run     # build, test, and start Liora if the tests pass
 ```
 
 It finds the newest `msvc*_64` Qt kit under `C:\Qt` or `D:\Qt`. For a kit elsewhere, pass
-`-QtDir C:\path\to\6.12.0\msvc2022_64` once or set `AION_QT_DIR`. The tests run off screen, so their
+`-QtDir C:\path\to\6.12.0\msvc2022_64` once or set `LIORA_QT_DIR`. The tests run off screen, so their
 windows don't appear. `Get-Help .\scripts\build.ps1 -Examples` lists the other actions.
 
 To run one test program without ctest, put the kit's `bin` first in `PATH` and set the same variables:
@@ -151,7 +151,7 @@ $env:QT_FORCE_STDERR_LOGGING = '1'
 
 ## Translations
 
-Aion's texts are written in English (UK) in the code, and translated in `translations/aion_<code>.ts`,
+Liora's texts are written in English (UK) in the code, and translated in `translations/liora_<code>.ts`,
 one file per language, which the build turns into the program's translations. A text that isn't
 translated yet shows in English, so a language can be translated bit by bit. The badges in the README
 show how far each one is, and CI keeps them current
@@ -159,7 +159,7 @@ show how far each one is, and CI keeps them current
 
 Building the translations needs Qt's Linguist tools (`lupdate`, `lrelease`). The Qt installer's kits
 have them; on Linux they're packages of their own (`qt6-qttools-devel` on Fedora,
-`qt6-tools-dev` and `qt6-l10n-tools` on Debian and Ubuntu). Without them CMake warns, and Aion is
+`qt6-tools-dev` and `qt6-l10n-tools` on Debian and Ubuntu). Without them CMake warns, and Liora is
 built in English only.
 
 ### Texts in the code
@@ -173,7 +173,7 @@ built in English only.
   number for the language.
 - Dates, month names and file sizes: `AppLocale` (`src/applocale.h`), never `QDate::toString` with a
   fixed pattern, so they follow the language.
-- Names Aion relies on (the built-in categories, keys in the settings and the database) stay English
+- Names Liora relies on (the built-in categories, keys in the settings and the database) stay English
   in the data and are translated only where they're shown, like `displayCategoryName()`.
 
 ### After adding or changing texts
@@ -183,15 +183,15 @@ cmake --build <build folder> --target update_translations
 ```
 
 adds new and changed texts to every `.ts` file and drops the ones no longer in the code. Translate
-them with Qt Linguist (`linguist translations/aion_de.ts`, in the kit's `bin` folder) or in a text
+them with Qt Linguist (`linguist translations/liora_de.ts`, in the kit's `bin` folder) or in a text
 editor, then commit the `.ts` files with the change. Untranslated texts are fine, but a translation
 must keep its text's placeholders (`%1`, `%2`, …) and HTML tags; `test_language` checks that.
 
 ### Adding a language
 
-1. Add its code to `AION_LANGUAGES` in [CMakeLists.txt](CMakeLists.txt) and to `Language::available()`
+1. Add its code to `LIORA_LANGUAGES` in [CMakeLists.txt](CMakeLists.txt) and to `Language::available()`
    in [src/language.cpp](src/language.cpp), with its name in that language (`{"fr", "Français"}`).
-2. Create `translations/aion_<code>.ts` with only this in it, and run `update_translations`:
+2. Create `translations/liora_<code>.ts` with only this in it, and run `update_translations`:
 
    ```xml
    <?xml version="1.0" encoding="utf-8"?>
@@ -214,7 +214,7 @@ applied in order. Opening a database applies the ones it hasn't had yet, after a
   checks that by their checksums.
 - A migration that changes the data the user already has, not only the schema, gets a test of what it
   does to such data. Start it from a database at the version before (`TestDbFixture::createAtVersion`)
-  and fill that in the way the older Aion would have. `upgradingFromEveryVersionKeepsTheData` already
+  and fill that in the way the older Liora would have. `upgradingFromEveryVersionKeepsTheData` already
   checks that every version upgrades to the same schema as a new database and keeps its data.
 
 When a release has new migrations, add each to `releasedMigrationsNeverChange` with its SHA-256,
@@ -226,7 +226,7 @@ git show HEAD:db/migrations/002_starter_names.sql | sha256sum
 
 ## Before you send a change
 
-- Build without new warnings. To check, configure with `-DAION_WARNINGS_AS_ERRORS=ON`. MSVC and GCC
+- Build without new warnings. To check, configure with `-DLIORA_WARNINGS_AS_ERRORS=ON`. MSVC and GCC
   warn about different things, and CI builds with GCC.
 - Run the whole test suite.
 - If you add code to `src/`, add or update tests in `tests/`.
@@ -271,18 +271,18 @@ self-hosted runner with four build images:
     using Debian's Qt;
   - package Windows as a zip ([scripts/package-windows.sh](scripts/package-windows.sh)) and check
     that it starts with only its own files;
-  - build the installer ([installer/aion.nsi](installer/aion.nsi), NSIS), and check that it installs,
+  - build the installer ([installer/liora.nsi](installer/liora.nsi), NSIS), and check that it installs,
     starts and uninstalls under Wine;
   - pack the AppImage ([scripts/package-appimage.sh](scripts/package-appimage.sh)) and check that it
     starts;
-  - build Linux once more with `-DAION_SANITIZERS=ON` and run the tests with AddressSanitizer and
+  - build Linux once more with `-DLIORA_SANITIZERS=ON` and run the tests with AddressSanitizer and
     UndefinedBehaviorSanitizer, which stop a test at a memory error or undefined behaviour that a
     normal run passes by luck. Leaks aren't checked yet. A failure there fails the run but doesn't
     hold up the release. To run it yourself (GCC or Clang, Linux or WSL):
-    `cmake -S . -B build-sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_SANITIZERS=ON`, build,
+    `cmake -S . -B build-sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLIORA_SANITIZERS=ON`, build,
     then `ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build-sanitizers --output-on-failure`;
   - nightly, with the draft, or when its box is ticked: build the Windows 7/8 package and its
-    installer ([installer/aion-win7.nsi](installer/aion-win7.nsi)) the same way, and check that
+    installer ([installer/liora-win7.nsi](installer/liora-win7.nsi)) the same way, and check that
     every Windows function it calls exists on Windows 7 SP1
     ([scripts/check-win7-imports.sh](scripts/check-win7-imports.sh), with the lists in
     [ci/win7-exports](ci/win7-exports/README.md)). Not first-class support: a failure there only
@@ -291,12 +291,12 @@ self-hosted runner with four build images:
     `staging` pre-release, the version's draft only when started by hand with the box ticked.
 - **Coverage**, nightly (04:00 UTC, [.forgejo/workflows/coverage.yml](.forgejo/workflows/coverage.yml),
   only when more than documentation changed since the measured commit): builds with
-  `-DAION_COVERAGE=ON`, runs [scripts/coverage.sh](scripts/coverage.sh) and commits `COVERAGE.md`
-  and the badge to `develop` as "Aion CI" when the report changed. That commit doesn't start a build.
+  `-DLIORA_COVERAGE=ON`, runs [scripts/coverage.sh](scripts/coverage.sh) and commits `COVERAGE.md`
+  and the badge to `develop` as "Liora CI" when the report changed. That commit doesn't start a build.
 
 Packaging only in these runs saves the runner and Codeberg from packing and uploading every push.
 
-If Aion starts using a Qt module it didn't use before, add it to the plugin table in
+If Liora starts using a Qt module it didn't use before, add it to the plugin table in
 `package-windows.sh`. The packaging stops and says so until you do.
 
 ### Build images

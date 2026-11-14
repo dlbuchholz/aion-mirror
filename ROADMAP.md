@@ -54,11 +54,11 @@ Windows is built, tested, packaged (zip and installer) and released by CI; see
 - Add `mingw32-nsis` to the build image, so the Windows job doesn't install it on every run.
 - Smaller Windows build: ICU is 37 of about 80 MB. Fedora's Qt needs it; Qt's official Windows build
   doesn't use it. Options: build with the official Qt (made with another MinGW version, so test
-  well), build Qt without ICU, or build a smaller ICU data file with only the languages Aion needs.
+  well), build Qt without ICU, or build a smaller ICU data file with only the languages Liora needs.
   Leaving out unused image format plugins would save a few MB more.
 
 ## Later
 
 - Contracts (phone plans, insurance, …): when they started, when they probably end and what they
-  charge per interval, so Aion can expect those transactions. Budgets could take them into account.
+  charge per interval, so Liora can expect those transactions. Budgets could take them into account.
   After rules and Reports.
