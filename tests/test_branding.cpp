@@ -20,7 +20,7 @@ private slots:
     void cleanup() { db.close(); }
 
     void logoIsBuiltIn() {
-        QVERIFY(QSvgRenderer(QString(":/aion-logo.svg")).isValid());
+        QVERIFY(QSvgRenderer(QString(":/liora-logo.svg")).isValid());
         const QImage logo = Icons::logo(64, 1.0).toImage();
         QCOMPARE(logo.size(), QSize(64, 64));
         QCOMPARE(logo.pixelColor(32, 32).alpha(), 255);                     // The tile is solid
@@ -71,7 +71,7 @@ private slots:
 
     // Translations hold a placeholder for the name, so they show the same name as the English
     void translationsShowTheName() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QVERIFY(Language::install("de"));

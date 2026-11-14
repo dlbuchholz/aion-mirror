@@ -90,7 +90,7 @@ QPixmap logo(int size, qreal devicePixelRatio) {
     QPixmap pixmap(QSize(size, size) * devicePixelRatio);
     pixmap.setDevicePixelRatio(devicePixelRatio);
     pixmap.fill(Qt::transparent);
-    QSvgRenderer renderer(QString(":/aion-logo.svg"));
+    QSvgRenderer renderer(QString(":/liora-logo.svg"));
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
     renderer.render(&painter, QRectF(0, 0, size, size));

@@ -5,7 +5,7 @@
 #include <QString>
 #include <QVector>
 
-// The migrations built into Aion (db/migrations as Qt resources)
+// The migrations built into Liora (db/migrations as Qt resources)
 inline const QString BuiltInMigrations = QStringLiteral(":/migrations");
 
 class MigrationManager {
@@ -15,11 +15,11 @@ public:
 
     bool applyMigrations();
     bool needsUpdate();                              // A database in use that has migrations to apply (not a new one)
-    bool isNewerThanApp();                           // Has migrations this version of Aion doesn't know
+    bool isNewerThanApp();                           // Has migrations this version of Liora doesn't know
     int newestKnownVersion() const;
     QString lastError() const { return m_lastError; } // Why applyMigrations() failed
 
-    // The first table or view Aion needs that this database doesn't have; empty if it has them all.
+    // The first table or view Liora needs that this database doesn't have; empty if it has them all.
     // If a migration removes one, take it off the list only if older databases can still be migrated.
     static QString missingRequiredObject(const QSqlDatabase& database);
 

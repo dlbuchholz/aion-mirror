@@ -2,12 +2,12 @@
 # list in Settings) and by scripts/translation-status.cmake (the badges in the README), so both
 # count the same way.
 #
-#   aion_translation_progress(<ts file> <translated var> <total var>)
+#   liora_translation_progress(<ts file> <translated var> <total var>)
 #
 # Every text the code has counts towards the total; texts no longer in the code (vanished or
 # obsolete) don't. A text counts as translated when its translation isn't empty and isn't marked
 # unfinished; one with plural forms ("%n files") counts once, like any other.
-function(aion_translation_progress ts_file translated_var total_var)
+function(liora_translation_progress ts_file translated_var total_var)
     file(READ "${ts_file}" content)
     string(REGEX MATCHALL "<translation[ >]" all "${content}")
     string(REGEX MATCHALL "<translation type=\"(vanished|obsolete)\"" gone "${content}")
@@ -22,8 +22,8 @@ function(aion_translation_progress ts_file translated_var total_var)
 endfunction()
 
 # The share in whole percent, rounded down so that only a complete translation shows 100
-#   aion_translation_percent(<translated> <total> <percent var>)
-function(aion_translation_percent translated total percent_var)
+#   liora_translation_percent(<translated> <total> <percent var>)
+function(liora_translation_percent translated total percent_var)
     if(total GREATER 0)
         math(EXPR percent "${translated} * 100 / ${total}")
     else()

@@ -65,7 +65,7 @@ bool saveAutomatic(const QString& kind, QString* reason, int keep = KeptAutomati
         return false;
     }
 
-    // Only Aion's own backups of this kind: other files may just start with the same words. The
+    // Only Liora's own backups of this kind: other files may just start with the same words. The
     // dates in the names sort newest first.
     const QRegularExpression ownName(QString("^%1\\d{4}-\\d{2}-\\d{2}-\\d{6}\\.db$").arg(QRegularExpression::escape(prefix)));
     const QStringList kept = folder.entryList({"*.db"}, QDir::Files, QDir::Name | QDir::Reversed).filter(ownName);

@@ -178,7 +178,7 @@ private slots:
     }
 
     void describesInGermanToo() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         using Field = RuleCondition::Field;

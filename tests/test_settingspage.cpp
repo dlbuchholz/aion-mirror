@@ -240,10 +240,10 @@ private slots:
     }
 
     void languageIsChosenHereAndTakesEffectOnRestart() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
-        // Aion runs in English here, whatever the computer's language
+        // Liora runs in English here, whatever the computer's language
         QCOMPARE(Language::current(), QString("en"));
         Settings::instance().setLanguage("en");
         SettingsPage page;
@@ -274,12 +274,12 @@ private slots:
         child<QToolButton>(page, "restartButton")->click();
         QCOMPARE(restart.count(), 1);
 
-        // Back to the language Aion runs in: nothing to restart for
+        // Back to the language Liora runs in: nothing to restart for
         select(language, "en");
         child<QPushButton>(page, "applyButton")->click();
         QVERIFY(child<QWidget>(page, "restartNote")->isHidden());
 
-        // A stored language Aion doesn't have shows as following the system
+        // A stored language Liora doesn't have shows as following the system
         Settings::instance().setLanguage("xx");
         SettingsPage unknown;
         auto* unknownLanguage = child<QComboBox>(unknown, "languageCombo");

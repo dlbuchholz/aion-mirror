@@ -11,11 +11,11 @@
 namespace {
 
 QString installed = "en";
-std::unique_ptr<QTranslator> aionTranslator;
+std::unique_ptr<QTranslator> lioraTranslator;
 std::unique_ptr<QTranslator> qtTranslator;
 
 void removeTranslators() {
-    for (std::unique_ptr<QTranslator>* translator : {&aionTranslator, &qtTranslator}) {
+    for (std::unique_ptr<QTranslator>* translator : {&lioraTranslator, &qtTranslator}) {
         if (*translator) {
             QCoreApplication::removeTranslator(translator->get());
             translator->reset();
@@ -36,7 +36,7 @@ QList<Option> available() {
 }
 
 bool isBuiltIn(const QString& code) {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
     if (code != "en") return false;                  // Built without Qt's LinguistTools: English only
 #endif
     for (const Language::Option& option : Language::available()) {
@@ -66,13 +66,13 @@ bool install(const QString& code) {
         return true;
     }
 
-    auto aion = std::make_unique<QTranslator>();
-    if (!isAvailable(code) || !aion->load(":/i18n/aion_" + code)) {
+    auto liora = std::make_unique<QTranslator>();
+    if (!isAvailable(code) || !liora->load(":/i18n/liora_" + code)) {
         qWarning() << "No translations for the language" << code << "- showing English";
         return false;
     }
-    QCoreApplication::installTranslator(aion.get());
-    aionTranslator = std::move(aion);
+    QCoreApplication::installTranslator(liora.get());
+    lioraTranslator = std::move(liora);
 
     // Qt's own texts (standard buttons, context menus): built in when the build had them, else
     // next to Qt
@@ -90,7 +90,7 @@ QString current() {
 }
 
 int percentTranslated(const QString& code) {
-    QList<Progress> built;                           // As counted when Aion was built
+    QList<Progress> built;                           // As counted when Liora was built
     for (const TranslationProgress& progress : TranslationProgresses) {
         if (progress.code[0] != '\0') built.append({QString::fromLatin1(progress.code), progress.translated, progress.total});
     }

@@ -50,7 +50,7 @@ struct Contents {
     int transactions = 0;
 };
 
-// What a file holds, if it's a healthy Aion database this version can open. Doesn't change the file.
+// What a file holds, if it's a healthy Liora database this version can open. Doesn't change the file.
 std::optional<Contents> inspect(const QString& path, QString* errorMessage = nullptr);
 
 } // namespace Backup

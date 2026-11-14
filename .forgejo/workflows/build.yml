@@ -1,4 +1,4 @@
-# Builds Aion and runs the tests on every push to develop and every pull request. Pushes build on
+# Builds Liora and runs the tests on every push to develop and every pull request. Pushes build on
 # Fedora and Windows only, unless they change the build (see the Plan job).
 # Packages and publishes it (the "staging" pre-release) nightly when develop changed, and when
 # started by hand ("Run workflow" on the Actions page), which can also prepare the version's draft.
@@ -132,7 +132,7 @@ jobs:
           restore-keys: ccache-linux-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAION_USE_SYSTEM_QT=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIORA_USE_SYSTEM_QT=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 
       # ccache's statistics show how much came from the cache
       - name: Build
@@ -172,12 +172,12 @@ jobs:
             fi
           done
           dnf -y -q install --nogpgcheck "$rpm_file"
-          output=$(cd /tmp && QT_PLUGIN_PATH= Aion --version)
+          output=$(cd /tmp && QT_PLUGIN_PATH= Liora --version)
           echo "$output"
           grep -q '^Liora ' <<< "$output"
-          dnf -y -q remove aion
-          if command -v Aion > /dev/null; then
-            echo "Removing the RPM left Aion behind" >&2
+          dnf -y -q remove liora
+          if command -v Liora > /dev/null; then
+            echo "Removing the RPM left Liora behind" >&2
             exit 1
           fi
 
@@ -191,10 +191,10 @@ jobs:
           path: dist/${{ steps.package.outputs.name }}.rpm
 
   # The tests once more, built with AddressSanitizer and UndefinedBehaviorSanitizer
-  # (AION_SANITIZERS): memory errors and undefined behaviour that a normal run passes by luck stop
+  # (LIORA_SANITIZERS): memory errors and undefined behaviour that a normal run passes by luck stop
   # the test with a report. A Debug build of its own, so only in publishing runs (nightly and by
   # hand). It doesn't hold up the release. Leaks aren't checked yet: Qt and fontconfig keep memory
-  # until the program ends, which would bury Aion's own reports.
+  # until the program ends, which would bury Liora's own reports.
   sanitizers:
     name: Linux (sanitizers)
     needs: plan
@@ -216,7 +216,7 @@ jobs:
           restore-keys: ccache-sanitizers-
 
       - name: Configure
-        run: cmake -S . -B build-sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_USE_SYSTEM_QT=ON -DAION_SANITIZERS=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+        run: cmake -S . -B build-sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLIORA_USE_SYSTEM_QT=ON -DLIORA_SANITIZERS=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 
       - name: Build
         run: |
@@ -256,7 +256,7 @@ jobs:
           restore-keys: ccache-debian-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAION_USE_SYSTEM_QT=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIORA_USE_SYSTEM_QT=ON $(command -v ccache > /dev/null && echo -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 
       - name: Build
         run: |
@@ -294,12 +294,12 @@ jobs:
             fi
           done
           apt-get install -y -q --no-install-recommends "./$deb_file"
-          output=$(cd /tmp && QT_PLUGIN_PATH= Aion --version)
+          output=$(cd /tmp && QT_PLUGIN_PATH= Liora --version)
           echo "$output"
           grep -q '^Liora ' <<< "$output"
-          apt-get remove -y -q aion
-          if command -v Aion > /dev/null; then
-            echo "Removing the DEB left Aion behind" >&2
+          apt-get remove -y -q liora
+          if command -v Liora > /dev/null; then
+            echo "Removing the DEB left Liora behind" >&2
             exit 1
           fi
 
@@ -453,16 +453,16 @@ jobs:
           zip=$(bash scripts/package-windows.sh build-windows dist)
           echo "name=$(basename "$zip" .zip)" >> "$GITHUB_OUTPUT"
 
-      # Start the packaged Aion with nothing but the package's own files: no MinGW folder on the
+      # Start the packaged Liora with nothing but the package's own files: no MinGW folder on the
       # DLL path, no plugin path. A missing DLL or platform plugin fails here.
       - name: Check the package starts
         if: needs.plan.outputs.publish == 'true'
         run: |
-          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Aion.exe" --version)
+          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Liora.exe" --version)
           echo "$output"
           grep -q '^Liora ' <<< "$output"
 
-      # The installer (installer/aion.nsi), from the packaged folder. NSIS comes from Fedora; it's
+      # The installer (installer/liora.nsi), from the packaged folder. NSIS comes from Fedora; it's
       # installed here unless the build image has it already.
       - name: Build the installer
         if: needs.plan.outputs.publish == 'true'
@@ -471,18 +471,18 @@ jobs:
           name=${{ steps.package.outputs.name }}
           version=$(sed -n 's/^project([A-Za-z]* VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           makensis -V2 -DVERSION="$version" -DSOURCE="$PWD/dist/$name" \
-                   -DICON="$PWD/build-windows/generated/aion.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
-                   installer/aion.nsi
+                   -DICON="$PWD/build-windows/generated/liora.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
+                   installer/liora.nsi
 
-      # Install silently, start the installed Aion with only its own files, uninstall, and check
+      # Install silently, start the installed Liora with only its own files, uninstall, and check
       # that the folder is gone. wineserver -w waits for the uninstaller, which runs from a copy.
       - name: Check the installer
         if: needs.plan.outputs.publish == 'true'
         run: |
-          folder="$WINEPREFIX/drive_c/AionTest/Aion"
-          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\AionTest\Aion'
+          folder="$WINEPREFIX/drive_c/LioraTest/Liora"
+          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\LioraTest\Liora'
           wineserver -w
-          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Aion.exe" --version)
+          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Liora.exe" --version)
           echo "$output"
           grep -q '^Liora ' <<< "$output"
           xvfb-run -a wine "$folder/Uninstall.exe" /S
@@ -550,7 +550,7 @@ jobs:
           ccache -s 2>/dev/null || true
 
       # As in the windows job. The image points Wine and Qt at the Windows 7 Qt. Wine passes for
-      # Windows 10, so this tests Aion with Qt 6.8, not on Windows 7.
+      # Windows 10, so this tests Liora with Qt 6.8, not on Windows 7.
       - name: Test
         run: |
           xvfb-run -a -s "-screen 0 1920x1080x24" bash -c '
@@ -582,7 +582,7 @@ jobs:
 
       - name: Check the package starts
         run: |
-          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Aion.exe" --version)
+          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "dist/${{ steps.package.outputs.name }}/Liora.exe" --version)
           echo "$output"
           grep -q '^Liora ' <<< "$output"
 
@@ -591,15 +591,15 @@ jobs:
           name=${{ steps.package.outputs.name }}
           version=$(sed -n 's/^project([A-Za-z]* VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           makensis -V2 -DVERSION="$version" -DSOURCE="$PWD/dist/$name" \
-                   -DICON="$PWD/build-win7/generated/aion.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
-                   installer/aion-win7.nsi
+                   -DICON="$PWD/build-win7/generated/liora.ico" -DOUTFILE="$PWD/dist/$name-setup.exe" \
+                   installer/liora-win7.nsi
 
       - name: Check the installer
         run: |
-          folder="$WINEPREFIX/drive_c/AionTest/Aion-Win7"
-          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\AionTest\Aion-Win7'
+          folder="$WINEPREFIX/drive_c/LioraTest/Liora-Win7"
+          xvfb-run -a wine "dist/${{ steps.package.outputs.name }}-setup.exe" /S '/D=C:\LioraTest\Liora-Win7'
           wineserver -w
-          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Aion.exe" --version)
+          output=$(WINEPATH= QT_PLUGIN_PATH= xvfb-run -a wine "$folder/Liora.exe" --version)
           echo "$output"
           grep -q '^Liora ' <<< "$output"
           xvfb-run -a wine "$folder/Uninstall.exe" /S

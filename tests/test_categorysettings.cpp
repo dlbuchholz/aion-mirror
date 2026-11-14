@@ -57,7 +57,7 @@ private slots:
     }
 
     void everyColourHasAGermanName() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QVERIFY(Language::install("de"));

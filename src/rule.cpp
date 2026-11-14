@@ -529,7 +529,7 @@ QList<Rule> RuleDAO::rules() {
         qWarning() << "RuleDAO::rules:" << query.lastError().text();
         return result;
     }
-    // A condition Aion can't read (a damaged or hand-edited database) leaves its rule without any:
+    // A condition Liora can't read (a damaged or hand-edited database) leaves its rule without any:
     // dropping only that one would make a rule that needs all of them match more than it should.
     // Without conditions it matches nothing and shows so in the settings, until it's fixed there.
     QSet<int> unreadable;

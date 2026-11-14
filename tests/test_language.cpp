@@ -19,15 +19,15 @@ private slots:
     }
 
     void aChosenLanguageWins() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QCOMPARE(Language::resolve("de", QLocale(QLocale::English, QLocale::UnitedKingdom)), QString("de"));
         QCOMPARE(Language::resolve("en", QLocale(QLocale::German, QLocale::Germany)), QString("en"));
     }
 
-    void systemFollowsTheComputerWhenAionHasItsLanguage() {
-#ifndef AION_HAS_TRANSLATIONS
+    void systemFollowsTheComputerWhenLioraHasItsLanguage() {
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QCOMPARE(Language::resolve(Language::System, QLocale(QLocale::German, QLocale::Germany)), QString("de"));
@@ -37,7 +37,7 @@ private slots:
     }
 
     void anUnknownSettingFollowsTheSystem() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QCOMPARE(Language::resolve("xx", QLocale(QLocale::German, QLocale::Germany)), QString("de"));
@@ -47,7 +47,7 @@ private slots:
     void onlyEnglishWithoutTheTranslations() {
         QVERIFY(Language::isBuiltIn("en"));
         QVERIFY(!Language::isBuiltIn("xx"));
-#ifdef AION_HAS_TRANSLATIONS
+#ifdef APP_HAS_TRANSLATIONS
         QVERIFY(Language::isBuiltIn("de"));
 #else
         // Built without Qt's LinguistTools: German isn't followed, so nothing waits for a restart
@@ -58,16 +58,16 @@ private slots:
     }
 
     void restartsTheAppImageWhenRunningFromInsideOne() {
-        const QString program = "/tmp/.mount_AionAb12/usr/bin/Aion";
-        QCOMPARE(Language::restartProgram(program, "/home/alex/Aion.AppImage", "/tmp/.mount_AionAb12"),
-                 QString("/home/alex/Aion.AppImage"));
+        const QString program = "/tmp/.mount_LioraAb12/usr/bin/Liora";
+        QCOMPARE(Language::restartProgram(program, "/home/alex/Liora.AppImage", "/tmp/.mount_LioraAb12"),
+                 QString("/home/alex/Liora.AppImage"));
         // Not in an AppImage
-        QCOMPARE(Language::restartProgram("/usr/bin/Aion", "", ""), QString("/usr/bin/Aion"));
+        QCOMPARE(Language::restartProgram("/usr/bin/Liora", "", ""), QString("/usr/bin/Liora"));
         // Started from another program's AppImage, which hands its variables on
-        QCOMPARE(Language::restartProgram("/usr/bin/Aion", "/home/alex/Terminal.AppImage", "/tmp/.mount_TermXy"),
-                 QString("/usr/bin/Aion"));
-        QCOMPARE(Language::restartProgram("/tmp/.mount_AionAb12x/Aion", "/home/alex/Other.AppImage", "/tmp/.mount_AionAb12"),
-                 QString("/tmp/.mount_AionAb12x/Aion"));
+        QCOMPARE(Language::restartProgram("/usr/bin/Liora", "/home/alex/Terminal.AppImage", "/tmp/.mount_TermXy"),
+                 QString("/usr/bin/Liora"));
+        QCOMPARE(Language::restartProgram("/tmp/.mount_LioraAb12x/Liora", "/home/alex/Other.AppImage", "/tmp/.mount_LioraAb12"),
+                 QString("/tmp/.mount_LioraAb12x/Liora"));
     }
 
     void startsInEnglish() {
@@ -76,7 +76,7 @@ private slots:
     }
 
     void germanAndBackToEnglish() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QVERIFY(Language::install("de"));
@@ -104,7 +104,7 @@ private slots:
     void translationsKeepPlaceholdersAndTags() {
         for (const Language::Option& language : Language::available()) {
             if (language.code == "en") continue;
-            QFile file(QString(AION_TRANSLATIONS_DIR) + "/aion_" + language.code + ".ts");
+            QFile file(QString(APP_TRANSLATIONS_DIR) + "/liora_" + language.code + ".ts");
             QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.fileName()));
             QXmlStreamReader xml(&file);
             QString context;
@@ -158,7 +158,7 @@ private slots:
     void theBuildCountsTranslationsAsTheyAre() {
         for (const Language::Option& language : Language::available()) {
             if (language.code == "en") continue;
-            QFile file(QString(AION_TRANSLATIONS_DIR) + "/aion_" + language.code + ".ts");
+            QFile file(QString(APP_TRANSLATIONS_DIR) + "/liora_" + language.code + ".ts");
             QVERIFY(file.open(QIODevice::ReadOnly));
             QXmlStreamReader xml(&file);
             int translated = 0;
@@ -186,7 +186,7 @@ private slots:
     }
 
     void germanIsReallyGerman() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QVERIFY(Language::install("de"));

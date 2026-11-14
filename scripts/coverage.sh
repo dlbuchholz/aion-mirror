@@ -3,8 +3,8 @@
 #
 #   scripts/coverage.sh <build-dir> [--publish]
 #
-# The build folder must be configured with -DAION_COVERAGE=ON (GCC or Clang) and built, e.g.:
-#   cmake -S . -B build-coverage -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_COVERAGE=ON
+# The build folder must be configured with -DLIORA_COVERAGE=ON (GCC or Clang) and built, e.g.:
+#   cmake -S . -B build-coverage -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLIORA_COVERAGE=ON
 #   cmake --build build-coverage
 #
 # Runs every test registered with CTest on its own, so the report can say which suites run
@@ -26,8 +26,8 @@ output="$build_dir/coverage"
 jobs=$(nproc 2>/dev/null || echo 2)                  # gcovr reads the object files in parallel
 
 command -v gcovr > /dev/null || { echo "gcovr not found (dnf install gcovr, or pip install gcovr)" >&2; exit 1; }
-grep -q '^AION_COVERAGE:BOOL=ON' "$build_dir/CMakeCache.txt" 2>/dev/null \
-    || { echo "$build_dir isn't configured with -DAION_COVERAGE=ON" >&2; exit 1; }
+grep -q '^LIORA_COVERAGE:BOOL=ON' "$build_dir/CMakeCache.txt" 2>/dev/null \
+    || { echo "$build_dir isn't configured with -DLIORA_COVERAGE=ON" >&2; exit 1; }
 
 # Only the tests CTest knows about (old test programs may still lie around)
 mapfile -t tests < <(ctest --test-dir "$build_dir" -N | sed -n 's/^ *Test *#[0-9]*: *//p')

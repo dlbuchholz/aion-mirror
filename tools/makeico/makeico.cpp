@@ -2,7 +2,7 @@
 //
 // Renders the logo at the sizes Windows uses (Explorer, taskbar, Alt+Tab) and writes them into
 // one .ico file. Each size is stored as a PNG, which Windows reads since Vista. The build runs
-// this whenever the logo changes, so the .exe icon always matches assets/aion-logo.svg.
+// this whenever the logo changes, so the .exe icon always matches assets/liora-logo.svg.
 #include <QBuffer>
 #include <QFile>
 #include <QImage>

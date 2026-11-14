@@ -1,19 +1,19 @@
 <#
 .SYNOPSIS
-  Build, test and run Aion with MSVC on Windows (Visual Studio generator, build-vs folder).
+  Build, test and run Liora with MSVC on Windows (Visual Studio generator, build-vs folder).
 
 .DESCRIPTION
   Configures the build folder the first time, then builds with all cores and runs the tests in
   parallel. Needs Visual Studio 2022 or its Build Tools, CMake, and Qt's msvc2022_64 kit.
 
-  The Qt kit is, in this order: -QtDir, the AION_QT_DIR environment variable, the kit the build
+  The Qt kit is, in this order: -QtDir, the LIORA_QT_DIR environment variable, the kit the build
   folder was configured with, or the newest msvc*_64 kit under C:\Qt or D:\Qt.
 
 .EXAMPLE
   .\scripts\build.ps1                      # build
-  .\scripts\build.ps1 run                  # build, then start Aion
+  .\scripts\build.ps1 run                  # build, then start Liora
   .\scripts\build.ps1 test                 # build, then run the tests
-  .\scripts\build.ps1 test run             # build, test, start Aion only if the tests pass
+  .\scripts\build.ps1 test run             # build, test, start Liora only if the tests pass
   .\scripts\build.ps1 all                  # same as "test run"
   .\scripts\build.ps1 clean build          # wipe build-vs, configure and build from scratch
   .\scripts\build.ps1 configure            # re-run CMake (new source files, git hash for the About page)
@@ -29,7 +29,7 @@ param(
     [string] $Config = 'Debug',
 
     # Qt kit, for example C:\Qt\6.12.0\msvc2022_64
-    [string] $QtDir = $env:AION_QT_DIR,
+    [string] $QtDir = $env:LIORA_QT_DIR,
 
     # How many files to compile and tests to run at once
     [int] $Jobs = [Environment]::ProcessorCount
@@ -71,11 +71,11 @@ function Find-QtDir {
 $total = [Diagnostics.Stopwatch]::StartNew()
 
 if (-not $QtDir) { $QtDir = Find-QtDir }
-if (-not $QtDir) { throw "No Qt MSVC kit found under C:\Qt or D:\Qt - pass -QtDir or set AION_QT_DIR" }
+if (-not $QtDir) { throw "No Qt MSVC kit found under C:\Qt or D:\Qt - pass -QtDir or set LIORA_QT_DIR" }
 
 # Qt's DLLs for the tests and the app. Prepended, so no other Qt or Cygwin DLL wins.
 $qtBin = Join-Path $QtDir 'bin'
-if (-not (Test-Path $qtBin)) { throw "Qt not found at $qtBin - pass -QtDir or set AION_QT_DIR" }
+if (-not (Test-Path $qtBin)) { throw "Qt not found at $qtBin - pass -QtDir or set LIORA_QT_DIR" }
 if (($env:Path -split ';') -notcontains $qtBin) { $env:Path = "$qtBin;$env:Path" }
 
 if ($Actions -contains 'all') { $Actions += 'test', 'run' }
@@ -113,7 +113,7 @@ try {
     Write-Host "==> Done in $(Format-Duration $total.Elapsed)" -ForegroundColor Green
 
     if ($Actions -contains 'run') {
-        $exe = Join-Path $BuildDir "$Config\Aion.exe"
+        $exe = Join-Path $BuildDir "$Config\Liora.exe"
         Write-Host "==> Starting $exe" -ForegroundColor Cyan
         & $exe
     }

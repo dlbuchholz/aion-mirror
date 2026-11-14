@@ -227,7 +227,7 @@ private slots:
     }
 
     void theListNamesTheKindsInTheLanguage() {
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         addOldBackup(3);
@@ -241,12 +241,12 @@ private slots:
         QCOMPARE(scheduledBackups().size(), 1);         // Still found by its English kind
     }
 
-    // --- Hostile input: files and clocks that aren't what Aion expects ---
+    // --- Hostile input: files and clocks that aren't what Liora expects ---
 
     void cleaningUpLeavesYourOwnFilesAlone() {
         const QDir backups(Backup::folderFor(path));
         QVERIFY(QDir().mkpath(backups.path()));
-        // Not something Aion made: a copy somebody named to keep, and another database's backup
+        // Not something Liora made: a copy somebody named to keep, and another database's backup
         const QStringList others = {"budget-before-update-2019 keep this.db",
                                     "budget-before-update-scheduled-2019-01-01-000000.db"};
         for (const QString& name : others) {
@@ -262,7 +262,7 @@ private slots:
         for (const QString& name : others) {
             QVERIFY2(backups.exists(name), qPrintable(name + " was removed"));
         }
-        QCOMPARE(Backup::automaticBackups(path).size(), 5);  // And Aion's own are still cleaned up
+        QCOMPARE(Backup::automaticBackups(path).size(), 5);  // And Liora's own are still cleaned up
         QVERIFY(!backups.exists("budget-before-update-2020-01-01-000000.db"));
     }
 

@@ -138,10 +138,10 @@ private slots:
 
     // The README's screenshots: demo data, the best pages in both themes, and a collage. Skipped
     // unless asked for; to take them again, run on the real window system (no QT_QPA_PLATFORM) with
-    //   AION_SCREENSHOTS=docs/screenshots  test_rendering readmeScreenshots
+    //   LIORA_SCREENSHOTS=docs/screenshots  test_rendering readmeScreenshots
     void readmeScreenshots() {
-        if (qEnvironmentVariableIsEmpty("AION_SCREENSHOTS")) QSKIP("Screenshots only");
-        const QString out = qEnvironmentVariable("AION_SCREENSHOTS");
+        if (qEnvironmentVariableIsEmpty("LIORA_SCREENSHOTS")) QSKIP("Screenshots only");
+        const QString out = qEnvironmentVariable("LIORA_SCREENSHOTS");
         const int user = 3;
         QVERIFY(UserDAO().createUser(User(user, "kevin", "Kevin Gilbert")));
         Settings::instance().setExpensesInRed(true);      // Restored with the other settings afterwards

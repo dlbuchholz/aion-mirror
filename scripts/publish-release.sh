@@ -10,7 +10,7 @@
 #   PREPARE_DRAFT                                      "true" to do step 2 as well
 #
 # 1. The rolling pre-release "staging" is replaced: always the newest build, at the same address.
-# 2. The version in CMakeLists.txt gets a draft release "Aion <version>" with its tag. Until you
+# 2. The version in CMakeLists.txt gets a draft release "Liora <version>" with its tag. Until you
 #    publish it on Codeberg, every run that prepares it moves the tag to the new commit and
 #    replaces the files, keeping the notes written in the draft. Once published, it's left alone.
 #
@@ -98,5 +98,5 @@ if [[ -n $release ]]; then
     notes=$(json 'json.body' <<< "$release")
     call DELETE "/releases/$(json 'json.id' <<< "$release")" > /dev/null
 fi
-create_release "$tag" "Aion $version" "$notes" true false
+create_release "$tag" "Liora $version" "$notes" true false
 echo "The draft for $tag is now at $short_sha; publish it on Codeberg when it's ready"

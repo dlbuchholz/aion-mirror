@@ -6,12 +6,12 @@
 #include <QLocale>
 #include <QString>
 
-// Dates, month names, counts and file sizes in the language of Aion's texts (Language::current()),
+// Dates, month names, counts and file sizes in the language of Liora's texts (Language::current()),
 // so "7 November 2026" becomes "7. November 2026" in German. Money follows the currency settings
 // instead, and dates typed or read from files the system's regional format.
 namespace AppLocale {
 
-// The ways Aion writes a date, each with its own pattern in each language
+// The ways Liora writes a date, each with its own pattern in each language
 enum class DateFormat {
     DayMonthYear,           // 7 November 2026
     DayMonth,               // 7 November

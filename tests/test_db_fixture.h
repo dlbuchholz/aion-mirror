@@ -92,10 +92,10 @@ public:
         return query.exec("PRAGMA foreign_keys = OFF") && query.exec("DROP TABLE " + table);
     }
 
-    // The newest migration this build of Aion has
+    // The newest migration this build of Liora has
     static int newestVersion() { return MigrationManager(BuiltInMigrations).newestKnownVersion(); }
 
-    // Creates the database at path and leaves it open instead of the one open before, as Aion left
+    // Creates the database at path and leaves it open instead of the one open before, as Liora left
     // it after migration `version`: only the built-in migrations up to that one ran. Tests of updates start from it, so they don't depend on what each migration changes.
     // Older versions may not pass today's checks (MigrationManager::applyMigrations), so this only
     // makes sure every migration was applied.

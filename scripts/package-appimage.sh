@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Packs a Linux build of Aion into an AppImage: one file that runs on most distributions.
+# Packs a Linux build of Liora into an AppImage: one file that runs on most distributions.
 #
 #   scripts/package-appimage.sh <build-dir> <output-dir>
 #
-# Runs in the Ubuntu 22.04 build image (ci/images/ubuntu22.04.Dockerfile). linuxdeploy copies Aion,
+# Runs in the Ubuntu 22.04 build image (ci/images/ubuntu22.04.Dockerfile). linuxdeploy copies Liora,
 # its Qt libraries and plugins (through its Qt plugin) and the other libraries it needs into an
 # AppDir; then the licenses are added and the AppDir is packed. Prints the AppImage's path.
 set -euo pipefail
@@ -15,40 +15,40 @@ qt_dir=${CMAKE_PREFIX_PATH:?CMAKE_PREFIX_PATH must point at Qt}
 
 version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "$build_dir/CMakeCache.txt")
 commit=$(git -C "$source_dir" rev-parse --short HEAD)
-name="aion-$version-$commit-linux-x86_64"
+name="liora-$version-$commit-linux-x86_64"
 appdir="$build_dir/AppDir"
 rm -rf "$appdir"
 mkdir -p "$output_dir"
 
 # The icon's file name has to match Icon= in the desktop file
-cp "$source_dir/assets/aion-logo.svg" "$build_dir/aion.svg"
+cp "$source_dir/assets/liora-logo.svg" "$build_dir/liora.svg"
 
-# 1. Fill the AppDir. The offscreen platform plugin comes along, so Aion also starts without a
+# 1. Fill the AppDir. The offscreen platform plugin comes along, so Liora also starts without a
 #    screen (CI checks the AppImage that way).
 EXTRA_PLATFORM_PLUGINS=libqoffscreen.so linuxdeploy-x86_64.AppImage \
     --appdir "$appdir" \
-    --executable "$build_dir/Aion" \
-    --desktop-file "$source_dir/packaging/linux/aion.desktop" \
-    --icon-file "$build_dir/aion.svg" \
+    --executable "$build_dir/Liora" \
+    --desktop-file "$source_dir/packaging/linux/liora.desktop" \
+    --icon-file "$build_dir/liora.svg" \
     --plugin qt >&2                                  # Its log on stderr; stdout is just the path
 
-# 2. Licenses: Aion's own, what's built into Aion, and where each bundled library comes from
-doc="$appdir/usr/share/doc/aion"
+# 2. Licenses: Liora's own, what's built into Liora, and where each bundled library comes from
+doc="$appdir/usr/share/doc/liora"
 mkdir -p "$doc"
 cp "$source_dir/LICENSE" "$doc/LICENSE"
 cp "$source_dir/LICENSE-LGPL" "$doc/LICENSE-LGPL"
 cp "$source_dir/assets/icons/LICENSE" "$doc/LICENSE-icons"
 cp "$source_dir/thirdparty/miniz/LICENSE" "$doc/LICENSE-miniz"
 {
-    echo "Aion's source code: https://codeberg.org/spectre_0/aion"
+    echo "Liora's source code: https://codeberg.org/spectre_0/aion"
     echo
-    echo "Aion contains interface icons based on Tabler Icons (https://tabler.io/icons),"
+    echo "Liora contains interface icons based on Tabler Icons (https://tabler.io/icons),"
     echo "under the MIT license in LICENSE-icons."
     echo
-    echo "Aion contains miniz (https://github.com/richgel999/miniz), under the MIT license"
+    echo "Liora contains miniz (https://github.com/richgel999/miniz), under the MIT license"
     echo "in LICENSE-miniz."
     echo
-    echo "Aion bundles these libraries. Qt's are the official build, used under the LGPL version 3"
+    echo "Liora bundles these libraries. Qt's are the official build, used under the LGPL version 3"
     echo "(LICENSE-LGPL, which adds to the GPL in LICENSE; source: https://download.qt.io)."
     echo "The others come from the Ubuntu 22.04 package named next"
     echo "to them; source and license: https://packages.ubuntu.com/jammy/<package>."

@@ -12,10 +12,10 @@ foreach(test_source IN LISTS TEST_SOURCES)
     )
     target_include_directories(${test_name} PRIVATE ../src)
     # Where the translation sources are, to check that every text has its translation
-    target_compile_definitions(${test_name} PRIVATE AION_TRANSLATIONS_DIR="${PROJECT_SOURCE_DIR}/translations")
+    target_compile_definitions(${test_name} PRIVATE APP_TRANSLATIONS_DIR="${PROJECT_SOURCE_DIR}/translations")
     target_link_libraries(${test_name}
         PRIVATE
-            AionLib
+            LioraLib
             miniz                                    # test_spreadsheet_files.h writes sample spreadsheets
             Qt6::Core
             Qt6::Widgets

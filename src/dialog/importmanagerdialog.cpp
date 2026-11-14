@@ -1221,7 +1221,7 @@ void ImportManagerDialog::updateBalanceStatus()
     }
 
     // Import what can be imported; a correction alone is fine too. With nothing to do (everything
-    // is already in Aion) the wizard can still be finished.
+    // is already in Liora) the wizard can still be finished.
     const bool blockedByProblems = dryRun.failed > 0 && !allowPartialCheck->isChecked();
     const bool rowsToImport = dryRun.imported > 0 && !blockedByProblems;
     closeOnly = !rowsToImport && !correction && !blockedByProblems;

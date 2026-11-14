@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Packs a MinGW cross-build of Aion into a zip that runs on any Windows PC.
+# Packs a MinGW cross-build of Liora into a zip that runs on any Windows PC.
 #
 #   scripts/package-windows.sh <build-dir> <output-dir>
 #
 # Runs in the Fedora build image (see .forgejo/workflows/build.yml), which has no windeployqt.
-# Copies Aion.exe and every DLL it needs from the MinGW folder by following the DLL imports: Qt,
+# Copies Liora.exe and every DLL it needs from the MinGW folder by following the DLL imports: Qt,
 # the MinGW runtime and Fedora's libraries (zlib, freetype, ...). Each Qt module brings its
 # plugins along (see the table below), like windeployqt does. Writes a list of the bundled DLLs
 # with their Fedora package and license, and prints the zip's path at the end.
@@ -44,11 +44,11 @@ declare -A module_plugins=(
 
 version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "$build_dir/CMakeCache.txt")
 commit=$(git -C "$source_dir" rev-parse --short HEAD)
-name="aion-$version-$commit-${PACKAGE_SUFFIX:-windows-x64}"
+name="liora-$version-$commit-${PACKAGE_SUFFIX:-windows-x64}"
 stage="$output_dir/$name"
 rm -rf "$stage"
 mkdir -p "$stage"
-cp "$build_dir/Aion.exe" "$stage/"
+cp "$build_dir/Liora.exe" "$stage/"
 
 # Where a DLL the package needs comes from: Qt's folder first, then the MinGW folder (the same
 # folder unless QT_ROOT is set). Prints nothing for a DLL in neither.
@@ -61,11 +61,11 @@ find_dll() {
 # A copied Qt module adds its plugins, whose imports are followed too.
 declare -A seen=()
 system_dlls=()
-queue=("$stage/Aion.exe")
+queue=("$stage/Liora.exe")
 add_plugins() {
     local module=$1 pattern plugin patterns
     if [[ ! -v module_plugins[$module] ]]; then
-        echo "Aion uses $module, which isn't in the plugin table of $0. Add it there." >&2
+        echo "Liora uses $module, which isn't in the plugin table of $0. Add it there." >&2
         exit 1
     fi
     read -ra patterns <<< "${module_plugins[$module]}"   # Split without expanding the globs here
@@ -100,7 +100,7 @@ while ((${#queue[@]})); do
     done < <("$objdump" -p "$file" | sed -n 's/^\s*DLL Name: //p')
 done
 
-# Anything not from Windows that wasn't found would make Aion fail to start on another PC
+# Anything not from Windows that wasn't found would make Liora fail to start on another PC
 missing=()
 for dll in "${system_dlls[@]}"; do
     case ${dll,,} in
@@ -124,7 +124,7 @@ fi
 # with them (libstdc++ is 28 MB with, 2 MB without).
 find "$stage" -type f \( -iname '*.exe' -o -iname '*.dll' \) -exec "$strip" --strip-unneeded {} +
 
-# Licenses: Aion's own, what's built into Aion.exe, and where each bundled library comes from
+# Licenses: Liora's own, what's built into Liora.exe, and where each bundled library comes from
 cp "$source_dir/LICENSE" "$stage/LICENSE.txt"
 cp "$source_dir/LICENSE-LGPL" "$stage/LICENSE-LGPL.txt"
 cp "$source_dir/assets/icons/LICENSE" "$stage/LICENSE-icons.txt"
@@ -139,15 +139,15 @@ if [[ $qt_root != "$mingw_root" ]]; then
     cp "$qt_root/SOURCE.txt" "$stage/QT-SOURCE.txt"
 fi
 {
-    echo "Aion's source code: https://codeberg.org/spectre_0/aion"
+    echo "Liora's source code: https://codeberg.org/spectre_0/aion"
     echo
-    echo "Aion.exe contains interface icons based on Tabler Icons (https://tabler.io/icons),"
+    echo "Liora.exe contains interface icons based on Tabler Icons (https://tabler.io/icons),"
     echo "under the MIT license in LICENSE-icons.txt."
     echo
-    echo "Aion.exe contains miniz (https://github.com/richgel999/miniz), under the MIT license"
+    echo "Liora.exe contains miniz (https://github.com/richgel999/miniz), under the MIT license"
     echo "in LICENSE-miniz.txt."
     echo
-    echo "Aion bundles these libraries. Each is the Fedora MinGW build named next to it; its"
+    echo "Liora bundles these libraries. Each is the Fedora MinGW build named next to it; its"
     echo "source is available from Fedora (https://src.fedoraproject.org/rpms/<package>) and"
     echo "its license applies to that file. Qt is used under the LGPL version 3 (LICENSE-LGPL.txt,"
     echo "which adds to the GPL in LICENSE.txt)."

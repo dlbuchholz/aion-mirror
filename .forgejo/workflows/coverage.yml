@@ -47,7 +47,7 @@ jobs:
         if: steps.plan.outputs.run == 'true'
         run: |
           command -v gcovr > /dev/null || dnf -y -q install gcovr
-          cmake -S . -B build-coverage -G Ninja -DCMAKE_BUILD_TYPE=Debug -DAION_COVERAGE=ON
+          cmake -S . -B build-coverage -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLIORA_COVERAGE=ON
 
       - name: Build
         if: steps.plan.outputs.run == 'true'
@@ -69,8 +69,8 @@ jobs:
             git checkout -- COVERAGE.md docs/coverage-badge.svg
             exit 0
           fi
-          git config user.name "Aion CI"
-          git config user.email "ci@aion.invalid"
+          git config user.name "Liora CI"
+          git config user.email "ci@liora.invalid"
           git add COVERAGE.md docs/coverage-badge.svg
           git commit -m "docs: update test coverage"
           git push origin HEAD:develop

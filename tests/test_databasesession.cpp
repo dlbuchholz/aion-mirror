@@ -62,7 +62,7 @@ private slots:
         QCOMPARE(userCount(), 1);
     }
 
-    void rejectsFilesThatAreNotAionDatabases() {
+    void rejectsFilesThatAreNotLioraDatabases() {
         // Plain text file
         QFile text(path("notes.db"));
         QVERIFY(text.open(QIODevice::WriteOnly));

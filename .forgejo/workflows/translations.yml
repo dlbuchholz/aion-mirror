@@ -43,7 +43,7 @@ jobs:
             echo "The translation status didn't change"
             exit 0
           fi
-          git config user.name "Aion CI"
-          git config user.email "ci@aion.invalid"
+          git config user.name "Liora CI"
+          git config user.email "ci@liora.invalid"
           git commit -m "docs: update translation status"
           git push origin HEAD:develop

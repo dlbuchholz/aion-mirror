@@ -49,7 +49,7 @@ private slots:
 
     void reportListsBuildAndDatabaseDetails() {
         // Database inside the home folder, so the report must mask its path
-        TestFolder dir(QDir::homePath() + "/aion-systeminfo-XXXXXX");
+        TestFolder dir(QDir::homePath() + "/liora-systeminfo-XXXXXX");
         QVERIFY(dir.isValid());
         QVERIFY(DatabaseSession::create(dir.filePath("report.db")));
 

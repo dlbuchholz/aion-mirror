@@ -5,10 +5,10 @@
 #include <QLocale>
 #include <QString>
 
-// The language of Aion's texts. English is written in the code; the others come from
-// translations/aion_<code>.ts, built into the program (:/i18n/aion_<code>.qm), together with Qt's
+// The language of Liora's texts. English is written in the code; the others come from
+// translations/liora_<code>.ts, built into the program (:/i18n/liora_<code>.qm), together with Qt's
 // own texts (standard buttons) when that build had them. Set once at start: a change in the
-// settings takes effect when Aion starts again.
+// settings takes effect when Liora starts again.
 namespace Language {
 
 // The stored setting that follows the system's language
@@ -19,18 +19,18 @@ struct Option {
     QString nativeName;     // In its own language, "Deutsch", so it can be found in any language
 };
 
-// The languages Aion can show, English first
+// The languages Liora can show, English first
 QList<Option> available();
 
-// Whether Aion can show a language: English always, the others only when this build has the
+// Whether Liora can show a language: English always, the others only when this build has the
 // translations (built with Qt's LinguistTools). One it can't show isn't offered or followed.
 bool isBuiltIn(const QString& code);
 
 // The language for a stored setting: the one chosen, or for "system" (or anything unknown) the
-// first of the system's display languages that Aion has, else English
+// first of the system's display languages that Liora has, else English
 QString resolve(const QString& setting, const QLocale& system = QLocale::system());
 
-// Shows Aion's texts in this language from now on. English, or a language without
+// Shows Liora's texts in this language from now on. English, or a language without
 // translations, removes them. Returns whether the language is now active.
 bool install(const QString& code);
 
@@ -38,8 +38,8 @@ bool install(const QString& code);
 QString current();
 
 // How much of a language is translated, in whole percent rounded down, so only a complete
-// translation is 100: English always, a language Aion doesn't have 0. Counted from its .ts file
-// when Aion was built. Untranslated texts show in English.
+// translation is 100: English always, a language Liora doesn't have 0. Counted from its .ts file
+// when Liora was built. Untranslated texts show in English.
 int percentTranslated(const QString& code);
 
 // The same from a list of counts, one per language
@@ -53,13 +53,13 @@ int percentTranslated(const QString& code, const QList<Progress>& progress);
 // The share in whole percent, rounded down; 0 when there's nothing to translate
 int percentOf(int translated, int total);
 
-// Starts Aion again with the same arguments and quits this one. Returns false, and leaves this
+// Starts Liora again with the same arguments and quits this one. Returns false, and leaves this
 // one open, when it couldn't be started.
 bool restartApplication();
 
-// The program that starts Aion again: the running one, or the AppImage file when it runs from
+// The program that starts Liora again: the running one, or the AppImage file when it runs from
 // inside one (the AppImage sets APPIMAGE and APPDIR; its mounted program goes when it ends).
-// Only when the program is in that APPDIR: both are inherited from an AppImage that started Aion.
+// Only when the program is in that APPDIR: both are inherited from an AppImage that started Liora.
 QString restartProgram(const QString& applicationFilePath, const QString& appImage, const QString& appDir);
 
 } // namespace Language

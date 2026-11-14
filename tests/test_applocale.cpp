@@ -65,7 +65,7 @@ private slots:
 
     void followsTheInstalledLanguage() {
         QCOMPARE(AppLocale::date(date, F::DayMonth), QString("5 September"));
-#ifndef AION_HAS_TRANSLATIONS
+#ifndef APP_HAS_TRANSLATIONS
         QSKIP("Built without Qt's LinguistTools");
 #endif
         QVERIFY(Language::install("de"));

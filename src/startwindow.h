@@ -12,7 +12,7 @@ class QLineEdit;
 class QMenu;
 class QToolButton;
 
-// First window: pick the database file and who is using Aion, or add a new user
+// First window: pick the database file and who is using Liora, or add a new user
 class StartWindow : public QDialog {
     Q_OBJECT
 

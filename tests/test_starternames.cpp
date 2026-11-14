@@ -184,7 +184,7 @@ private slots:
         TestFolder folder;
         QVERIFY(TestDbFixture::createAtVersion(folder.filePath("older.db"), 1));
         QSqlQuery query(DatabaseManager::instance().database());
-        // A user of Aion 0.1 who renamed Rent and added Car and a type of their own
+        // A user of Liora 0.1 who renamed Rent and added Car and a type of their own
         for (const char* sql : {
                  "INSERT INTO users (id, username, name) VALUES (1, 'anna', 'Anna')",
                  "INSERT INTO account_types (user_id, name) VALUES (1, 'Checking'), (1, 'Savings'), (1, 'Investment'), "

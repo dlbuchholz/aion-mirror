@@ -9,7 +9,7 @@ class TestCommandLine : public QObject {
 
     static int run(const QStringList& options, QString* output) {
         QTextStream out(output);
-        return CommandLine::handle(QStringList{"Aion"} + options, out);
+        return CommandLine::handle(QStringList{"Liora"} + options, out);
     }
 
 private slots:
@@ -36,7 +36,7 @@ private slots:
     }
 
     void unknownOptionsDontStopTheStart() {
-        // Qt's own options, or a typo, start Aion as usual
+        // Qt's own options, or a typo, start Liora as usual
         QString output;
         QCOMPARE(run({"-style", "fusion"}, &output), -1);
         QCOMPARE(run({"--poggers"}, &output), -1);

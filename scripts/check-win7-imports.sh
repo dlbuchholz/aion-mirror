@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks that a packaged Aion for Windows 7/8 finds every Windows function it calls on Windows 7.
+# Checks that a packaged Liora for Windows 7/8 finds every Windows function it calls on Windows 7.
 #
 #   scripts/check-win7-imports.sh <package-dir>
 #
@@ -38,7 +38,7 @@ while read -r file; do
         }'
 done < <(find "$package" -type f \( -iname '*.exe' -o -iname '*.dll' \) | sort) > "$imports"
 
-# Aion.exe imports from Windows at least, so finding nothing means objdump's output wasn't understood
+# Liora.exe imports from Windows at least, so finding nothing means objdump's output wasn't understood
 if [[ ! -s $imports ]]; then
     echo "Found no imports in $package: did objdump's output change?" >&2
     exit 1

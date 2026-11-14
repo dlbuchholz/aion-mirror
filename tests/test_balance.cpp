@@ -303,7 +303,7 @@ private slots:
     void importDialogSaysWhenAFileCantBeOpened() {
         ImportManagerDialog dialog(1);
         showOnScreen(dialog);
-        dialog.loadFile(QDir::temp().filePath("no-such-file-for-aion.csv"));
+        dialog.loadFile(QDir::temp().filePath("no-such-file-for-liora.csv"));
         bool said = false;
         for (QLabel* label : dialog.findChildren<QLabel*>()) {
             said = said || label->text().startsWith("The file couldn't be opened");
@@ -882,7 +882,7 @@ private slots:
         QVERIFY2(before.startsWith(QString(APP_NAME) + " already shows " + Settings::instance().formatCurrency(500) + " more than your bank on that day. "
                                    "This file adds nothing"), qPrintable(before));
         auto* expected = dialog.findChild<QLineEdit*>("expectedBalanceEdit");
-        expected->setText(Settings::instance().formatCurrency(97380 + 100));      // 968,80 + 5,00 in Aion; the bank has 1,00 more
+        expected->setText(Settings::instance().formatCurrency(97380 + 100));      // 968,80 + 5,00 in Liora; the bank has 1,00 more
         emit expected->textEdited(expected->text());
         const QString after = dialog.findChild<QLabel*>("balanceStatusLabel")->text();
         QVERIFY2(after.startsWith(QString(APP_NAME) + " already shows " + Settings::instance().formatCurrency(100) + " less"), qPrintable(after));
