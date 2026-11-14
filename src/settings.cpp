@@ -1,11 +1,12 @@
 #include "settings.h"
+#include "appname.h"
 #include "db/databasemanager.h"
 #include <QLocale>
 #include <QSqlError>
 #include <QSqlQuery>
 
 Settings:: Settings()
-    : settings(QSettings::defaultFormat(), QSettings::UserScope, "LeineHive", "Aion") {
+    : settings(QSettings::defaultFormat(), QSettings::UserScope, APP_ORGANIZATION, APP_NAME) {
     // settings(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/settings.ini",
     //           QSettings::IniFormat)
     qDebug() << "Settings file location:" << settings.fileName();

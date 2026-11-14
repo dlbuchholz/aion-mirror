@@ -5,6 +5,7 @@
 #include "db/databasesession.h"
 #include "icons.h"
 #include "language.h"
+#include "namemigration.h"
 #include "startwindow.h"
 #include "settings.h"
 #include "theme.h"
@@ -13,11 +14,32 @@
 #include "version.h"
 #include <QApplication>
 #include <QFileInfo>
+#include <QSettings>
 #include <QStyleHints>
 #include <QTextStream>
 #include <QMessageBox>
 #include <cstdlib>
 #include <functional>
+
+// Data and settings from the program's earlier name, the first time it starts under this one.
+// Returns false when copying them failed: then nothing may save settings, or the next start
+// would take the new name as used already and not try again.
+static bool carryOverFromPreviousName() {
+    QString error;
+    if (NameMigration::carryOver(NameMigration::standardPlaces(), &error) != NameMigration::Outcome::Failed) {
+        return true;
+    }
+    qCritical() << "Couldn't carry over the data of" << NameMigration::PreviousName << ":" << error;
+    // The language from the old settings: Settings would save its defaults in the new ones
+    const QSettings previous(QSettings::defaultFormat(), QSettings::UserScope, APP_ORGANIZATION, NameMigration::PreviousName);
+    Language::install(Language::resolve(previous.value("app/language", "system").toString()));
+    QMessageBox::critical(nullptr, APP_NAME,
+                          QCoreApplication::translate("NameMigration", "%1 was called %2 before, and couldn't take over "
+                                                                       "your data and settings from it. %3\n\nNothing was "
+                                                                       "changed or lost. Start %1 again to try once more.")
+                              .arg(APP_NAME, NameMigration::PreviousName, error));
+    return false;
+}
 
 // Opens the database for this start and says so if it isn't the one used last time
 static bool openStartupDatabase() {
@@ -47,7 +69,8 @@ static int rememberedUserId() {
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    // Only the version: setting the application/organization name would move the AppData folder
+    // The app data folder is named after the application (no organization, so it's just the name)
+    QApplication::setApplicationName(APP_NAME);
     QApplication::setApplicationVersion(APP_VERSION);
 
     // --version and --help, before anything opens a database
@@ -57,6 +80,11 @@ int main(int argc, char *argv[])
     QTextStream out(stdout);
     if (const int exitCode = CommandLine::handle(QApplication::arguments(), out); exitCode >= 0) {
         return exitCode;
+    }
+
+    // Before anything reads the settings or opens the default database
+    if (!carryOverFromPreviousName()) {
+        return EXIT_FAILURE;
     }
 
     // The language of the texts, before the first window or message (the command line stays English)

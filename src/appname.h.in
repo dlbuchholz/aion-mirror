@@ -7,4 +7,7 @@
 // files that only show the name.
 #define APP_NAME "@PROJECT_NAME@"
 
+// QSettings' organization. Not set on the application, so the app data folder is just APP_NAME.
+#define APP_ORGANIZATION "LeineHive"
+
 #endif // APPNAME_H

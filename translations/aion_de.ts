@@ -2189,6 +2189,17 @@ So wird nichts importiert. Prüfe die Spalten, oder geh zurück und wähle unter
     </message>
 </context>
 <context>
+    <name>NameMigration</name>
+    <message>
+        <source>%1 was called %2 before, and couldn&apos;t take over your data and settings from it. %3
+
+Nothing was changed or lost. Start %1 again to try once more.</source>
+        <translation>%1 hieß früher %2 und konnte deine Daten und Einstellungen von dort nicht übernehmen. %3
+
+Es wurde nichts verändert und nichts geht verloren. Starte %1 noch einmal, um es erneut zu versuchen.</translation>
+    </message>
+</context>
+<context>
     <name>PeriodMenu</name>
     <message>
         <source>All time</source>
